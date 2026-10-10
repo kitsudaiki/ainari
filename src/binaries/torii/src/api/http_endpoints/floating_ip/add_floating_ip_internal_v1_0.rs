@@ -18,8 +18,8 @@ use apistos::api_operation;
 use uuid::Uuid;
 use validator::Validate;
 
+use crate::core::ebpf_interface::EBPF_INTERFACE_HANDLE;
 use crate::core::floating_ip::add_floating_ip;
-use crate::core::routing_interface::GATEWAY_STATE_HANDLE;
 use crate::core::utils::validate_vni;
 use crate::database::floating_ip_table;
 
@@ -59,7 +59,7 @@ pub async fn register_floating_ip_internal(
     let uuid = Uuid::new_v4();
 
     {
-        let mut state = GATEWAY_STATE_HANDLE.lock().await;
+        let mut state = EBPF_INTERFACE_HANDLE.lock().await;
         // the floating ip is persisted, so it is restored after a restart of the gateway. If that
         // fails, it is removed from the datapath again.
         add_floating_ip(

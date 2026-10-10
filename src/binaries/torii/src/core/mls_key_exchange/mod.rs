@@ -42,10 +42,10 @@ pub mod state;
 use openmls::prelude::*;
 
 use crate::config::{CONFIG, INTERNAL_API_KEY};
-use crate::core::mls::group::OutgoingMessage;
-use crate::core::mls::state::{MLS_STATE_HANDLE, MlsState};
-use crate::core::routing_interface::GATEWAY_STATE_HANDLE;
-use crate::core::state::GatewayState;
+use crate::core::ebpf_interface::EBPF_INTERFACE_HANDLE;
+use crate::core::ebpf_interface::EBPFInterface;
+use crate::core::mls_key_exchange::group::OutgoingMessage;
+use crate::core::mls_key_exchange::state::{MLS_STATE_HANDLE, MlsState};
 
 use ainari_api_structs::mls_structs::MlsMessageReq;
 use ainari_clients::endpoints::get_endpoints;
@@ -142,11 +142,11 @@ pub async fn deliver_and_merge(
 ///
 /// # Arguments
 /// * `mls` - The locked MLS-client
-/// * `st` - The locked gateway state
+/// * `ebpf_interf` - The locked gateway state
 /// * `vni` - Tenant of the network
-pub fn apply_keys(mls: &MlsState, st: &mut GatewayState, vni: u32) {
+pub fn apply_keys(mls: &MlsState, ebpf_interf: &mut EBPFInterface, vni: u32) {
     let keys = mls.network_keys.get(&vni);
-    if let Err(e) = keys::apply_network_keys(st, keys, mls.provider.crypto(), vni) {
+    if let Err(e) = keys::apply_network_keys(ebpf_interf, keys, mls.provider.crypto(), vni) {
         log::error!("Failed to apply the keys of tenant {vni}: {e}");
     }
 }
@@ -158,15 +158,15 @@ pub fn apply_keys(mls: &MlsState, st: &mut GatewayState, vni: u32) {
 /// * `vni` - Tenant of the network
 pub async fn refresh_network_keys(vni: u32) {
     let mls = MLS_STATE_HANDLE.lock().await;
-    let mut st = GATEWAY_STATE_HANDLE.lock().await;
-    apply_keys(&mls, &mut st, vni);
+    let mut ebpf_interf = EBPF_INTERFACE_HANDLE.lock().await;
+    apply_keys(&mls, &mut ebpf_interf, vni);
 }
 
 /// Installs the keys of all groups again after a restart of the gateway.
 pub async fn restore_network_keys() {
     let mls = MLS_STATE_HANDLE.lock().await;
-    let mut st = GATEWAY_STATE_HANDLE.lock().await;
+    let mut ebpf_interf = EBPF_INTERFACE_HANDLE.lock().await;
     for vni in mls.network_keys.keys() {
-        apply_keys(&mls, &mut st, *vni);
+        apply_keys(&mls, &mut ebpf_interf, *vni);
     }
 }

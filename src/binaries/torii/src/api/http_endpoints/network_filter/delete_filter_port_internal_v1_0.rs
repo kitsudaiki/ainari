@@ -16,9 +16,9 @@ use actix_web::web::{Json, Path};
 use apistos::api_operation;
 use validator::Validate;
 
+use crate::core::ebpf_interface::EBPF_INTERFACE_HANDLE;
 use crate::core::filter::{apply_filter, filter_resp, filter_slot, persist_filter};
 use crate::core::models::FilterKey;
-use crate::core::routing_interface::GATEWAY_STATE_HANDLE;
 use crate::database::network_filter_table;
 
 use ainari_api::common_functions::{map_db_write_error, map_internal_error};
@@ -54,10 +54,10 @@ pub async fn delete_filter_port_internal(
         return Err(ErrorResponse::BadRequest("No port given".to_string()));
     }
 
-    let mut st = GATEWAY_STATE_HANDLE.lock().await;
-    let slot = filter_slot(&st, &key).map_err(ErrorResponse::NotFound)?;
+    let mut ebpf_interf = EBPF_INTERFACE_HANDLE.lock().await;
+    let slot = filter_slot(&ebpf_interf, &key).map_err(ErrorResponse::NotFound)?;
 
-    let previous = st.filters.get(&key).cloned().unwrap_or_default();
+    let previous = ebpf_interf.filters.get(&key).cloned().unwrap_or_default();
     let mut rules = previous.clone();
     let before = rules.ports.len();
     rules.ports.retain(|existing| {
@@ -68,17 +68,17 @@ pub async fn delete_filter_port_internal(
     });
     let removed = before - rules.ports.len();
 
-    apply_filter(&mut st, key, slot, rules)
+    apply_filter(&mut ebpf_interf, key, slot, rules)
         .map_err(|e| map_internal_error("apply packet-filter", e))?;
 
     // persist the new include-lists, so they are restored after a restart of the gateway. If
     // that fails, the previous include-lists are applied again.
-    persist_filter(&mut st, key, slot, previous, |rules| {
+    persist_filter(&mut ebpf_interf, key, slot, previous, |rules| {
         network_filter_table::set_filter_rules(&key, rules, &context)
             .map_err(|e| map_db_write_error("persist packet-filter", e))
     })?;
 
-    let resp = filter_resp(&st, key);
+    let resp = filter_resp(&ebpf_interf, key);
     let remaining = resp.filter.ports.len();
     if remaining == 0 {
         log::debug!(

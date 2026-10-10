@@ -21,9 +21,9 @@ use aya::programs::{SchedClassifier, Xdp, XdpMode};
 use std::net::Ipv4Addr;
 
 use crate::config::CONFIG;
+use crate::core::ebpf_interface::EBPF_INTERFACE_HANDLE;
+use crate::core::ebpf_interface::EBPFInterface;
 use crate::core::models::{ArpProxyPod, IfaceConfigPod, TapInfo};
-use crate::core::routing_interface::GATEWAY_STATE_HANDLE;
-use crate::core::state::GatewayState;
 use crate::core::utils::{
     bind_iface_to_table, enable_forwarding, exempt_from_rp_filter, get_ifindex, get_mac_address,
     is_iface_up, parse_mac, run_ip, unbind_iface_from_table, with_table,
@@ -94,9 +94,9 @@ pub async fn configure_interface(
         flags,
     };
     let result = {
-        let mut st = GATEWAY_STATE_HANDLE.lock().await;
-        let previous_cfg = st.iface_map.get(&ifindex, 0).ok();
-        let result = st
+        let mut ebpf_interf = EBPF_INTERFACE_HANDLE.lock().await;
+        let previous_cfg = ebpf_interf.iface_map.get(&ifindex, 0).ok();
+        let result = ebpf_interf
             .iface_map
             .insert(ifindex, IfaceConfigPod(cfg), 0)
             .map_err(|e| {
@@ -107,8 +107,8 @@ pub async fn configure_interface(
 
         if result.is_err() {
             let reverted = match previous_cfg {
-                Some(previous_cfg) => st.iface_map.insert(ifindex, previous_cfg, 0),
-                None => st.iface_map.remove(&ifindex),
+                Some(previous_cfg) => ebpf_interf.iface_map.insert(ifindex, previous_cfg, 0),
+                None => ebpf_interf.iface_map.remove(&ifindex),
             };
             if let Err(e) = reverted {
                 log::error!("Failed to restore the interface map entry of '{name}': {e}");
@@ -168,7 +168,7 @@ pub async fn register_tap(req: &TapReq) -> Result<(), ErrorResponse> {
     // rule with it, or the kernel would keep sending the traffic of this link into
     // the table of the tenant it just left.
     let previous_vni = {
-        GATEWAY_STATE_HANDLE
+        EBPF_INTERFACE_HANDLE
             .lock()
             .await
             .taps
@@ -263,7 +263,7 @@ pub async fn register_tap(req: &TapReq) -> Result<(), ErrorResponse> {
     }
 
     {
-        let mut st = GATEWAY_STATE_HANDLE.lock().await;
+        let mut ebpf_interf = EBPF_INTERFACE_HANDLE.lock().await;
 
         // Teach the XDP ARP responder to serve this link. Answers carry the MAC
         // of the TAP itself, which becomes the gateway MAC of the attached VM.
@@ -272,7 +272,7 @@ pub async fn register_tap(req: &TapReq) -> Result<(), ErrorResponse> {
             _pad: [0; 2],
             vm_ip,
         };
-        if st
+        if ebpf_interf
             .arp_proxy_map
             .insert(ifindex, ArpProxyPod(proxy), 0)
             .is_err()
@@ -287,7 +287,7 @@ pub async fn register_tap(req: &TapReq) -> Result<(), ErrorResponse> {
             vni: req.vni,
             flags: 0,
         };
-        if st
+        if ebpf_interf
             .iface_map
             .insert(ifindex, IfaceConfigPod(cfg), 0)
             .is_err()
@@ -296,7 +296,7 @@ pub async fn register_tap(req: &TapReq) -> Result<(), ErrorResponse> {
             return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
 
-        st.taps.insert(
+        ebpf_interf.taps.insert(
             name.to_string(),
             TapInfo {
                 vni: req.vni,
@@ -315,9 +315,9 @@ pub async fn register_tap(req: &TapReq) -> Result<(), ErrorResponse> {
     // logged - the interesting case is the one that would otherwise leave a port
     // of a tenant silently unprogrammed.
     {
-        let mut st = GATEWAY_STATE_HANDLE.lock().await;
+        let mut ebpf_interf = EBPF_INTERFACE_HANDLE.lock().await;
         let mut link_id = None;
-        if let Some(program) = st.bpf.program_mut("overlay_ingress") {
+        if let Some(program) = ebpf_interf.bpf.program_mut("overlay_ingress") {
             // Provide explicit type inference to TryInto
             let overlay_prog: Result<&mut Xdp, _> = program.try_into();
 
@@ -339,19 +339,19 @@ pub async fn register_tap(req: &TapReq) -> Result<(), ErrorResponse> {
         }
         // the link is kept, so the program can be detached again on a rollback
         if let Some(link_id) = link_id {
-            st.tap_xdp_links.insert(name.to_string(), link_id);
+            ebpf_interf.tap_xdp_links.insert(name.to_string(), link_id);
         }
 
         // Decrypted IPsec traffic is routed into the TAP device by the kernel and never passes
         // the XDP programs, so the ingress filter of the VM is applied to it on the egress of
         // the device. A registered device already has the program, and a second one would only
         // check every packet twice.
-        if !st.tap_tc_links.contains_key(name.as_str()) {
-            let link_id = attach_tap_egress(&mut st, name).map_err(|e| {
+        if !ebpf_interf.tap_tc_links.contains_key(name.as_str()) {
+            let link_id = attach_tap_egress(&mut ebpf_interf, name).map_err(|e| {
                 log::error!("Failed to attach tap_egress to '{name}': {e}");
                 ErrorResponse::InternalError("Internal Error".to_string())
             })?;
-            st.tap_tc_links.insert(name.to_string(), link_id);
+            ebpf_interf.tap_tc_links.insert(name.to_string(), link_id);
         }
     }
 
@@ -378,17 +378,17 @@ pub async fn unregister_tap(req: &TapReq, delete_device: bool) {
     }
 
     {
-        let mut st = GATEWAY_STATE_HANDLE.lock().await;
+        let mut ebpf_interf = EBPF_INTERFACE_HANDLE.lock().await;
         if ifindex != 0 {
-            let _ = st.arp_proxy_map.remove(&ifindex);
-            let _ = st.iface_map.remove(&ifindex);
+            let _ = ebpf_interf.arp_proxy_map.remove(&ifindex);
+            let _ = ebpf_interf.iface_map.remove(&ifindex);
         }
-        st.taps.remove(name.as_str());
+        ebpf_interf.taps.remove(name.as_str());
 
         // Without its registration the device would act as a port of the shared tenant, so the
         // overlay program is detached again.
-        if let Some(link_id) = st.tap_xdp_links.remove(name.as_str())
-            && let Some(program) = st.bpf.program_mut("overlay_ingress")
+        if let Some(link_id) = ebpf_interf.tap_xdp_links.remove(name.as_str())
+            && let Some(program) = ebpf_interf.bpf.program_mut("overlay_ingress")
         {
             let overlay_prog: Result<&mut Xdp, _> = program.try_into();
             if let Ok(overlay) = overlay_prog
@@ -400,9 +400,9 @@ pub async fn unregister_tap(req: &TapReq, delete_device: bool) {
     }
 
     {
-        let mut st = GATEWAY_STATE_HANDLE.lock().await;
-        if let Some(link_id) = st.tap_tc_links.remove(name.as_str())
-            && let Some(program) = st.bpf.program_mut("tap_egress")
+        let mut ebpf_interf = EBPF_INTERFACE_HANDLE.lock().await;
+        if let Some(link_id) = ebpf_interf.tap_tc_links.remove(name.as_str())
+            && let Some(program) = ebpf_interf.bpf.program_mut("tap_egress")
         {
             let tap_egress: Result<&mut SchedClassifier, _> = program.try_into();
             if let Ok(tap_egress) = tap_egress
@@ -425,18 +425,18 @@ pub async fn unregister_tap(req: &TapReq, delete_device: bool) {
 /// is ignored. The attach itself reports, if the program can't be attached at all.
 ///
 /// # Arguments
-/// * `st` - The locked gateway state, which holds the loaded program
+/// * `ebpf_interf` - The locked gateway state, which holds the loaded program
 /// * `name` - Name of the TAP device
 ///
 /// # Returns
 /// The id of the new link, or a message describing why the program couldn't be attached
 fn attach_tap_egress(
-    st: &mut GatewayState,
+    ebpf_interf: &mut EBPFInterface,
     name: &str,
 ) -> Result<aya::programs::tc::SchedClassifierLinkId, String> {
     let _ = qdisc_add_clsact(name);
 
-    let program = st
+    let program = ebpf_interf
         .bpf
         .program_mut("tap_egress")
         .ok_or_else(|| "program tap_egress not found".to_string())?;

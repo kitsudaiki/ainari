@@ -47,9 +47,9 @@ use crate::config::CONFIG;
 use crate::core::crypto::{
     apply_connection_policies, install_sa, remove_connection_policies, remove_sa,
 };
-use crate::core::mls::state::NetworkKeys;
+use crate::core::ebpf_interface::EBPFInterface;
+use crate::core::mls_key_exchange::state::NetworkKeys;
 use crate::core::models::{Connection, CryptoKey, Route, TapInfo};
-use crate::core::state::GatewayState;
 use crate::core::utils::{bind_connection_to_table, get_local_ip, unbind_connection_from_table};
 
 use ainari_api_structs::network_crypto_structs::CryptoDirection;
@@ -298,7 +298,7 @@ pub fn stale_keys(
 /// A single connection, which fails, doesn't stop the others.
 ///
 /// # Arguments
-/// * `st` - The locked gateway state
+/// * `ebpf_interf` - The locked gateway state
 /// * `keys` - The epochs of the network, or `None` if the gateway is not a member of its group
 /// * `crypto` - Crypto-provider of the MLS-client
 /// * `vni` - Tenant of the network
@@ -306,17 +306,17 @@ pub fn stale_keys(
 /// # Returns
 /// `Ok(())` if all keys are in place, otherwise the collected errors
 pub fn apply_network_keys(
-    st: &mut GatewayState,
+    ebpf_interf: &mut EBPFInterface,
     keys: Option<&NetworkKeys>,
     crypto: &impl OpenMlsCrypto,
     vni: u32,
 ) -> Result<(), String> {
     let connections = match keys {
-        Some(_) => desired_connections(&st.routes, &st.taps, vni),
+        Some(_) => desired_connections(&ebpf_interf.routes, &ebpf_interf.taps, vni),
         None => Vec::new(),
     };
-    let has_state = st.crypto_keys.values().any(|key| key.vni == vni)
-        || st.connections.values().any(|conn| conn.vni == vni);
+    let has_state = ebpf_interf.crypto_keys.values().any(|key| key.vni == vni)
+        || ebpf_interf.connections.values().any(|conn| conn.vni == vni);
     if connections.is_empty() && !has_state {
         return Ok(());
     }
@@ -335,7 +335,7 @@ pub fn apply_network_keys(
         .iter()
         .filter(|desired| desired.direction == CryptoDirection::Ingress)
     {
-        if let Err(e) = install_key(st, vni, desired, local_gateway_ip) {
+        if let Err(e) = install_key(ebpf_interf, vni, desired, local_gateway_ip) {
             errors.push(e);
         }
     }
@@ -345,8 +345,8 @@ pub fn apply_network_keys(
         .iter()
         .filter(|desired| desired.direction == CryptoDirection::Egress)
     {
-        let result = install_key(st, vni, desired, local_gateway_ip)
-            .and_then(|()| activate_egress_key(st, vni, desired, local_gateway_ip));
+        let result = install_key(ebpf_interf, vni, desired, local_gateway_ip)
+            .and_then(|()| activate_egress_key(ebpf_interf, vni, desired, local_gateway_ip));
         if let Err(e) = result {
             errors.push(e);
         }
@@ -359,7 +359,8 @@ pub fn apply_network_keys(
         .map(|desired| (desired.direction, desired.sa.spi))
         .collect();
     keep.extend(
-        st.connections
+        ebpf_interf
+            .connections
             .values()
             .filter(|conn| conn.vni == vni)
             .map(|conn| (CryptoDirection::Egress, conn.active_egress_spi)),
@@ -369,7 +370,7 @@ pub fn apply_network_keys(
         .map(|conn| (conn.local_ip, conn.remote_ip))
         .collect();
 
-    let stale_connections: Vec<String> = st
+    let stale_connections: Vec<String> = ebpf_interf
         .connections
         .iter()
         .filter(|(_, conn)| {
@@ -378,7 +379,7 @@ pub fn apply_network_keys(
         .map(|(conn_id, _)| conn_id.clone())
         .collect();
     for conn_id in stale_connections {
-        if let Some(conn) = st.connections.remove(&conn_id) {
+        if let Some(conn) = ebpf_interf.connections.remove(&conn_id) {
             remove_connection_policies(&conn);
             unbind_connection_from_table(
                 conn.local_ip,
@@ -389,8 +390,8 @@ pub fn apply_network_keys(
         }
     }
 
-    for (direction, spi) in stale_keys(&st.crypto_keys, vni, &keep) {
-        let Some(key) = st.crypto_keys.remove(&(direction, spi)) else {
+    for (direction, spi) in stale_keys(&ebpf_interf.crypto_keys, vni, &keep) {
+        let Some(key) = ebpf_interf.crypto_keys.remove(&(direction, spi)) else {
             continue;
         };
         let (src, dst) = match direction {
@@ -424,7 +425,7 @@ pub fn apply_network_keys(
 /// Installs one key, if it isn't installed already.
 ///
 /// # Arguments
-/// * `st` - The locked gateway state
+/// * `ebpf_interf` - The locked gateway state
 /// * `vni` - Tenant of the network
 /// * `desired` - The key
 /// * `local_gateway_ip` - Underlay address of this gateway
@@ -433,7 +434,7 @@ pub fn apply_network_keys(
 /// `Ok(())` once the key is installed, or an error, if the kernel refused it or its SPI is used
 /// by another connection
 fn install_key(
-    st: &mut GatewayState,
+    ebpf_interf: &mut EBPFInterface,
     vni: u32,
     desired: &DesiredSa,
     local_gateway_ip: Ipv4Addr,
@@ -441,7 +442,7 @@ fn install_key(
     let conn = &desired.conn;
     let spi = desired.sa.spi;
 
-    if let Some(existing) = st.crypto_keys.get(&(desired.direction, spi)) {
+    if let Some(existing) = ebpf_interf.crypto_keys.get(&(desired.direction, spi)) {
         let same_connection = existing.vni == vni
             && existing.local_ip == conn.local_ip
             && existing.remote_ip == conn.remote_ip
@@ -477,7 +478,7 @@ fn install_key(
         )?,
     }
 
-    st.crypto_keys.insert(
+    ebpf_interf.crypto_keys.insert(
         (desired.direction, spi),
         CryptoKey {
             direction: desired.direction,
@@ -498,7 +499,7 @@ fn install_key(
 /// without a change doesn't touch the kernel.
 ///
 /// # Arguments
-/// * `st` - The locked gateway state
+/// * `ebpf_interf` - The locked gateway state
 /// * `vni` - Tenant of the network
 /// * `desired` - The outgoing key of the connection
 /// * `local_gateway_ip` - Underlay address of this gateway
@@ -506,7 +507,7 @@ fn install_key(
 /// # Returns
 /// `Ok(())` once the policies point at the key
 fn activate_egress_key(
-    st: &mut GatewayState,
+    ebpf_interf: &mut EBPFInterface,
     vni: u32,
     desired: &DesiredSa,
     local_gateway_ip: Ipv4Addr,
@@ -521,14 +522,17 @@ fn activate_egress_key(
         active_egress_spi: desired.sa.spi,
     };
 
-    let unchanged = st.connections.get(&conn_id).is_some_and(|existing| {
-        existing.active_egress_spi == connection.active_egress_spi
-            && existing.peer_gateway_ip == connection.peer_gateway_ip
-    });
+    let unchanged = ebpf_interf
+        .connections
+        .get(&conn_id)
+        .is_some_and(|existing| {
+            existing.active_egress_spi == connection.active_egress_spi
+                && existing.peer_gateway_ip == connection.peer_gateway_ip
+        });
     if !unchanged {
         // a new connection needs its rules first, so the first packet, which it decrypts, finds
         // the VM instead of the default route
-        if !st.connections.contains_key(&conn_id) {
+        if !ebpf_interf.connections.contains_key(&conn_id) {
             bind_connection_to_table(
                 conn.local_ip,
                 conn.remote_ip,
@@ -536,7 +540,7 @@ fn activate_egress_key(
             )?;
         }
         apply_connection_policies(&connection, local_gateway_ip)?;
-        st.connections.insert(conn_id, connection);
+        ebpf_interf.connections.insert(conn_id, connection);
     }
     Ok(())
 }
@@ -548,8 +552,8 @@ mod tests {
 
     use openmls_rust_crypto::RustCrypto;
 
-    use crate::core::mls::group::create_group;
-    use crate::core::mls::group::tests::{invite, new_gateway};
+    use crate::core::mls_key_exchange::group::create_group;
+    use crate::core::mls_key_exchange::group::tests::{invite, new_gateway};
 
     fn ip(last: u8) -> Ipv4Addr {
         Ipv4Addr::new(192, 168, 0, last)

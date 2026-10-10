@@ -16,8 +16,8 @@ use actix_web::web::Path;
 use apistos::actix::NoContent;
 use apistos::api_operation;
 
+use crate::core::ebpf_interface::EBPF_INTERFACE_HANDLE;
 use crate::core::floating_ip::remove_floating_ip;
-use crate::core::routing_interface::GATEWAY_STATE_HANDLE;
 use crate::database::floating_ip_table;
 
 use ainari_api::common_functions::permission_denied_response;
@@ -45,7 +45,7 @@ pub async fn delete_floating_ip_internal(
     let floating_ip = floating_ip.into_inner().ip;
 
     {
-        let mut state = GATEWAY_STATE_HANDLE.lock().await;
+        let mut state = EBPF_INTERFACE_HANDLE.lock().await;
         if !state.floating_ips.contains_key(&floating_ip) {
             return Err(ErrorResponse::NotFound("Floating IP not found".to_string()));
         }

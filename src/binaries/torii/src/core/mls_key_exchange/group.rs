@@ -23,7 +23,7 @@ use base64::Engine;
 use base64::engine::general_purpose::STANDARD as BASE64;
 use openmls::prelude::{tls_codec::*, *};
 
-use crate::core::mls::state::{
+use crate::core::mls_key_exchange::state::{
     CIPHERSUITE, MlsIdentity, MlsState, group_id_of, identity_of, vni_of,
 };
 

@@ -15,8 +15,8 @@
 use actix_web::web::Json;
 use apistos::api_operation;
 
+use crate::core::ebpf_interface::EBPF_INTERFACE_HANDLE;
 use crate::core::models::Route;
-use crate::core::routing_interface::GATEWAY_STATE_HANDLE;
 
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::route_structs::*;
@@ -32,9 +32,9 @@ use ainari_api_structs::user_context::UserContext;
 pub async fn list_route_internal(
     _context: UserContext,
 ) -> Result<Json<RouteListResp>, ErrorResponse> {
-    let st = GATEWAY_STATE_HANDLE.lock().await;
+    let ebpf_interf = EBPF_INTERFACE_HANDLE.lock().await;
 
-    let mut routes: Vec<Route> = st.routes.values().cloned().collect();
+    let mut routes: Vec<Route> = ebpf_interf.routes.values().cloned().collect();
     routes.sort_by_key(|route| (route.vni, route.dest_ip));
 
     let mut resp = RouteListResp::default();

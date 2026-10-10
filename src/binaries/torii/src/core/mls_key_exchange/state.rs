@@ -33,7 +33,7 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
 
 use crate::config::CONFIG;
-use crate::core::mls::keys::derive_base;
+use crate::core::mls_key_exchange::keys::derive_base;
 use crate::core::utils::get_local_ip;
 use crate::database::mls_storage_table;
 
@@ -680,7 +680,7 @@ mod tests {
     fn the_identity_and_the_groups_survive_a_restore() {
         let mut state = MlsState::new_in_memory();
         state.create_identity("10.0.0.5".to_string()).unwrap();
-        crate::core::mls::group::create_group(&mut state, 7).unwrap();
+        crate::core::mls_key_exchange::group::create_group(&mut state, 7).unwrap();
         state.reset_epochs(7).unwrap();
         state.save().unwrap();
 
@@ -690,7 +690,7 @@ mod tests {
 
         assert_eq!(restored.client_id(), Some("10.0.0.5"));
         assert_eq!(
-            crate::core::mls::group::members(&restored, 7),
+            crate::core::mls_key_exchange::group::members(&restored, 7),
             vec!["10.0.0.5".to_string()]
         );
         let epoch = restored.groups[&7].epoch().as_u64();
@@ -769,7 +769,7 @@ mod tests {
     fn a_new_epoch_is_recorded_without_being_activated() {
         let mut state = MlsState::new_in_memory();
         state.create_identity("10.0.0.5".to_string()).unwrap();
-        crate::core::mls::group::create_group(&mut state, 7).unwrap();
+        crate::core::mls_key_exchange::group::create_group(&mut state, 7).unwrap();
         let first = state.reset_epochs(7).unwrap();
 
         // the group moves into the next epoch, for example by a self-update

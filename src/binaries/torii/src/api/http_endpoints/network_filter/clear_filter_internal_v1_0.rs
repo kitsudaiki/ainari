@@ -15,9 +15,9 @@
 use actix_web::web::{Json, Path};
 use apistos::api_operation;
 
+use crate::core::ebpf_interface::EBPF_INTERFACE_HANDLE;
 use crate::core::filter::{apply_filter, filter_resp, filter_slot, persist_filter};
 use crate::core::models::FilterKey;
-use crate::core::routing_interface::GATEWAY_STATE_HANDLE;
 use crate::database::network_filter_table;
 
 use ainari_api::common_functions::{map_db_write_error, map_internal_error};
@@ -42,16 +42,16 @@ pub async fn clear_filter_internal(
     context: UserContext,
 ) -> Result<Json<FilterResp>, ErrorResponse> {
     let key = FilterKey::from(path.into_inner());
-    let mut st = GATEWAY_STATE_HANDLE.lock().await;
-    let slot = filter_slot(&st, &key).map_err(ErrorResponse::NotFound)?;
+    let mut ebpf_interf = EBPF_INTERFACE_HANDLE.lock().await;
+    let slot = filter_slot(&ebpf_interf, &key).map_err(ErrorResponse::NotFound)?;
 
-    let previous = st.filters.get(&key).cloned().unwrap_or_default();
-    apply_filter(&mut st, key, slot, RouteFilterRules::default())
+    let previous = ebpf_interf.filters.get(&key).cloned().unwrap_or_default();
+    apply_filter(&mut ebpf_interf, key, slot, RouteFilterRules::default())
         .map_err(|e| map_internal_error("clear packet-filter", e))?;
 
     // persist the new include-lists, so they are restored after a restart of the gateway. If
     // that fails, the previous include-lists are applied again.
-    persist_filter(&mut st, key, slot, previous, |rules| {
+    persist_filter(&mut ebpf_interf, key, slot, previous, |rules| {
         network_filter_table::set_filter_rules(&key, rules, &context)
             .map_err(|e| map_db_write_error("persist packet-filter", e))
     })?;
@@ -62,5 +62,5 @@ pub async fn clear_filter_internal(
         key.ip
     );
 
-    Ok(Json(filter_resp(&st, key)))
+    Ok(Json(filter_resp(&ebpf_interf, key)))
 }

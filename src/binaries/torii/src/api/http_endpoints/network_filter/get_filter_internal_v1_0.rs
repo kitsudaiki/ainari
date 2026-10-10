@@ -15,9 +15,9 @@
 use actix_web::web::{Json, Path};
 use apistos::api_operation;
 
+use crate::core::ebpf_interface::EBPF_INTERFACE_HANDLE;
 use crate::core::filter::{filter_resp, filter_slot};
 use crate::core::models::FilterKey;
-use crate::core::routing_interface::GATEWAY_STATE_HANDLE;
 
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::network_filter_structs::*;
@@ -39,9 +39,9 @@ pub async fn get_filter_internal(
     _context: UserContext,
 ) -> Result<Json<FilterResp>, ErrorResponse> {
     let key = FilterKey::from(path.into_inner());
-    let st = GATEWAY_STATE_HANDLE.lock().await;
+    let ebpf_interf = EBPF_INTERFACE_HANDLE.lock().await;
 
-    filter_slot(&st, &key).map_err(ErrorResponse::NotFound)?;
+    filter_slot(&ebpf_interf, &key).map_err(ErrorResponse::NotFound)?;
 
-    Ok(Json(filter_resp(&st, key)))
+    Ok(Json(filter_resp(&ebpf_interf, key)))
 }

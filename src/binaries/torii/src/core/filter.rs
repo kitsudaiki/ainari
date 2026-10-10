@@ -32,8 +32,8 @@ use torii_common::{
 
 use ainari_api_structs::network_filter_structs::*;
 
+use crate::core::ebpf_interface::EBPFInterface;
 use crate::core::models::{FilterKey, Route, RouteFilterPod, RouteKeyPod};
-use crate::core::state::GatewayState;
 use crate::core::utils::get_ifindex;
 
 use ainari_api::errors::ErrorResponse;
@@ -92,7 +92,7 @@ pub fn build_route_filter(rules: &RouteFilterRules) -> Result<RouteFilter, Strin
 /// Resolves the place in the datapath, where one direction of the filter of a route is stored.
 ///
 /// # Arguments
-/// * `st` - The locked gateway state
+/// * `ebpf_interf` - The locked gateway state
 /// * `route` - The route towards the address the filter belongs to
 /// * `direction` - The direction of the filter
 ///
@@ -100,7 +100,7 @@ pub fn build_route_filter(rules: &RouteFilterRules) -> Result<RouteFilter, Strin
 /// The `FilterSlot` of the filter, or `None` for an egress filter of a route, which doesn't lead
 /// to a TAP device of this gateway: there is no VM, whose traffic could be filtered.
 pub fn slot_of_route(
-    st: &GatewayState,
+    ebpf_interf: &EBPFInterface,
     route: &Route,
     direction: FilterDirection,
 ) -> Option<FilterSlot> {
@@ -110,7 +110,7 @@ pub fn slot_of_route(
             u32::from(route.dest_ip),
         ))),
         FilterDirection::Egress => {
-            if !st.taps.contains_key(route.target_iface.as_str()) {
+            if !ebpf_interf.taps.contains_key(route.target_iface.as_str()) {
                 return None;
             }
             match get_ifindex(&route.target_iface) {
@@ -128,16 +128,16 @@ pub fn slot_of_route(
 /// this is the one place that translation happens.
 ///
 /// # Arguments
-/// * `st` - The locked gateway state
+/// * `ebpf_interf` - The locked gateway state
 /// * `key` - The tenant, the address and the direction of the filter
 ///
 /// # Returns
 /// The `FilterSlot` of the filter, or an error message, if this gateway has no route to the
 /// address or, for an egress filter, the route doesn't lead to a TAP device
-pub fn filter_slot(st: &GatewayState, key: &FilterKey) -> Result<FilterSlot, String> {
+pub fn filter_slot(ebpf_interf: &EBPFInterface, key: &FilterKey) -> Result<FilterSlot, String> {
     // more than one route may lead to the same address, but only one of them has to lead to the
     // TAP device of the VM
-    let mut routes = st
+    let mut routes = ebpf_interf
         .routes
         .values()
         .filter(|route| route.vni == key.vni && route.dest_ip == key.ip)
@@ -150,7 +150,7 @@ pub fn filter_slot(st: &GatewayState, key: &FilterKey) -> Result<FilterSlot, Str
     }
 
     routes
-        .find_map(|route| slot_of_route(st, route, key.direction))
+        .find_map(|route| slot_of_route(ebpf_interf, route, key.direction))
         .ok_or_else(|| {
             format!(
                 "{} in tenant {} is not behind a TAP device of this gateway",
@@ -168,7 +168,7 @@ pub fn filter_slot(st: &GatewayState, key: &FilterKey) -> Result<FilterSlot, Str
 /// is supposed to express - and it saves the datapath a lookup per packet.
 ///
 /// # Arguments
-/// * `st` - The locked gateway state
+/// * `ebpf_interf` - The locked gateway state
 /// * `key` - The tenant, the address and the direction of the filter
 /// * `slot` - The place in the datapath, where the filter is stored
 /// * `rules` - The include-lists the filter should have from now on
@@ -177,39 +177,43 @@ pub fn filter_slot(st: &GatewayState, key: &FilterKey) -> Result<FilterSlot, Str
 /// A `Result` that is `Ok(())` once both the eBPF map and the bookkeeping have
 /// been updated, or an error message with nothing changed
 pub fn apply_filter(
-    st: &mut GatewayState,
+    ebpf_interf: &mut EBPFInterface,
     key: FilterKey,
     slot: FilterSlot,
     rules: RouteFilterRules,
 ) -> Result<(), String> {
     if rules.is_empty() {
-        remove_from_datapath(st, slot);
-        st.filters.remove(&key);
+        remove_from_datapath(ebpf_interf, slot);
+        ebpf_interf.filters.remove(&key);
         return Ok(());
     }
 
     let filter = RouteFilterPod(build_route_filter(&rules)?);
     let result = match slot {
-        FilterSlot::Ingress(route_key) => st.filter_map.insert(RouteKeyPod(route_key), filter, 0),
-        FilterSlot::Egress(ifindex) => st.egress_filter_map.insert(ifindex, filter, 0),
+        FilterSlot::Ingress(route_key) => {
+            ebpf_interf
+                .filter_map
+                .insert(RouteKeyPod(route_key), filter, 0)
+        }
+        FilterSlot::Egress(ifindex) => ebpf_interf.egress_filter_map.insert(ifindex, filter, 0),
     };
     result.map_err(|_| "eBPF Map error (filter)".to_string())?;
-    st.filters.insert(key, rules);
+    ebpf_interf.filters.insert(key, rules);
     Ok(())
 }
 
 /// Removes a filter from its eBPF map, which makes the traffic unfiltered again.
 ///
 /// # Arguments
-/// * `st` - The locked gateway state
+/// * `ebpf_interf` - The locked gateway state
 /// * `slot` - The place in the datapath, where the filter is stored
-fn remove_from_datapath(st: &mut GatewayState, slot: FilterSlot) {
+fn remove_from_datapath(ebpf_interf: &mut EBPFInterface, slot: FilterSlot) {
     match slot {
         FilterSlot::Ingress(route_key) => {
-            let _ = st.filter_map.remove(&RouteKeyPod(route_key));
+            let _ = ebpf_interf.filter_map.remove(&RouteKeyPod(route_key));
         }
         FilterSlot::Egress(ifindex) => {
-            let _ = st.egress_filter_map.remove(&ifindex);
+            let _ = ebpf_interf.egress_filter_map.remove(&ifindex);
         }
     }
 }
@@ -220,7 +224,7 @@ fn remove_from_datapath(st: &mut GatewayState, slot: FilterSlot) {
 /// datapath never holds a filter the database doesn't know about.
 ///
 /// # Arguments
-/// * `st` - The locked gateway state
+/// * `ebpf_interf` - The locked gateway state
 /// * `key` - The tenant, the address and the direction of the filter
 /// * `slot` - The place in the datapath, where the filter is stored
 /// * `previous` - The include-lists the filter had before
@@ -229,15 +233,15 @@ fn remove_from_datapath(st: &mut GatewayState, slot: FilterSlot) {
 /// # Returns
 /// `Ok(())` once the filter is persisted, otherwise the error of `persist`
 pub fn persist_filter(
-    st: &mut GatewayState,
+    ebpf_interf: &mut EBPFInterface,
     key: FilterKey,
     slot: FilterSlot,
     previous: RouteFilterRules,
     persist: impl FnOnce(&RouteFilterRules) -> Result<(), ErrorResponse>,
 ) -> Result<(), ErrorResponse> {
-    let rules = st.filters.get(&key).cloned().unwrap_or_default();
+    let rules = ebpf_interf.filters.get(&key).cloned().unwrap_or_default();
     if let Err(e) = persist(&rules) {
-        if let Err(rollback_err) = apply_filter(st, key, slot, previous) {
+        if let Err(rollback_err) = apply_filter(ebpf_interf, key, slot, previous) {
             log::error!(
                 "Failed to roll back the {} packet-filter of {} in tenant {}: {rollback_err}",
                 key.direction,
@@ -253,17 +257,17 @@ pub fn persist_filter(
 /// Builds the response for one filter out of the bookkeeping.
 ///
 /// # Arguments
-/// * `st` - The locked gateway state
+/// * `ebpf_interf` - The locked gateway state
 /// * `key` - The tenant, the address and the direction of the filter
 ///
 /// # Returns
 /// The `FilterResp` with the current include-lists, which are empty for an unfiltered address
-pub fn filter_resp(st: &GatewayState, key: FilterKey) -> FilterResp {
+pub fn filter_resp(ebpf_interf: &EBPFInterface, key: FilterKey) -> FilterResp {
     FilterResp {
         vni: key.vni,
         ip: key.ip,
         direction: key.direction,
-        filter: st.filters.get(&key).cloned().unwrap_or_default(),
+        filter: ebpf_interf.filters.get(&key).cloned().unwrap_or_default(),
     }
 }
 
@@ -277,14 +281,18 @@ pub fn filter_resp(st: &GatewayState, key: FilterKey) -> FilterResp {
 /// and is dropped.
 ///
 /// # Arguments
-/// * `st` - The locked gateway state
+/// * `ebpf_interf` - The locked gateway state
 /// * `from` - The version of the route, which was programmed before
 /// * `to` - The version of the route, which is programmed from now on
 ///
 /// # Returns
 /// `Ok(())` once the filters are moved, or an error message if one of them could not be
 /// programmed again
-pub fn move_filters(st: &mut GatewayState, from: &Route, to: &Route) -> Result<(), String> {
+pub fn move_filters(
+    ebpf_interf: &mut EBPFInterface,
+    from: &Route,
+    to: &Route,
+) -> Result<(), String> {
     for direction in [FilterDirection::Ingress, FilterDirection::Egress] {
         let from_key = FilterKey {
             vni: from.vni,
@@ -296,22 +304,22 @@ pub fn move_filters(st: &mut GatewayState, from: &Route, to: &Route) -> Result<(
             ip: to.dest_ip,
             direction,
         };
-        let from_slot = slot_of_route(st, from, direction);
-        let to_slot = slot_of_route(st, to, direction);
+        let from_slot = slot_of_route(ebpf_interf, from, direction);
+        let to_slot = slot_of_route(ebpf_interf, to, direction);
         if from_key == to_key && from_slot == to_slot {
             continue;
         }
 
-        let rules = st.filters.remove(&from_key);
+        let rules = ebpf_interf.filters.remove(&from_key);
         if let Some(from_slot) = from_slot {
-            remove_from_datapath(st, from_slot);
+            remove_from_datapath(ebpf_interf, from_slot);
         }
 
         let Some(rules) = rules else {
             continue;
         };
         match to_slot {
-            Some(to_slot) => apply_filter(st, to_key, to_slot, rules)?,
+            Some(to_slot) => apply_filter(ebpf_interf, to_key, to_slot, rules)?,
             None => log::warn!(
                 "Dropped the {direction} packet-filter of {} in tenant {}, because its route \
                  doesn't lead to a TAP device anymore",
@@ -329,14 +337,14 @@ pub fn move_filters(st: &mut GatewayState, from: &Route, to: &Route) -> Result<(
 /// The filters guard the route and the VM behind it, so they die with the route.
 ///
 /// # Arguments
-/// * `st` - The locked gateway state
+/// * `ebpf_interf` - The locked gateway state
 /// * `route` - The route, which is removed
-pub fn remove_filters_of_route(st: &mut GatewayState, route: &Route) {
+pub fn remove_filters_of_route(ebpf_interf: &mut EBPFInterface, route: &Route) {
     for direction in [FilterDirection::Ingress, FilterDirection::Egress] {
-        if let Some(slot) = slot_of_route(st, route, direction) {
-            remove_from_datapath(st, slot);
+        if let Some(slot) = slot_of_route(ebpf_interf, route, direction) {
+            remove_from_datapath(ebpf_interf, slot);
         }
-        st.filters.remove(&FilterKey {
+        ebpf_interf.filters.remove(&FilterKey {
             vni: route.vni,
             ip: route.dest_ip,
             direction,

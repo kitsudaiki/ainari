@@ -43,7 +43,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     core::restore::restore_gateway_state().await?;
 
     // takes part in the MLS-groups of the networks, which need encryption on this gateway
-    core::mls::agent::spawn_agent();
+    core::mls_key_exchange::agent::spawn_agent();
 
     api::http_server::run_server().await?;
 
