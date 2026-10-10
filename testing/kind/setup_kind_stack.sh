@@ -74,6 +74,7 @@ IMAGES=(
     ainari/miko:local
     ainari/omamori:local
     ainari/izakaya:local
+    ainari/omikuji:local
     ainari/ryokan:local
     ainari/onsen:local
     ainari/hanami:local
@@ -339,6 +340,7 @@ echo "    miko     https://127.0.0.1:11417"
 echo "    hanami   https://127.0.0.1:11418"
 echo "    ryokan   https://127.0.0.1:11416"
 echo "    omamori  https://127.0.0.1:11421"
+echo "    omikuji  https://127.0.0.1:11424"
 echo ""
 echo "The dashboard is reachable at https://127.0.0.1:11422."
 echo ""

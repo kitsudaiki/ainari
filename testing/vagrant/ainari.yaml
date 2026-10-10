@@ -15,8 +15,8 @@
 # Ainari-resource of the vagrant-setup, which is started by testing/vagrant/setup_vagrant_stack.sh
 # and deployed by the operator of deploy/operator. The stack runs on a k3s-cluster of nine
 # virtual machines, so, unlike in the kind-setup, every component runs on the nodes with its label
-# (strictScheduling). Miko, hanami, ryokan, omamori, izakaya and the dashboard run with three
-# replicas, one on each of the three management-nodes, which all share the mysql-server on its own
+# (strictScheduling). Miko, hanami, ryokan, omamori, izakaya, omikuji and the dashboard run with
+# three replicas, one on each of the three management-nodes, which all share the mysql-server on its own
 # node. The api of every component is published with its own port on the addresses of the nodes,
 # for example miko on https://192.168.56.10:11417.
 #
@@ -92,6 +92,11 @@ spec:
   izakaya:
     replicas: 3
     image: ainari/izakaya:local
+
+  omikuji:
+    replicas: 3
+    image: ainari/omikuji:local
+    publicAddress: https://192.168.56.10:11424
 
   # one onsen on each of the two virtual machines with the label onsen-node, ainari-onsen and
   # ainari-onsen-2. Every one has its own volume and registers itself at ryokan with its own

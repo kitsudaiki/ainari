@@ -54,6 +54,10 @@ spec:
     image: ainari/omamori:local
     publicAddress: https://127.0.0.1:11421
 
+  omikuji:
+    image: ainari/omikuji:local
+    publicAddress: https://127.0.0.1:11424
+
   izakaya:
     image: ainari/izakaya:local
 

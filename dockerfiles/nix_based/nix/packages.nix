@@ -268,6 +268,14 @@ in
         mariadb-connector-c
       ]
     );
+    runtime-omikuji = mkRuntime "omikuji" (
+      serviceLibraries
+      ++ [
+        pkgs.curl
+        pkgs.openssl
+        mariadb-connector-c
+      ]
+    );
     runtime-hanami = mkRuntime "hanami" (
       serviceLibraries
       ++ [

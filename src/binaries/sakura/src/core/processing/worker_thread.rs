@@ -19,7 +19,6 @@ use std::time::Duration;
 use tokio::runtime::Builder;
 use tokio::task::LocalSet;
 
-use ainari_api::omikuji_logging::report_internal_error;
 use ainari_common::error::AinariError;
 
 use super::task_queue::*;
@@ -100,15 +99,8 @@ impl WorkerThread {
                                 // TODO: better error-handling
                             }
                             Err(AinariError::InternalError(details)) => {
-                                // the task is processed in the background, so its error is never
-                                // converted into a response and has to be reported here
-                                let details = if details.user_id.is_empty() {
-                                    let context = task.info.context();
-                                    details.with_ids(&context.user_id, &context.project_id)
-                                } else {
-                                    details
-                                };
-                                report_internal_error(details);
+                                log::error!("{details}");
+                                // TODO: better error-handling
                             }
                         };
                     } else {

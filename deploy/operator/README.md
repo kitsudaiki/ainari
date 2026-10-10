@@ -65,7 +65,8 @@ These secrets are never overwritten, so no key or password, which data depends o
 
 An external mysql-server (`mysql.deploy: false`) already has its users, so its passwords are
 given with `mysql.credentialsSecret`, the name of a secret with the keys `miko_password`,
-`hanami_password`, `ryokan_password`, `omamori_password` and `izakaya_password`.
+`hanami_password`, `ryokan_password`, `omamori_password`, `izakaya_password` and
+`omikuji_password`.
 
 The passphrase of the generated admin:
 

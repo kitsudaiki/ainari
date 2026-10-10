@@ -92,6 +92,7 @@ func TestResolveCreatesSecretsOnce(t *testing.T) {
 		InternalAPIKey, OnsenRegistrationKey, SakuraRegistrationKey, MLSGrantSigningKey,
 		MikoTokenKey, MikoAdminPassphrase, OmamoriEncryptionKey, MySQLRootPassword,
 		MySQLPassword(&ainari.Spec.MySQL, "izakaya"),
+		MySQLPassword(&ainari.Spec.MySQL, "omikuji"),
 	} {
 		secret := getSecret(t, c, ref.Secret)
 		if len(secret.Data[ref.Key]) == 0 {

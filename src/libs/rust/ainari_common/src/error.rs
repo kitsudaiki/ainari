@@ -44,6 +44,12 @@ impl InternalErrorDetails {
         self.project_id = project_id.to_string();
         self
     }
+
+    /// Puts a prefix in front of the message, which describes, where the error occurred.
+    pub fn with_message_prefix(mut self, prefix: &str) -> Self {
+        self.message = format!("{prefix}{}", self.message);
+        self
+    }
 }
 
 impl fmt::Display for InternalErrorDetails {
@@ -126,6 +132,12 @@ mod tests {
         let details = details.clone().with_ids("user-1", "project-1");
         assert_eq!(details.user_id, "user-1");
         assert_eq!(details.project_id, "project-1");
+    }
+
+    #[test]
+    fn test_internal_error_details_prefix() {
+        let details = InternalErrorDetails::new("disk full").with_message_prefix("Task 1 failed: ");
+        assert_eq!(details.message, "Task 1 failed: disk full");
     }
 
     #[test]

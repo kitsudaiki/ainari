@@ -6,10 +6,10 @@
 
 Starts the setup of `testing/vagrant`: nine virtual machines with nested virtualization and a
 kubernetes-cluster (k3s), on which ansible installs the operator of `deploy/operator`, which deploys
-the stack of the `Ainari`-resource [ainari.yaml](ainari.yaml). Miko,
-hanami, ryokan and omamori run with one replica on each of the three management-machines and share
-the mysql-server on the machine `ainari-mysql`. The nix-based images, the same as the ones of the
-CI, are built with [build_local_images.sh](build_local_images.sh) on the host and copied into the
+the stack of the `Ainari`-resource [ainari.yaml](ainari.yaml). Miko, hanami, ryokan, omamori,
+izakaya and omikuji run with one replica on each of the three management-machines and share the
+mysql-server on the machine `ainari-mysql`. The nix-based images, the same as the ones of the CI,
+are built with [build_local_images.sh](build_local_images.sh) on the host and copied into the
 virtual machines.
 The host reaches the floating ip-addresses over a route towards the virtual machine `ainari-torii`.
 See [Vagrant setup](../../docs/developer/local_testing/vagrant_setup.md) for the details of the

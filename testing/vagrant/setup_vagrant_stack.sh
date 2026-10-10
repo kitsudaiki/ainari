@@ -17,7 +17,7 @@
 # Starts the setup of testing/vagrant: nine virtual machines with nested virtualization and a
 # kubernetes-cluster (k3s), on which ansible installs the operator of deploy/operator, which deploys
 # the stack of the Ainari-resource of testing/vagrant/ainari.yaml. Miko,
-# hanami, ryokan, omamori and izakaya run with one replica on each of the three management-machines and
+# hanami, ryokan, omamori, izakaya and omikuji run with one replica on each of the three management-machines and
 # share the mysql-server on the machine ainari-mysql. Onsen runs twice, on its own machines ainari-onsen and ainari-onsen-2.
 # The images are built on the host and copied
 # into the virtual machines.
@@ -54,7 +54,7 @@ MGMT_VM_ADDRESS="192.168.56.10"
 CA_CERT="$WORK_DIR/ainari-vagrant-ca.crt"
 CA_KEY="$WORK_DIR/ainari-vagrant-ca.key"
 
-IMAGES=(miko omamori izakaya ryokan onsen hanami sakura torii dashboard operator)
+IMAGES=(miko omamori izakaya omikuji ryokan onsen hanami sakura torii dashboard operator)
 
 SUDO=""
 if [ "$EUID" -ne 0 ]; then
@@ -140,13 +140,15 @@ echo "    miko       https://$MGMT_VM_ADDRESS:11417"
 echo "    hanami     https://$MGMT_VM_ADDRESS:11418"
 echo "    ryokan     https://$MGMT_VM_ADDRESS:11416"
 echo "    omamori    https://$MGMT_VM_ADDRESS:11421"
+echo "    omikuji    https://$MGMT_VM_ADDRESS:11424"
 echo "    dashboard  https://$MGMT_VM_ADDRESS:11422"
 echo ""
 echo "All certificates are signed by the CA $CA_CERT"
 echo "It stays the same over all runs, so it only has to be trusted once, see"
 echo "testing/local_stack/Readme.md."
 echo ""
-echo "Miko, hanami, ryokan, omamori and izakaya run three times, on ainari-mgmt-1 to ainari-mgmt-3, and"
+echo "Miko, hanami, ryokan, omamori, izakaya and omikuji run three times, on ainari-mgmt-1 to"
+echo "ainari-mgmt-3, and"
 echo "share the mysql-server on ainari-mysql. The api is reachable over every virtual machine."
 echo ""
 echo "The cluster can be inspected with"

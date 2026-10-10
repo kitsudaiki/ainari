@@ -1,0 +1,11 @@
+debug = true
+log_path = ""
+database_type = "mysql"
+skip_tls_verification = true
+
+{{ api "omikuji" }}
+
+{{ mysql "omikuji" }}
+
+[miko]
+address = {{ quote mikoAddress }}

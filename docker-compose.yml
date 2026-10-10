@@ -122,6 +122,30 @@ services:
       ainari-net:
         ipv4_address: 172.30.0.7
 
+  omikuji:
+    image: ainari/omikuji:local
+    build:
+      context: .
+      dockerfile: dockerfiles/debian_based/Dockerfile_services
+      target: omikuji
+      args:
+        CARGO_PROFILE: local
+    container_name: omikuji
+    restart: unless-stopped
+    environment:
+      - CONFIG_FILE=/etc/ainari/omikuji.toml
+      - RUST_LOG=${RUST_LOG:-info}
+      - INTERNAL_API_KEY=${INTERNAL_API_KEY:-local-internal-api-key}
+    volumes:
+      - ./testing/local_stack/configs/omikuji.toml:/etc/ainari/omikuji.toml:ro
+    ports:
+      - "11424:11424"
+    depends_on:
+      - miko
+    networks:
+      ainari-net:
+        ipv4_address: 172.30.0.8
+
   ryokan:
     image: ainari/ryokan:local
     build:

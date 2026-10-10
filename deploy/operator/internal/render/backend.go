@@ -24,7 +24,8 @@ import (
 )
 
 // backend describes a component, which stores its state in the mysql-server and runs as a
-// deployment or statefulset behind its nginx-sidecars: miko, hanami, ryokan, omamori and izakaya.
+// deployment or statefulset behind its nginx-sidecars: miko, hanami, ryokan, omamori, izakaya and
+// omikuji.
 type backend struct {
 	name       string
 	replicas   int32

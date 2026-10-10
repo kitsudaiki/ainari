@@ -14,6 +14,7 @@
 
 use uuid::Uuid;
 
+use ainari_api::omikuji_logging::report_internal_error;
 use ainari_api_structs::task_structs::*;
 use ainari_api_structs::user_context::UserContext;
 use ainari_clients::endpoints::get_endpoints;
@@ -247,8 +248,29 @@ pub async fn process_task(task: &mut Task) -> Result<(), AinariError> {
             let _ = task_table::update_task_state(&task.uuid, &TaskState::Finished);
         }
         Err(e) => {
-            log::error!("Task {} ({}) failed: {e}", task.uuid, task.description);
-            let _ = task_table::add_message_to_task(&task.uuid, &e.to_string());
+            let message = e.to_string();
+            match e {
+                // the task is processed in the background, so its error is never converted into
+                // a response and has to be reported here
+                AinariError::InternalError(details) => {
+                    let details = if details.user_id.is_empty() {
+                        let context = task.info.context();
+                        details.with_ids(&context.user_id, &context.project_id)
+                    } else {
+                        details
+                    };
+                    report_internal_error(details.with_message_prefix(&format!(
+                        "Task {} ({}) failed: ",
+                        task.uuid, task.description
+                    )));
+                }
+                _ => log::error!(
+                    "Task {} ({}) failed: {message}",
+                    task.uuid,
+                    task.description
+                ),
+            }
+            let _ = task_table::add_message_to_task(&task.uuid, &message);
             let _ = task_table::update_task_state(&task.uuid, &TaskState::Error);
         }
     }
