@@ -77,6 +77,7 @@ nav = [
       "developer/development.md",
       { "Sequence diagrams" = [
         "developer/sequence_diagrams/network_crypto_key_exchange.md",
+        "developer/sequence_diagrams/vm_migration.md",
       ] },
       "developer/test_guide.md",
       "developer/git_workflow.md",
