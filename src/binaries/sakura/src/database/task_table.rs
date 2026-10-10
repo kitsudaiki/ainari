@@ -304,6 +304,45 @@ pub fn add_message_to_task(task_uuid: &Uuid, new_message: &str) -> Result<(), en
     }
 }
 
+/// Marks all tasks as failed, which didn't end, with a message
+///
+/// The task-queues only live in the memory of sakura, so after a restart the tasks, which were
+/// queued or processed before, are never processed. They are marked as failed, so nobody waits
+/// for them anymore, like hanami for the steps of a migration.
+///
+/// # Arguments
+/// * `message` - Reason of the failure, which is added to the messages of every task
+///
+/// # Returns
+/// * `Ok(usize)` with the number of tasks, which were marked as failed
+/// * `Err(diesel::result::Error)` if the database failed, in which case no task was changed
+pub fn fail_unfinished_tasks(message: &str) -> QueryResult<usize> {
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+    use self::tasks::dsl::*;
+
+    conn.transaction::<_, diesel::result::Error, _>(|transaction_conn| {
+        let unfinished: Vec<TaskEntry> = tasks
+            .filter(task_state.eq_any([TaskState::Created, TaskState::Queued, TaskState::Active]))
+            .select(TaskEntry::as_select())
+            .load(transaction_conn)?;
+
+        let now = Utc::now().to_rfc3339();
+        for task in &unfinished {
+            let mut new_messages = task.messages.clone();
+            new_messages.push(message.to_string());
+            diesel::update(tasks.filter(uuid.eq(task.uuid.to_string())))
+                .set((
+                    task_state.eq(TaskState::Error.to_string()),
+                    finished_at.eq(&now),
+                    messages.eq(DbVecString::from(new_messages)),
+                ))
+                .execute(transaction_conn)?;
+        }
+
+        Ok(unfinished.len())
+    })
+}
+
 /// Checks if a task has been aborted.
 ///
 /// This function queries the database to determine if a task is in the Aborted state.
@@ -343,6 +382,79 @@ mod tests {
         use self::tasks::dsl::*;
         let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
         let _ = diesel::delete(tasks.filter(uuid.eq(task_uuid.to_string()))).execute(&mut *conn);
+    }
+
+    #[test]
+    #[serial]
+    fn test_fail_unfinished_tasks() {
+        let context = UserContext {
+            token: "".to_string(),
+            user_id: "test-user".to_string(),
+            project_id: "test-project".to_string(),
+            is_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
+        };
+
+        // never queued, queued, running and every state, in which a task already ended
+        let states = [
+            TaskState::Created,
+            TaskState::Queued,
+            TaskState::Active,
+            TaskState::Finished,
+            TaskState::Error,
+            TaskState::Aborted,
+        ];
+        let uuids: Vec<Uuid> = states.iter().map(|_| Uuid::new_v4()).collect();
+        for (task_uuid, state) in uuids.iter().zip(&states) {
+            add_new_task(
+                task_uuid,
+                &Uuid::new_v4(),
+                &TaskResourceType::VirtualMachine,
+                "test-task",
+                &TaskType::VirtualMachineStart,
+                &context,
+            )
+            .unwrap();
+            assert!(update_task_state(task_uuid, state).is_ok());
+        }
+        assert!(add_message_to_task(&uuids[2], "started").is_ok());
+
+        // other unfinished tasks of the test-database are failed as well
+        let failed = fail_unfinished_tasks("restarted").unwrap();
+        assert!(failed >= 3, "only {failed} tasks were failed");
+
+        for (task_uuid, state) in uuids.iter().zip(&states) {
+            let Ok(task) = get_task(task_uuid, &context) else {
+                panic!("task {task_uuid} is gone");
+            };
+            match state {
+                TaskState::Created | TaskState::Queued | TaskState::Active => {
+                    assert_eq!(task.task_state, TaskState::Error, "task, which was {state}");
+                    assert!(task.finished_at.is_some(), "task, which was {state}");
+                    assert_eq!(task.messages.last().map(String::as_str), Some("restarted"));
+                }
+                // the ended tasks keep their state and messages
+                _ => {
+                    assert_eq!(&task.task_state, state);
+                    assert!(task.messages.is_empty());
+                }
+            }
+        }
+        // existing messages are kept
+        let Ok(task) = get_task(&uuids[2], &context) else {
+            panic!("task is gone");
+        };
+        assert_eq!(
+            task.messages,
+            vec!["started".to_string(), "restarted".to_string()]
+        );
+
+        // nothing is left to fail
+        assert_eq!(fail_unfinished_tasks("restarted").unwrap(), 0);
+
+        for task_uuid in &uuids {
+            hard_delete_task(task_uuid);
+        }
     }
 
     #[test]

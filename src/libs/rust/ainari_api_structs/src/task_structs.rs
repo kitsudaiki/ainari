@@ -66,6 +66,10 @@ pub enum TaskType {
     VirtualMachineStart = 4,
     VirtualMachineStop = 5,
     VirtualMachineReboot = 6,
+    MigrationPrepare = 7,
+    MigrationImport = 8,
+    MigrationRemove = 9,
+    MigrationCancel = 10,
 }
 
 #[cfg(feature = "diesel")]
@@ -109,6 +113,10 @@ impl fmt::Display for TaskType {
             TaskType::VirtualMachineStart => "VirtualMachineStartTask",
             TaskType::VirtualMachineStop => "VirtualMachineStopTask",
             TaskType::VirtualMachineReboot => "VirtualMachineRebootTask",
+            TaskType::MigrationPrepare => "MigrationPrepareTask",
+            TaskType::MigrationImport => "MigrationImportTask",
+            TaskType::MigrationRemove => "MigrationRemoveTask",
+            TaskType::MigrationCancel => "MigrationCancelTask",
         };
         write!(f, "{s}")
     }
@@ -126,6 +134,10 @@ impl FromStr for TaskType {
             "VirtualMachineStartTask" => Ok(TaskType::VirtualMachineStart),
             "VirtualMachineStopTask" => Ok(TaskType::VirtualMachineStop),
             "VirtualMachineRebootTask" => Ok(TaskType::VirtualMachineReboot),
+            "MigrationPrepareTask" => Ok(TaskType::MigrationPrepare),
+            "MigrationImportTask" => Ok(TaskType::MigrationImport),
+            "MigrationRemoveTask" => Ok(TaskType::MigrationRemove),
+            "MigrationCancelTask" => Ok(TaskType::MigrationCancel),
             _ => Err(()),
         }
     }

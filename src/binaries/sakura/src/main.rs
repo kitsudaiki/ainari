@@ -55,6 +55,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     database::init_database()?;
 
+    // the task-queues didn't survive the restart, so their tasks are never processed
+    match database::task_table::fail_unfinished_tasks("Failed because of a restart of the host.") {
+        Ok(0) => {}
+        Ok(count) => log::warn!("Marked {count} unfinished task(s) as failed after the restart"),
+        Err(e) => log::error!("Failed to mark the unfinished tasks as failed: {e}"),
+    }
+
     hanami_interaction::register_host()?;
 
     // the virtual_machines, which were running, ended together with sakura. Hanami restores

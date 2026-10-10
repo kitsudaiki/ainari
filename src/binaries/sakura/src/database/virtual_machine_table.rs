@@ -104,6 +104,9 @@ pub enum VirtualMachineState {
     Stopped,
     /// The root-disk of the virtual_machine is reset to a snapshot
     Restoring,
+    /// The virtual_machine is moved to another host. On the source it is shut down and frozen,
+    /// until the target took it over, on the target it is not started yet.
+    Migrating,
     /// Something blocks the start of the virtual_machine
     Error,
 }
@@ -117,6 +120,7 @@ impl VirtualMachineState {
             VirtualMachineState::Running => "RUNNING",
             VirtualMachineState::Stopped => "STOPPED",
             VirtualMachineState::Restoring => "RESTORING",
+            VirtualMachineState::Migrating => "MIGRATING",
             VirtualMachineState::Error => "ERROR",
         }
     }
@@ -500,6 +504,33 @@ pub fn delete_virtual_machine(
     }
 }
 
+/// Removes a virtual_machine completely from the database, also if it is marked as deleted
+///
+/// Unlike `delete_virtual_machine`, no deleted entry is kept. This is required for a
+/// virtual_machine, which was migrated to another host or whose migration to this host failed:
+/// the deleted entries are reported to hanami with the next registration of this host, which
+/// would delete the virtual_machine, which still exists on the other host. It also allows to
+/// migrate the virtual_machine back to this host later, which requires its UUID again.
+///
+/// # Arguments
+/// * `virtual_machine_uuid` - Unique identifier of the virtual_machine to remove
+///
+/// # Returns
+/// * `Ok(())` on success, also if there was no entry
+/// * `Err(enums::DbError)` if the database failed
+pub fn remove_virtual_machine(virtual_machine_uuid: &Uuid) -> Result<(), enums::DbError> {
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+    use self::virtual_machines::dsl::*;
+
+    diesel::delete(virtual_machines.filter(uuid.eq(virtual_machine_uuid.to_string())))
+        .execute(&mut *conn)
+        .map(|_| ())
+        .map_err(|e| {
+            log::error!("Database-error: {e:?}");
+            enums::DbError::InternalError
+        })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -507,10 +538,7 @@ mod tests {
     use serial_test::serial;
 
     fn hard_delete_virtual_machine(virtual_machine_uuid: &Uuid) {
-        use self::virtual_machines::dsl::*;
-        let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
-        let _ = diesel::delete(virtual_machines.filter(uuid.eq(virtual_machine_uuid.to_string())))
-            .execute(&mut *conn);
+        let _ = remove_virtual_machine(virtual_machine_uuid);
     }
 
     #[test]
@@ -760,6 +788,54 @@ mod tests {
         let _ = delete_virtual_machine(&uuid1, &context);
         let result = get_virtual_machine(&uuid1, &context);
         assert!(result.is_err());
+
+        hard_delete_virtual_machine(&uuid1);
+    }
+
+    #[test]
+    #[serial]
+    fn test_remove_virtual_machine() {
+        let uuid1 = Uuid::new_v4();
+        let context = UserContext {
+            token: "".to_string(),
+            user_id: "test-user".to_string(),
+            project_id: "test-project".to_string(),
+            is_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
+        };
+        let new_virtual_machine = || NewVirtualMachine {
+            uuid: uuid1,
+            name: "Alice".to_string(),
+            number_of_cores: 2,
+            memory_size: 4096,
+            disk_size: 10,
+            image_uuid: Uuid::new_v4(),
+            public_key_uuid: Uuid::new_v4(),
+            network_uuid: Uuid::new_v4(),
+            internal_ip: Ipv4Addr::new(192, 168, 100, 2),
+            root_disk_path: None,
+            seed_path: "".to_string(),
+            tap_name: "tap-vm".to_string(),
+            mac_address: "02:00:00:00:00:42".to_string(),
+        };
+
+        add_new_virtual_machine(new_virtual_machine(), &context).unwrap();
+        let _ = delete_virtual_machine(&uuid1, &context);
+        // a soft-deleted entry still blocks the uuid
+        assert!(add_new_virtual_machine(new_virtual_machine(), &context).is_err());
+
+        // a removed virtual_machine is not reported to hanami as deleted ...
+        assert!(remove_virtual_machine(&uuid1).is_ok());
+        let deleted = list_deleted_virtual_machines().unwrap();
+        assert!(deleted.iter().all(|entry| entry.uuid != uuid1));
+
+        // ... and its uuid can be used again, for example by a migration back to this host
+        add_new_virtual_machine(new_virtual_machine(), &context).unwrap();
+        assert!(get_virtual_machine(&uuid1, &context).is_ok());
+
+        // removing a virtual_machine, which doesn't exist, is not an error
+        assert!(remove_virtual_machine(&uuid1).is_ok());
+        assert!(remove_virtual_machine(&uuid1).is_ok());
     }
 
     #[test]

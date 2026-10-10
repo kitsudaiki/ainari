@@ -12,7 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::prepare_client;
+use crate::{handle_response, prepare_client};
+use ainari_api_structs::auth_structs::{TokenRenewReq, UserTokenResp};
 use ainari_common::error::AinariError;
 use awc::http::StatusCode;
 
@@ -82,4 +83,40 @@ pub async fn check_token(
             Err(AinariError::InternalError("".to_string()))
         }
     }
+}
+
+/// Renews a token at the Miko server, so a long running operation can go on after the lifetime
+/// of the token, which started it.
+///
+/// The new token belongs to the same user and project as the current one. Miko reads the role of
+/// the user again, so a user, who lost the access in the meantime, gets no new token.
+///
+/// # Arguments
+///
+/// * `address` - The base URL of the Miko server.
+/// * `token` - The current token, which must still be valid.
+/// * `insecure_client` - A boolean indicating whether to use an insecure client (for testing purposes).
+///
+/// # Returns
+///
+/// * `Result<UserTokenResp, AinariError>` - The new token together with its lifetime in seconds.
+pub async fn renew_token(
+    address: &str,
+    token: &str,
+    insecure_client: bool,
+) -> Result<UserTokenResp, AinariError> {
+    let client = prepare_client(address, insecure_client);
+    let url = format!("{address}/v1alpha/token");
+
+    let body = TokenRenewReq { project_id: None };
+    let json_str = serde_json::to_string(&body).unwrap();
+
+    let response = client
+        .put(url)
+        .insert_header(("Authorization", format!("Bearer {token}")))
+        .insert_header(("Content-Type", "application/json"))
+        .send_body(json_str)
+        .await;
+
+    handle_response(response, "token", "").await
 }

@@ -33,6 +33,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - creates the wireguard-configs itself and connects every onsen with every ryokan and every
       sakura, so onsen and ryokan can run with multiple replicas
     - the kind- and the vagrant-setup deploy the stack with the operator
+- cold migration of virtual machines to another sakura-host:
+    - new admin-endpoint in hanami to move a virtual machine to a given host, which runs in the
+      background and rolls back to the old host, if it fails
+    - the disk is transferred directly between the sakura-hosts as compressed and checksummed
+      stream, without a temporary copy and with the unused parts of the disk kept sparse
+    - the virtual machine keeps its uuid, address, proxy-port and packet-filters and is started
+      again on the new host, if it was running before
+    - the token of the admin is renewed during the migration, so it can take longer than the
+      lifetime of a token
+- proxies of the torii can be pointed to another target, while they keep their port
+- optional field `host_uuid` for virtual-machine-create, with which an admin places the virtual
+  machine on a specific sakura-host. It fails, if the host has not enough free resources.
 
 ### Fixed
 

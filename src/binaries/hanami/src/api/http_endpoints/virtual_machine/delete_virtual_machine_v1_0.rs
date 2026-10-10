@@ -22,6 +22,7 @@ use uuid::Uuid;
 use crate::config;
 use crate::core::delete_watcher::spawn_delete_watcher;
 use crate::core::floating_ip::detach_floating_ip;
+use crate::core::migration::is_migrating;
 use crate::core::mls::{network_encrypted, revoke_membership};
 use crate::core::routing::{delete_routes_to, resolve_address, torii_of_host};
 use crate::database::address_table;
@@ -52,12 +53,20 @@ packet-filters."###,
     error_code = 400,
     error_code = 401,
     error_code = 404,
+    error_code = 409,
     error_code = 500
 )]
 pub async fn delete_virtual_machine(
     virtual_machine_uuid: Path<Uuid>,
     context: UserContext,
 ) -> Result<NoContent, ErrorResponse> {
+    // the virtual_machine exists on two hosts during its migration
+    if is_migrating(&virtual_machine_uuid) {
+        return Err(ErrorResponse::Conflict(format!(
+            "Virtual_machine '{virtual_machine_uuid}' is migrated right now and can not be deleted."
+        )));
+    }
+
     let virtual_machine_data =
         meta_virtual_machine_table::get_meta_virtual_machine(&virtual_machine_uuid, &context)
             .map_err(|e| {

@@ -22,6 +22,9 @@ nav = [
     "home/license.md",
     "home/CHANGELOG.md",
   ] },
+  { "Concepts" = [
+    "concepts/design_decisions.md",
+  ] },
   { "User-Docu" = [
     "user/dashboard/dashboard.md",
     { "CLI and SDK" = [
@@ -77,6 +80,7 @@ nav = [
       "developer/development.md",
       { "Sequence diagrams" = [
         "developer/sequence_diagrams/network_crypto_key_exchange.md",
+        "developer/sequence_diagrams/vm_migration.md",
       ] },
       "developer/test_guide.md",
       "developer/git_workflow.md",

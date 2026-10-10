@@ -231,6 +231,519 @@
         ]
       }
     },
+    "/v1alpha/virtual_machine/migration/internal": {
+      "post": {
+        "tags": [
+          "migration"
+        ],
+        "summary": "Import virtual_machine",
+        "description": "Take over a virtual_machine, which was prepared by another host.\\\n\\\nThe description of the virtual_machine is read from the source host and the virtual_machine is\\\ncreated on this host with the same identity, owner and project, in the state `MIGRATING`. A task\\\npulls its files from the source host afterwards and boots it with `boot`, because it was running\\\nbefore the migration. The TAP-device of the virtual_machine has to exist on this host already.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MigrationImportReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "TaskResp",
+                  "type": "object",
+                  "required": [
+                    "created_by",
+                    "description",
+                    "messages",
+                    "state",
+                    "task_type",
+                    "uuid"
+                  ],
+                  "properties": {
+                    "created_by": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": "string"
+                    },
+                    "finished_at": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "messages": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "queued_at": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "started_at": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "state": {
+                      "$ref": "#/components/schemas/TaskState"
+                    },
+                    "task_type": {
+                      "$ref": "#/components/schemas/TaskType"
+                    },
+                    "uuid": {
+                      "type": "string",
+                      "format": "uuid"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "409": {
+            "description": "Conflict with existing resources"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/virtual_machine/{virtual_machine_uuid}/migration/internal": {
+      "get": {
+        "tags": [
+          "migration"
+        ],
+        "summary": "Get migration",
+        "description": "Get the description of a virtual_machine, which is prepared on this host for its migration.\\\n\\\nIt contains everything the target host needs to create the virtual_machine with the same\\\nidentity, including its owner and its project.",
+        "parameters": [
+          {
+            "name": "virtual_machine_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Uuid",
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MigrationDescriptionResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "409": {
+            "description": "Conflict with existing resources"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "migration"
+        ],
+        "summary": "Remove migrated virtual_machine",
+        "description": "Create a new task, which removes the copy of a migrated virtual_machine from this host.\\\n\\\nThis is the source host after a successful migration, or the target host after a failed one.\\\nOnly a virtual_machine, which is prepared or whose import failed, is removed. Unlike a normal\\\ndeletion, no deleted entry is kept, because the virtual_machine still exists on the other host.",
+        "parameters": [
+          {
+            "name": "virtual_machine_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Uuid",
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "TaskResp",
+                  "type": "object",
+                  "required": [
+                    "created_by",
+                    "description",
+                    "messages",
+                    "state",
+                    "task_type",
+                    "uuid"
+                  ],
+                  "properties": {
+                    "created_by": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": "string"
+                    },
+                    "finished_at": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "messages": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "queued_at": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "started_at": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "state": {
+                      "$ref": "#/components/schemas/TaskState"
+                    },
+                    "task_type": {
+                      "$ref": "#/components/schemas/TaskType"
+                    },
+                    "uuid": {
+                      "type": "string",
+                      "format": "uuid"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/virtual_machine/{virtual_machine_uuid}/migration/prepare/internal": {
+      "post": {
+        "tags": [
+          "migration"
+        ],
+        "summary": "Prepare migration",
+        "description": "Create a new task, which prepares a virtual_machine on this host for its migration to another host.\\\n\\\nA running virtual_machine is shut down gracefully, so it writes all its data to its disk.\\\nAfterwards it is frozen in the state `MIGRATING`, so it can not be started or changed anymore,\\\nwhile the target host pulls its files. Only a running or stopped virtual_machine can be prepared.",
+        "parameters": [
+          {
+            "name": "virtual_machine_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Uuid",
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "TaskResp",
+                  "type": "object",
+                  "required": [
+                    "created_by",
+                    "description",
+                    "messages",
+                    "state",
+                    "task_type",
+                    "uuid"
+                  ],
+                  "properties": {
+                    "created_by": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": "string"
+                    },
+                    "finished_at": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "messages": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "queued_at": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "started_at": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "state": {
+                      "$ref": "#/components/schemas/TaskState"
+                    },
+                    "task_type": {
+                      "$ref": "#/components/schemas/TaskType"
+                    },
+                    "uuid": {
+                      "type": "string",
+                      "format": "uuid"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/virtual_machine/{virtual_machine_uuid}/migration/cancel/internal": {
+      "post": {
+        "tags": [
+          "migration"
+        ],
+        "summary": "Cancel migration",
+        "description": "Create a new task, which unfreezes a virtual_machine on this host, whose migration failed.\\\n\\\nThe virtual_machine is marked as stopped again and booted with `boot`, because it was running\\\nbefore the migration. A virtual_machine, which is not prepared, is left as it is.",
+        "parameters": [
+          {
+            "name": "virtual_machine_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Uuid",
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MigrationCancelReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "TaskResp",
+                  "type": "object",
+                  "required": [
+                    "created_by",
+                    "description",
+                    "messages",
+                    "state",
+                    "task_type",
+                    "uuid"
+                  ],
+                  "properties": {
+                    "created_by": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": "string"
+                    },
+                    "finished_at": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "messages": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "queued_at": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "started_at": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "state": {
+                      "$ref": "#/components/schemas/TaskState"
+                    },
+                    "task_type": {
+                      "$ref": "#/components/schemas/TaskType"
+                    },
+                    "uuid": {
+                      "type": "string",
+                      "format": "uuid"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/virtual_machine/{virtual_machine_uuid}/migration/file/{file}/internal": {
+      "get": {
+        "tags": [
+          "migration"
+        ],
+        "summary": "Get file of migration",
+        "description": "Stream a file of a virtual_machine, which is prepared on this host for its migration.\\\n\\\nThe file is sent as a single zstd-frame, which contains the size and a checksum of the content.\\\nThe size of the uncompressed file is also sent in the header `X-Migration-File-Size`. The\\\nvirtual_machine has to be prepared and its cloud-hypervisor process stopped, so the file doesn't\\\nchange during the transfer.",
+        "parameters": [
+          {
+            "name": "file",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/MigrationFile"
+            }
+          },
+          {
+            "name": "virtual_machine_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "409": {
+            "description": "Conflict with existing resources"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
     "/v1alpha/virtual_machine/{virtual_machine_uuid}/internal": {
       "get": {
         "tags": [
@@ -1109,6 +1622,126 @@
   },
   "components": {
     "schemas": {
+      "MigrationCancelReq": {
+        "title": "MigrationCancelReq",
+        "description": "Request to the source sakura-host to unfreeze a virtual_machine, whose migration failed",
+        "type": "object",
+        "required": [
+          "boot"
+        ],
+        "properties": {
+          "boot": {
+            "description": "Boot the virtual_machine again, because it was running before the migration",
+            "type": "boolean"
+          }
+        }
+      },
+      "MigrationDescriptionResp": {
+        "title": "MigrationDescriptionResp",
+        "description": "Everything the target sakura-host needs to know about a prepared virtual_machine to create it again with the same identity",
+        "type": "object",
+        "required": [
+          "created_at",
+          "created_by",
+          "disk_size",
+          "image_uuid",
+          "internal_ip",
+          "mac_address",
+          "memory_size",
+          "name",
+          "network_uuid",
+          "number_of_cores",
+          "owner_id",
+          "project_id",
+          "public_key_uuid",
+          "tap_name",
+          "uuid"
+        ],
+        "properties": {
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "created_by": {
+            "type": "string"
+          },
+          "disk_size": {
+            "description": "Size of the disk in GiB",
+            "type": "integer",
+            "format": "int64"
+          },
+          "image_uuid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "internal_ip": {
+            "type": "string",
+            "format": "ipv4"
+          },
+          "mac_address": {
+            "type": "string"
+          },
+          "memory_size": {
+            "description": "Memory in bytes",
+            "type": "integer",
+            "format": "int64"
+          },
+          "name": {
+            "type": "string"
+          },
+          "network_uuid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "number_of_cores": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "owner_id": {
+            "type": "string"
+          },
+          "project_id": {
+            "type": "string"
+          },
+          "public_key_uuid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "tap_name": {
+            "type": "string"
+          },
+          "uuid": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "MigrationImportReq": {
+        "title": "MigrationImportReq",
+        "description": "Request to the target sakura-host to take over a virtual_machine, which was prepared by the source sakura-host",
+        "type": "object",
+        "required": [
+          "boot",
+          "source_address",
+          "virtual_machine_uuid"
+        ],
+        "properties": {
+          "boot": {
+            "description": "Boot the virtual_machine after the import, because it was running before the migration",
+            "type": "boolean"
+          },
+          "source_address": {
+            "description": "Internal address of the source sakura-host, where the files are pulled from",
+            "type": "string",
+            "minLength": 1
+          },
+          "virtual_machine_uuid": {
+            "description": "The virtual_machine keeps its UUID on the new host",
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
       "ReadyResp": {
         "title": "ReadyResp",
         "type": "object",
@@ -1281,7 +1914,11 @@
           "SnapshotRestore",
           "VirtualMachineStart",
           "VirtualMachineStop",
-          "VirtualMachineReboot"
+          "VirtualMachineReboot",
+          "MigrationPrepare",
+          "MigrationImport",
+          "MigrationRemove",
+          "MigrationCancel"
         ]
       },
       "VersionResp": {

@@ -34,6 +34,10 @@ pub struct VirtualMachineCreateReq {
     /// Place the virtual_machine on a host, which is isolated for the project of the user
     #[serde(default)]
     pub isolated_host: bool,
+    /// Sakura-host, which has to run the virtual_machine, instead of a randomly selected one.
+    /// Only admins are allowed to set it.
+    #[serde(default)]
+    pub host_uuid: Option<Uuid>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]

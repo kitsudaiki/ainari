@@ -256,6 +256,65 @@
       }
     },
     "/v1alpha/proxy/{proxy_uuid}/internal": {
+      "put": {
+        "tags": [
+          "proxy"
+        ],
+        "summary": "Update proxy",
+        "description": "Point a proxy at another target address.\\\n\\\nThe proxy keeps its UUID and its port, so its virtual_machine stays reachable under the same\\\nport, for example after it was migrated to another sakura-host. Open connections over the proxy\\\nare closed.",
+        "parameters": [
+          {
+            "name": "proxy_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Uuid",
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProxyUpdateReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProxyResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      },
       "delete": {
         "tags": [
           "proxy"
@@ -1681,6 +1740,21 @@
           "virtual_machine_uuid": {
             "type": "string",
             "format": "uuid"
+          }
+        }
+      },
+      "ProxyUpdateReq": {
+        "title": "ProxyUpdateReq",
+        "description": "Points an existing proxy at another target, while it keeps its port, for example after its virtual_machine was migrated to another sakura-host",
+        "type": "object",
+        "required": [
+          "target_address"
+        ],
+        "properties": {
+          "target_address": {
+            "type": "string",
+            "maxLength": 127,
+            "minLength": 4
           }
         }
       },
