@@ -38,6 +38,42 @@ def host_usage(ctx) -> dict:
     return {key: sum(entry.get(key, 0) for entry in hosts) for key in RESOURCE_FIELDS}
 
 
+def usage_by_host(ctx) -> dict:
+    """
+    Resources of every sakura-host, which are allocated by virtual machines, by the uuid of the
+    host.
+    """
+    return {entry["uuid"]: {key: entry.get(key, 0) for key in RESOURCE_FIELDS}
+            for entry in host.list_hosts(ctx.api)["hosts"]}
+
+
+def vm_resources(ctx, factor: int = 1) -> dict:
+    """
+    Resources, which a virtual machine of the test allocates on its host, multiplied by the
+    factor, so -1 are the resources, which it releases.
+    """
+    config = ctx.config
+    return {
+        "used_number_of_cores": factor * config.number_of_cores,
+        "amount_of_used_memory": factor * config.memory_size,
+        "amount_of_used_disk_space": factor * config.disk_size,
+    }
+
+
+def usage_changes(before: dict, after: dict) -> dict:
+    """
+    Changes of the allocated resources between two results of usage_by_host. Hosts without a
+    change are left out.
+    """
+    changes = {}
+    for host_uuid, usage in after.items():
+        previous = before.get(host_uuid, {key: 0 for key in RESOURCE_FIELDS})
+        change = {key: usage[key] - previous[key] for key in RESOURCE_FIELDS}
+        if any(change.values()):
+            changes[host_uuid] = change
+    return changes
+
+
 @suite.test("all sakura-hosts are registered", provides=("hosts",))
 def sakura_hosts_registered(ctx):
     # A sakura, which is started before hanami, fails its registration and is restarted by

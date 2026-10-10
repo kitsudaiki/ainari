@@ -124,6 +124,43 @@ impl ProxyHandler {
         Ok(())
     }
 
+    /// Points a running proxy at another target, while it keeps its port.
+    ///
+    /// The old listener is stopped and awaited, before the new one is started, because both bind
+    /// the same port and the new listener would fail otherwise. Open connections of the old
+    /// target are closed.
+    ///
+    /// # Arguments
+    ///
+    /// * `uuid` - The unique identifier of the proxy.
+    /// * `port` - The port number the proxy listens on.
+    /// * `target_addr` - The new address the proxy forwards traffic to.
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(())` if the proxy forwards to the new target.
+    /// * `Err(AinariError::InvalidInput)` if no proxy with the given UUID was found.
+    /// * `Err(AinariError::InternalError)` if the new listener could not be created.
+    pub async fn retarget_proxy(
+        &mut self,
+        uuid: &Uuid,
+        port: u16,
+        target_addr: &str,
+    ) -> Result<(), AinariError> {
+        let Some(mut old_proxy) = self.proxys.remove(uuid) else {
+            let msg = format!("Proxy with uuid '{uuid}' not found.");
+            return Err(AinariError::InvalidInput(msg));
+        };
+
+        old_proxy.stop();
+        if let Some(handle) = old_proxy.handle.take() {
+            // the listener ends with the shutdown-signal and releases its port with that
+            let _ = handle.await;
+        }
+
+        self.add_proxy(uuid, port, target_addr).await
+    }
+
     /// Populates the proxy handler with proxies from the database.
     ///
     /// This method is typically used during application startup to initialize

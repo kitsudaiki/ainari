@@ -172,3 +172,48 @@ pub async fn delete_proxy(
 
     handle_empty_response(response, "proxy", &proxy_uuid.to_string()).await
 }
+
+/**
+Points an existing proxy at another target address.
+
+The proxy keeps its UUID and its port, so the virtual_machine stays reachable under the same
+port, for example after it was migrated to another sakura-host.
+
+# Arguments
+- `torii_endpoint`: The endpoint configuration for the Torii service
+- `token`: Authentication token for accessing the API
+- `internal_api_key`: Internal API key for privileged operations
+- `proxy_uuid`: UUID of the proxy to update
+- `target_address`: The new address, to which the proxy forwards the traffic
+- `insecure_client`: Whether to use an insecure (HTTP) client or secure (HTTPS) client
+
+# Returns
+A `Result` containing the updated `ProxyResp` or an `AinariError` if the operation fails.
+*/
+pub async fn update_proxy(
+    torii_endpoint: &ainari_config::Endpoint,
+    token: &String,
+    internal_api_key: &Secret,
+    proxy_uuid: &Uuid,
+    target_address: &str,
+    insecure_client: bool,
+) -> Result<ProxyResp, AinariError> {
+    let address = torii_endpoint.internal_address.clone();
+    let client = prepare_client(&address, insecure_client);
+    let url = format!("{address}/v1alpha/proxy/{proxy_uuid}/internal");
+
+    let body = ProxyUpdateReq {
+        target_address: target_address.to_owned(),
+    };
+    let json_str = serde_json::to_string(&body).unwrap();
+
+    let response = client
+        .put(url)
+        .insert_header(("Authorization", format!("Bearer {}", token)))
+        .insert_header(("X-Internal-API-Key", internal_api_key.reveal()))
+        .insert_header(("Content-Type", "application/json"))
+        .send_body(json_str)
+        .await;
+
+    handle_response(response, "proxy", &proxy_uuid.to_string()).await
+}

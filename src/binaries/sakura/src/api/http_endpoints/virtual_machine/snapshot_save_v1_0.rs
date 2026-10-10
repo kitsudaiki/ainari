@@ -68,6 +68,7 @@ pub async fn snapshot_save_task(
         virtual_machine_table::get_virtual_machine(&virtual_machine_uuid, &context).map_err(
             |e| map_db_uuid_get_delete_error("virtual_machine", &virtual_machine_uuid, e),
         )?;
+    super::reject_migrating(&virtual_machine_data)?;
 
     let endpoints = get_endpoints(&config::CONFIG.miko, config::CONFIG.skip_tls_verification)
         .await

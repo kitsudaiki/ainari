@@ -51,6 +51,8 @@ bincode = { version = "2.0", features = ["serde"] }
 bytemuck = "1.25"
 # hypervisor
 cloud-hypervisor-client = "0.6.0"
+# compression of the files of a virtual_machine during its migration
+zstd = { version = "0.13", default-features = false }
 
 [dev-dependencies]
 serial_test = "4"

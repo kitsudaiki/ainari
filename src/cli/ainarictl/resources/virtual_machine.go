@@ -38,10 +38,12 @@ var (
 	snapshotName               string
 	virtual_machineMode          string
 	virtual_machineIsolatedHost  bool
+	virtual_machineHostUuid      string
+	virtual_machineTargetHost    string
 )
 
 var createVirtualMachineCmd = &cobra.Command{
-	Use:   "create -t VM_TYPE_UUID -d DISK_SIZE -u NETWORK_UUID -i IMAGE_UUID -k PUBLIC_KEY_UUID [--isolated_host] NAME",
+	Use:   "create -t VM_TYPE_UUID -d DISK_SIZE -u NETWORK_UUID -i IMAGE_UUID -k PUBLIC_KEY_UUID [--isolated_host] [--host HOST_UUID] NAME",
 	Short: "Create a new virtual machine.",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
@@ -58,7 +60,8 @@ var createVirtualMachineCmd = &cobra.Command{
 			virtual_machineVmTypeUuid,
 			virtual_machineDiskSize,
 			virtual_machineNetworkUuid,
-			virtual_machineIsolatedHost)
+			virtual_machineIsolatedHost,
+			virtual_machineHostUuid)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
@@ -220,6 +223,33 @@ var rebootVirtualMachineCmd = newVirtualMachinePowerCmd(
 	"Create a new task to reboot a running virtual machine.",
 	ainari_sdk.RebootVirtualMachine)
 
+var migrateVirtualMachineCmd = &cobra.Command{
+	Use:   "migrate -t TARGET_HOST_UUID VIRTUAL_MACHINE_UUID",
+	Short: "Move a virtual machine to another sakura-host (admin only).",
+	Long: `Move a virtual machine to another sakura-host. This can only be done by an admin.
+
+The virtual machine is shut down, its disk is transferred to the target host and it is booted
+there again, if it was running before. It keeps its address, its proxy-port and its
+packet-filters. The migration runs in the background: the virtual machine is in the state
+MIGRATING, until it is running or stopped on the target host again. If the migration fails, the
+virtual machine is started on its current host again.`,
+	Args: cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		context, err := Login()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		virtual_machineUuid := args[0]
+		content, err := ainari_sdk.MigrateVirtualMachine(context, virtual_machineUuid, virtual_machineTargetHost)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		ainarictl_common.PrintSingle(content)
+	},
+}
+
 var getVirtualMachineCountCmd = &cobra.Command{
 	Use:   "count",
 	Short: "Get the number of virtual machines of the project.",
@@ -254,6 +284,7 @@ func Init_VirtualMachine_Commands(rootCmd *cobra.Command) {
 	createVirtualMachineCmd.Flags().StringVarP(&virtual_machineImageUuid, "image", "i", "", "UUID of the image of the virtual machine (mandatory)")
 	createVirtualMachineCmd.Flags().StringVarP(&virtual_machinePublicKeyUuid, "public_key", "k", "", "UUID of the public-key, which is deployed in the virtual machine (mandatory)")
 	createVirtualMachineCmd.Flags().BoolVar(&virtual_machineIsolatedHost, "isolated_host", false, "Place the virtual machine only on a host, which is isolated for the project")
+	createVirtualMachineCmd.Flags().StringVar(&virtual_machineHostUuid, "host", "", "UUID of the sakura-host, which runs the virtual machine (admin only, fails without enough free resources on it)")
 	createVirtualMachineCmd.MarkFlagRequired("vm_type")
 	createVirtualMachineCmd.MarkFlagRequired("disk")
 	createVirtualMachineCmd.MarkFlagRequired("network")
@@ -273,4 +304,8 @@ func Init_VirtualMachine_Commands(rootCmd *cobra.Command) {
 	virtual_machineCmd.AddCommand(rebootVirtualMachineCmd)
 
 	virtual_machineCmd.AddCommand(getVirtualMachineCountCmd)
+
+	virtual_machineCmd.AddCommand(migrateVirtualMachineCmd)
+	migrateVirtualMachineCmd.Flags().StringVarP(&virtual_machineTargetHost, "target", "t", "", "UUID of the sakura-host, which runs the virtual machine afterwards (mandatory)")
+	migrateVirtualMachineCmd.MarkFlagRequired("target")
 }

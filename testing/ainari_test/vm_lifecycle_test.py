@@ -21,7 +21,7 @@ It runs the suites of ./suites against a running stack:
     hosts             registration and resources of the sakura- and onsen-hosts
     resources         public key, cloud-image, network and secrets
     host_isolation    isolated sakura-hosts, which are only used by a single project
-    virtual_machines  reserve and create the virtual machines on their sakura-hosts
+    virtual_machines  reserve and create the virtual machines on given sakura-hosts
     proxies           proxies of the torii towards the sakura-hosts
     floating_ips      create, attach, detach, get and list floating ip-addresses
     ssh               ssh-access and the hardware within the virtual machines
@@ -32,6 +32,7 @@ It runs the suites of ./suites against a running stack:
     power             reboot, stop and start
     snapshots         save and restore a snapshot of the root-disk
     tasks             the tasks, which were created on the sakura-hosts
+    migration         move virtual machines to another sakura-host
     cleanup           delete and verify all created resources
 
 The stack has to run before this script is started:

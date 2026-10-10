@@ -28,8 +28,10 @@ import (
 // the public-key are not deployed here, but by the task of CreateVirtualMachine. The number of
 // cores and the memory are taken from the vm-type and the diskSize is given in GiB. With
 // isolatedHost, the virtual machine is only placed on a host, which is isolated for the project
-// of the user.
-func ReserveVirtualMachine(context AccessContext, name string, vmTypeUuid string, diskSize int64, networkUuid string, isolatedHost bool) (map[string]interface{}, error) {
+// of the user. With hostUuid, an admin places the virtual machine on this specific sakura-host,
+// which fails, if the host has not enough free resources. An empty hostUuid lets hanami select
+// the host.
+func ReserveVirtualMachine(context AccessContext, name string, vmTypeUuid string, diskSize int64, networkUuid string, isolatedHost bool, hostUuid string) (map[string]interface{}, error) {
 	path := "v1alpha/virtual_machine"
 	jsonBody := map[string]interface{}{
 		"vm_type_uuid":  vmTypeUuid,
@@ -37,6 +39,21 @@ func ReserveVirtualMachine(context AccessContext, name string, vmTypeUuid string
 		"name":          name,
 		"network_uuid":  networkUuid,
 		"isolated_host": isolatedHost,
+	}
+	if hostUuid != "" {
+		jsonBody["host_uuid"] = hostUuid
+	}
+	return SendPost(context, context.HanamiAddress, path, jsonBody)
+}
+
+// MigrateVirtualMachine moves a virtual machine to another sakura-host, which is only allowed for
+// admins. The migration runs in the background, so the call returns, as soon as it was accepted,
+// with the uuids of the virtual machine and of its current and its new host. The virtual machine
+// is in the state MIGRATING, while it is moved.
+func MigrateVirtualMachine(context AccessContext, virtual_machineUuid string, targetHostUuid string) (map[string]interface{}, error) {
+	path := fmt.Sprintf("v1alpha/virtual_machine/%s/migrate/admin", virtual_machineUuid)
+	jsonBody := map[string]interface{}{
+		"target_host_uuid": targetHostUuid,
 	}
 	return SendPost(context, context.HanamiAddress, path, jsonBody)
 }

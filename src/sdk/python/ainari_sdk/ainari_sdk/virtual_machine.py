@@ -21,14 +21,16 @@ def reserve_virtual_machine(context: AccessContext,
                             vm_type_uuid: str,
                             disk_size: int,
                             network_uuid: str,
-                            isolated_host: bool = False) -> dict:
+                            isolated_host: bool = False,
+                            host_uuid: str = None) -> dict:
     """
     Reserves a new virtual machine on one of the sakura-hosts. The image and the public-key are
     not deployed here, but by the task of create_virtual_machine.
 
     The number of cores and the memory are taken from the given vm-type. The disk_size is given
     in GiB. With isolated_host, the virtual machine is only placed on a host, which is isolated
-    for the project of the user.
+    for the project of the user. With host_uuid, an admin places the virtual machine on this
+    specific sakura-host, which fails, if the host has not enough free resources.
     """
     path = "/v1alpha/virtual_machine"
     json_body = {
@@ -38,6 +40,8 @@ def reserve_virtual_machine(context: AccessContext,
         "network_uuid": network_uuid,
         "isolated_host": isolated_host,
     }
+    if host_uuid is not None:
+        json_body["host_uuid"] = host_uuid
     return ainari_request.send_post_request(context,
                                             context.hanami_address,
                                             path,
@@ -134,6 +138,24 @@ def get_virtual_machine_count(context: AccessContext) -> dict:
                                            context.hanami_address,
                                            path,
                                            "")
+
+
+def migrate_virtual_machine(context: AccessContext,
+                            virtual_machine_uuid: str,
+                            target_host_uuid: str) -> dict:
+    """
+    Moves a virtual machine to another sakura-host, which is only allowed for admins. The
+    migration runs in the background, so the call returns, as soon as it was accepted, with the
+    uuids of the virtual machine and of its current and its new host.
+    """
+    path = f"/v1alpha/virtual_machine/{virtual_machine_uuid}/migrate/admin"
+    json_body = {
+        "target_host_uuid": target_host_uuid,
+    }
+    return ainari_request.send_post_request(context,
+                                            context.hanami_address,
+                                            path,
+                                            json_body)
 
 
 def delete_virtual_machine(context: AccessContext,

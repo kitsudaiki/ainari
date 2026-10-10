@@ -80,6 +80,9 @@ class Config:
     ssh_timeout: int = field(default_factory=lambda: _env_int("AINARI_SSH_TIMEOUT", 300))
     task_timeout: int = field(default_factory=lambda: _env_int("AINARI_TASK_TIMEOUT", 600))
     delete_timeout: int = field(default_factory=lambda: _env_int("AINARI_DELETE_TIMEOUT", 180))
+    # a migration shuts the virtual machine down, transfers its disk and boots it again
+    migration_timeout: int = field(
+        default_factory=lambda: _env_int("AINARI_MIGRATION_TIMEOUT", 900))
 
     @property
     def image_path(self) -> str:

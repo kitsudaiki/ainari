@@ -624,6 +624,45 @@ pub fn allocate_host_resources(
     requested: &HostResources,
     _: &UserContext,
 ) -> Result<HostEntry, enums::DbError> {
+    allocate_on_suitable_host(requested, None)
+}
+
+/// Allocates the requested resources on one specific host.
+///
+/// The host has to fulfil the same conditions as within `allocate_host_resources`: it must be
+/// active, have enough free resources and its isolation must match the project of the request.
+/// This is used for the migration of a virtual-machine to a host, which was chosen by an admin.
+///
+/// # Arguments
+/// * `host_uuid` - Unique identifier of the host
+/// * `requested` - Resources, which are requested by the virtual-machine
+///
+/// # Returns
+/// * Ok(HostEntry) with the host and its updated used values
+/// * DbError::NotFound if the host doesn't exist or is not suitable
+/// * DbError::InternalError if there was an error executing the queries
+pub fn allocate_resources_on_host(
+    host_uuid: &Uuid,
+    requested: &HostResources,
+) -> Result<HostEntry, enums::DbError> {
+    allocate_on_suitable_host(requested, Some(host_uuid))
+}
+
+/// Allocates the requested resources on a suitable host, see `allocate_host_resources`.
+///
+/// # Arguments
+/// * `requested` - Resources, which are requested by the virtual-machine
+/// * `only_host` - Consider only this host, instead of all hosts
+///
+/// # Returns
+/// * Ok(HostEntry) with the selected host and its updated used values
+/// * DbError::NotFound if no host is suitable
+/// * DbError::InternalError if there was an error executing the queries
+fn allocate_on_suitable_host(
+    requested: &HostResources,
+    only_host: Option<&Uuid>,
+) -> Result<HostEntry, enums::DbError> {
+    let only_host = only_host.map(Uuid::to_string);
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::hosts::dsl::*;
 
@@ -651,6 +690,9 @@ pub fn allocate_host_resources(
             .filter(has_free_resources)
             .select((uuid, project_id))
             .load::<(String, Option<String>)>(conn)?;
+        if let Some(only_host) = &only_host {
+            suitable_hosts.retain(|(host_uuid, _)| host_uuid == only_host);
+        }
         suitable_hosts.shuffle(&mut rand::rng());
         // Hosts, which are already bound to the requested project, are tried first and only
         // afterwards the isolated hosts without project. The sort is stable, so both groups
@@ -1202,6 +1244,87 @@ mod tests {
         assert!(get_host(&shared_uuid, &context).is_ok_and(|h| h.used_number_of_cores == 0));
 
         for host_uuid in [&shared_uuid, &free_isolated_uuid, &bound_isolated_uuid] {
+            hard_delete_host(host_uuid);
+        }
+    }
+
+    #[test]
+    #[serial]
+    fn test_allocate_resources_on_host() {
+        let small_uuid = Uuid::new_v4();
+        let large_uuid = Uuid::new_v4();
+        let isolated_uuid = Uuid::new_v4();
+
+        let context = UserContext {
+            token: "".to_string(),
+            user_id: "test-user".to_string(),
+            project_id: "test-project".to_string(),
+            is_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
+        };
+
+        let host_resources = |cores: i64| HostResources {
+            number_of_cores: cores,
+            memory_size: 10_000_000_000,
+            disk_space: 10_000_000_000,
+            project_id: None,
+        };
+        for (host_uuid, cores) in [
+            (&small_uuid, 4_000_000),
+            (&large_uuid, 10_000_000),
+            (&isolated_uuid, 10_000_000),
+        ] {
+            hard_delete_host(host_uuid);
+            add_new_host(
+                host_uuid,
+                "Alice",
+                "http://127.0.0.1:11420",
+                None,
+                &host_resources(cores),
+                &context,
+            )
+            .unwrap();
+        }
+        {
+            use self::hosts::dsl::*;
+            let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+            diesel::update(hosts.filter(uuid.eq(isolated_uuid.to_string())))
+                .set(is_host_isolated.eq(true))
+                .execute(&mut *conn)
+                .unwrap();
+        }
+
+        let request = |project: Option<&str>| HostResources {
+            number_of_cores: 6_000_000,
+            memory_size: 1_000,
+            disk_space: 1_000,
+            project_id: project.map(str::to_string),
+        };
+
+        // only the requested host is used, also if another one would fit
+        let Ok(host) = allocate_resources_on_host(&large_uuid, &request(None)) else {
+            panic!("Expected successful allocation");
+        };
+        assert_eq!(host.uuid, large_uuid);
+        assert_eq!(host.used_number_of_cores, 6_000_000);
+
+        // a host with too few free resources is not used
+        assert!(allocate_resources_on_host(&small_uuid, &request(None)).is_err());
+        assert!(allocate_resources_on_host(&large_uuid, &request(None)).is_err());
+        assert!(get_host(&small_uuid, &context).is_ok_and(|h| h.used_number_of_cores == 0));
+
+        // the isolation has to match the request
+        assert!(allocate_resources_on_host(&isolated_uuid, &request(None)).is_err());
+        let Ok(host) = allocate_resources_on_host(&isolated_uuid, &request(Some("project1")))
+        else {
+            panic!("Expected successful allocation");
+        };
+        assert_eq!(host.project_id.as_deref(), Some("project1"));
+
+        // an unknown host is not suitable
+        assert!(allocate_resources_on_host(&Uuid::new_v4(), &request(None)).is_err());
+
+        for host_uuid in [&small_uuid, &large_uuid, &isolated_uuid] {
             hard_delete_host(host_uuid);
         }
     }

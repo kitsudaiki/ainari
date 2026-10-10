@@ -29,7 +29,9 @@ pub mod quota;
 pub mod root_wrap;
 pub mod route;
 pub mod secret;
+pub mod task;
 pub mod virtual_machine;
+pub mod virtual_machine_migration;
 
 use actix_web::dev::{Decompress, Payload};
 use awc::error::SendRequestError;

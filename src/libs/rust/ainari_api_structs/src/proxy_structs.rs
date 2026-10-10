@@ -26,6 +26,14 @@ pub struct ProxyCreateReq {
     pub virtual_machine_uuid: Uuid,
 }
 
+/// Points an existing proxy at another target, while it keeps its port, for example after its
+/// virtual_machine was migrated to another sakura-host
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
+pub struct ProxyUpdateReq {
+    #[validate(length(min = 4, max = 127))]
+    pub target_address: String,
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
 pub struct ProxyResp {
     pub uuid: Uuid,

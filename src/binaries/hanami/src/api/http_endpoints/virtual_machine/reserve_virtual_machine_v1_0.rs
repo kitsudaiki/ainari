@@ -66,7 +66,12 @@ use ainari_common::enums::DbError;
 The number of cores and the memory of the virtual_machine are taken from the given vm-type. The
 virtual_machine is placed on a random sakura-host, which has enough free cores, memory and
 disk-space for it. The image and the public-key are not set here, but by the following
-create-call."###,
+create-call.
+
+With `host_uuid` an admin places the virtual_machine on this specific sakura-host instead. The
+request fails with `409`, if the host has not enough free resources or its isolation doesn't
+match `isolated_host`, and with `404`, if the host doesn't exist. Other users are not allowed
+to set `host_uuid`."###,
     error_code = 400,
     error_code = 401,
     error_code = 404,
@@ -80,6 +85,11 @@ pub async fn reserve_virtual_machine(
     // validate incoming json
     body.validate()
         .map_err(|e| ErrorResponse::BadRequest(format!("Invalid input: {e}")))?;
+
+    // only an admin decides about the placement of a virtual_machine
+    if body.host_uuid.is_some() {
+        check_admin_context(&context)?;
+    }
 
     // the vm-type defines the number of cores and the memory of the virtual_machine
     let vm_type = vm_type_table::get_vm_type(&body.vm_type_uuid)
@@ -104,6 +114,7 @@ pub async fn reserve_virtual_machine(
         vm_type.amount_of_memory,
         body.disk_size,
         body.isolated_host,
+        body.host_uuid.as_ref(),
         &context,
     )?;
 
@@ -162,17 +173,19 @@ pub async fn reserve_virtual_machine(
 /// * `memory_size` - Requested memory of the new virtual_machine in MiB
 /// * `disk_size` - Requested disk-size of the new virtual_machine in GiB
 /// * `isolated_host` - Use only hosts, which are isolated for the project of the context
+/// * `host_uuid` - Use only this host, which was requested by an admin
 /// * `context` - User context containing authentication information
 ///
 /// # Returns
 /// * `Ok((HostEntry, HostResources))` with the selected host and the resources allocated on it
-/// * `Err(ErrorResponse)` if there is no host with enough free resources or the hosts can not
-///   be read from the database
+/// * `Err(ErrorResponse)` if there is no host with enough free resources, the requested host
+///   doesn't exist or the hosts can not be read from the database
 fn select_host(
     number_of_cores: i32,
     memory_size: i64,
     disk_size: i64,
     isolated_host: bool,
+    host_uuid: Option<&Uuid>,
     context: &UserContext,
 ) -> Result<(HostEntry, HostResources), ErrorResponse> {
     // an isolated host is requested for the project of the context
@@ -185,6 +198,70 @@ fn select_host(
         project_id,
     };
 
+    match host_uuid {
+        Some(host_uuid) => allocate_on_requested_host(host_uuid, requested, context),
+        None => allocate_on_any_host(requested, context),
+    }
+}
+
+/// Allocates the resources of the new virtual_machine on the host, which was requested by an
+/// admin
+///
+/// The host has to fulfil the same conditions as a randomly selected one: it needs enough free
+/// resources and its isolation has to match `isolated_host` of the request.
+///
+/// # Arguments
+/// * `host_uuid` - The requested host
+/// * `requested` - Resources of the new virtual_machine
+/// * `context` - User context containing authentication information
+///
+/// # Returns
+/// * `Ok((HostEntry, HostResources))` with the host and the resources allocated on it
+/// * `Err(ErrorResponse)` with `NotFound` if the host doesn't exist, `Conflict` if it is not
+///   suitable, otherwise an appropriate error on failure
+fn allocate_on_requested_host(
+    host_uuid: &Uuid,
+    requested: HostResources,
+    context: &UserContext,
+) -> Result<(HostEntry, HostResources), ErrorResponse> {
+    // an unknown host is a wrong request, not a lack of resources
+    host_table::get_host(host_uuid, context)
+        .map_err(|e| map_db_uuid_get_delete_error("sakura-host", host_uuid, e))?;
+
+    match host_table::allocate_resources_on_host(host_uuid, &requested) {
+        Ok(host) => Ok((host, requested)),
+        Err(DbError::NotFound) => {
+            log::error!(
+                "Requested host '{host_uuid}' is not suitable for new virtual_machine: cores: {}, \
+                 memory: {} MiB, disk: {} GiB, isolated for project: {:?}.",
+                requested.number_of_cores,
+                requested.memory_size,
+                requested.disk_space,
+                requested.project_id
+            );
+            Err(ErrorResponse::Conflict(format!(
+                "Host '{host_uuid}' has not enough free resources for the virtual_machine or its \
+                 isolation doesn't match the request."
+            )))
+        }
+        Err(e) => Err(map_db_uuid_get_delete_error("sakura-host", host_uuid, e)),
+    }
+}
+
+/// Allocates the resources of the new virtual_machine on a random suitable host
+///
+/// # Arguments
+/// * `requested` - Resources of the new virtual_machine
+/// * `context` - User context containing authentication information
+///
+/// # Returns
+/// * `Ok((HostEntry, HostResources))` with the selected host and the resources allocated on it
+/// * `Err(ErrorResponse)` if there is no host with enough free resources or the hosts can not
+///   be read from the database
+fn allocate_on_any_host(
+    requested: HostResources,
+    context: &UserContext,
+) -> Result<(HostEntry, HostResources), ErrorResponse> {
     match host_table::allocate_host_resources(&requested, context) {
         Ok(host) => Ok((host, requested)),
         Err(DbError::NotFound) => {

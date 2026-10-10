@@ -13,15 +13,17 @@
 # limitations under the License.
 
 """
-Reservation of the virtual machines in hanami and their creation on the sakura-hosts. Hanami
-picks a sakura-host for every one of them, so they can land on the same host or on different
-ones, which differs from run to run.
+Reservation of the virtual machines in hanami and their creation on the sakura-hosts. The
+virtual machines are placed by their host_uuid round-robin on the shared sakura-hosts, so with
+more than one host they run on different hosts in every run, which the networking and the
+migration rely on. The random placement of hanami is tested by the host-isolation.
 """
 
 import ipaddress
 import uuid
 
 from ainari_sdk import ainari_exceptions
+from ainari_sdk import host
 from ainari_sdk import virtual_machine
 from ainari_sdk import vm_type
 
@@ -42,27 +44,60 @@ def register_virtual_machine(ctx, name: str, vm_uuid: str):
                     lambda: exists(virtual_machine.get_virtual_machine, ctx.api, vm_uuid))
 
 
-@suite.test("reserve virtual machines", requires=("hosts", "network", "vm_type"),
+def has_room(ctx, entry: dict) -> bool:
+    """
+    Checks, if a sakura-host from the host-list has enough free resources for a virtual machine
+    of the test.
+    """
+    config = ctx.config
+    return (entry["number_of_cores"] - entry["used_number_of_cores"] >= config.number_of_cores
+            and entry["memory_size"] - entry["amount_of_used_memory"] >= config.memory_size
+            and entry["disk_space"] - entry["amount_of_used_disk_space"] >= config.disk_size)
+
+
+def next_shared_host(ctx, number: int) -> str:
+    """
+    Picks the sakura-host for the virtual machine with the given number round-robin from the
+    shared hosts, which have enough free resources. Isolated hosts are left out, because they
+    don't take the virtual machines of the test.
+    """
+    candidates = sorted((entry for entry in host.list_hosts(ctx.api)["hosts"]
+                         if not entry["is_host_isolated"] and has_room(ctx, entry)),
+                        key=lambda entry: entry["uuid"])
+    check(candidates, "no shared sakura-host has enough free resources")
+    return candidates[number % len(candidates)]["uuid"]
+
+
+@suite.test("reserve virtual machines on given hosts", requires=("hosts", "network", "vm_type"),
             provides=("reserved",))
 def reserve(ctx):
     config = ctx.config
     reserved = []
     for number in range(1, config.number_of_virtual_machines + 1):
         name = ctx.name(str(number))
+        host_uuid = next_shared_host(ctx, number)
+        before = hosts.usage_by_host(ctx)
         result = virtual_machine.reserve_virtual_machine(ctx.api,
                                                          name,
                                                          ctx.state["vm_type"],
                                                          config.disk_size,
-                                                         ctx.state["network"])
+                                                         ctx.state["network"],
+                                                         host_uuid=host_uuid)
         register_virtual_machine(ctx, name, result["uuid"])
         reserved.append({
             "name": name,
             "uuid": result["uuid"],
             "internal_ip": result["internal_ip"],
             "torii_port": result["torii_port"],
+            "host": host_uuid,
         })
         ctx.log(f"{name}: {result['uuid']} ({result['internal_ip']}, "
-                f"proxy-port {result['torii_port']})")
+                f"proxy-port {result['torii_port']}, host {host_uuid})")
+
+        # the resources are only allocated on the requested host
+        check_equal(hosts.usage_changes(before, hosts.usage_by_host(ctx)),
+                    {host_uuid: hosts.vm_resources(ctx)},
+                    f"allocated resources of {name}")
     ctx.state["reserved"] = reserved
 
     subnet = ipaddress.ip_network(config.network_subnet, strict=False)
@@ -100,6 +135,36 @@ def too_large(ctx):
                          virtual_machine.reserve_virtual_machine, ctx.api,
                          name, vm_type_uuid, ctx.config.disk_size, ctx.state["network"])
     ctx.log(f"rejected: {error}")
+
+
+@suite.test("too large virtual machine on a given host is rejected",
+            requires=("hosts", "network"))
+def too_large_on_host(ctx):
+    # the host exists, but has not enough cores, so nothing is allocated on it
+    host_uuid = ctx.state["hosts"][0]["uuid"]
+    name = ctx.name("too-large-on-host")
+    vm_type_uuid = vm_type.create_vm_type(ctx.api, name, 100000, ctx.config.memory_size)["uuid"]
+    register_vm_type(ctx, name, vm_type_uuid)
+
+    before = hosts.usage_by_host(ctx)
+    error = expect_error(ainari_exceptions.ConflictException,
+                         virtual_machine.reserve_virtual_machine, ctx.api,
+                         name, vm_type_uuid, ctx.config.disk_size, ctx.state["network"],
+                         host_uuid=host_uuid)
+    ctx.log(f"rejected: {error}")
+    check_equal(hosts.usage_changes(before, hosts.usage_by_host(ctx)), {},
+                "allocated resources after the rejection")
+
+
+@suite.test("unknown host is rejected", requires=("network", "vm_type"))
+def unknown_host(ctx):
+    before = hosts.usage_by_host(ctx)
+    expect_error(ainari_exceptions.NotFoundException,
+                 virtual_machine.reserve_virtual_machine, ctx.api,
+                 ctx.name("unknown-host"), ctx.state["vm_type"], ctx.config.disk_size,
+                 ctx.state["network"], host_uuid=str(uuid.uuid4()))
+    check_equal(hosts.usage_changes(before, hosts.usage_by_host(ctx)), {},
+                "allocated resources after the rejection")
 
 
 @suite.test("unknown vm-type is rejected", requires=("network",))

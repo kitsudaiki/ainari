@@ -32,17 +32,17 @@ use uuid::Uuid;
 
 use crate::config;
 use crate::core::mls::{grant_membership, is_encrypted, network_encrypted, revoke_membership};
-use crate::core::routing::{resolve_address, torii_of_host};
+use crate::core::routing::{
+    ensure_route, list_routes, overlay_route, resolve_address, torii_of_host,
+};
 use crate::database::address_table::{self, AddressEntry};
 use crate::database::host_table;
 use crate::database::network_table;
 
 use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
-use ainari_api_structs::route_structs::{RouteReq, RouteResp};
 use ainari_api_structs::user_context::UserContext;
 use ainari_clients::endpoints::get_endpoints;
-use ainari_clients::route as route_clients;
 use ainari_common::config::{Endpoint, Endpoints};
 use ainari_common::enums::ProjectRole;
 
@@ -326,120 +326,6 @@ async fn restore_connections(
     }
 }
 
-/// Builds the request of a route towards a virtual_machine on another host. The target-interface
-/// is left empty, so the torii uses the interface of its own underlay.
-fn overlay_route(dest_ip: Ipv4Addr, gateway_ip: Ipv4Addr, vni: u32, encrypted: bool) -> RouteReq {
-    RouteReq {
-        dest_ip,
-        target_iface: String::new(),
-        vni,
-        gateway_ip: Some(gateway_ip),
-        next_hop_ip: None,
-        next_hop_mac: None,
-        encrypted,
-    }
-}
-
-/// Lists the routes of a torii.
-async fn list_routes(
-    torii: &Endpoint,
-    context: &UserContext,
-) -> Result<Vec<RouteResp>, ErrorResponse> {
-    Ok(route_clients::list_route(
-        torii,
-        &context.token,
-        &config::INTERNAL_API_KEY,
-        config::CONFIG.skip_tls_verification,
-    )
-    .await
-    .map_err(map_ainari_error_to_api_response)?
-    .routes)
-}
-
-/// Checks, if an existing route towards another host already leads to the host and has the
-/// encryption, which a request wants.
-fn route_matches(route: &RouteResp, req: &RouteReq) -> bool {
-    route.gateway_ip == req.gateway_ip && route.encrypted == req.encrypted
-}
-
-/// Makes sure, that a torii has exactly one route towards an address of a tenant, which leads,
-/// where the request wants it to.
-///
-/// A matching route is kept, a route with another target is updated, so it keeps its UUID, and a
-/// missing route is created. Further routes towards the same address are deleted.
-///
-/// # Arguments
-/// * `torii` - The torii
-/// * `req` - The route, which the torii has to have
-/// * `context` - Context of the restore
-///
-/// # Returns
-/// `Ok(())` once the torii has the route
-async fn ensure_route(
-    torii: &Endpoint,
-    req: RouteReq,
-    context: &UserContext,
-) -> Result<(), ErrorResponse> {
-    let existing: Vec<RouteResp> = list_routes(torii, context)
-        .await?
-        .into_iter()
-        .filter(|route| route.vni == req.vni && route.dest_ip == req.dest_ip)
-        .collect();
-
-    let keep = existing
-        .iter()
-        .position(|route| route_matches(route, &req))
-        .or(if existing.is_empty() { None } else { Some(0) });
-
-    match keep {
-        Some(index) if route_matches(&existing[index], &req) => {}
-        Some(index) => {
-            log::info!(
-                "Change the route towards {} of tenant {} on '{}'",
-                req.dest_ip,
-                req.vni,
-                torii.internal_address
-            );
-            route_clients::update_route(
-                torii,
-                &context.token,
-                &config::INTERNAL_API_KEY,
-                &existing[index].uuid,
-                &req,
-                config::CONFIG.skip_tls_verification,
-            )
-            .await
-            .map_err(map_ainari_error_to_api_response)?;
-        }
-        None => {
-            route_clients::create_route(
-                torii,
-                &context.token,
-                &config::INTERNAL_API_KEY,
-                &req,
-                config::CONFIG.skip_tls_verification,
-            )
-            .await
-            .map_err(map_ainari_error_to_api_response)?;
-        }
-    }
-
-    for (index, route) in existing.iter().enumerate() {
-        if Some(index) != keep {
-            route_clients::delete_route(
-                torii,
-                &context.token,
-                &config::INTERNAL_API_KEY,
-                &route.uuid,
-                config::CONFIG.skip_tls_verification,
-            )
-            .await
-            .map_err(map_ainari_error_to_api_response)?;
-        }
-    }
-    Ok(())
-}
-
 /// Context of the restore, which isn't bound to a user. The torii authorize the internal
 /// endpoints by the internal API-key alone.
 fn system_context() -> UserContext {
@@ -449,35 +335,5 @@ fn system_context() -> UserContext {
         project_id: String::new(),
         is_admin: true.to_string(),
         project_role: ProjectRole::Admin.to_string(),
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn route(gateway_ip: Option<Ipv4Addr>, target_iface: &str, encrypted: bool) -> RouteResp {
-        RouteResp {
-            uuid: Uuid::new_v4(),
-            vni: 5,
-            dest_ip: Ipv4Addr::new(192, 168, 100, 2),
-            target_iface: target_iface.to_string(),
-            gateway_ip,
-            next_hop_ip: None,
-            next_hop_mac: None,
-            encrypted,
-        }
-    }
-
-    #[test]
-    fn a_route_to_the_old_address_of_a_host_doesnt_match() {
-        let old = Ipv4Addr::new(10, 42, 8, 10);
-        let new = Ipv4Addr::new(10, 42, 8, 11);
-        let req = overlay_route(Ipv4Addr::new(192, 168, 100, 2), new, 5, true);
-
-        assert!(route_matches(&route(Some(new), "eth0", true), &req));
-        assert!(!route_matches(&route(Some(old), "eth0", true), &req));
-        // the encryption is part of the route
-        assert!(!route_matches(&route(Some(new), "eth0", false), &req));
     }
 }

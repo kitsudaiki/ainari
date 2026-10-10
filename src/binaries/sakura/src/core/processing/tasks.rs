@@ -23,6 +23,12 @@ use ainari_common::error::AinariError;
 use crate::config;
 use crate::core::virtual_machine::cloud_hypervisor::create_ch_virtual_machine::create_ch_virtual_machine;
 use crate::core::virtual_machine::cloud_hypervisor::delete_ch_virtual_machine::delete_ch_virtual_machine;
+use crate::core::virtual_machine::cloud_hypervisor::migration::ensure_not_migrating;
+use crate::core::virtual_machine::cloud_hypervisor::migration::import::import_ch_virtual_machine;
+use crate::core::virtual_machine::cloud_hypervisor::migration::prepare::{
+    cancel_ch_migration, prepare_ch_migration,
+};
+use crate::core::virtual_machine::cloud_hypervisor::migration::remove::remove_migrated_ch_virtual_machine;
 use crate::core::virtual_machine::cloud_hypervisor::reboot_ch_virtual_machine::reboot_ch_virtual_machine;
 use crate::core::virtual_machine::cloud_hypervisor::restore_ch_virtual_machine::restore_ch_virtual_machine;
 use crate::core::virtual_machine::cloud_hypervisor::save_ch_virtual_machine::save_ch_virtual_machine;
@@ -87,6 +93,40 @@ pub struct CloudHypervisorVirtualMachineRestoreInfo {
 /// An enumeration of different task variants that a Task can have.
 /// Each variant contains different information relevant to that type of task.
 #[derive(Debug)]
+pub struct CloudHypervisorVirtualMachineMigrationInfo {
+    #[allow(dead_code)]
+    pub vm_uuid: Uuid,
+    #[allow(dead_code)]
+    pub description: String,
+    pub context: UserContext,
+}
+
+#[derive(Debug)]
+pub struct CloudHypervisorVirtualMachineMigrationCancelInfo {
+    #[allow(dead_code)]
+    pub vm_uuid: Uuid,
+    /// Boot the virtual_machine again, because it was running before the migration
+    pub boot: bool,
+    #[allow(dead_code)]
+    pub description: String,
+    pub context: UserContext,
+}
+
+#[derive(Debug)]
+pub struct CloudHypervisorVirtualMachineMigrationImportInfo {
+    #[allow(dead_code)]
+    pub vm_uuid: Uuid,
+    /// Internal address of the source host, where the files of the virtual_machine are pulled
+    /// from
+    pub source_address: String,
+    /// Boot the virtual_machine after the import, because it was running before the migration
+    pub boot: bool,
+    #[allow(dead_code)]
+    pub description: String,
+    pub context: UserContext,
+}
+
+#[derive(Debug)]
 #[allow(clippy::enum_variant_names)]
 pub enum TaskVariant {
     CloudHypervisorVirtualMachineCreate(CloudHypervisorVirtualMachineCreateInfo),
@@ -96,6 +136,38 @@ pub enum TaskVariant {
     CloudHypervisorVirtualMachineStart(CloudHypervisorVirtualMachinePowerInfo),
     CloudHypervisorVirtualMachineStop(CloudHypervisorVirtualMachinePowerInfo),
     CloudHypervisorVirtualMachineReboot(CloudHypervisorVirtualMachinePowerInfo),
+    CloudHypervisorVirtualMachineMigrationPrepare(CloudHypervisorVirtualMachineMigrationInfo),
+    CloudHypervisorVirtualMachineMigrationCancel(CloudHypervisorVirtualMachineMigrationCancelInfo),
+    CloudHypervisorVirtualMachineMigrationImport(CloudHypervisorVirtualMachineMigrationImportInfo),
+    CloudHypervisorVirtualMachineMigrationRemove(CloudHypervisorVirtualMachineMigrationInfo),
+}
+
+impl TaskVariant {
+    /// Returns the context of a task, which must not run, while its virtual_machine is migrated,
+    /// because it would start or change the frozen virtual_machine.
+    ///
+    /// The creation is not affected, because a virtual_machine is only migrated after it was
+    /// created, and the deletion is still possible to clean up a stuck migration by hand. The
+    /// snapshot is checked by its handler, which also removes its image from ryokan again.
+    ///
+    /// # Returns
+    ///
+    /// The context of the task, if it is blocked by a migration, otherwise `None`.
+    fn context_if_blocked_by_migration(&self) -> Option<&UserContext> {
+        match self {
+            TaskVariant::CloudHypervisorVirtualMachineRestore(info) => Some(&info.context),
+            TaskVariant::CloudHypervisorVirtualMachineStart(info)
+            | TaskVariant::CloudHypervisorVirtualMachineStop(info)
+            | TaskVariant::CloudHypervisorVirtualMachineReboot(info) => Some(&info.context),
+            TaskVariant::CloudHypervisorVirtualMachineCreate(_)
+            | TaskVariant::CloudHypervisorVirtualMachineDelete(_)
+            | TaskVariant::CloudHypervisorVirtualMachineSnapshot(_)
+            | TaskVariant::CloudHypervisorVirtualMachineMigrationPrepare(_)
+            | TaskVariant::CloudHypervisorVirtualMachineMigrationCancel(_)
+            | TaskVariant::CloudHypervisorVirtualMachineMigrationImport(_)
+            | TaskVariant::CloudHypervisorVirtualMachineMigrationRemove(_) => None,
+        }
+    }
 }
 
 /// Metadata for tracking the state of a task.
@@ -179,6 +251,12 @@ impl Task {
 
         let _ = task_table::update_task_state(&self.uuid, &TaskState::Active);
 
+        // checked only now and not when the task was queued, because a migration, which was
+        // queued before, could have frozen the virtual_machine in the meantime
+        if let Some(context) = self.info.context_if_blocked_by_migration() {
+            ensure_not_migrating(&self.resouce_uuid, context)?;
+        }
+
         match &mut self.info {
             TaskVariant::CloudHypervisorVirtualMachineCreate(task_info) => {
                 handle_vm_creation(&self.uuid, &self.resouce_uuid, &mut self.meta, task_info).await
@@ -200,6 +278,24 @@ impl Task {
             }
             TaskVariant::CloudHypervisorVirtualMachineReboot(task_info) => {
                 handle_vm_reboot(&self.uuid, &self.resouce_uuid, &mut self.meta, task_info).await
+            }
+            TaskVariant::CloudHypervisorVirtualMachineMigrationPrepare(task_info) => {
+                prepare_ch_migration(&self.resouce_uuid, &task_info.context).await
+            }
+            TaskVariant::CloudHypervisorVirtualMachineMigrationCancel(task_info) => {
+                cancel_ch_migration(&self.resouce_uuid, task_info.boot, &task_info.context).await
+            }
+            TaskVariant::CloudHypervisorVirtualMachineMigrationImport(task_info) => {
+                import_ch_virtual_machine(
+                    &self.resouce_uuid,
+                    &task_info.source_address,
+                    task_info.boot,
+                    &task_info.context,
+                )
+                .await
+            }
+            TaskVariant::CloudHypervisorVirtualMachineMigrationRemove(task_info) => {
+                remove_migrated_ch_virtual_machine(&self.resouce_uuid, &task_info.context).await
             }
         }
     }
@@ -271,13 +367,18 @@ async fn handle_vm_snapshot(
     _: &mut TaskMeta,
     task_info: &mut CloudHypervisorVirtualMachineSnapshotInfo,
 ) -> Result<(), AinariError> {
-    let result = save_ch_virtual_machine(
-        virtual_machine_uuid,
-        &task_info.image_uuid,
-        &task_info.secret_uuid,
-        &task_info.context,
-    )
-    .await;
+    let result = match ensure_not_migrating(virtual_machine_uuid, &task_info.context) {
+        Ok(()) => {
+            save_ch_virtual_machine(
+                virtual_machine_uuid,
+                &task_info.image_uuid,
+                &task_info.secret_uuid,
+                &task_info.context,
+            )
+            .await
+        }
+        Err(e) => Err(e),
+    };
 
     // the image was registered in ryokan before the task was queued, so a failed snapshot would
     // leave an image behind, which has no file

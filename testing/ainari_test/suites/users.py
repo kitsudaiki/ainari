@@ -59,6 +59,17 @@ def no_admin(ctx):
                  ctx.state["second_user"])
 
 
+@suite.test("second user can not choose the host of a virtual machine",
+            requires=("second_user", "hosts", "vm_type"))
+def no_host_choice(ctx):
+    # the admin-check comes first, so the network, which the second user can't see, doesn't
+    # matter
+    expect_error(ainari_exceptions.UnauthorizedException,
+                 virtual_machine.reserve_virtual_machine, ctx.state["second_user"],
+                 ctx.name("second-on-host"), ctx.state["vm_type"], ctx.config.disk_size,
+                 str(uuid.uuid4()), host_uuid=ctx.state["hosts"][0]["uuid"])
+
+
 @suite.test("create temporary passphrase user", provides=("passphrase_user",))
 def create_passphrase_user(ctx):
     # the passphrase-tests use their own temporary user, so the passphrase of the user, which runs
