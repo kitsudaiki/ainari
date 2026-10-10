@@ -18,7 +18,7 @@ use futures::lock::Mutex;
 use uuid::Uuid;
 
 use crate::config;
-use crate::core::migration::is_migrating;
+use crate::core::migration::job::is_migrating;
 use crate::core::routing::torii_of_host;
 use crate::database::address_table;
 use crate::database::meta_virtual_machine_table;

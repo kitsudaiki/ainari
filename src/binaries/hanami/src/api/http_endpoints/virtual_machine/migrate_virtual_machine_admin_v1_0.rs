@@ -18,8 +18,8 @@ use apistos::api_operation;
 use uuid::Uuid;
 use validator::Validate;
 
+use crate::core::migration::job::{Migration, MigrationGuard, spawn_migration};
 use crate::core::migration::session::Session;
-use crate::core::migration::{Migration, MigrationGuard, spawn_migration};
 use crate::database::address_table;
 use crate::database::host_table::{self, HostResources};
 use crate::database::meta_virtual_machine_table;

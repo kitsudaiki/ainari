@@ -22,7 +22,7 @@ use uuid::Uuid;
 use crate::config;
 use crate::core::delete_watcher::spawn_delete_watcher;
 use crate::core::floating_ip::detach_floating_ip;
-use crate::core::migration::is_migrating;
+use crate::core::migration::job::is_migrating;
 use crate::core::mls::{network_encrypted, revoke_membership};
 use crate::core::routing::{delete_routes_to, resolve_address, torii_of_host};
 use crate::database::address_table;
