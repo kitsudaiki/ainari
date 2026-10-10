@@ -82,7 +82,7 @@
           "virtual_machine"
         ],
         "summary": "Reserve new virtual_machine",
-        "description": "Reserve a new virtual_machine together with its address within the given network.\\\n\\\nThe number of cores and the memory of the virtual_machine are taken from the given vm-type. The\\\nvirtual_machine is placed on a random sakura-host, which has enough free cores, memory and\\\ndisk-space for it. The image and the public-key are not set here, but by the following\\\ncreate-call.",
+        "description": "Reserve a new virtual_machine together with its address within the given network.\\\n\\\nThe number of cores and the memory of the virtual_machine are taken from the given vm-type. The\\\nvirtual_machine is placed on a random sakura-host, which has enough free cores, memory and\\\ndisk-space for it. The image and the public-key are not set here, but by the following\\\ncreate-call.\\\n\\\nWith `host_uuid` an admin places the virtual_machine on this specific sakura-host instead. The\\\nrequest fails with `409`, if the host has not enough free resources or its isolation doesn't\\\nmatch `isolated_host`, and with `404`, if the host doesn't exist. Other users are not allowed\\\nto set `host_uuid`.",
         "requestBody": {
           "content": {
             "application/json": {
@@ -347,6 +347,94 @@
           },
           "404": {
             "description": "Requested object not found"
+          },
+          "409": {
+            "description": "Conflict with existing resources"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/virtual_machine/{virtual_machine_uuid}/migrate/admin": {
+      "post": {
+        "tags": [
+          "virtual_machine"
+        ],
+        "summary": "Migrate virtual_machine",
+        "description": "Move a virtual_machine to another sakura-host. This can only be done by an admin.\\\n\\\nThe migration is a cold migration, which runs in the background after the request was accepted:\\\nthe virtual_machine is shut down gracefully on its current host, its disk is transferred directly\\\nto the target host and it is booted there again, if it was running before. It keeps its UUID, its\\\naddress, its proxy-port and its packet-filters. While it is migrated, it can not be started,\\\nstopped, deleted or get new packet-filters.\\\n\\\nThe target host must have enough free resources for the virtual_machine. A virtual_machine on an\\\nisolated host can only be moved to another isolated host, which is free or isolated for its\\\nproject. A virtual_machine on a shared host can only be moved to another shared host. If the\\\nmigration fails, the virtual_machine is started on its current host again.",
+        "parameters": [
+          {
+            "name": "virtual_machine_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Uuid",
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VirtualMachineMigrateReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "VirtualMachineMigrateResp",
+                  "description": "Answer of hanami to an accepted migration, which runs in the background afterwards",
+                  "type": "object",
+                  "required": [
+                    "source_host_uuid",
+                    "target_host_uuid",
+                    "virtual_machine_uuid"
+                  ],
+                  "properties": {
+                    "source_host_uuid": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "target_host_uuid": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "virtual_machine_uuid": {
+                      "type": "string",
+                      "format": "uuid"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "409": {
+            "description": "Conflict with existing resources"
           },
           "500": {
             "description": "Internal error"
@@ -2810,6 +2898,13 @@
             "format": "int64",
             "minimum": 1.0
           },
+          "host_uuid": {
+            "description": "Sakura-host, which has to run the virtual_machine, instead of a randomly selected one. Only admins are allowed to set it.",
+            "default": null,
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
           "isolated_host": {
             "description": "Place the virtual_machine on a host, which is isolated for the project of the user",
             "default": false,
@@ -2843,6 +2938,45 @@
             "items": {
               "$ref": "#/components/schemas/VirtualMachineBasicResp"
             }
+          }
+        }
+      },
+      "VirtualMachineMigrateReq": {
+        "title": "VirtualMachineMigrateReq",
+        "description": "Request of an admin to move a virtual_machine to another sakura-host",
+        "type": "object",
+        "required": [
+          "target_host_uuid"
+        ],
+        "properties": {
+          "target_host_uuid": {
+            "description": "The sakura-host, which runs the virtual_machine after the migration",
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "VirtualMachineMigrateResp": {
+        "title": "VirtualMachineMigrateResp",
+        "description": "Answer of hanami to an accepted migration, which runs in the background afterwards",
+        "type": "object",
+        "required": [
+          "source_host_uuid",
+          "target_host_uuid",
+          "virtual_machine_uuid"
+        ],
+        "properties": {
+          "source_host_uuid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "target_host_uuid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "virtual_machine_uuid": {
+            "type": "string",
+            "format": "uuid"
           }
         }
       },
