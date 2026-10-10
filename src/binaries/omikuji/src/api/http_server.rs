@@ -62,7 +62,11 @@ pub async fn run_server() -> Result<(), impl Error> {
     .restrict_internal_endpoints(internal_port)
     // errors and audit-events are also reported by background-jobs of the other services, which
     // act without a user, so the internal endpoints are authorized by the internal API-key alone
-    .authorize_internal_endpoints_by_api_key();
+    .authorize_internal_endpoints_by_api_key()
+    // the entries are added over the internal endpoints, so they are not audited themselves,
+    // because else each added entry would add another entry
+    .send_audit_logs("omikuji")
+    .skip_audit_of_internal_endpoints();
 
     // init server with openapi-docu-generator
     HttpServer::new(move || {

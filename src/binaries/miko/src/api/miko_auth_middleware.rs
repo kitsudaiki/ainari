@@ -22,6 +22,7 @@ use actix_web::{
 
 use crate::core::token_handling;
 
+use ainari_api::audit_log::send_audit_log;
 use ainari_api::auth_middleware::{
     ApiValidationConfig, check_internal_endpoint_access, check_internal_request,
 };
@@ -67,6 +68,7 @@ pub async fn authorization_middleware(
     //}
 
     log::info!("Api-call against URI: {uri}");
+    send_audit_log(&req, api_validation_config).await;
 
     let resp = next.call(req).await;
 
