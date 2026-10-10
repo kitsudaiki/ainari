@@ -17,7 +17,7 @@ use apistos::api_operation;
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD as BASE64;
 
-use crate::core::mls::state::MLS_STATE_HANDLE;
+use crate::core::mls_key_exchange::state::MLS_STATE_HANDLE;
 
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::network_crypto_structs::*;

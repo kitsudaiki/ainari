@@ -35,10 +35,10 @@ use base64::engine::general_purpose::STANDARD as BASE64;
 use chrono::Utc;
 
 use crate::config::{CONFIG, GRANT_PUBLIC_KEY, INTERNAL_API_KEY};
-use crate::core::mls::group::{self, OutgoingMessage, Processed};
-use crate::core::mls::state::MLS_STATE_HANDLE;
-use crate::core::mls::{apply_keys, deliver_and_merge, izakaya_endpoint};
-use crate::core::routing_interface::GATEWAY_STATE_HANDLE;
+use crate::core::ebpf_interface::EBPF_INTERFACE_HANDLE;
+use crate::core::mls_key_exchange::group::{self, OutgoingMessage, Processed};
+use crate::core::mls_key_exchange::state::MLS_STATE_HANDLE;
+use crate::core::mls_key_exchange::{apply_keys, deliver_and_merge, izakaya_endpoint};
 use crate::core::utils::get_local_ip;
 
 use ainari_api_structs::mls_structs::*;
@@ -370,8 +370,8 @@ impl Agent {
         };
 
         mls.save().map_err(|e| format!("{e:?}"))?;
-        let mut st = GATEWAY_STATE_HANDLE.lock().await;
-        apply_keys(&mls, &mut st, vni);
+        let mut ebpf_interf = EBPF_INTERFACE_HANDLE.lock().await;
+        apply_keys(&mls, &mut ebpf_interf, vni);
         Ok(())
     }
 
@@ -416,8 +416,8 @@ impl Agent {
             log::error!("Failed to persist the MLS-state: {e:?}");
         }
         if result.is_ok() {
-            let mut st = GATEWAY_STATE_HANDLE.lock().await;
-            apply_keys(&mls, &mut st, vni);
+            let mut ebpf_interf = EBPF_INTERFACE_HANDLE.lock().await;
+            apply_keys(&mls, &mut ebpf_interf, vni);
         }
 
         let done = MlsOperationDoneReq {
@@ -465,7 +465,7 @@ impl Agent {
     /// the group, is removed first and added again with its new key-package.
     async fn add_member(
         &self,
-        mls: &mut crate::core::mls::state::MlsState,
+        mls: &mut crate::core::mls_key_exchange::state::MlsState,
         izakaya: &Endpoint,
         op: &MlsOperation,
     ) -> Result<(), String> {
@@ -550,8 +550,8 @@ impl Agent {
                 }
             }
             mls.save().map_err(|e| format!("{e:?}"))?;
-            let mut st = GATEWAY_STATE_HANDLE.lock().await;
-            apply_keys(&mls, &mut st, vni);
+            let mut ebpf_interf = EBPF_INTERFACE_HANDLE.lock().await;
+            apply_keys(&mls, &mut ebpf_interf, vni);
         }
 
         log::debug!(
@@ -584,20 +584,21 @@ impl Agent {
 /// Lists the networks, which need encryption on this gateway: a VM of the network is behind this
 /// gateway and the network is reached over an encrypted route towards another host.
 async fn encrypted_networks() -> BTreeSet<u32> {
-    let st = GATEWAY_STATE_HANDLE.lock().await;
+    let ebpf_interf = EBPF_INTERFACE_HANDLE.lock().await;
 
-    let local: BTreeSet<u32> = st
+    let local: BTreeSet<u32> = ebpf_interf
         .routes
         .values()
         .filter(|route| route.gateway_ip.is_none())
         .filter(|route| {
-            st.taps
+            ebpf_interf
+                .taps
                 .get(&route.target_iface)
                 .is_some_and(|tap| tap.vni == route.vni)
         })
         .map(|route| route.vni)
         .collect();
-    let encrypted: BTreeSet<u32> = st
+    let encrypted: BTreeSet<u32> = ebpf_interf
         .routes
         .values()
         .filter(|route| route.encrypted)
@@ -638,8 +639,8 @@ async fn handle_subscription(
             mls.save().map_err(|e| format!("{e:?}"))?;
             log::info!("Created the MLS-group of tenant {vni}");
 
-            let mut st = GATEWAY_STATE_HANDLE.lock().await;
-            apply_keys(&mls, &mut st, vni);
+            let mut ebpf_interf = EBPF_INTERFACE_HANDLE.lock().await;
+            apply_keys(&mls, &mut ebpf_interf, vni);
         }
         MlsSubscribeAction::Joining => {
             log::debug!("Waiting for the welcome into the MLS-group of tenant {vni}");
@@ -665,6 +666,6 @@ async fn leave_group(vni: u32) {
     }
     log::info!("Left the MLS-group of tenant {vni}");
 
-    let mut st = GATEWAY_STATE_HANDLE.lock().await;
-    apply_keys(&mls, &mut st, vni);
+    let mut ebpf_interf = EBPF_INTERFACE_HANDLE.lock().await;
+    apply_keys(&mls, &mut ebpf_interf, vni);
 }

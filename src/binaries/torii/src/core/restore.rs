@@ -26,14 +26,14 @@
 //! The proxies are restored as well. They don't depend on the datapath, but belong to the state
 //! the control plane configured over the endpoints.
 
+use crate::core::ebpf_interface::EBPF_INTERFACE_HANDLE;
 use crate::core::filter::{apply_filter, filter_slot};
 use crate::core::floating_ip::add_floating_ip;
 use crate::core::interface::{configure_interface, register_tap};
-use crate::core::mls::restore_network_keys;
+use crate::core::mls_key_exchange::restore_network_keys;
 use crate::core::models::Route;
 use crate::core::proxy_handler::PROXY_HANDLER;
 use crate::core::routing::{add_route, update_route};
-use crate::core::routing_interface::GATEWAY_STATE_HANDLE;
 use crate::database::{
     floating_ip_table, network_filter_table, network_interface_table, route_table, tap_table,
 };
@@ -93,7 +93,7 @@ pub async fn restore_gateway_state() -> Result<(), AinariError> {
         // A route, which the gateway built from its own config at startup, already exists with
         // the same UUID. Its persisted version is an update of it, which may have moved it to
         // another destination, so it is applied as an update.
-        let exists = GATEWAY_STATE_HANDLE
+        let exists = EBPF_INTERFACE_HANDLE
             .lock()
             .await
             .routes
@@ -112,11 +112,11 @@ pub async fn restore_gateway_state() -> Result<(), AinariError> {
         }
     }
 
-    let mut st = GATEWAY_STATE_HANDLE.lock().await;
+    let mut ebpf_interf = EBPF_INTERFACE_HANDLE.lock().await;
 
     for (key, rules) in filters {
-        let result =
-            filter_slot(&st, &key).and_then(|slot| apply_filter(&mut st, key, slot, rules));
+        let result = filter_slot(&ebpf_interf, &key)
+            .and_then(|slot| apply_filter(&mut ebpf_interf, key, slot, rules));
         if let Err(e) = result {
             log::error!(
                 "Failed to restore the {} packet-filter of {} in tenant {}: {e}",
@@ -129,7 +129,7 @@ pub async fn restore_gateway_state() -> Result<(), AinariError> {
 
     for entry in floating_ips {
         if let Err(e) = add_floating_ip(
-            &mut st,
+            &mut ebpf_interf,
             entry.floating_ip,
             entry.vni,
             entry.internal_ip,
@@ -141,12 +141,12 @@ pub async fn restore_gateway_state() -> Result<(), AinariError> {
 
     log::info!(
         "Gateway state restored: {} route(s), {} TAP device(s), {} packet-filter(s) and {} floating ip(s)",
-        st.routes.len(),
-        st.taps.len(),
-        st.filters.len(),
-        st.floating_ips.len()
+        ebpf_interf.routes.len(),
+        ebpf_interf.taps.len(),
+        ebpf_interf.filters.len(),
+        ebpf_interf.floating_ips.len()
     );
-    drop(st);
+    drop(ebpf_interf);
 
     // the keys of the encrypted routes are derived from the MLS-groups, which are restored with
     // the first access, so they can only be installed after the routes are back

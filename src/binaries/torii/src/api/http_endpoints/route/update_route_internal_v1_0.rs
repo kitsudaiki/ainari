@@ -18,7 +18,7 @@ use apistos::api_operation;
 use uuid::Uuid;
 use validator::Validate;
 
-use crate::core::mls::refresh_network_keys;
+use crate::core::mls_key_exchange::refresh_network_keys;
 use crate::core::routing::update_route;
 use crate::core::utils::validate_vni;
 use crate::database::route_table;

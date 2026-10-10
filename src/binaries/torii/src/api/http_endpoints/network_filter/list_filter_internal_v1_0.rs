@@ -15,8 +15,8 @@
 use actix_web::web::Json;
 use apistos::api_operation;
 
+use crate::core::ebpf_interface::EBPF_INTERFACE_HANDLE;
 use crate::core::filter::filter_resp;
-use crate::core::routing_interface::GATEWAY_STATE_HANDLE;
 
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::network_filter_structs::*;
@@ -35,12 +35,12 @@ no entry in the eBPF filter maps either."###,
 pub async fn list_filter_internal(
     _context: UserContext,
 ) -> Result<Json<FilterListResponse>, ErrorResponse> {
-    let st = GATEWAY_STATE_HANDLE.lock().await;
+    let ebpf_interf = EBPF_INTERFACE_HANDLE.lock().await;
 
-    let mut filters: Vec<FilterResp> = st
+    let mut filters: Vec<FilterResp> = ebpf_interf
         .filters
         .keys()
-        .map(|key| filter_resp(&st, *key))
+        .map(|key| filter_resp(&ebpf_interf, *key))
         .collect();
     filters.sort_by_key(|entry| (entry.vni, entry.ip, entry.direction));
 

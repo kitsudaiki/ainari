@@ -17,9 +17,9 @@ use apistos::actix::NoContent;
 use apistos::api_operation;
 use uuid::Uuid;
 
-use crate::core::mls::refresh_network_keys;
+use crate::core::ebpf_interface::EBPF_INTERFACE_HANDLE;
+use crate::core::mls_key_exchange::refresh_network_keys;
 use crate::core::routing::remove_route;
-use crate::core::routing_interface::GATEWAY_STATE_HANDLE;
 use crate::database::route_table;
 
 use ainari_api::errors::ErrorResponse;
@@ -43,9 +43,9 @@ pub async fn delete_route_internal(
     context: UserContext,
 ) -> Result<NoContent, ErrorResponse> {
     let route_uuid = route_uuid.into_inner();
-    let mut st = GATEWAY_STATE_HANDLE.lock().await;
+    let mut ebpf_interf = EBPF_INTERFACE_HANDLE.lock().await;
 
-    let route = match st.routes.get(&route_uuid) {
+    let route = match ebpf_interf.routes.get(&route_uuid) {
         Some(route) => route.clone(),
         None => return Err(ErrorResponse::NotFound("Route not found".to_string())),
     };
@@ -57,8 +57,8 @@ pub async fn delete_route_internal(
         return Err(ErrorResponse::InternalError("Internal Error".to_string()));
     }
 
-    remove_route(&mut st, &route_uuid);
-    drop(st);
+    remove_route(&mut ebpf_interf, &route_uuid);
+    drop(ebpf_interf);
 
     // the connections of the VM behind the route lose their keys
     refresh_network_keys(route.vni).await;

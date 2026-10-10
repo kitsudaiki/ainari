@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use aya::maps::{Array, HashMap as AyaHashMap};
+use aya::maps::{Array, HashMap as AyaHashMap, MapData};
+use aya::programs::tc::SchedClassifierLinkId;
+use aya::programs::xdp::XdpLinkId;
 use aya::programs::{SchedClassifier, Xdp, XdpMode};
 use aya::{Ebpf, include_bytes_aligned};
 use std::collections::HashMap;
@@ -22,22 +24,52 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use uuid::Uuid;
 
+use crate::core::models::{
+    ArpProxyPod, Connection, CryptoKey, FilterKey, FipTargetPod, FloatingIp, IfaceConfigPod, Route,
+    RouteFilterPod, RouteKeyPod, RouteTargetPod, TapInfo,
+};
+
 use torii_common::{
     ArpProxy, CONFIG_UPLINK_MODE, IFACE_FLAG_FIP, IfaceConfig, RouteKey, VNI_DEFAULT,
 };
 
 use crate::config::CONFIG;
-use crate::core::models::{
-    ArpProxyPod, FipTargetPod, IfaceConfigPod, Route, RouteFilterPod, RouteKeyPod, RouteTargetPod,
-};
 use crate::core::routing::build_route_target;
-use crate::core::state::GatewayState;
 use crate::core::utils::{enable_forwarding, get_ifindex, get_mac_address};
 
+use ainari_api_structs::network_crypto_structs::CryptoDirection;
+use ainari_api_structs::network_filter_structs::*;
 use ainari_api_structs::route_structs::RouteReq;
 
 lazy_static::lazy_static! {
-    pub static ref GATEWAY_STATE_HANDLE: Arc<Mutex<GatewayState>> = Arc::new(Mutex::new(init_routing()));
+    pub static ref EBPF_INTERFACE_HANDLE: Arc<Mutex<EBPFInterface>> = Arc::new(Mutex::new(init_ebpf_interface()));
+}
+
+/// Holds the application's runtime epbf-interface, mapped variables, and eBPF context.
+///
+/// The two maps that decide where a packet goes - `route_map` and `filter_map` -
+/// are keyed by `(vni, destination)`, so the same address can be present once
+/// per tenant. `fip_dnat_map` is the one map keyed by a bare address, because a
+/// floating IP is unique by definition; its value carries the tenant instead.
+pub struct EBPFInterface {
+    pub routes: HashMap<Uuid, Route>,
+    pub floating_ips: HashMap<Ipv4Addr, FloatingIp>,
+    pub taps: HashMap<String, TapInfo>, // TAP devices and the VMs behind them
+    pub tap_xdp_links: HashMap<String, XdpLinkId>, // overlay programs attached to TAP devices
+    pub tap_tc_links: HashMap<String, SchedClassifierLinkId>, // filter programs on the egress of TAP devices
+    pub crypto_keys: HashMap<(CryptoDirection, u32), CryptoKey>, // installed IPsec keys, by direction and spi
+    pub connections: HashMap<String, Connection>, // VM-to-VM connections, by "vni:local->remote"
+    pub filters: HashMap<FilterKey, RouteFilterRules>, // packet filters, by address and direction
+    pub route_map: AyaHashMap<MapData, RouteKeyPod, RouteTargetPod>,
+    pub filter_map: AyaHashMap<MapData, RouteKeyPod, RouteFilterPod>, // ingress, by route key
+    pub egress_filter_map: AyaHashMap<MapData, u32, RouteFilterPod>,  // egress, by TAP ifindex
+    pub fip_dnat_map: AyaHashMap<MapData, u32, FipTargetPod>,
+    pub fip_snat_map: AyaHashMap<MapData, RouteKeyPod, u32>,
+    pub arp_proxy_map: AyaHashMap<MapData, u32, ArpProxyPod>,
+    pub iface_map: AyaHashMap<MapData, u32, IfaceConfigPod>,
+    // Kept in state both to attach programs to TAP devices created later on and
+    // because dropping it would detach the running XDP programs.
+    pub bpf: Ebpf,
 }
 
 /// Loads the eBPF-datapath and builds the initial state of the gateway.
@@ -47,7 +79,7 @@ lazy_static::lazy_static! {
 /// skipped for an interface, which does not exist yet, so the torii can also start before the
 /// interfaces are configured.
 ///
-/// This is called once to fill the `GATEWAY_STATE_HANDLE`-singleton.
+/// This is called once to fill the `EBPF_INTERFACE_HANDLE`-singleton.
 ///
 /// # Returns
 ///
@@ -57,7 +89,7 @@ lazy_static::lazy_static! {
 ///
 /// Panics, if the eBPF-object or one of its maps can not be loaded, because the torii can not
 /// forward any traffic without its datapath.
-pub fn init_routing() -> GatewayState {
+pub fn init_ebpf_interface() -> EBPFInterface {
     let overlay_iface = &CONFIG.network.overlay_iface;
     let underlay_iface = &CONFIG.network.underlay_iface;
 
@@ -141,7 +173,7 @@ pub fn init_routing() -> GatewayState {
         bpf.program_mut("tap_egress").unwrap().try_into().unwrap();
     tap_egress.load().unwrap();
 
-    let mut state = GatewayState {
+    let mut ebpf_interf = EBPFInterface {
         routes: HashMap::new(),
         floating_ips: HashMap::new(),
         taps: HashMap::new(),
@@ -164,7 +196,7 @@ pub fn init_routing() -> GatewayState {
     // everything, which leaves the virtual network, to the next hop behind its uplink. A gateway
     // without an uplink keeps the uplink maps empty and only routes within the network.
     if let Some((uplink_iface, next_hop)) = CONFIG.network.uplink() {
-        if let Err(e) = setup_uplink(&mut state, uplink_iface, next_hop, overlay_iface) {
+        if let Err(e) = setup_uplink(&mut ebpf_interf, uplink_iface, next_hop, overlay_iface) {
             log::error!("Failed to set up the uplink: {e}");
             process::exit(1);
         }
@@ -174,13 +206,13 @@ pub fn init_routing() -> GatewayState {
     // one of its virtual machines, through the underlay to the gateway at the edge of the network
     if let Some(gateway_ip) = CONFIG.network.default_gateway_ip {
         let underlay_iface = &CONFIG.network.underlay_iface;
-        if let Err(e) = setup_default_route(&mut state, gateway_ip, underlay_iface) {
+        if let Err(e) = setup_default_route(&mut ebpf_interf, gateway_ip, underlay_iface) {
             log::error!("Failed to set up the default route: {e}");
             process::exit(1);
         }
     }
 
-    state
+    ebpf_interf
 }
 
 /// Derives the UUID of a route, which the gateway builds from its own config.
@@ -209,14 +241,14 @@ pub fn config_route_uuid(vni: u32, dest_ip: Ipv4Addr) -> Uuid {
 /// through the underlay to that gateway, which forwards it to the outside.
 ///
 /// # Arguments
-/// * `state` - State of the gateway, which the route is added to
+/// * `ebpf_interf` - State of the gateway, which the route is added to
 /// * `gateway_ip` - Underlay-address of the gateway at the edge of the network
 /// * `underlay_iface` - Interface, which carries the traffic to the other gateways
 ///
 /// # Returns
 /// `Ok(())` once the default route is programmed, otherwise the reason why it could not be set up
 fn setup_default_route(
-    state: &mut GatewayState,
+    ebpf_interf: &mut EBPFInterface,
     gateway_ip: Ipv4Addr,
     underlay_iface: &str,
 ) -> Result<(), anyhow::Error> {
@@ -229,15 +261,15 @@ fn setup_default_route(
         next_hop_mac: None,
         encrypted: false,
     };
-    let target = build_route_target(&req, &state.taps).map_err(anyhow::Error::msg)?;
-    state.route_map.insert(
+    let target = build_route_target(&req, &ebpf_interf.taps).map_err(anyhow::Error::msg)?;
+    ebpf_interf.route_map.insert(
         RouteKeyPod(RouteKey::default_route(req.vni)),
         RouteTargetPod(target),
         0,
     )?;
 
     let route_uuid = config_route_uuid(req.vni, Ipv4Addr::UNSPECIFIED);
-    state.routes.insert(
+    ebpf_interf.routes.insert(
         route_uuid,
         Route {
             uuid: route_uuid,
@@ -274,7 +306,7 @@ fn setup_default_route(
 /// # Returns
 /// `Ok(())` once the uplink is active, otherwise the reason why it could not be set up
 fn setup_uplink(
-    state: &mut GatewayState,
+    ebpf_interf: &mut EBPFInterface,
     uplink_iface: &str,
     next_hop: Ipv4Addr,
     overlay_iface: &str,
@@ -285,7 +317,7 @@ fn setup_uplink(
     }
 
     if uplink_iface != overlay_iface {
-        let overlay: &mut Xdp = state
+        let overlay: &mut Xdp = ebpf_interf
             .bpf
             .program_mut("overlay_ingress")
             .expect("Missing overlay_ingress")
@@ -293,8 +325,12 @@ fn setup_uplink(
         overlay.attach(uplink_iface, XdpMode::Skb)?;
     }
 
-    let mut uplinks: AyaHashMap<_, u32, ArpProxyPod> =
-        AyaHashMap::try_from(state.bpf.map_mut("UPLINK_MAP").expect("Missing UPLINK_MAP"))?;
+    let mut uplinks: AyaHashMap<_, u32, ArpProxyPod> = AyaHashMap::try_from(
+        ebpf_interf
+            .bpf
+            .map_mut("UPLINK_MAP")
+            .expect("Missing UPLINK_MAP"),
+    )?;
     let uplink = ArpProxy {
         mac: get_mac_address(uplink_iface),
         _pad: [0; 2],
@@ -305,7 +341,7 @@ fn setup_uplink(
     // The uplink is the one port that faces the outside world, so it is where a
     // floating IP is allowed to name the tenant of a packet. It belongs to the
     // shared tenant itself: everything behind it is outside the virtual network.
-    state.iface_map.insert(
+    ebpf_interf.iface_map.insert(
         ifindex,
         IfaceConfigPod(IfaceConfig {
             vni: VNI_DEFAULT,
@@ -315,7 +351,7 @@ fn setup_uplink(
     )?;
 
     let mut config: Array<_, u32> = Array::try_from(
-        state
+        ebpf_interf
             .bpf
             .map_mut("GATEWAY_CONFIG")
             .expect("Missing GATEWAY_CONFIG"),
@@ -332,15 +368,15 @@ fn setup_uplink(
             next_hop_mac: None,
             encrypted: false,
         };
-        let target = build_route_target(&req, &state.taps).map_err(anyhow::Error::msg)?;
-        state.route_map.insert(
+        let target = build_route_target(&req, &ebpf_interf.taps).map_err(anyhow::Error::msg)?;
+        ebpf_interf.route_map.insert(
             RouteKeyPod(RouteKey::new(req.vni, u32::from(dest_ip))),
             RouteTargetPod(target),
             0,
         )?;
 
         let route_uuid = config_route_uuid(req.vni, dest_ip);
-        state.routes.insert(
+        ebpf_interf.routes.insert(
             route_uuid,
             Route {
                 uuid: route_uuid,

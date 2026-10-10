@@ -20,8 +20,8 @@ use std::net::Ipv4Addr;
 
 use torii_common::{FipTarget, RouteKey};
 
+use crate::core::ebpf_interface::EBPFInterface;
 use crate::core::models::{FipTargetPod, FloatingIp, RouteKeyPod};
-use crate::core::state::GatewayState;
 
 use ainari_api::errors::ErrorResponse;
 
@@ -36,7 +36,7 @@ use ainari_api::errors::ErrorResponse;
 /// the very same values, so there is nothing to revert in that case.
 ///
 /// # Arguments
-/// * `st` - The locked gateway state
+/// * `ebpf_interf` - The locked gateway state
 /// * `floating_ip` - The public address
 /// * `vni` - Tenant of the internal address
 /// * `internal_ip` - Address of the VM behind the floating IP
@@ -47,7 +47,7 @@ use ainari_api::errors::ErrorResponse;
 /// floating IP already points at another VM, or `InternalError` if an eBPF map refused the entry
 /// or `persist` failed
 pub fn add_floating_ip(
-    st: &mut GatewayState,
+    ebpf_interf: &mut EBPFInterface,
     floating_ip: Ipv4Addr,
     vni: u32,
     internal_ip: Ipv4Addr,
@@ -55,7 +55,7 @@ pub fn add_floating_ip(
 ) -> Result<(), ErrorResponse> {
     // A floating IP names one VM of one tenant. Handing the same one to a second
     // tenant would make the inbound direction ambiguous, so it is refused.
-    let existed = match st.floating_ips.get(&floating_ip) {
+    let existed = match ebpf_interf.floating_ips.get(&floating_ip) {
         Some(existing) if existing.vni != vni || existing.internal_ip != internal_ip => {
             return Err(ErrorResponse::Conflict(format!(
                 "{} already points at {} in tenant {}",
@@ -66,12 +66,14 @@ pub fn add_floating_ip(
         None => false,
     };
 
-    st.floating_ips
+    ebpf_interf
+        .floating_ips
         .insert(floating_ip, FloatingIp { vni, internal_ip });
 
-    let result = program_floating_ip(st, floating_ip, vni, internal_ip).and_then(|_| persist());
+    let result =
+        program_floating_ip(ebpf_interf, floating_ip, vni, internal_ip).and_then(|_| persist());
     if result.is_err() && !existed {
-        remove_floating_ip(st, floating_ip);
+        remove_floating_ip(ebpf_interf, floating_ip);
     }
     result
 }
@@ -79,7 +81,7 @@ pub fn add_floating_ip(
 /// Writes a floating IP into both NAT maps.
 ///
 /// # Arguments
-/// * `st` - The locked gateway state
+/// * `ebpf_interf` - The locked gateway state
 /// * `floating_ip` - The public address
 /// * `vni` - Tenant of the internal address
 /// * `internal_ip` - Address of the VM behind the floating IP
@@ -87,7 +89,7 @@ pub fn add_floating_ip(
 /// # Returns
 /// `Ok(())` once both maps are programmed, otherwise `InternalError`
 fn program_floating_ip(
-    st: &mut GatewayState,
+    ebpf_interf: &mut EBPFInterface,
     floating_ip: Ipv4Addr,
     vni: u32,
     internal_ip: Ipv4Addr,
@@ -96,7 +98,7 @@ fn program_floating_ip(
         vni,
         ip: u32::from(internal_ip),
     };
-    if st
+    if ebpf_interf
         .fip_dnat_map
         .insert(u32::from(floating_ip), FipTargetPod(target), 0)
         .is_err()
@@ -106,7 +108,7 @@ fn program_floating_ip(
     }
 
     let snat_key = RouteKeyPod(RouteKey::new(vni, u32::from(internal_ip)));
-    if st
+    if ebpf_interf
         .fip_snat_map
         .insert(snat_key, u32::from(floating_ip), 0)
         .is_err()
@@ -121,16 +123,19 @@ fn program_floating_ip(
 /// Drops a floating IP from the bookkeeping and from both NAT maps.
 ///
 /// # Arguments
-/// * `st` - The locked gateway state
+/// * `ebpf_interf` - The locked gateway state
 /// * `floating_ip` - The public address
 ///
 /// # Returns
 /// The removed floating IP, or `None` if it was not registered
-pub fn remove_floating_ip(st: &mut GatewayState, floating_ip: Ipv4Addr) -> Option<FloatingIp> {
-    let entry = st.floating_ips.remove(&floating_ip)?;
+pub fn remove_floating_ip(
+    ebpf_interf: &mut EBPFInterface,
+    floating_ip: Ipv4Addr,
+) -> Option<FloatingIp> {
+    let entry = ebpf_interf.floating_ips.remove(&floating_ip)?;
 
-    let _ = st.fip_dnat_map.remove(&u32::from(floating_ip));
-    let _ = st.fip_snat_map.remove(&RouteKeyPod(RouteKey::new(
+    let _ = ebpf_interf.fip_dnat_map.remove(&u32::from(floating_ip));
+    let _ = ebpf_interf.fip_snat_map.remove(&RouteKeyPod(RouteKey::new(
         entry.vni,
         u32::from(entry.internal_ip),
     )));

@@ -29,10 +29,10 @@ use uuid::Uuid;
 
 use crate::config::CONFIG;
 use crate::core::crypto::{install_block_policies, remove_block_policies};
+use crate::core::ebpf_interface::EBPF_INTERFACE_HANDLE;
+use crate::core::ebpf_interface::EBPFInterface;
 use crate::core::filter::{move_filters, remove_filters_of_route};
 use crate::core::models::{Route, RouteKeyPod, RouteTargetPod, TapInfo};
-use crate::core::routing_interface::GATEWAY_STATE_HANDLE;
-use crate::core::state::GatewayState;
 use crate::core::utils::{
     get_arp_mac, get_ifindex, get_local_ip, get_mac_address, get_next_hop, parse_mac, run_ip,
     with_table,
@@ -90,11 +90,11 @@ pub async fn add_route(
 
     // Snapshot the TAP registry so the (possibly slow) ARP resolution inside
     // the target construction does not block the rest of the gateway.
-    let taps = { GATEWAY_STATE_HANDLE.lock().await.taps.clone() };
+    let taps = { EBPF_INTERFACE_HANDLE.lock().await.taps.clone() };
 
     {
-        let st = GATEWAY_STATE_HANDLE.lock().await;
-        check_route_tenant(&st, req, None).map_err(ErrorResponse::Conflict)?;
+        let ebpf_interf = EBPF_INTERFACE_HANDLE.lock().await;
+        check_route_tenant(&ebpf_interf, req, None).map_err(ErrorResponse::Conflict)?;
     }
 
     let target = match build_route_target(req, &taps) {
@@ -105,7 +105,7 @@ pub async fn add_route(
         }
     };
 
-    let mut st = GATEWAY_STATE_HANDLE.lock().await;
+    let mut ebpf_interf = EBPF_INTERFACE_HANDLE.lock().await;
 
     let route = Route {
         uuid: route_uuid,
@@ -120,10 +120,10 @@ pub async fn add_route(
 
     // Another route of the same tenant may already own the key. Its target is kept, so a
     // rollback can hand the key back to it instead of leaving it unrouted.
-    let previous_target = st.route_map.get(&route_key, 0).ok();
+    let previous_target = ebpf_interf.route_map.get(&route_key, 0).ok();
 
-    st.routes.insert(route_uuid, route.clone());
-    let result = st
+    ebpf_interf.routes.insert(route_uuid, route.clone());
+    let result = ebpf_interf
         .route_map
         .insert(route_key, RouteTargetPod(target), 0)
         .map_err(|e| {
@@ -133,7 +133,7 @@ pub async fn add_route(
         .and_then(|_| persist(&route));
 
     if let Err(e) = result {
-        undo_add_route(&mut st, &route_uuid, previous_target);
+        undo_add_route(&mut ebpf_interf, &route_uuid, previous_target);
         return Err(e);
     }
 
@@ -147,19 +147,19 @@ pub async fn add_route(
 /// with that route. Otherwise the route is removed completely.
 ///
 /// # Arguments
-/// * `st` - The locked gateway state
+/// * `ebpf_interf` - The locked gateway state
 /// * `route_uuid` - UUID of the route to revert
 /// * `previous_target` - Target, which the key of the route had before
 fn undo_add_route(
-    st: &mut GatewayState,
+    ebpf_interf: &mut EBPFInterface,
     route_uuid: &Uuid,
     previous_target: Option<RouteTargetPod>,
 ) {
     match previous_target {
         Some(previous_target) => {
-            if let Some(route) = st.routes.remove(route_uuid) {
+            if let Some(route) = ebpf_interf.routes.remove(route_uuid) {
                 let route_key = RouteKeyPod(RouteKey::new(route.vni, u32::from(route.dest_ip)));
-                if let Err(e) = st.route_map.insert(route_key, previous_target, 0) {
+                if let Err(e) = ebpf_interf.route_map.insert(route_key, previous_target, 0) {
                     log::error!(
                         "Failed to restore the previous target of {}: {e}",
                         route.dest_ip
@@ -168,7 +168,7 @@ fn undo_add_route(
             }
         }
         None => {
-            remove_route(st, route_uuid);
+            remove_route(ebpf_interf, route_uuid);
         }
     }
 }
@@ -207,18 +207,18 @@ pub async fn update_route(
 
     // Snapshot the TAP registry so the (possibly slow) ARP resolution inside
     // the target construction does not block the rest of the gateway.
-    let taps = { GATEWAY_STATE_HANDLE.lock().await.taps.clone() };
+    let taps = { EBPF_INTERFACE_HANDLE.lock().await.taps.clone() };
 
     {
-        let st = GATEWAY_STATE_HANDLE.lock().await;
-        check_route_tenant(&st, req, Some(route_uuid)).map_err(ErrorResponse::Conflict)?;
+        let ebpf_interf = EBPF_INTERFACE_HANDLE.lock().await;
+        check_route_tenant(&ebpf_interf, req, Some(route_uuid)).map_err(ErrorResponse::Conflict)?;
     }
 
     let target = build_route_target(req, &taps).map_err(ErrorResponse::BadRequest)?;
 
-    let mut st = GATEWAY_STATE_HANDLE.lock().await;
+    let mut ebpf_interf = EBPF_INTERFACE_HANDLE.lock().await;
 
-    let previous_route = match st.routes.get(&route_uuid) {
+    let previous_route = match ebpf_interf.routes.get(&route_uuid) {
         Some(route) => route.clone(),
         None => return Err(ErrorResponse::NotFound("Route UUID not found".to_string())),
     };
@@ -228,7 +228,7 @@ pub async fn update_route(
         previous_route.vni,
         u32::from(previous_route.dest_ip),
     ));
-    let previous_target = st.route_map.get(&previous_key, 0).ok();
+    let previous_target = ebpf_interf.route_map.get(&previous_key, 0).ok();
 
     let updated_route = Route {
         uuid: route_uuid,
@@ -245,13 +245,13 @@ pub async fn update_route(
     // rollback.
     let updated_key = RouteKeyPod(RouteKey::new(req.vni, u32::from(req.dest_ip)));
     let overwritten_target = if updated_key.0 != previous_key.0 {
-        st.route_map.get(&updated_key, 0).ok()
+        ebpf_interf.route_map.get(&updated_key, 0).ok()
     } else {
         None
     };
 
     let result = program_route(
-        &mut st,
+        &mut ebpf_interf,
         &previous_route,
         &updated_route,
         RouteTargetPod(target),
@@ -262,18 +262,21 @@ pub async fn update_route(
         // program the previous version of the route again
         let previous_target = match previous_target {
             Some(previous_target) => Ok(previous_target),
-            None => {
-                build_route_target(&RouteReq::from(&previous_route), &st.taps).map(RouteTargetPod)
-            }
+            None => build_route_target(&RouteReq::from(&previous_route), &ebpf_interf.taps)
+                .map(RouteTargetPod),
         };
         let rollback = previous_target
             .map_err(ErrorResponse::InternalError)
-            .and_then(|target| program_route(&mut st, &updated_route, &previous_route, target));
+            .and_then(|target| {
+                program_route(&mut ebpf_interf, &updated_route, &previous_route, target)
+            });
         if let Err(rollback_err) = rollback {
             log::error!("Failed to roll back the update of route '{route_uuid}': {rollback_err}");
         }
         if let Some(overwritten_target) = overwritten_target
-            && let Err(map_err) = st.route_map.insert(updated_key, overwritten_target, 0)
+            && let Err(map_err) = ebpf_interf
+                .route_map
+                .insert(updated_key, overwritten_target, 0)
         {
             log::error!("Failed to restore the target of {}: {map_err}", req.dest_ip);
         }
@@ -286,7 +289,7 @@ pub async fn update_route(
 /// Switches a route in the datapath from one version to another.
 ///
 /// # Arguments
-/// * `st` - The locked gateway state
+/// * `ebpf_interf` - The locked gateway state
 /// * `from` - The version of the route, which is currently programmed
 /// * `to` - The version of the route, which is programmed from now on
 /// * `target` - The eBPF target of the new version
@@ -294,7 +297,7 @@ pub async fn update_route(
 /// # Returns
 /// `Ok(())` once the new version is programmed, otherwise `InternalError`
 fn program_route(
-    st: &mut GatewayState,
+    ebpf_interf: &mut EBPFInterface,
     from: &Route,
     to: &Route,
     target: RouteTargetPod,
@@ -304,21 +307,21 @@ fn program_route(
 
     // ATOMIC KERNEL UPDATE: overwriting the key redirects the traffic instantly,
     // without a delete/create gap.
-    if let Err(e) = st.route_map.insert(RouteKeyPod(to_key), target, 0) {
+    if let Err(e) = ebpf_interf.route_map.insert(RouteKeyPod(to_key), target, 0) {
         log::error!("eBPF Map error on update: {e}");
         return Err(ErrorResponse::InternalError("Internal Error".to_string()));
     }
 
-    st.routes.insert(to.uuid, to.clone());
+    ebpf_interf.routes.insert(to.uuid, to.clone());
 
     // A route that changed its destination *or its tenant* leaves a stale routing entry behind,
     // which has to go away.
     if from_key != to_key {
-        let _ = st.route_map.remove(&RouteKeyPod(from_key));
+        let _ = ebpf_interf.route_map.remove(&RouteKeyPod(from_key));
     }
 
     // The packet filters belong to the address the route leads to, so they move with the route.
-    move_filters(st, from, to).map_err(|e| {
+    move_filters(ebpf_interf, from, to).map_err(|e| {
         log::error!("Failed to move packet-filters of route '{}': {e}", to.uuid);
         ErrorResponse::InternalError("Internal Error".to_string())
     })?;
@@ -332,18 +335,18 @@ fn program_route(
 /// fail-closed block policies and its kernel host-route.
 ///
 /// # Arguments
-/// * `st` - The locked gateway state
+/// * `ebpf_interf` - The locked gateway state
 /// * `route_uuid` - UUID of the route to remove
 ///
 /// # Returns
 /// The removed route, or `None` if no such route exists
-pub fn remove_route(st: &mut GatewayState, route_uuid: &Uuid) -> Option<Route> {
-    let route = st.routes.remove(route_uuid)?;
+pub fn remove_route(ebpf_interf: &mut EBPFInterface, route_uuid: &Uuid) -> Option<Route> {
+    let route = ebpf_interf.routes.remove(route_uuid)?;
 
     let dest_key = RouteKeyPod(RouteKey::new(route.vni, u32::from(route.dest_ip)));
-    let _ = st.route_map.remove(&dest_key);
+    let _ = ebpf_interf.route_map.remove(&dest_key);
     // The filters guard the route and the VM behind it, so they die with it.
-    remove_filters_of_route(st, &route);
+    remove_filters_of_route(ebpf_interf, &route);
 
     if route.encrypted {
         // Drop the fail-closed policies together with the route they guard.
@@ -368,19 +371,19 @@ pub fn remove_route(st: &mut GatewayState, route_uuid: &Uuid) -> Option<Route> {
 /// the second one is refused.
 ///
 /// # Arguments
-/// * `st` - The locked gateway state
+/// * `ebpf_interf` - The locked gateway state
 /// * `req` - The route request being processed
 /// * `skip` - UUID of the route being updated, so it does not collide with itself
 ///
 /// # Returns
 /// `Ok(())` when the route is safe to program, otherwise a message for the client
 pub fn check_route_tenant(
-    st: &GatewayState,
+    ebpf_interf: &EBPFInterface,
     req: &RouteReq,
     skip: Option<Uuid>,
 ) -> Result<(), String> {
     if req.gateway_ip.is_none()
-        && let Some(tap) = st.taps.get(&req.target_iface)
+        && let Some(tap) = ebpf_interf.taps.get(&req.target_iface)
         && tap.vni != req.vni
     {
         return Err(format!(
@@ -390,7 +393,7 @@ pub fn check_route_tenant(
     }
 
     if req.encrypted
-        && let Some(other) = st.routes.values().find(|route| {
+        && let Some(other) = ebpf_interf.routes.values().find(|route| {
             Some(route.uuid) != skip
                 && route.encrypted
                 && route.dest_ip == req.dest_ip

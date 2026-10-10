@@ -42,6 +42,7 @@ pub async fn get_project_resource_count_internal(
 
     let mut resource_counts = BTreeMap::new();
 
+    // count virtual machines
     let number = meta_virtual_machine_table::count_meta_virtual_machines_of_project(&project_id)
         .map_err(|e| {
             log::error!(
@@ -51,12 +52,14 @@ pub async fn get_project_resource_count_internal(
         })?;
     resource_counts.insert("virtual_machine".to_string(), number);
 
+    // count networks
     let number = network_table::count_networks_of_project(&project_id).map_err(|e| {
         log::error!("Failed to count the networks of project '{project_id}' in database: {e}");
         ErrorResponse::InternalError("Internal Error".to_string())
     })?;
     resource_counts.insert("network".to_string(), number);
 
+    // count flowing-ips
     let number = floating_ip_table::count_floating_ips_of_project(&project_id).map_err(|e| {
         log::error!("Failed to count the floating_ips of project '{project_id}' in database: {e}");
         ErrorResponse::InternalError("Internal Error".to_string())
