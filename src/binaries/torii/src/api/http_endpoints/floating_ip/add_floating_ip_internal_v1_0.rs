@@ -74,6 +74,7 @@ pub async fn register_floating_ip_internal(
                         map_db_write_error(
                             &format!("persist floating ip '{}'", body.floating_ip),
                             e,
+                            Some(&context),
                         )
                     })
             },

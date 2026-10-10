@@ -38,7 +38,10 @@ pub async fn list_task(
     let tasks = match task_table::list_tasks(&context, query.resource_uuid.as_ref()) {
         Ok(tasks) => tasks,
         Err(e) => {
-            log::error!("Failed to get list of tasks form database: '{e}'");
+            ainari_api::report_internal_error!(
+                Some(&context),
+                "Failed to get list of tasks form database: '{e}'"
+            );
             return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
     };

@@ -43,8 +43,9 @@ pub async fn remove_migrated_virtual_machine_internal(
     context: UserContext,
 ) -> Result<CreatedJson<TaskResp>, ErrorResponse> {
     // check that the virtual_machine exists, before a task for it is created
-    virtual_machine_table::get_virtual_machine(&virtual_machine_uuid, &context)
-        .map_err(|e| map_db_uuid_get_delete_error("virtual_machine", &virtual_machine_uuid, e))?;
+    virtual_machine_table::get_virtual_machine(&virtual_machine_uuid, &context).map_err(|e| {
+        map_db_uuid_get_delete_error("virtual_machine", &virtual_machine_uuid, e, Some(&context))
+    })?;
 
     let description = format!("Remove migrated virtual machine with UUID {virtual_machine_uuid}");
     let info = CloudHypervisorVirtualMachineMigrationInfo {

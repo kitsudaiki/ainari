@@ -60,14 +60,10 @@ pub async fn run_server() -> Result<(), impl Error> {
         &miko_dummy_config,
         &config::CONFIG.api,
         &config::INTERNAL_API_KEY,
-        // only used for the requests against omikuji, because miko checks the tokens by itself
-        config::CONFIG.skip_tls_verification,
+        false,
     )
     // the internal endpoints are only reachable over the internal port
-    .restrict_internal_endpoints(internal_port)
-    // miko can not request the address of omikuji from itself, so it is taken from its config
-    .send_audit_logs("miko")
-    .with_omikuji_endpoint(&config::CONFIG.endpoints.omikuji);
+    .restrict_internal_endpoints(internal_port);
 
     // init server with openapi-docu-generator
     HttpServer::new(move || {

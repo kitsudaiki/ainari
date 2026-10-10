@@ -37,7 +37,7 @@ pub async fn list_network_filter(
 ) -> Result<Json<NetworkFilterListResp>, ErrorResponse> {
     // get network_filters from db
     let entries = network_filter_table::list_network_filters(&context)
-        .map_err(|e| map_db_list_error("network_filters", e))?;
+        .map_err(|e| map_db_list_error("network_filters", e, Some(&context)))?;
 
     let network_filters = entries
         .into_iter()

@@ -143,6 +143,27 @@ pub enum TaskVariant {
 }
 
 impl TaskVariant {
+    /// Returns the context of the user, who has created the task.
+    ///
+    /// # Returns
+    ///
+    /// The context of the task
+    pub fn context(&self) -> &UserContext {
+        match self {
+            TaskVariant::CloudHypervisorVirtualMachineCreate(info) => &info.context,
+            TaskVariant::CloudHypervisorVirtualMachineDelete(info) => &info.context,
+            TaskVariant::CloudHypervisorVirtualMachineSnapshot(info) => &info.context,
+            TaskVariant::CloudHypervisorVirtualMachineRestore(info) => &info.context,
+            TaskVariant::CloudHypervisorVirtualMachineStart(info)
+            | TaskVariant::CloudHypervisorVirtualMachineStop(info)
+            | TaskVariant::CloudHypervisorVirtualMachineReboot(info) => &info.context,
+            TaskVariant::CloudHypervisorVirtualMachineMigrationPrepare(info)
+            | TaskVariant::CloudHypervisorVirtualMachineMigrationRemove(info) => &info.context,
+            TaskVariant::CloudHypervisorVirtualMachineMigrationCancel(info) => &info.context,
+            TaskVariant::CloudHypervisorVirtualMachineMigrationImport(info) => &info.context,
+        }
+    }
+
     /// Returns the context of a task, which must not run, while its virtual_machine is migrated,
     /// because it would start or change the frozen virtual_machine.
     ///

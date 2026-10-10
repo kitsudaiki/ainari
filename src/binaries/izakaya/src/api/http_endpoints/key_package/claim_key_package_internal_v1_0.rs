@@ -50,8 +50,9 @@ pub async fn claim_key_package_internal(
         }
         None => true,
     };
-    let entry = key_package_table::claim_key_package(client_id, accept, &context)
-        .map_err(|e| map_db_id_get_delete_error("key-package of client", client_id, e))?;
+    let entry = key_package_table::claim_key_package(client_id, accept, &context).map_err(|e| {
+        map_db_id_get_delete_error("key-package of client", client_id, e, Some(&context))
+    })?;
 
     log::debug!(
         "Key-package '{}' of client '{client_id}' was claimed",

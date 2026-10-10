@@ -63,7 +63,13 @@ pub async fn register_route_internal(
     let route = add_route(Uuid::new_v4(), &body, |route| {
         route_table::add_new_route(route, &context)
             .map(|_| ())
-            .map_err(|e| map_db_write_error(&format!("persist route '{}'", route.uuid), e))
+            .map_err(|e| {
+                map_db_write_error(
+                    &format!("persist route '{}'", route.uuid),
+                    e,
+                    Some(&context),
+                )
+            })
     })
     .await?;
 

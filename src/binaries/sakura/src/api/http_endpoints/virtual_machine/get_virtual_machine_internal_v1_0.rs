@@ -37,10 +37,13 @@ pub async fn get_virtual_machine_internal(
     virtual_machine_uuid: Path<Uuid>,
     context: UserContext,
 ) -> Result<Json<VirtualMachineResp>, ErrorResponse> {
-    let virtual_machine_data =
-        virtual_machine_table::get_virtual_machine(&virtual_machine_uuid, &context).map_err(
-            |e| map_db_uuid_get_delete_error("virtual_machine", &virtual_machine_uuid, e),
-        )?;
+    let virtual_machine_data = virtual_machine_table::get_virtual_machine(
+        &virtual_machine_uuid,
+        &context,
+    )
+    .map_err(|e| {
+        map_db_uuid_get_delete_error("virtual_machine", &virtual_machine_uuid, e, Some(&context))
+    })?;
 
     let resp = VirtualMachineResp {
         uuid: *virtual_machine_uuid,

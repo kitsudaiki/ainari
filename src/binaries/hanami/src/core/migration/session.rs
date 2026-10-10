@@ -61,6 +61,17 @@ impl Session {
         Ok(session)
     }
 
+    /// Returns the context of the admin without renewing its token.
+    ///
+    /// Only for assigning errors to the admin, because the token may be expired.
+    ///
+    /// # Returns
+    ///
+    /// The context of the admin, who started the migration
+    pub fn user_context(&self) -> &UserContext {
+        &self.context
+    }
+
     /// Returns the context with a token, which is valid for at least half of its lifetime.
     ///
     /// # Returns
@@ -85,7 +96,7 @@ impl Session {
             config::CONFIG.skip_tls_verification,
         )
         .await
-        .map_err(map_ainari_error_to_api_response)?;
+        .map_err(|e| map_ainari_error_to_api_response(e, Some(&self.context)))?;
 
         self.context.token = new_token.access_token;
         self.renewed_at = renewed_at;

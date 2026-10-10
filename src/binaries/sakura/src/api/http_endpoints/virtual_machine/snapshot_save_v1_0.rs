@@ -64,15 +64,18 @@ pub async fn snapshot_save_task(
     let task_type = TaskType::SnapshotSave;
 
     // check if virtual_machine exist
-    let virtual_machine_data =
-        virtual_machine_table::get_virtual_machine(&virtual_machine_uuid, &context).map_err(
-            |e| map_db_uuid_get_delete_error("virtual_machine", &virtual_machine_uuid, e),
-        )?;
+    let virtual_machine_data = virtual_machine_table::get_virtual_machine(
+        &virtual_machine_uuid,
+        &context,
+    )
+    .map_err(|e| {
+        map_db_uuid_get_delete_error("virtual_machine", &virtual_machine_uuid, e, Some(&context))
+    })?;
     super::reject_migrating(&virtual_machine_data)?;
 
     let endpoints = get_endpoints(&config::CONFIG.miko, config::CONFIG.skip_tls_verification)
         .await
-        .map_err(map_ainari_error_to_api_response)?;
+        .map_err(|e| map_ainari_error_to_api_response(e, Some(&context)))?;
 
     // register the snapshot in ryokan as image, which also generates the secret for its
     // encryption, if no secret was provided
@@ -88,7 +91,7 @@ pub async fn snapshot_save_task(
         config::CONFIG.skip_tls_verification,
     )
     .await
-    .map_err(map_ainari_error_to_api_response)?;
+    .map_err(|e| map_ainari_error_to_api_response(e, Some(&context)))?;
 
     // prepare task-info
     let task_description = format!(
@@ -118,7 +121,7 @@ pub async fn snapshot_save_task(
 
     // get new created task from database to get additional information
     let task_data = task_table::get_task(&task_uuid, &context)
-        .map_err(|e| map_db_uuid_get_delete_error("task", &task_uuid, e))?;
+        .map_err(|e| map_db_uuid_get_delete_error("task", &task_uuid, e, Some(&context)))?;
 
     let resp = TaskResp {
         uuid: task_uuid,

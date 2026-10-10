@@ -41,7 +41,7 @@ pub async fn get_project_admin(
 
     // get project from database
     let project = project_table::get_project(&project_id, &context)
-        .map_err(|e| map_db_id_get_delete_error("project", &project_id, e))?;
+        .map_err(|e| map_db_id_get_delete_error("project", &project_id, e, Some(&context)))?;
 
     let resp = ProjectResp {
         id: project.id,

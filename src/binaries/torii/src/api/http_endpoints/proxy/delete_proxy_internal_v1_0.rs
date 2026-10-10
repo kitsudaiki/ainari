@@ -40,14 +40,14 @@ pub async fn delete_proxy_internal(
 ) -> Result<NoContent, ErrorResponse> {
     // delete proxy from database
     proxy_table::delete_proxy(&proxy_uuid, &context)
-        .map_err(|e| map_db_uuid_get_delete_error("proxy", &proxy_uuid, e))?;
+        .map_err(|e| map_db_uuid_get_delete_error("proxy", &proxy_uuid, e, Some(&context)))?;
 
     // delete proxy from handler
     let mut proxy_handle = PROXY_HANDLER.write().await;
     proxy_handle
         .delete_proxy(&proxy_uuid)
         .await
-        .map_err(map_ainari_error_to_api_response)?;
+        .map_err(|e| map_ainari_error_to_api_response(e, Some(&context)))?;
 
     Ok(NoContent)
 }

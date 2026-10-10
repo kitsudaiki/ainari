@@ -20,7 +20,6 @@ use validator::Validate;
 
 use crate::database::audit_log_table;
 
-use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::log_structs::*;
 
@@ -52,15 +51,17 @@ pub async fn add_audit_log_internal(
         &body.project_id,
     )
     .map_err(|e| {
-        map_db_write_error(
-            &format!("add audit-log with UUID '{audit_log_uuid}' to database"),
-            e,
-        )
+        // only logged locally and not reported to omikuji, which is this service itself, because
+        // else each failed entry would add another entry
+        log::error!("Failed to add audit-log with UUID '{audit_log_uuid}' to database: {e}");
+        ErrorResponse::InternalError("Internal Error".to_string())
     })?;
 
     // get new created audit-log from database to get additional information
-    let audit_log_entry = audit_log_table::get_audit_log(&audit_log_uuid)
-        .map_err(|e| map_db_uuid_get_after_add_error("audit_log", &audit_log_uuid, e))?;
+    let audit_log_entry = audit_log_table::get_audit_log(&audit_log_uuid).map_err(|_| {
+        log::error!("Failed to get audit-log with UUID '{audit_log_uuid}' after adding it");
+        ErrorResponse::InternalError("Internal Error".to_string())
+    })?;
 
     Ok(CreatedJson(audit_log_entry.into()))
 }

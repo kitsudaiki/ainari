@@ -127,11 +127,11 @@ async fn restore_host(
 ) -> Result<(), ErrorResponse> {
     let context = system_context();
     let host = host_table::get_host(&host_uuid, &context)
-        .map_err(|e| map_db_uuid_get_delete_error("sakura-host", &host_uuid, e))?;
+        .map_err(|e| map_db_uuid_get_delete_error("sakura-host", &host_uuid, e, Some(&context)))?;
 
     let addresses: Vec<AddressEntry> = address_table::list_addresses()
         .map_err(|e| {
-            log::error!("Failed to list the addresses: {e}");
+            ainari_api::report_internal_error!(Some(&context), "Failed to list the addresses: {e}");
             ErrorResponse::InternalError("Internal Error".to_string())
         })?
         .into_iter()
@@ -143,7 +143,7 @@ async fn restore_host(
 
     let endpoints = get_endpoints(&config::CONFIG.miko, config::CONFIG.skip_tls_verification)
         .await
-        .map_err(map_ainari_error_to_api_response)?;
+        .map_err(|e| map_ainari_error_to_api_response(e, Some(&context)))?;
     let host_torii = torii_of_host(&endpoints.torii, &host.address)?;
     wait_for_torii(&host_torii, &context).await?;
 
@@ -284,7 +284,8 @@ async fn restore_connections(
     context: &UserContext,
 ) -> Result<(), ErrorResponse> {
     let others = address_table::list_addresses_of_network(&address.network_uuid).map_err(|e| {
-        log::error!(
+        ainari_api::report_internal_error!(
+            Some(context),
             "Failed to get the addresses of network '{}': {e}",
             address.network_uuid
         );

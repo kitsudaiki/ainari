@@ -49,13 +49,13 @@ pub async fn update_proxy_internal(
 
     // the database is changed first, so the proxy-handler gets the same target after a restart
     let proxy_data = proxy_table::update_proxy_target(&proxy_uuid, &body.target_address, &context)
-        .map_err(|e| map_db_uuid_get_delete_error("proxy", &proxy_uuid, e))?;
+        .map_err(|e| map_db_uuid_get_delete_error("proxy", &proxy_uuid, e, Some(&context)))?;
 
     let mut proxy_handler = PROXY_HANDLER.write().await;
     proxy_handler
         .retarget_proxy(&proxy_uuid, proxy_data.port as u16, &body.target_address)
         .await
-        .map_err(map_ainari_error_to_api_response)?;
+        .map_err(|e| map_ainari_error_to_api_response(e, Some(&context)))?;
 
     let resp = ProxyResp {
         uuid: proxy_data.uuid,

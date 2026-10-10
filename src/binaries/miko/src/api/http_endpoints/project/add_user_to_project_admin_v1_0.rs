@@ -52,9 +52,9 @@ pub async fn add_user_to_project_admin(
 
     // check if user and project exist
     user_table::get_user(user_id, &context)
-        .map_err(|e| map_db_id_get_delete_error("user", user_id, e))?;
+        .map_err(|e| map_db_id_get_delete_error("user", user_id, e, Some(&context)))?;
     project_table::get_project(&project_id, &context)
-        .map_err(|e| map_db_id_get_delete_error("project", &project_id, e))?;
+        .map_err(|e| map_db_id_get_delete_error("project", &project_id, e, Some(&context)))?;
 
     // add new mapping to database. The unique index of the table rejects a second active mapping
     // of the same pair, so this doesn't have to be checked before.
@@ -66,12 +66,14 @@ pub async fn add_user_to_project_admin(
             e => map_db_write_error(
                 &format!("add user '{user_id}' to project '{project_id}' in database"),
                 e,
+                Some(&context),
             ),
         })?;
 
     // get new created mapping from database to get the stored values
-    let mapping = user_project_mapping_table::get_mapping(&project_id, user_id)
-        .map_err(|e| map_db_id_get_after_add_error("user-project-mapping", user_id, e))?;
+    let mapping = user_project_mapping_table::get_mapping(&project_id, user_id).map_err(|e| {
+        map_db_id_get_after_add_error("user-project-mapping", user_id, e, Some(&context))
+    })?;
 
     let resp = ProjectAddUserResp {
         user_id: mapping.user_id,

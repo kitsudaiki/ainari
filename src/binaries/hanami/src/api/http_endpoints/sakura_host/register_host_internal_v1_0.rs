@@ -77,7 +77,10 @@ pub async fn register_host_internal(
             // update the resources of the already registered host, because the
             // hardware could have changed since the last registration
             host_table::update_host_resources(&host_uuid, &resources, &context).map_err(|_| {
-                log::error!("Failed to update resources of host with UUID '{host_uuid}'.");
+                ainari_api::report_internal_error!(
+                    Some(&context),
+                    "Failed to update resources of host with UUID '{host_uuid}'."
+                );
                 ErrorResponse::InternalError("Internal Error".to_string())
             })?;
 
@@ -88,7 +91,10 @@ pub async fn register_host_internal(
                 &context,
             )
             .map_err(|_| {
-                log::error!("Failed to update external address of host with UUID '{host_uuid}'.");
+                ainari_api::report_internal_error!(
+                    Some(&context),
+                    "Failed to update external address of host with UUID '{host_uuid}'."
+                );
                 ErrorResponse::InternalError("Internal Error".to_string())
             })?;
 
@@ -97,7 +103,10 @@ pub async fn register_host_internal(
             // the identity, which the next grant finds, is pinned, and the network of the
             // virtual_machines of the host is programmed again in the background.
             let previous_client_id = host_table::reset_mls_pin(&host_uuid).map_err(|_| {
-                log::error!("Failed to reset the MLS-identity of host with UUID '{host_uuid}'.");
+                ainari_api::report_internal_error!(
+                    Some(&context),
+                    "Failed to reset the MLS-identity of host with UUID '{host_uuid}'."
+                );
                 ErrorResponse::InternalError("Internal Error".to_string())
             })?;
             host_restore::spawn_restore(host_uuid, previous_client_id);
@@ -113,7 +122,11 @@ pub async fn register_host_internal(
                 &context,
             )
             .map_err(|e| {
-                map_db_write_error(&format!("add host with UUID '{host_uuid}' to database"), e)
+                map_db_write_error(
+                    &format!("add host with UUID '{host_uuid}' to database"),
+                    e,
+                    Some(&context),
+                )
             })?;
         }
     };
@@ -128,7 +141,7 @@ pub async fn register_host_internal(
 
     // get new created host from database to get additional information
     let host_data = host_table::get_host(&host_uuid, &context)
-        .map_err(|e| map_db_uuid_get_after_add_error("host", &host_uuid, e))?;
+        .map_err(|e| map_db_uuid_get_after_add_error("host", &host_uuid, e, Some(&context)))?;
 
     let resp = SakuraHostResp {
         uuid: host_uuid,

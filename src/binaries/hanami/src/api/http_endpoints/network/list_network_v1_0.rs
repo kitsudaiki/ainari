@@ -31,8 +31,8 @@ use ainari_api_structs::user_context::UserContext;
 )]
 pub async fn list_network(context: UserContext) -> Result<Json<NetworkListResp>, ErrorResponse> {
     // get networks from db
-    let networks =
-        network_table::list_networks(&context).map_err(|e| map_db_list_error("hosts", e))?;
+    let networks = network_table::list_networks(&context)
+        .map_err(|e| map_db_list_error("hosts", e, Some(&context)))?;
 
     // prepare response
     let mut resp = NetworkListResp {

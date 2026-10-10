@@ -46,7 +46,12 @@ pub async fn create_user_admin(
     let user_id = &body.id;
 
     // check if user-id already exist
-    check_if_id_exist_in_db("user", user_id, user_table::get_user(user_id, &context))?;
+    check_if_id_exist_in_db(
+        "user",
+        user_id,
+        user_table::get_user(user_id, &context),
+        Some(&context),
+    )?;
 
     // add new user to database, which also creates its default-project with the quota
     user_table::add_new_user(
@@ -56,11 +61,17 @@ pub async fn create_user_admin(
         &body.is_admin,
         &context,
     )
-    .map_err(|e| map_db_write_error(&format!("add user with ID '{user_id}' to database"), e))?;
+    .map_err(|e| {
+        map_db_write_error(
+            &format!("add user with ID '{user_id}' to database"),
+            e,
+            Some(&context),
+        )
+    })?;
 
     // get new created user from database to get additional information
     let user = user_table::get_user(user_id, &context)
-        .map_err(|e| map_db_id_get_after_add_error("user", user_id, e))?;
+        .map_err(|e| map_db_id_get_after_add_error("user", user_id, e, Some(&context)))?;
 
     let resp = UserResp {
         id: user.id,

@@ -73,13 +73,12 @@ const PARTIAL_SUFFIX: &str = ".part";
 pub fn compressed_file_stream(
     path: &Path,
 ) -> Result<(u64, mpsc::Receiver<io::Result<Bytes>>), AinariError> {
-    let file = File::open(path).map_err(|e| {
-        AinariError::InternalError(format!("Failed to open {}: {e}", path.display()))
-    })?;
+    let file = File::open(path)
+        .map_err(|e| AinariError::internal(format!("Failed to open {}: {e}", path.display())))?;
     let size = file
         .metadata()
         .map_err(|e| {
-            AinariError::InternalError(format!("Failed to read size of {}: {e}", path.display()))
+            AinariError::internal(format!("Failed to read size of {}: {e}", path.display()))
         })?
         .len();
 
@@ -172,11 +171,10 @@ pub async fn receive_file(
 
     let result = async {
         let sparse_file = SparseFile::create(&partial_path).map_err(|e| {
-            AinariError::InternalError(format!("Failed to create {}: {e}", partial_path.display()))
+            AinariError::internal(format!("Failed to create {}: {e}", partial_path.display()))
         })?;
-        let decoder = RawDecoder::new().map_err(|e| {
-            AinariError::InternalError(format!("Failed to create zstd-decoder: {e}"))
-        })?;
+        let decoder = RawDecoder::new()
+            .map_err(|e| AinariError::internal(format!("Failed to create zstd-decoder: {e}")))?;
         let mut writer = ZioWriter::new(sparse_file, decoder);
 
         let expected_size = download_migration_file(
@@ -191,15 +189,15 @@ pub async fn receive_file(
         .await?;
 
         let received_size = finish_receive(writer)
-            .map_err(|e| AinariError::InternalError(format!("Received {file} is damaged: {e}")))?;
+            .map_err(|e| AinariError::internal(format!("Received {file} is damaged: {e}")))?;
         if received_size != expected_size {
-            return Err(AinariError::InternalError(format!(
+            return Err(AinariError::internal(format!(
                 "Received {file} has {received_size} bytes instead of {expected_size}"
             )));
         }
 
         fs::rename(&partial_path, target_path).map_err(|e| {
-            AinariError::InternalError(format!(
+            AinariError::internal(format!(
                 "Failed to move {} to {target_path}: {e}",
                 partial_path.display()
             ))

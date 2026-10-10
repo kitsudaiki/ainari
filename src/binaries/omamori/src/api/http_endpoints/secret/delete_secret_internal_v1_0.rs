@@ -41,7 +41,7 @@ pub async fn delete_secret_internal(
     // only resouce owned secrets can be deleted over the internal endpoint
     // user owned are created over the public api and so they can only be deleted there again
     let secret = secret_table::get_secret(&secret_uuid, &context)
-        .map_err(|e| map_db_uuid_get_delete_error("secret", &secret_uuid, e))?;
+        .map_err(|e| map_db_uuid_get_delete_error("secret", &secret_uuid, e, Some(&context)))?;
     if secret.owned_by == "user" {
         return Err(ErrorResponse::Unauthorized(
             "Secret is owned by a user and can not be deleted over internal endpoints".to_string(),
@@ -50,13 +50,13 @@ pub async fn delete_secret_internal(
 
     // delete secret-metadata-from db
     secret_table::delete_secret(&secret_uuid, &context)
-        .map_err(|e| map_db_uuid_get_delete_error("secret", &secret_uuid, e))?;
+        .map_err(|e| map_db_uuid_get_delete_error("secret", &secret_uuid, e, Some(&context)))?;
 
     // delete secret from crypto-module
     let simple_crypto = SimpleCrypto::new();
     simple_crypto
         .delete(&secret_uuid)
-        .map_err(map_ainari_error_to_api_response)?;
+        .map_err(|e| map_ainari_error_to_api_response(e, Some(&context)))?;
 
     Ok(NoContent)
 }

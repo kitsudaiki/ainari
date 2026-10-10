@@ -36,7 +36,7 @@ pub async fn list_user_projects(
 ) -> Result<Json<ProjectInvitedListResp>, ErrorResponse> {
     // get all active assignments of the user of the token from database
     let mappings = user_project_mapping_table::list_mappings_of_user(&context.user_id)
-        .map_err(|e| map_db_list_error("invited projects", e))?;
+        .map_err(|e| map_db_list_error("invited projects", e, Some(&context)))?;
 
     let mut resp = ProjectInvitedListResp {
         projects: Vec::new(),

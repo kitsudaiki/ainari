@@ -30,7 +30,8 @@ use ainari_api_structs::user_context::UserContext;
     error_code = 500
 )]
 pub async fn list_proxy(context: UserContext) -> Result<Json<ProxyListResp>, ErrorResponse> {
-    let proxys = proxy_table::list_proxys(&context).map_err(|e| map_db_list_error("proxys", e))?;
+    let proxys = proxy_table::list_proxys(&context)
+        .map_err(|e| map_db_list_error("proxys", e, Some(&context)))?;
 
     let mut resp = ProxyListResp { proxys: Vec::new() };
 

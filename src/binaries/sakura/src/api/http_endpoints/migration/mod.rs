@@ -72,7 +72,7 @@ fn add_migration_task(
         .inspect_err(|e| log::error!("Creating a {task_type} failed with error: {e}"))?;
 
     let task_data = task_table::get_task(&task_uuid, context)
-        .map_err(|e| map_db_uuid_get_delete_error("task", &task_uuid, e))?;
+        .map_err(|e| map_db_uuid_get_delete_error("task", &task_uuid, e, Some(context)))?;
 
     Ok(TaskResp {
         uuid: task_uuid,
@@ -103,7 +103,7 @@ fn get_prepared_virtual_machine(
 ) -> Result<VirtualMachineEntry, ErrorResponse> {
     let virtual_machine_data =
         virtual_machine_table::get_virtual_machine(virtual_machine_uuid, context).map_err(|e| {
-            map_db_uuid_get_delete_error("virtual_machine", virtual_machine_uuid, e)
+            map_db_uuid_get_delete_error("virtual_machine", virtual_machine_uuid, e, Some(context))
         })?;
 
     if virtual_machine_data.vm_state != VirtualMachineState::Migrating.as_str() {

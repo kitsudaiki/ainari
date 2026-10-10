@@ -174,13 +174,14 @@ enum Progress {
 async fn run(migration: &Migration, session: &mut Session) -> Result<(), ErrorResponse> {
     let endpoints = get_endpoints(&config::CONFIG.miko, config::CONFIG.skip_tls_verification)
         .await
-        .map_err(map_ainari_error_to_api_response);
+        .map_err(|e| map_ainari_error_to_api_response(e, Some(session.user_context())));
     let network = match endpoints {
         Ok(endpoints) => {
             VmNetwork::new(
                 migration.virtual_machine_uuid,
                 migration.address.clone(),
                 endpoints,
+                session.user_context(),
             )
             .await
         }
@@ -236,7 +237,7 @@ async fn move_virtual_machine(
         skip_tls,
     )
     .await
-    .map_err(map_ainari_error_to_api_response)?;
+    .map_err(|e| map_ainari_error_to_api_response(e, Some(session.user_context())))?;
     *boot = virtual_machine.vm_state == "RUNNING";
 
     *progress = Progress::PrepareRequested;
@@ -248,7 +249,7 @@ async fn move_virtual_machine(
         skip_tls,
     )
     .await
-    .map_err(map_ainari_error_to_api_response)?;
+    .map_err(|e| map_ainari_error_to_api_response(e, Some(session.user_context())))?;
     wait_for_task(session, &migration.source, &task).await?;
     log::info!("Virtual_machine '{uuid}' is prepared on the source host");
 
@@ -277,7 +278,7 @@ async fn move_virtual_machine(
         skip_tls,
     )
     .await
-    .map_err(map_ainari_error_to_api_response)?;
+    .map_err(|e| map_ainari_error_to_api_response(e, Some(session.user_context())))?;
     wait_for_task(session, &migration.target, &task).await?;
     log::info!("Virtual_machine '{uuid}' is imported on the target host");
 
@@ -309,7 +310,7 @@ async fn rollback(
                 skip_tls,
             )
             .await
-            .map_err(map_ainari_error_to_api_response),
+            .map_err(|e| map_ainari_error_to_api_response(e, Some(session.user_context()))),
             Err(e) => Err(e),
         };
         let result = match result {
@@ -367,7 +368,7 @@ async fn rollback(
                 skip_tls,
             )
             .await
-            .map_err(map_ainari_error_to_api_response),
+            .map_err(|e| map_ainari_error_to_api_response(e, Some(session.user_context()))),
             Err(e) => Err(e),
         };
         let result = match result {
@@ -488,7 +489,7 @@ async fn clean_up_source(migration: &Migration, network: &VmNetwork, session: &m
             config::CONFIG.skip_tls_verification,
         )
         .await
-        .map_err(map_ainari_error_to_api_response),
+        .map_err(|e| map_ainari_error_to_api_response(e, Some(session.user_context()))),
         Err(e) => Err(e),
     };
     let result = match result {
@@ -552,7 +553,10 @@ async fn wait_for_task(
             Err(e) => {
                 failed_checks += 1;
                 if failed_checks >= MAX_FAILED_TASK_CHECKS {
-                    return Err(map_ainari_error_to_api_response(e));
+                    return Err(map_ainari_error_to_api_response(
+                        e,
+                        Some(session.user_context()),
+                    ));
                 }
                 log::warn!(
                     "Failed to check task '{}' on host '{}': {e}",
@@ -566,24 +570,28 @@ async fn wait_for_task(
         match current.state {
             TaskState::Finished => return Ok(()),
             TaskState::Error | TaskState::Aborted => {
-                return Err(ErrorResponse::InternalError(format!(
+                let message = format!(
                     "{} on host '{}' ended with state {}: {}",
                     task.description,
                     host.name,
                     current.state,
                     current.messages.join("; ")
-                )));
+                );
+                ainari_api::report_internal_error!(Some(session.user_context()), "{message}");
+                return Err(ErrorResponse::InternalError(message));
             }
             TaskState::Created | TaskState::Queued | TaskState::Active => {}
         }
 
         if Instant::now() >= deadline {
-            return Err(ErrorResponse::InternalError(format!(
+            let message = format!(
                 "{} on host '{}' didn't finish within {}h",
                 task.description,
                 host.name,
                 MAX_TASK_DURATION.as_secs() / 3600
-            )));
+            );
+            ainari_api::report_internal_error!(Some(session.user_context()), "{message}");
+            return Err(ErrorResponse::InternalError(message));
         }
     }
 }

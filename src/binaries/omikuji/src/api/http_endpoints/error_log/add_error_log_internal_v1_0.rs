@@ -20,7 +20,6 @@ use validator::Validate;
 
 use crate::database::error_log_table;
 
-use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::log_structs::*;
 
@@ -51,15 +50,17 @@ pub async fn add_error_log_internal(
         &body.project_id,
     )
     .map_err(|e| {
-        map_db_write_error(
-            &format!("add error-message with UUID '{error_log_uuid}' to database"),
-            e,
-        )
+        // only logged locally and not reported to omikuji, which is this service itself, because
+        // else each failed entry would add another entry
+        log::error!("Failed to add error-message with UUID '{error_log_uuid}' to database: {e}");
+        ErrorResponse::InternalError("Internal Error".to_string())
     })?;
 
     // get new created error-message from database to get additional information
-    let error_log_entry = error_log_table::get_error_log(&error_log_uuid)
-        .map_err(|e| map_db_uuid_get_after_add_error("error_log", &error_log_uuid, e))?;
+    let error_log_entry = error_log_table::get_error_log(&error_log_uuid).map_err(|_| {
+        log::error!("Failed to get error-message with UUID '{error_log_uuid}' after adding it");
+        ErrorResponse::InternalError("Internal Error".to_string())
+    })?;
 
     Ok(CreatedJson(error_log_entry.into()))
 }

@@ -68,7 +68,9 @@ pub async fn register_tap_internal(
     // The previous registration is read up front, so a registration, which fails or can not be
     // persisted, can be reverted to it.
     let previous = tap_table::get_tap(&body.tap_name)
-        .map_err(|e| map_internal_error(&format!("get TAP '{}'", body.tap_name), e))?
+        .map_err(|e| {
+            map_internal_error(&format!("get TAP '{}'", body.tap_name), e, Some(&context))
+        })?
         .map(TapReq::from);
     let existed = get_ifindex(&body.tap_name) > 0;
 
@@ -76,7 +78,13 @@ pub async fn register_tap_internal(
     let result = match register_tap(&body).await {
         Ok(()) => tap_table::set_tap(&body, &context)
             .map(|_| ())
-            .map_err(|e| map_db_write_error(&format!("persist TAP '{}'", body.tap_name), e)),
+            .map_err(|e| {
+                map_db_write_error(
+                    &format!("persist TAP '{}'", body.tap_name),
+                    e,
+                    Some(&context),
+                )
+            }),
         Err(e) => Err(e),
     };
     if let Err(e) = result {

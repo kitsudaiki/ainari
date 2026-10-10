@@ -34,7 +34,7 @@ pub async fn list_public_key(
 ) -> Result<Json<PublicKeyListResp>, ErrorResponse> {
     // get public-keys from db
     let public_keys = public_key_table::list_public_keys(&context)
-        .map_err(|e| map_db_list_error("public_keys", e))?;
+        .map_err(|e| map_db_list_error("public_keys", e, Some(&context)))?;
 
     // prepare response
     let mut resp = PublicKeyListResp {

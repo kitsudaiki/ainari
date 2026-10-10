@@ -56,7 +56,7 @@ pub async fn delete_user_admin(
 
     // check if user exist
     user_table::get_user(&user_id, &context)
-        .map_err(|e| map_db_id_get_delete_error("user", &user_id, e))?;
+        .map_err(|e| map_db_id_get_delete_error("user", &user_id, e, Some(&context)))?;
 
     // only the default-project is deleted together with the user, so only its resources are
     // checked. Other projects are not touched.
@@ -75,11 +75,12 @@ pub async fn delete_user_admin(
 
     // delete user from database
     user_table::delete_user(&user_id, &context)
-        .map_err(|e| map_db_id_get_delete_error("user", &user_id, e))?;
+        .map_err(|e| map_db_id_get_delete_error("user", &user_id, e, Some(&context)))?;
 
     // the user is removed from all projects, but only the default-project is deleted
-    user_project_mapping_table::delete_mappings_of_user(&user_id)
-        .map_err(|e| map_db_id_get_delete_error("user-project-mapping", &user_id, e))?;
+    user_project_mapping_table::delete_mappings_of_user(&user_id).map_err(|e| {
+        map_db_id_get_delete_error("user-project-mapping", &user_id, e, Some(&context))
+    })?;
 
     project_handling::delete_project_completely(&default_project_id, &context)?;
 
@@ -131,7 +132,7 @@ fn demote_to_observers(
     context: &UserContext,
 ) -> Result<Vec<(String, ProjectRole)>, ErrorResponse> {
     let mappings = user_project_mapping_table::list_mappings_of_project(project_id)
-        .map_err(|e| map_db_list_error("user-project-mappings", e))?;
+        .map_err(|e| map_db_list_error("user-project-mappings", e, Some(context)))?;
 
     let mut demoted_users = Vec::new();
     for mapping in mappings {
@@ -149,6 +150,7 @@ fn demote_to_observers(
                 "user-project-mapping",
                 &mapping.user_id,
                 e,
+                Some(context),
             ));
         }
         demoted_users.push((mapping.user_id, mapping.role));

@@ -34,7 +34,7 @@ pub async fn list_floating_ip(
 ) -> Result<Json<FloatingIpListResp>, ErrorResponse> {
     // get floating_ips from db
     let floating_ips = floating_ip_table::list_floating_ips(&context)
-        .map_err(|e| map_db_list_error("hosts", e))?;
+        .map_err(|e| map_db_list_error("hosts", e, Some(&context)))?;
 
     // prepare response
     let mut resp = FloatingIpListResp {

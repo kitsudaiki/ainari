@@ -49,9 +49,7 @@ pub async fn register_host() -> Result<(), AinariError> {
             let host_name = if let Some(host_name) = System::host_name() {
                 host_name
             } else {
-                return Err(AinariError::InternalError(
-                    "Failed to get host-name".to_string(),
-                ));
+                return Err(AinariError::internal("Failed to get host-name".to_string()));
             };
 
             log::debug!("read host-name: {host_name}");

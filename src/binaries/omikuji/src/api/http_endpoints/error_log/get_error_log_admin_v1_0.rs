@@ -39,8 +39,9 @@ pub async fn get_error_log_admin(
 ) -> Result<Json<ErrorLogResp>, ErrorResponse> {
     check_admin_context(&context)?;
 
-    let error_log_entry = error_log_table::get_error_log(&error_log_uuid)
-        .map_err(|e| map_db_uuid_get_delete_error("error_log", &error_log_uuid, e))?;
+    let error_log_entry = error_log_table::get_error_log(&error_log_uuid).map_err(|e| {
+        map_db_uuid_get_delete_error("error_log", &error_log_uuid, e, Some(&context))
+    })?;
 
     Ok(Json(error_log_entry.into()))
 }

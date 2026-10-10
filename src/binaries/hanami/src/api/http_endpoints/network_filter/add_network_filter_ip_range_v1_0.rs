@@ -79,7 +79,7 @@ pub async fn add_network_filter_ip_range(
         config::CONFIG.skip_tls_verification,
     )
     .await
-    .map_err(map_ainari_error_to_api_response)?;
+    .map_err(|e| map_ainari_error_to_api_response(e, Some(&context)))?;
 
     let entry = store_network_filter(&virtual_machine_uuid, direction, &filter_resp, &context)?;
 

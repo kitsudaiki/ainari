@@ -132,7 +132,7 @@ async fn is_deleted(
     context: &UserContext,
 ) -> Result<bool, AinariError> {
     let host_data = host_table::get_host(host_uuid, context).map_err(|_| {
-        AinariError::InternalError(format!("Failed to get host {host_uuid} from database"))
+        AinariError::internal(format!("Failed to get host {host_uuid} from database"))
     })?;
 
     virtual_machine_clients::is_virtual_machine_deleted(

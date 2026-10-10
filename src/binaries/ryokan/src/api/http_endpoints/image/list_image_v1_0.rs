@@ -30,7 +30,8 @@ use ainari_api_structs::user_context::UserContext;
     error_code = 500
 )]
 pub async fn list_image(context: UserContext) -> Result<Json<ImageListResp>, ErrorResponse> {
-    let images = image_table::list_images(&context).map_err(|e| map_db_list_error("images", e))?;
+    let images = image_table::list_images(&context)
+        .map_err(|e| map_db_list_error("images", e, Some(&context)))?;
 
     let mut resp = ImageListResp { images: Vec::new() };
 

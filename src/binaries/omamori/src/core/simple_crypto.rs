@@ -181,7 +181,7 @@ impl CryptoModule for SimpleCrypto {
         // add new secret to database
         simple_crypto_table::add_new_simple_crypto_data(secret_uuid, &encrypted_secret).map_err(
             |_| {
-                AinariError::InternalError(format!(
+                AinariError::internal(format!(
                     "Failed to add simple-crypto-secret with UUID '{secret_uuid}' to database."
                 ))
             },
@@ -205,7 +205,9 @@ impl CryptoModule for SimpleCrypto {
         let secret_data = match simple_crypto_table::get_secret(secret_uuid) {
             Ok(secret_data) => secret_data,
             Err(enums::DbError::InternalError) => {
-                return Err(AinariError::InternalError("".to_string()));
+                return Err(AinariError::internal(format!(
+                    "Failed to get secret '{secret_uuid}' from database"
+                )));
             }
             Err(enums::DbError::NotFound) => {
                 let msg = format!("Secret with UUID '{secret_uuid}' not found.");
@@ -237,7 +239,7 @@ impl CryptoModule for SimpleCrypto {
     fn clone_payload(&self, source_uuid: &Uuid, new_uuid: &Uuid) -> Result<(), AinariError> {
         match simple_crypto_table::clone_simple_crypto_data(source_uuid, new_uuid) {
             Ok(_) => Ok(()),
-            Err(enums::DbError::InternalError) => Err(AinariError::InternalError(format!(
+            Err(enums::DbError::InternalError) => Err(AinariError::internal(format!(
                 "Failed to clone simple-crypto-secret with UUID '{source_uuid}' to '{new_uuid}'."
             ))),
             Err(enums::DbError::NotFound) => {
@@ -265,7 +267,9 @@ impl CryptoModule for SimpleCrypto {
         // delete secret from database
         match simple_crypto_table::delete_secret(secret_uuid) {
             Ok(_) => Ok(()),
-            Err(enums::DbError::InternalError) => Err(AinariError::InternalError("".to_string())),
+            Err(enums::DbError::InternalError) => Err(AinariError::internal(format!(
+                "Failed to delete secret '{secret_uuid}' from database"
+            ))),
             Err(enums::DbError::NotFound) => {
                 let msg = format!("Secret with UUID '{secret_uuid}' not found.");
                 Err(AinariError::InvalidInput(msg))

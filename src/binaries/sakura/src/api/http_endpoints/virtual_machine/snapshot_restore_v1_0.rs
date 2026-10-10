@@ -59,15 +59,18 @@ pub async fn snapshot_restore_task(
     let task_type = TaskType::SnapshotRestore;
 
     // check if virtual_machine exist
-    let virtual_machine_data =
-        virtual_machine_table::get_virtual_machine(&virtual_machine_uuid, &context).map_err(
-            |e| map_db_uuid_get_delete_error("virtual_machine", &virtual_machine_uuid, e),
-        )?;
+    let virtual_machine_data = virtual_machine_table::get_virtual_machine(
+        &virtual_machine_uuid,
+        &context,
+    )
+    .map_err(|e| {
+        map_db_uuid_get_delete_error("virtual_machine", &virtual_machine_uuid, e, Some(&context))
+    })?;
     super::reject_migrating(&virtual_machine_data)?;
 
     let endpoints = get_endpoints(&config::CONFIG.miko, config::CONFIG.skip_tls_verification)
         .await
-        .map_err(map_ainari_error_to_api_response)?;
+        .map_err(|e| map_ainari_error_to_api_response(e, Some(&context)))?;
 
     // check if the image exist and is a snapshot, so an invalid image is rejected before the
     // task is queued
@@ -79,7 +82,7 @@ pub async fn snapshot_restore_task(
         config::CONFIG.skip_tls_verification,
     )
     .await
-    .map_err(map_ainari_error_to_api_response)?;
+    .map_err(|e| map_ainari_error_to_api_response(e, Some(&context)))?;
     if !image_resp.is_snapshot {
         return Err(ErrorResponse::BadRequest(format!(
             "Image {} is not a snapshot and can not be restored.",
@@ -114,7 +117,7 @@ pub async fn snapshot_restore_task(
 
     // get new created task from database to get additional information
     let task_data = task_table::get_task(&task_uuid, &context)
-        .map_err(|e| map_db_uuid_get_delete_error("task", &task_uuid, e))?;
+        .map_err(|e| map_db_uuid_get_delete_error("task", &task_uuid, e, Some(&context)))?;
 
     let resp = TaskResp {
         uuid: task_uuid,

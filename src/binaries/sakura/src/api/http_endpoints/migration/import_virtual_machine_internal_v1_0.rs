@@ -70,7 +70,7 @@ pub async fn import_virtual_machine_internal(
         config::CONFIG.skip_tls_verification,
     )
     .await
-    .map_err(map_ainari_error_to_api_response)?;
+    .map_err(|e| map_ainari_error_to_api_response(e, Some(&context)))?;
 
     virtual_machine_table::add_virtual_machine(imported_entry(description, &context)).map_err(
         |e| match e {
@@ -82,6 +82,7 @@ pub async fn import_virtual_machine_internal(
             e => map_db_write_error(
                 &format!("add imported virtual_machine '{virtual_machine_uuid}' to database"),
                 e,
+                Some(&context),
             ),
         },
     )?;

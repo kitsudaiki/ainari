@@ -20,11 +20,11 @@ use actix_web::{
     web,
 };
 
-use crate::audit_log::send_audit_log;
 use crate::errors::ErrorResponse;
+use crate::omikuji_logging::{RequestInfo, send_audit_log};
 
 use ainari_clients::auth::check_token;
-use ainari_common::config::{Api, Endpoint, MikoEndpoint};
+use ainari_common::config::{Api, MikoEndpoint};
 use ainari_common::error::AinariError;
 use ainari_common::functions::split_bearer_token;
 use ainari_common::secret::*;
@@ -50,13 +50,6 @@ pub struct ApiValidationConfig {
     /// a user. For services, whose internal endpoints are also called by background-jobs of other
     /// services, which act without a user.
     pub internal_endpoints_without_token: bool,
-    /// Name of the component, which is written into the audit-log entries. If not set, no
-    /// entries are sent to omikuji.
-    pub audit_component_name: Option<String>,
-    /// Internal address of omikuji. If not set, it is requested from miko.
-    pub omikuji_address: Option<String>,
-    /// If false, the requests against internal endpoints are not written into the audit-log.
-    pub audit_internal_endpoints: bool,
 }
 
 impl ApiValidationConfig {
@@ -85,9 +78,6 @@ impl ApiValidationConfig {
             skip_tls_verification,
             internal_endpoints_port: None,
             internal_endpoints_without_token: false,
-            audit_component_name: None,
-            omikuji_address: None,
-            audit_internal_endpoints: true,
         }
     }
 
@@ -121,53 +111,6 @@ impl ApiValidationConfig {
     /// The config without the token-check for the internal endpoints
     pub fn authorize_internal_endpoints_by_api_key(mut self) -> Self {
         self.internal_endpoints_without_token = true;
-        self
-    }
-
-    /// Sends an entry to the audit-log of omikuji for each request, which passed the checks of
-    /// the middleware.
-    ///
-    /// For omikuji itself, this has to be combined with `skip_audit_of_internal_endpoints`,
-    /// because else each added entry would be a request, which adds another entry.
-    ///
-    /// # Arguments
-    ///
-    /// * `component_name` - Name of the component, which is written into the entries
-    ///
-    /// # Returns
-    ///
-    /// The config with the enabled audit-log
-    pub fn send_audit_logs(mut self, component_name: &str) -> Self {
-        self.audit_component_name = Some(component_name.to_string());
-        self
-    }
-
-    /// Doesn't write the requests against internal endpoints into the audit-log.
-    ///
-    /// Required for omikuji itself, where the entries are added over the internal endpoints.
-    ///
-    /// # Returns
-    ///
-    /// The config without audit-log for the internal endpoints
-    pub fn skip_audit_of_internal_endpoints(mut self) -> Self {
-        self.audit_internal_endpoints = false;
-        self
-    }
-
-    /// Sets the internal address of omikuji, instead of requesting it from miko.
-    ///
-    /// Required for miko itself, which can not request the address from itself.
-    ///
-    /// # Arguments
-    ///
-    /// * `omikuji_endpoint` - Endpoint of omikuji. An empty internal address disables the
-    ///   audit-log.
-    ///
-    /// # Returns
-    ///
-    /// The config with the address of omikuji
-    pub fn with_omikuji_endpoint(mut self, omikuji_endpoint: &Endpoint) -> Self {
-        self.omikuji_address = Some(omikuji_endpoint.internal_address.clone());
         self
     }
 }
@@ -274,7 +217,7 @@ pub async fn authorization_middleware(
     //}
 
     log::info!("Api-call against URI: {uri}");
-    send_audit_log(&req, api_validation_config).await;
+    send_audit_log(&RequestInfo::from_request(&req).await);
 
     let resp = next.call(req).await;
 
@@ -420,8 +363,12 @@ async fn check_auth_header(
         // miko doesn't know the user of the token anymore
         Err(AinariError::NotFound(msg)) => Err(ErrorResponse::Unauthorized(msg).into()),
         Err(AinariError::Forbidden(msg)) => Err(ErrorResponse::Unauthorized(msg).into()),
-        Err(AinariError::Conflict(msg)) | Err(AinariError::InternalError(msg)) => {
-            log::error!("Failed check token against Miko with error: '{msg}'");
+        Err(e @ (AinariError::Conflict(_) | AinariError::InternalError(_))) => {
+            // the token is not validated yet, so the error can not be assigned to its user
+            crate::report_internal_error!(
+                None,
+                "Failed check token against Miko with error: '{e}'"
+            );
             Err(ErrorResponse::InternalError("Internal Error".to_string()).into())
         }
     }
@@ -494,9 +441,6 @@ mod tests {
             skip_tls_verification: false,
             internal_endpoints_port: None,
             internal_endpoints_without_token: false,
-            audit_component_name: None,
-            omikuji_address: None,
-            audit_internal_endpoints: true,
         }
         .restrict_internal_endpoints(internal_port);
 
@@ -550,9 +494,6 @@ mod tests {
             skip_tls_verification: false,
             internal_endpoints_port: None,
             internal_endpoints_without_token: false,
-            audit_component_name: None,
-            omikuji_address: None,
-            audit_internal_endpoints: true,
         }
         .restrict_internal_endpoints(internal_port)
         .authorize_internal_endpoints_by_api_key();

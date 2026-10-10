@@ -49,7 +49,7 @@ pub async fn update_vm_type_admin(
 
     // get current vm-type from database
     let current = vm_type_table::get_vm_type(&vm_type_uuid)
-        .map_err(|e| map_db_uuid_get_delete_error("vm-type", &vm_type_uuid, e))?;
+        .map_err(|e| map_db_uuid_get_delete_error("vm-type", &vm_type_uuid, e, Some(&context)))?;
 
     // keep the current values, which are not set in the request
     let body = body.into_inner();
@@ -65,11 +65,11 @@ pub async fn update_vm_type_admin(
         amount_of_memory,
         &context,
     )
-    .map_err(|e| map_db_uuid_get_delete_error("vm-type", &vm_type_uuid, e))?;
+    .map_err(|e| map_db_uuid_get_delete_error("vm-type", &vm_type_uuid, e, Some(&context)))?;
 
     // get updated vm-type from database
     let vm_type = vm_type_table::get_vm_type(&vm_type_uuid)
-        .map_err(|e| map_db_uuid_get_delete_error("vm-type", &vm_type_uuid, e))?;
+        .map_err(|e| map_db_uuid_get_delete_error("vm-type", &vm_type_uuid, e, Some(&context)))?;
 
     let resp = VmTypeResp {
         uuid: vm_type.uuid,

@@ -22,11 +22,11 @@ use actix_web::{
 
 use crate::core::token_handling;
 
-use ainari_api::audit_log::send_audit_log;
 use ainari_api::auth_middleware::{
     ApiValidationConfig, check_internal_endpoint_access, check_internal_request,
 };
 use ainari_api::errors::ErrorResponse;
+use ainari_api::omikuji_logging::{RequestInfo, send_audit_log};
 use ainari_common::functions::split_bearer_token;
 
 /// Middleware for handling authorization and authentication of incoming API requests.
@@ -68,7 +68,7 @@ pub async fn authorization_middleware(
     //}
 
     log::info!("Api-call against URI: {uri}");
-    send_audit_log(&req, api_validation_config).await;
+    send_audit_log(&RequestInfo::from_request(&req).await);
 
     let resp = next.call(req).await;
 

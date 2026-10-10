@@ -33,7 +33,7 @@ async fn get_omamori_endpoint() -> Result<Endpoint, ErrorResponse> {
     let miko_endpoint = &config::CONFIG.miko;
     let endpoints = get_endpoints(miko_endpoint, config::CONFIG.skip_tls_verification)
         .await
-        .map_err(map_ainari_error_to_api_response)?;
+        .map_err(|e| map_ainari_error_to_api_response(e, None))?;
     Ok(endpoints.omamori)
 }
 
@@ -71,7 +71,7 @@ async fn generate_new_key(
         config::CONFIG.skip_tls_verification,
     )
     .await
-    .map_err(map_ainari_error_to_api_response)?;
+    .map_err(|e| map_ainari_error_to_api_response(e, Some(context)))?;
 
     let secret = get_secret_payload(
         &omamori_endpoint,
@@ -80,7 +80,7 @@ async fn generate_new_key(
         config::CONFIG.skip_tls_verification,
     )
     .await
-    .map_err(map_ainari_error_to_api_response)?;
+    .map_err(|e| map_ainari_error_to_api_response(e, Some(context)))?;
 
     Ok((secret_meta.uuid, secret))
 }
@@ -120,7 +120,7 @@ async fn get_existing_key(
         config::CONFIG.skip_tls_verification,
     )
     .await
-    .map_err(map_ainari_error_to_api_response)?;
+    .map_err(|e| map_ainari_error_to_api_response(e, Some(context)))?;
 
     let secret_payload = get_secret_payload(
         &omamori_endpoint,
@@ -129,7 +129,7 @@ async fn get_existing_key(
         config::CONFIG.skip_tls_verification,
     )
     .await
-    .map_err(map_ainari_error_to_api_response)?;
+    .map_err(|e| map_ainari_error_to_api_response(e, Some(context)))?;
 
     Ok((cloned_secret.uuid, secret_payload))
 }

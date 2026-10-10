@@ -41,7 +41,10 @@ pub async fn get_project_resource_count_internal(
     let mut resource_counts = BTreeMap::new();
 
     let number = image_table::count_images_of_project(&project_id).map_err(|e| {
-        log::error!("Failed to count the images of project '{project_id}' in database: {e}");
+        ainari_api::report_internal_error!(
+            Some(&context),
+            "Failed to count the images of project '{project_id}' in database: {e}"
+        );
         ErrorResponse::InternalError("Internal Error".to_string())
     })?;
     resource_counts.insert("image".to_string(), number);

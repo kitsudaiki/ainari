@@ -92,8 +92,9 @@ pub async fn reserve_virtual_machine(
     }
 
     // the vm-type defines the number of cores and the memory of the virtual_machine
-    let vm_type = vm_type_table::get_vm_type(&body.vm_type_uuid)
-        .map_err(|e| map_db_uuid_get_delete_error("vm-type", &body.vm_type_uuid, e))?;
+    let vm_type = vm_type_table::get_vm_type(&body.vm_type_uuid).map_err(|e| {
+        map_db_uuid_get_delete_error("vm-type", &body.vm_type_uuid, e, Some(&context))
+    })?;
 
     // the sakura-host expects the memory in bytes
     let memory_size_bytes = vm_type
@@ -154,6 +155,7 @@ pub async fn reserve_virtual_machine(
         map_db_write_error(
             &format!("add virtual_machine with UUID '{virtual_machine_uuid}' to database"),
             e,
+            Some(&context),
         )
     })?;
 
@@ -226,7 +228,7 @@ fn allocate_on_requested_host(
 ) -> Result<(HostEntry, HostResources), ErrorResponse> {
     // an unknown host is a wrong request, not a lack of resources
     host_table::get_host(host_uuid, context)
-        .map_err(|e| map_db_uuid_get_delete_error("sakura-host", host_uuid, e))?;
+        .map_err(|e| map_db_uuid_get_delete_error("sakura-host", host_uuid, e, Some(context)))?;
 
     match host_table::allocate_resources_on_host(host_uuid, &requested) {
         Ok(host) => Ok((host, requested)),
@@ -244,7 +246,12 @@ fn allocate_on_requested_host(
                  isolation doesn't match the request."
             )))
         }
-        Err(e) => Err(map_db_uuid_get_delete_error("sakura-host", host_uuid, e)),
+        Err(e) => Err(map_db_uuid_get_delete_error(
+            "sakura-host",
+            host_uuid,
+            e,
+            Some(context),
+        )),
     }
 }
 
@@ -289,7 +296,10 @@ fn allocate_on_any_host(
         }
         Err(DbError::PermissionDenied) => Err(permission_denied_response()),
         Err(DbError::InternalError) => {
-            log::error!("Failed to select host for new virtual_machine from database.");
+            ainari_api::report_internal_error!(
+                Some(context),
+                "Failed to select host for new virtual_machine from database."
+            );
             Err(ErrorResponse::InternalError("Internal Error".to_string()))
         }
     }
@@ -318,8 +328,9 @@ async fn prepare_selected_host(
     context: &UserContext,
 ) -> Result<(VirtualMachineResp, Uuid), ErrorResponse> {
     // get the network of the virtual_machine to reserve an address within its subnet
-    let network_data = network_table::get_network(&body.network_uuid, context)
-        .map_err(|e| map_db_uuid_get_delete_error("network", &body.network_uuid, e))?;
+    let network_data = network_table::get_network(&body.network_uuid, context).map_err(|e| {
+        map_db_uuid_get_delete_error("network", &body.network_uuid, e, Some(context))
+    })?;
 
     // reserve internal address, MAC-address and TAP-device-name for the virtual_machine. The
     // address of the selected host is stored with them, so the routes towards this
@@ -332,13 +343,13 @@ async fn prepare_selected_host(
         &selected_host.address,
         context,
     )
-    .map_err(|e| map_db_register_error("mac", e))?;
+    .map_err(|e| map_db_register_error("mac", e, Some(context)))?;
 
     // get endpoints from miko
     let miko_endpoint = &config::CONFIG.miko;
     let endpoints = get_endpoints(miko_endpoint, config::CONFIG.skip_tls_verification)
         .await
-        .map_err(map_ainari_error_to_api_response)?;
+        .map_err(|e| map_ainari_error_to_api_response(e, Some(context)))?;
 
     // prepare the network of the virtual_machine, so sakura can attach the virtual_machine to the
     // TAP-device, when it creates the virtual_machine later
@@ -362,13 +373,14 @@ async fn prepare_selected_host(
         config::CONFIG.skip_tls_verification,
     )
     .await
-    .map_err(map_ainari_error_to_api_response)?;
+    .map_err(|e| map_ainari_error_to_api_response(e, Some(context)))?;
 
     // the UUID of the virtual_machine is only known now, so the address is linked with it
     // afterwards. The link is what a floating ip-address is attached by later.
     address_table::set_virtual_machine_of_address(&vm_address.uuid, &virtual_machine_resp.uuid)
         .map_err(|_| {
-            log::error!(
+            ainari_api::report_internal_error!(
+                Some(context),
                 "Failed to link address '{}' with virtual_machine '{}' in database.",
                 vm_address.uuid,
                 virtual_machine_resp.uuid
@@ -387,7 +399,7 @@ async fn prepare_selected_host(
         config::CONFIG.skip_tls_verification,
     )
     .await
-    .map_err(map_ainari_error_to_api_response)?;
+    .map_err(|e| map_ainari_error_to_api_response(e, Some(context)))?;
 
     // the proxy-port is the port, where the virtual_machine and its sakura-host are reachable
     virtual_machine_resp.torii_port = proxy_resp.port;
@@ -440,7 +452,7 @@ async fn prepare_network(
         config::CONFIG.skip_tls_verification,
     )
     .await
-    .map_err(map_ainari_error_to_api_response)?;
+    .map_err(|e| map_ainari_error_to_api_response(e, Some(context)))?;
 
     // route the traffic for the virtual_machine on its host onto the new TAP-device
     route_clients::create_route(
@@ -459,7 +471,7 @@ async fn prepare_network(
         config::CONFIG.skip_tls_verification,
     )
     .await
-    .map_err(map_ainari_error_to_api_response)?;
+    .map_err(|e| map_ainari_error_to_api_response(e, Some(context)))?;
 
     // the addresses are compared and sent as ip-addresses, so a host, which is addressed by a
     // dns-name, is resolved here
@@ -553,7 +565,8 @@ async fn connect_to_virtual_machines_of_network(
 ) -> Result<(), ErrorResponse> {
     let addresses_of_network = address_table::list_addresses_of_network(&vm_address.network_uuid)
         .map_err(|e| {
-        log::error!(
+        ainari_api::report_internal_error!(
+            Some(context),
             "Failed to get the addresses of network '{}' from database: '{e}'",
             vm_address.network_uuid
         );
@@ -648,7 +661,10 @@ async fn check_quota(context: &UserContext) -> Result<(), ErrorResponse> {
     let current_number_of_meta_virtual_machines =
         meta_virtual_machine_table::count_meta_virtual_machines_of_project(&context.project_id)
             .map_err(|e| {
-                log::error!("Failed to count meta_virtual_machines in database.: {e}");
+                ainari_api::report_internal_error!(
+                    Some(context),
+                    "Failed to count meta_virtual_machines in database.: {e}"
+                );
                 ErrorResponse::InternalError("Internal Error".to_string())
             })?;
 
@@ -662,7 +678,7 @@ async fn check_quota(context: &UserContext) -> Result<(), ErrorResponse> {
         config::CONFIG.skip_tls_verification,
     )
     .await
-    .map_err(map_ainari_error_to_api_response)?;
+    .map_err(|e| map_ainari_error_to_api_response(e, Some(context)))?;
 
     // Convert the quota's maximum virtual_machine count to i64 for comparison
     let max_number_of_meta_virtual_machines = quota.max_virtual_machine as i64;

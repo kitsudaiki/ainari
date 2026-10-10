@@ -63,8 +63,7 @@ pub async fn run_server() -> Result<(), impl Error> {
         config::CONFIG.skip_tls_verification,
     )
     .restrict_internal_endpoints(internal_port)
-    .authorize_internal_endpoints_by_api_key()
-    .send_audit_logs("torii");
+    .authorize_internal_endpoints_by_api_key();
 
     // test-code to spawn a proxy
     // let source_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 12344);

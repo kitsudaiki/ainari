@@ -30,9 +30,10 @@ The amount of memory is given in MiB."###,
     error_code = 401,
     error_code = 500
 )]
-pub async fn list_vm_type(_context: UserContext) -> Result<Json<VmTypeListResp>, ErrorResponse> {
+pub async fn list_vm_type(context: UserContext) -> Result<Json<VmTypeListResp>, ErrorResponse> {
     // get vm-types from db
-    let vm_types = vm_type_table::list_vm_types().map_err(|e| map_db_list_error("vm-types", e))?;
+    let vm_types = vm_type_table::list_vm_types()
+        .map_err(|e| map_db_list_error("vm-types", e, Some(&context)))?;
 
     // prepare response
     let mut resp = VmTypeListResp {

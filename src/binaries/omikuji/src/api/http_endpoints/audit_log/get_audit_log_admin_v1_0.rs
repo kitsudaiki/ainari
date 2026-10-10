@@ -39,8 +39,9 @@ pub async fn get_audit_log_admin(
 ) -> Result<Json<AuditLogResp>, ErrorResponse> {
     check_admin_context(&context)?;
 
-    let audit_log_entry = audit_log_table::get_audit_log(&audit_log_uuid)
-        .map_err(|e| map_db_uuid_get_delete_error("audit_log", &audit_log_uuid, e))?;
+    let audit_log_entry = audit_log_table::get_audit_log(&audit_log_uuid).map_err(|e| {
+        map_db_uuid_get_delete_error("audit_log", &audit_log_uuid, e, Some(&context))
+    })?;
 
     Ok(Json(audit_log_entry.into()))
 }

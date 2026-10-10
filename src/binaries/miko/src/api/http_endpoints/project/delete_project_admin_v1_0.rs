@@ -53,13 +53,13 @@ pub async fn delete_project_admin(
 
     // check if project exist
     project_table::get_project(&project_id, &context)
-        .map_err(|e| map_db_id_get_delete_error("project", &project_id, e))?;
+        .map_err(|e| map_db_id_get_delete_error("project", &project_id, e, Some(&context)))?;
 
     // Users, who could create resources, have to be removed or made observers first. Otherwise
     // a resource could be created between the check of the resources below and the delete.
     let active_users: Vec<String> =
         user_project_mapping_table::list_mappings_of_project(&project_id)
-            .map_err(|e| map_db_list_error("user-project-mappings", e))?
+            .map_err(|e| map_db_list_error("user-project-mappings", e, Some(&context)))?
             .into_iter()
             .filter(|mapping| matches!(mapping.role, ProjectRole::Admin | ProjectRole::Member))
             .map(|mapping| format!("{} ({})", mapping.user_id, mapping.role))

@@ -48,15 +48,19 @@ pub struct OutgoingMessage {
 
 /// Logs an error of openmls and turns it into the generic `InternalError`.
 pub fn internal_error(action: &str, e: impl std::fmt::Debug) -> ErrorResponse {
-    log::error!("Failed to {action}: {e:?}");
+    ainari_api::report_internal_error!(None, "Failed to {action}: {e:?}");
     ErrorResponse::InternalError("Internal Error".to_string())
 }
 
 /// Returns the identity of the gateway, which `MlsState::ensure_identity` has to create before.
 pub fn own_identity(identity: &Option<MlsIdentity>) -> Result<&MlsIdentity, ErrorResponse> {
-    identity
-        .as_ref()
-        .ok_or_else(|| ErrorResponse::InternalError("Internal Error".to_string()))
+    identity.as_ref().ok_or_else(|| {
+        ainari_api::report_internal_error!(
+            None,
+            "The MLS-identity of the gateway was not created yet"
+        );
+        ErrorResponse::InternalError("Internal Error".to_string())
+    })
 }
 
 /// Serializes an outgoing MLS-message for the izakaya.

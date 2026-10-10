@@ -36,8 +36,9 @@ pub async fn delete_network(
     network_uuid: Path<Uuid>,
     context: UserContext,
 ) -> Result<NoContent, ErrorResponse> {
-    network_table::delete_network(&network_uuid, &context)
-        .map_err(|e| map_db_uuid_get_delete_error("network-meta", &network_uuid, e))?;
+    network_table::delete_network(&network_uuid, &context).map_err(|e| {
+        map_db_uuid_get_delete_error("network-meta", &network_uuid, e, Some(&context))
+    })?;
 
     Ok(NoContent)
 }

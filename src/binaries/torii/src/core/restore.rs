@@ -59,7 +59,7 @@ pub async fn restore_gateway_state() -> Result<(), AinariError> {
     }
 
     let db_error = |obj_type: &str, e: diesel::result::Error| {
-        AinariError::InternalError(format!(
+        AinariError::internal(format!(
             "Failed to get list of {obj_type} from database: '{e}'"
         ))
     };

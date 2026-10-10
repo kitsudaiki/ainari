@@ -38,7 +38,7 @@ pub async fn get_proxy(
     context: UserContext,
 ) -> Result<Json<ProxyResp>, ErrorResponse> {
     let proxy_data = proxy_table::get_proxy(&proxy_uuid, &context)
-        .map_err(|e| map_db_uuid_get_delete_error("proxy", &proxy_uuid, e))?;
+        .map_err(|e| map_db_uuid_get_delete_error("proxy", &proxy_uuid, e, Some(&context)))?;
 
     let virtual_machine_uuid = proxy_data.virtual_machine_uuid;
 

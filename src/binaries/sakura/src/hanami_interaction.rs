@@ -59,9 +59,7 @@ pub fn register_host() -> Result<(), AinariError> {
     let host_name = if let Some(host_name) = System::host_name() {
         host_name
     } else {
-        return Err(AinariError::InternalError(
-            "Failed to get host-name".to_string(),
-        ));
+        return Err(AinariError::internal("Failed to get host-name".to_string()));
     };
 
     log::debug!("read host-name: {host_name}");
@@ -69,13 +67,15 @@ pub fn register_host() -> Result<(), AinariError> {
     // Get the hardware-resources of the host
     let number_of_cores = get_number_of_cpu_threads().map_err(|e| {
         log::error!("Failed to read number of cpu-threads: '{e}'");
-        AinariError::InternalError("Internal Error".to_string())
+        AinariError::internal(format!("Failed to read number of cpu-threads: '{e}'"))
     })? as u64;
     let memory_size = get_total_memory_amount() / (1024 * 1024);
     let storage_path = &config::CONFIG.storage.local_vm_storage_path;
     let disk_space = get_total_disk_space(Path::new(storage_path)).map_err(|e| {
         log::error!("Failed to read disk-space for path '{storage_path}': '{e}'");
-        AinariError::InternalError("Internal Error".to_string())
+        AinariError::internal(format!(
+            "Failed to read disk-space for path '{storage_path}': '{e}'"
+        ))
     })? / (1024 * 1024 * 1024);
 
     log::debug!(
@@ -99,7 +99,9 @@ pub fn register_host() -> Result<(), AinariError> {
         Ok(virtual_machines) => virtual_machines,
         Err(e) => {
             log::error!("Failed to get list of virtual_machines form database: '{e}'");
-            return Err(AinariError::InternalError("Internal Error".to_string()));
+            return Err(AinariError::internal(format!(
+                "Failed to get list of virtual_machines form database: '{e}'"
+            )));
         }
     };
 

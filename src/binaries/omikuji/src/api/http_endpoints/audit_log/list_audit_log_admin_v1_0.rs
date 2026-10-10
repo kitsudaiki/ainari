@@ -49,7 +49,7 @@ pub async fn list_audit_log_admin(
         query.host_name.as_deref(),
         query.limit.unwrap_or(DEFAULT_LOG_LIST_LIMIT).into(),
     )
-    .map_err(|e| map_db_list_error("audit_logs", e))?;
+    .map_err(|e| map_db_list_error("audit_logs", e, Some(&context)))?;
 
     let resp = AuditLogListResp {
         entries: audit_logs.into_iter().map(AuditLogResp::from).collect(),

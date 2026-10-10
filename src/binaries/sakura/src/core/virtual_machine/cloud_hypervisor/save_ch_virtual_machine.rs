@@ -104,9 +104,7 @@ pub async fn save_ch_virtual_machine(
             &local_encrypted_file_path,
         )
         .await
-        .map_err(|e| {
-            AinariError::InternalError(format!("Failed to upload snapshot-file to onsen: {e}"))
-        })
+        .map_err(|e| AinariError::internal(format!("Failed to upload snapshot-file to onsen: {e}")))
     }
     .await;
 
@@ -145,13 +143,15 @@ async fn copy_root_disk(
     let socket_path = vm_socket_path(uuid);
     let client = if Path::new(&socket_path).exists() {
         let client = socket_based_api_client(&socket_path);
-        let vm_info = client.vm_info_get().await.map_err(|e| {
-            AinariError::InternalError(format!("Get info of VM {uuid} failed: {e:?}"))
-        })?;
+        let vm_info = client
+            .vm_info_get()
+            .await
+            .map_err(|e| AinariError::internal(format!("Get info of VM {uuid} failed: {e:?}")))?;
         if vm_info.state == VmState::Running {
-            client.pause_vm().await.map_err(|e| {
-                AinariError::InternalError(format!("Pause VM {uuid} failed: {e:?}"))
-            })?;
+            client
+                .pause_vm()
+                .await
+                .map_err(|e| AinariError::internal(format!("Pause VM {uuid} failed: {e:?}")))?;
             Some(client)
         } else {
             None
@@ -187,7 +187,7 @@ async fn copy_root_disk(
         client
             .resume_vm()
             .await
-            .map_err(|e| AinariError::InternalError(format!("Resume VM {uuid} failed: {e:?}")))?;
+            .map_err(|e| AinariError::internal(format!("Resume VM {uuid} failed: {e:?}")))?;
     }
 
     convert_result

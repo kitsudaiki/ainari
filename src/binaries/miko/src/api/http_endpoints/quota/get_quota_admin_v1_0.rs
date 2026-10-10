@@ -41,7 +41,7 @@ pub async fn get_quota_admin(
 
     // get quota of the project from database
     let quota = quota_table::get_quota(&project_id, &context)
-        .map_err(|e| map_db_id_get_delete_error("quota", &project_id, e))?;
+        .map_err(|e| map_db_id_get_delete_error("quota", &project_id, e, Some(&context)))?;
 
     let resp = QuotaResp {
         project_id: quota.id,

@@ -41,13 +41,13 @@ pub async fn get_secret_with_payload(
 ) -> Result<Json<SecretWithPayloadResp>, ErrorResponse> {
     // check if secret exist
     secret_table::get_secret(&secret_uuid, &context)
-        .map_err(|e| map_db_uuid_get_delete_error("secret", &secret_uuid, e))?;
+        .map_err(|e| map_db_uuid_get_delete_error("secret", &secret_uuid, e, Some(&context)))?;
 
     // decrypt the secret with the simple-crypto-module
     let simple_crypto = SimpleCrypto::new();
     let plaintext = simple_crypto
         .retrieve(&secret_uuid)
-        .map_err(map_ainari_error_to_api_response)?;
+        .map_err(|e| map_ainari_error_to_api_response(e, Some(&context)))?;
 
     let resp = SecretWithPayloadResp {
         secret_payload: plaintext.reveal().to_string(),

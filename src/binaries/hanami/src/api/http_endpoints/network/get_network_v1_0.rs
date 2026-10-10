@@ -38,7 +38,7 @@ pub async fn get_network(
     context: UserContext,
 ) -> Result<Json<NetworkResp>, ErrorResponse> {
     let network_data = network_table::get_network(&network_uuid, &context)
-        .map_err(|e| map_db_uuid_get_delete_error("network", &network_uuid, e))?;
+        .map_err(|e| map_db_uuid_get_delete_error("network", &network_uuid, e, Some(&context)))?;
 
     let resp = NetworkResp {
         uuid: network_data.uuid,

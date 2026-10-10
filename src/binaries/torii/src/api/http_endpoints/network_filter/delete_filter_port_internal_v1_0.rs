@@ -69,13 +69,13 @@ pub async fn delete_filter_port_internal(
     let removed = before - rules.ports.len();
 
     apply_filter(&mut ebpf_interf, key, slot, rules)
-        .map_err(|e| map_internal_error("apply packet-filter", e))?;
+        .map_err(|e| map_internal_error("apply packet-filter", e, Some(&context)))?;
 
     // persist the new include-lists, so they are restored after a restart of the gateway. If
     // that fails, the previous include-lists are applied again.
     persist_filter(&mut ebpf_interf, key, slot, previous, |rules| {
         network_filter_table::set_filter_rules(&key, rules, &context)
-            .map_err(|e| map_db_write_error("persist packet-filter", e))
+            .map_err(|e| map_db_write_error("persist packet-filter", e, Some(&context)))
     })?;
 
     let resp = filter_resp(&ebpf_interf, key);

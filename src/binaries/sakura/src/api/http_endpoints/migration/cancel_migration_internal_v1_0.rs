@@ -51,8 +51,9 @@ pub async fn cancel_migration_internal(
         .map_err(|e| ErrorResponse::BadRequest(format!("Invalid input: {e}")))?;
 
     // check that the virtual_machine exists, before a task for it is created
-    virtual_machine_table::get_virtual_machine(&virtual_machine_uuid, &context)
-        .map_err(|e| map_db_uuid_get_delete_error("virtual_machine", &virtual_machine_uuid, e))?;
+    virtual_machine_table::get_virtual_machine(&virtual_machine_uuid, &context).map_err(|e| {
+        map_db_uuid_get_delete_error("virtual_machine", &virtual_machine_uuid, e, Some(&context))
+    })?;
 
     let description =
         format!("Cancel migration of virtual machine with UUID {virtual_machine_uuid}");

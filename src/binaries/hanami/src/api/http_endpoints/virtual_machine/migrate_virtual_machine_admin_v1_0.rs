@@ -64,7 +64,12 @@ pub async fn migrate_virtual_machine_admin(
     let virtual_machine_data =
         meta_virtual_machine_table::get_meta_virtual_machine(&virtual_machine_uuid, &context)
             .map_err(|e| {
-                map_db_uuid_get_delete_error("virtual_machine", &virtual_machine_uuid, e)
+                map_db_uuid_get_delete_error(
+                    "virtual_machine",
+                    &virtual_machine_uuid,
+                    e,
+                    Some(&context),
+                )
             })?;
 
     let source_uuid = virtual_machine_data.sakura_host_uuid;
@@ -74,14 +79,21 @@ pub async fn migrate_virtual_machine_admin(
             "Virtual_machine '{virtual_machine_uuid}' already runs on host '{target_uuid}'."
         )));
     }
-    let source = host_table::get_host(&source_uuid, &context)
-        .map_err(|e| map_db_uuid_get_delete_error("sakura-host", &source_uuid, e))?;
-    let target = host_table::get_host(&target_uuid, &context)
-        .map_err(|e| map_db_uuid_get_delete_error("sakura-host", &target_uuid, e))?;
+    let source = host_table::get_host(&source_uuid, &context).map_err(|e| {
+        map_db_uuid_get_delete_error("sakura-host", &source_uuid, e, Some(&context))
+    })?;
+    let target = host_table::get_host(&target_uuid, &context).map_err(|e| {
+        map_db_uuid_get_delete_error("sakura-host", &target_uuid, e, Some(&context))
+    })?;
 
     let address =
         address_table::get_address_of_virtual_machine(&virtual_machine_uuid).map_err(|e| {
-            map_db_uuid_get_delete_error("address of virtual_machine", &virtual_machine_uuid, e)
+            map_db_uuid_get_delete_error(
+                "address of virtual_machine",
+                &virtual_machine_uuid,
+                e,
+                Some(&context),
+            )
         })?;
     // entries of a database, which was created before the host-address was stored with the
     // addresses, have no torii, whose routes could be moved
@@ -99,7 +111,7 @@ pub async fn migrate_virtual_machine_admin(
 
     // fails before anything was changed, if the token of the admin can't be renewed during the
     // migration
-    let session = Session::start(context).await?;
+    let session = Session::start(context.clone()).await?;
 
     // the virtual_machine stays in the kind of host, which it was placed on
     let resources = HostResources {
@@ -115,7 +127,7 @@ pub async fn migrate_virtual_machine_admin(
             "Host '{target_uuid}' has not enough free resources for virtual_machine \
              '{virtual_machine_uuid}' or doesn't match the isolation of its current host."
         )),
-        e => map_db_uuid_get_delete_error("sakura-host", &target_uuid, e),
+        e => map_db_uuid_get_delete_error("sakura-host", &target_uuid, e, Some(&context)),
     })?;
 
     spawn_migration(

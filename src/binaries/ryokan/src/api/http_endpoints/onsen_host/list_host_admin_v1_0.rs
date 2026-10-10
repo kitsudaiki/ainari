@@ -32,8 +32,8 @@ use ainari_api_structs::user_context::UserContext;
 pub async fn list_host_admin(context: UserContext) -> Result<Json<HostListResp>, ErrorResponse> {
     check_admin_context(&context)?;
 
-    let hosts =
-        host_table::list_hosts(&context).map_err(|e| map_db_list_error("onsen-hosts", e))?;
+    let hosts = host_table::list_hosts(&context)
+        .map_err(|e| map_db_list_error("onsen-hosts", e, Some(&context)))?;
 
     let mut resp = HostListResp { hosts: Vec::new() };
 

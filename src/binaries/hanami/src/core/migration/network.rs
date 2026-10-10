@@ -75,6 +75,7 @@ impl VmNetwork {
     /// * `virtual_machine_uuid` - The virtual_machine
     /// * `address` - Address of the virtual_machine
     /// * `endpoints` - Endpoints of the components
+    /// * `context` - Context of the admin, who started the migration
     ///
     /// # Returns
     /// * `Ok(VmNetwork)` on success
@@ -83,9 +84,12 @@ impl VmNetwork {
         virtual_machine_uuid: Uuid,
         address: AddressEntry,
         endpoints: Endpoints,
+        context: &UserContext,
     ) -> Result<Self, ErrorResponse> {
-        let disabled = network_table::is_encryption_disabled(&address.network_uuid)
-            .map_err(|e| map_db_uuid_get_delete_error("network", &address.network_uuid, e))?;
+        let disabled =
+            network_table::is_encryption_disabled(&address.network_uuid).map_err(|e| {
+                map_db_uuid_get_delete_error("network", &address.network_uuid, e, Some(context))
+            })?;
         let external_torii_ip = resolve_address(&endpoints.torii.internal_address).await?;
 
         Ok(Self {
@@ -128,7 +132,7 @@ impl VmNetwork {
             config::CONFIG.skip_tls_verification,
         )
         .await
-        .map_err(map_ainari_error_to_api_response)?;
+        .map_err(|e| map_ainari_error_to_api_response(e, Some(context)))?;
 
         // replaces a route towards the old host, which the torii has, if it runs other
         // virtual_machines of the network
@@ -147,7 +151,7 @@ impl VmNetwork {
             .await?;
         }
 
-        for (other, other_host_ip) in self.other_virtual_machines().await? {
+        for (other, other_host_ip) in self.other_virtual_machines(context).await? {
             // the torii routes between its own TAP-devices
             if other_host_ip == host_ip {
                 continue;
@@ -201,7 +205,7 @@ impl VmNetwork {
         // the torii of every host, which runs another virtual_machine of the network, once. This
         // includes the old host, if it runs another virtual_machine of the network.
         let mut updated_hosts = HashSet::from([host_ip, self.external_torii_ip]);
-        for (other, other_host_ip) in self.other_virtual_machines().await? {
+        for (other, other_host_ip) in self.other_virtual_machines(context).await? {
             if !updated_hosts.insert(other_host_ip) {
                 continue;
             }
@@ -246,7 +250,7 @@ impl VmNetwork {
         // keeps the ingress-filter of the address with the changed route. It would still filter
         // the traffic towards the virtual_machine, also after its filter was changed on the new
         // host, so it is removed here.
-        let others = self.other_virtual_machines().await?;
+        let others = self.other_virtual_machines(context).await?;
         if host_ip == self.external_torii_ip
             || others
                 .iter()
@@ -287,10 +291,14 @@ impl VmNetwork {
     ///
     /// Addresses without a virtual_machine, like a failed reservation, and entries of an old
     /// database without the address of their host are skipped, because they have no torii.
-    async fn other_virtual_machines(&self) -> Result<Vec<(AddressEntry, Ipv4Addr)>, ErrorResponse> {
+    async fn other_virtual_machines(
+        &self,
+        context: &UserContext,
+    ) -> Result<Vec<(AddressEntry, Ipv4Addr)>, ErrorResponse> {
         let addresses = address_table::list_addresses_of_network(&self.address.network_uuid)
             .map_err(|e| {
-                log::error!(
+                ainari_api::report_internal_error!(
+                    Some(context),
                     "Failed to get the addresses of network '{}': {e}",
                     self.address.network_uuid
                 );
@@ -335,7 +343,7 @@ impl VmNetwork {
             .await
             {
                 Ok(_) | Err(AinariError::NotFound(_)) => {}
-                Err(e) => return Err(map_ainari_error_to_api_response(e)),
+                Err(e) => return Err(map_ainari_error_to_api_response(e, Some(context))),
             }
         }
         Ok(())
@@ -363,7 +371,7 @@ impl VmNetwork {
                 skip_tls,
             )
             .await
-            .map_err(map_ainari_error_to_api_response)?;
+            .map_err(|e| map_ainari_error_to_api_response(e, Some(context)))?;
 
             let entry = match network_filter_table::get_network_filter(
                 &self.virtual_machine_uuid,
@@ -377,11 +385,12 @@ impl VmNetwork {
                         "network-filter",
                         &self.virtual_machine_uuid,
                         e,
+                        Some(context),
                     ));
                 }
             };
 
-            let ranges = parse_rules::<IpRangeRule>(&entry.ip_range_list())?;
+            let ranges = parse_rules::<IpRangeRule>(&entry.ip_range_list(), Some(context))?;
             if !ranges.is_empty() {
                 network_filter_clients::add_filter_ip_range(
                     torii,
@@ -394,10 +403,10 @@ impl VmNetwork {
                     skip_tls,
                 )
                 .await
-                .map_err(map_ainari_error_to_api_response)?;
+                .map_err(|e| map_ainari_error_to_api_response(e, Some(context)))?;
             }
 
-            let ports = parse_rules::<PortRangeRule>(&entry.port_list())?;
+            let ports = parse_rules::<PortRangeRule>(&entry.port_list(), Some(context))?;
             if !ports.is_empty() {
                 network_filter_clients::add_filter_port(
                     torii,
@@ -410,7 +419,7 @@ impl VmNetwork {
                     skip_tls,
                 )
                 .await
-                .map_err(map_ainari_error_to_api_response)?;
+                .map_err(|e| map_ainari_error_to_api_response(e, Some(context)))?;
             }
         }
 
@@ -428,12 +437,16 @@ impl VmNetwork {
 /// * `Err(ErrorResponse)` if a stored rule is invalid
 fn parse_rules<T: std::str::FromStr<Err = String>>(
     rules: &[String],
+    context: Option<&UserContext>,
 ) -> Result<Vec<T>, ErrorResponse> {
     rules
         .iter()
         .map(|rule| {
             rule.parse().map_err(|e| {
-                log::error!("Invalid rule '{rule}' of a packet-filter in database: {e}");
+                ainari_api::report_internal_error!(
+                    context,
+                    "Invalid rule '{rule}' of a packet-filter in database: {e}"
+                );
                 ErrorResponse::InternalError("Internal Error".to_string())
             })
         })
@@ -446,16 +459,17 @@ mod tests {
 
     #[test]
     fn test_parse_rules() {
-        let ranges = parse_rules::<IpRangeRule>(&["10.0.0.0/24".to_string()]).unwrap();
+        let ranges = parse_rules::<IpRangeRule>(&["10.0.0.0/24".to_string()], None).unwrap();
         assert_eq!(ranges.len(), 1);
         assert_eq!(ranges[0].first, Ipv4Addr::new(10, 0, 0, 0));
         assert_eq!(ranges[0].last, Ipv4Addr::new(10, 0, 0, 255));
 
         let ports =
-            parse_rules::<PortRangeRule>(&["22".to_string(), "8000-8080".to_string()]).unwrap();
+            parse_rules::<PortRangeRule>(&["22".to_string(), "8000-8080".to_string()], None)
+                .unwrap();
         assert_eq!((ports[1].first, ports[1].last), (8000, 8080));
 
-        assert!(parse_rules::<PortRangeRule>(&[]).unwrap().is_empty());
-        assert!(parse_rules::<IpRangeRule>(&["no-address".to_string()]).is_err());
+        assert!(parse_rules::<PortRangeRule>(&[], None).unwrap().is_empty());
+        assert!(parse_rules::<IpRangeRule>(&["no-address".to_string()], None).is_err());
     }
 }

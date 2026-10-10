@@ -77,8 +77,9 @@ pub async fn resolve_filter_target(
     }
 
     // check, that the virtual_machine exists and the user is allowed to access it
-    meta_virtual_machine_table::get_meta_virtual_machine(virtual_machine_uuid, context)
-        .map_err(|e| map_db_uuid_get_delete_error("virtual_machine", virtual_machine_uuid, e))?;
+    meta_virtual_machine_table::get_meta_virtual_machine(virtual_machine_uuid, context).map_err(
+        |e| map_db_uuid_get_delete_error("virtual_machine", virtual_machine_uuid, e, Some(context)),
+    )?;
 
     // the packet-filters are copied to the torii of the new host during a migration, so a
     // change in between could get lost
@@ -91,13 +92,19 @@ pub async fn resolve_filter_target(
 
     let address =
         address_table::get_address_of_virtual_machine(virtual_machine_uuid).map_err(|e| {
-            map_db_uuid_get_delete_error("address of virtual_machine", virtual_machine_uuid, e)
+            map_db_uuid_get_delete_error(
+                "address of virtual_machine",
+                virtual_machine_uuid,
+                e,
+                Some(context),
+            )
         })?;
 
     // entries of a database, which was created before the host-address was stored with the
     // addresses, have no torii, which could filter their traffic
     if address.host_address.is_empty() {
-        log::error!(
+        ainari_api::report_internal_error!(
+            Some(context),
             "Address '{}' of virtual_machine '{virtual_machine_uuid}' has no host-address.",
             address.uuid
         );
@@ -106,7 +113,7 @@ pub async fn resolve_filter_target(
 
     let endpoints = get_endpoints(&config::CONFIG.miko, config::CONFIG.skip_tls_verification)
         .await
-        .map_err(map_ainari_error_to_api_response)?;
+        .map_err(|e| map_ainari_error_to_api_response(e, Some(context)))?;
 
     Ok(FilterTarget {
         torii: torii_of_host(&endpoints.torii, &address.host_address)?,
@@ -148,7 +155,7 @@ pub fn store_network_filter(
             "The {direction} packet-filter of virtual_machine '{virtual_machine_uuid}' was \
              changed in the torii, but could not be stored in the database."
         );
-        map_db_uuid_get_delete_error("network-filter", virtual_machine_uuid, e)
+        map_db_uuid_get_delete_error("network-filter", virtual_machine_uuid, e, Some(context))
     })
 }
 
@@ -164,7 +171,11 @@ pub fn to_network_filter_resp(
     entry: NetworkFilterEntry,
 ) -> Result<NetworkFilterResp, ErrorResponse> {
     let direction = entry.direction.parse().map_err(|e| {
-        log::error!("Invalid packet-filter '{}' in database: {e}", entry.uuid);
+        ainari_api::report_internal_error!(
+            None,
+            "Invalid packet-filter '{}' in database: {e}",
+            entry.uuid
+        );
         ErrorResponse::InternalError("Internal Error".to_string())
     })?;
 

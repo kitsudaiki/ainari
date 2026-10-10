@@ -19,6 +19,8 @@ mod config;
 mod core;
 mod database;
 
+use ainari_api::omikuji_logging::OmikujiLogging;
+
 /// Entrypoint of the izakaya.
 ///
 /// Shares the MLS key-packages of the gateways, delivers the MLS-messages between them and
@@ -34,6 +36,14 @@ mod database;
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = &config::CONFIG;
     ainari_common::logger::init_logger(config.log_type, &config.log_path, "izakaya", config.debug)?;
+
+    OmikujiLogging::new(
+        "izakaya",
+        &config.miko,
+        &config::INTERNAL_API_KEY,
+        config.skip_tls_verification,
+    )
+    .init();
 
     database::init_database()?;
 

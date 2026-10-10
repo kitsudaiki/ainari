@@ -16,6 +16,7 @@ use tokio::fs;
 use uuid::Uuid;
 
 use crate::errors::ErrorResponse;
+use crate::omikuji_logging::report_internal_error;
 
 use ainari_api_structs::user_context::UserContext;
 use ainari_clients::onsen_file_transfer;
@@ -39,8 +40,9 @@ pub async fn create_directory(path: &String) -> Result<(), AinariError> {
     match fs::create_dir_all(&path).await {
         Ok(_) => (),
         Err(e) => {
-            log::error!("Failed to directory '{path}' with error: {e}");
-            return Err(AinariError::InternalError("Internal Error".to_string()));
+            return Err(AinariError::internal(format!(
+                "Failed to create directory '{path}' with error: {e}"
+            )));
         }
     }
 
@@ -52,16 +54,21 @@ pub async fn create_directory(path: &String) -> Result<(), AinariError> {
 /// # Arguments
 ///
 /// * `path` - A string slice that holds the path to the directory to be created.
+/// * `context` - Context of the request, whose user the error is assigned to, or `None` outside
+///   of a request.
 ///
 /// # Returns
 ///
 /// * `Ok(())` if the directory was created successfully.
 /// * `Err(ErrorResponse::InternalError)` if an error occurred during directory creation.
-pub async fn create_directory_api(path: &String) -> Result<(), ErrorResponse> {
+pub async fn create_directory_api(
+    path: &String,
+    context: Option<&UserContext>,
+) -> Result<(), ErrorResponse> {
     match fs::create_dir_all(&path).await {
         Ok(_) => (),
         Err(e) => {
-            log::error!("Failed to directory '{path}' with error: {e}");
+            crate::report_internal_error!(context, "Failed to directory '{path}' with error: {e}");
             return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
     }
@@ -76,6 +83,8 @@ pub async fn create_directory_api(path: &String) -> Result<(), ErrorResponse> {
 /// * `onsen_address` - A string slice that holds the address of the Onsen service.
 /// * `remote_file_path` - A string slice that holds the destination path on the Onsen service.
 /// * `local_file_path` - A string slice that holds the path to the local file to be uploaded.
+/// * `context` - Context of the request, whose user the error is assigned to, or `None` outside
+///   of a request.
 ///
 /// # Returns
 ///
@@ -85,11 +94,13 @@ pub async fn upload_file_to_onsen(
     onsen_address: &str,
     remote_file_path: &str,
     local_file_path: &str,
+    context: Option<&UserContext>,
 ) -> Result<(), ErrorResponse> {
     match onsen_file_transfer::upload_file(onsen_address, remote_file_path, local_file_path).await {
         Ok(()) => {}
         Err(e) => {
-            log::error!(
+            crate::report_internal_error!(
+                context,
                 "Failed to send file with path '{local_file_path}' to onsen '{onsen_address}' to '{remote_file_path}' with error: {e}"
             );
             return Err(ErrorResponse::InternalError("Internal Error".to_string()));
@@ -105,6 +116,8 @@ pub async fn upload_file_to_onsen(
 ///
 /// * `onsen_address` - A string slice that holds the address of the Onsen service.
 /// * `remote_file_path` - A string slice that holds the path to the file on the Onsen service to be deleted.
+/// * `context` - Context of the request, whose user the error is assigned to, or `None` outside
+///   of a request.
 ///
 /// # Returns
 ///
@@ -113,11 +126,15 @@ pub async fn upload_file_to_onsen(
 pub async fn delete_file_from_onsen(
     onsen_address: &str,
     remote_file_path: &str,
+    context: Option<&UserContext>,
 ) -> Result<(), ErrorResponse> {
     match onsen_file_transfer::delete_file(onsen_address, remote_file_path).await {
         Ok(_) => {}
         Err(_) => {
-            log::error!("Failed to delete file '{remote_file_path}' from onsen '{onsen_address}'");
+            crate::report_internal_error!(
+                context,
+                "Failed to delete file '{remote_file_path}' from onsen '{onsen_address}'"
+            );
             return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
     }
@@ -150,16 +167,21 @@ pub fn check_admin_context(context: &UserContext) -> Result<(), ErrorResponse> {
 /// # Arguments
 ///
 /// * `uuid` - A string slice that holds the UUID in string format.
+/// * `context` - Context of the request, whose user the error is assigned to, or `None` outside
+///   of a request.
 ///
 /// # Returns
 ///
 /// * `Ok(Uuid)` if the conversion was successful.
 /// * `Err(ErrorResponse::InternalError)` if an error occurred during the conversion.
-pub fn convert_uuid(uuid: &String) -> Result<Uuid, ErrorResponse> {
+pub fn convert_uuid(uuid: &String, context: Option<&UserContext>) -> Result<Uuid, ErrorResponse> {
     let uuid = match Uuid::parse_str(uuid) {
         Ok(uuid) => uuid,
         Err(e) => {
-            log::error!("Failed to convert string '{uuid}' into uuid with error: '{e}'");
+            crate::report_internal_error!(
+                context,
+                "Failed to convert string '{uuid}' into uuid with error: '{e}'"
+            );
             return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
     };
@@ -174,19 +196,31 @@ pub fn convert_uuid(uuid: &String) -> Result<Uuid, ErrorResponse> {
 /// # Arguments
 ///
 /// * `e` - An AinariError object to be mapped to an ErrorResponse.
+/// * `context` - Context of the request, whose user the error is assigned to, or `None` outside
+///   of a request.
 ///
 /// # Returns
 ///
 /// An ErrorResponse object corresponding to the input AinariError.
-pub fn map_ainari_error_to_api_response(e: AinariError) -> ErrorResponse {
+pub fn map_ainari_error_to_api_response(
+    e: AinariError,
+    context: Option<&UserContext>,
+) -> ErrorResponse {
     match e {
         AinariError::Unauthorized(msg) => ErrorResponse::Unauthorized(msg),
         AinariError::InvalidInput(msg) => ErrorResponse::BadRequest(msg),
         AinariError::NotFound(msg) => ErrorResponse::NotFound(msg),
         AinariError::Conflict(msg) => ErrorResponse::Conflict(msg),
         AinariError::Forbidden(msg) => ErrorResponse::Forbidden(msg),
-        AinariError::InternalError(msg) => {
-            log::error!("{msg}");
+        AinariError::InternalError(details) => {
+            // the error keeps the user, which it was assigned to before
+            let details = match context {
+                Some(context) if details.user_id.is_empty() => {
+                    details.with_ids(&context.user_id, &context.project_id)
+                }
+                _ => details,
+            };
+            report_internal_error(details);
             ErrorResponse::InternalError("Internal Error".to_string())
         }
     }
@@ -201,12 +235,18 @@ pub fn map_ainari_error_to_api_response(e: AinariError) -> ErrorResponse {
 ///
 /// * `obj_type` - A string slice describing the type of object being registered.
 /// * `_err` - A DbError enum indicating the type of database error.
+/// * `context` - Context of the request, whose user the error is assigned to, or `None` outside
+///   of a request.
 ///
 /// # Returns
 ///
 /// An ErrorResponse with the generic internal error message.
-pub fn map_db_register_error(obj_type: &str, _err: enums::DbError) -> ErrorResponse {
-    log::error!("Error while register {obj_type} with in db DB");
+pub fn map_db_register_error(
+    obj_type: &str,
+    _err: enums::DbError,
+    context: Option<&UserContext>,
+) -> ErrorResponse {
+    crate::report_internal_error!(context, "Error while register {obj_type} with in db DB");
     ErrorResponse::InternalError("Internal Error".to_string())
 }
 
@@ -217,14 +257,24 @@ pub fn map_db_register_error(obj_type: &str, _err: enums::DbError) -> ErrorRespo
 /// * `obj_type` - A string slice describing the type of object being accessed.
 /// * `id` - A string slice containing the ID of the object.
 /// * `err` - A DbError enum indicating the type of database error.
+/// * `context` - Context of the request, whose user the error is assigned to, or `None` outside
+///   of a request.
 ///
 /// # Returns
 ///
 /// An ErrorResponse object corresponding to the database error.
-pub fn map_db_id_get_delete_error(obj_type: &str, id: &str, err: enums::DbError) -> ErrorResponse {
+pub fn map_db_id_get_delete_error(
+    obj_type: &str,
+    id: &str,
+    err: enums::DbError,
+    context: Option<&UserContext>,
+) -> ErrorResponse {
     match err {
         enums::DbError::InternalError => {
-            log::error!("Error while get {obj_type} with ID '{id}' from DB");
+            crate::report_internal_error!(
+                context,
+                "Error while get {obj_type} with ID '{id}' from DB"
+            );
             ErrorResponse::InternalError("Internal Error".to_string())
         }
         enums::DbError::NotFound => {
@@ -242,6 +292,8 @@ pub fn map_db_id_get_delete_error(obj_type: &str, id: &str, err: enums::DbError)
 /// * `obj_type` - A string slice describing the type of object being accessed.
 /// * `id` - A string slice containing the ID of the object.
 /// * `err` - A DbError enum indicating the type of database error.
+/// * `context` - Context of the request, whose user the error is assigned to, or `None` outside
+///   of a request.
 ///
 /// # Returns
 ///
@@ -250,8 +302,9 @@ pub fn map_db_id_get_after_add_error(
     obj_type: &str,
     id: &str,
     _err: enums::DbError,
+    context: Option<&UserContext>,
 ) -> ErrorResponse {
-    log::error!("Error while get {obj_type} with ID '{id}' from DB");
+    crate::report_internal_error!(context, "Error while get {obj_type} with ID '{id}' from DB");
     ErrorResponse::InternalError("Internal Error".to_string())
 }
 
@@ -263,6 +316,8 @@ pub fn map_db_id_get_after_add_error(
 /// * `obj_type` - A string slice describing the type of object being accessed.
 /// * `uuid` - A reference to a Uuid object.
 /// * `err` - A DbError enum indicating the type of database error.
+/// * `context` - Context of the request, whose user the error is assigned to, or `None` outside
+///   of a request.
 ///
 /// # Returns
 ///
@@ -271,8 +326,12 @@ pub fn map_db_uuid_get_after_add_error(
     obj_type: &str,
     uuid: &Uuid,
     _err: enums::DbError,
+    context: Option<&UserContext>,
 ) -> ErrorResponse {
-    log::error!("Error while get {obj_type} with UUID '{uuid}' from DB");
+    crate::report_internal_error!(
+        context,
+        "Error while get {obj_type} with UUID '{uuid}' from DB"
+    );
     ErrorResponse::InternalError("Internal Error".to_string())
 }
 
@@ -283,6 +342,8 @@ pub fn map_db_uuid_get_after_add_error(
 /// * `obj_type` - A string slice describing the type of object being accessed.
 /// * `uuid` - A reference to a Uuid object.
 /// * `err` - A DbError enum indicating the type of database error.
+/// * `context` - Context of the request, whose user the error is assigned to, or `None` outside
+///   of a request.
 ///
 /// # Returns
 ///
@@ -291,10 +352,14 @@ pub fn map_db_uuid_get_delete_error(
     obj_type: &str,
     uuid: &Uuid,
     err: enums::DbError,
+    context: Option<&UserContext>,
 ) -> ErrorResponse {
     match err {
         enums::DbError::InternalError => {
-            log::error!("Error while searching {obj_type} with UUID '{uuid}' in DB");
+            crate::report_internal_error!(
+                context,
+                "Error while searching {obj_type} with UUID '{uuid}' in DB"
+            );
             ErrorResponse::InternalError("Internal Error".to_string())
         }
         enums::DbError::NotFound => {
@@ -325,10 +390,9 @@ pub fn map_db_uuid_get_delete_ainari_error(
     err: enums::DbError,
 ) -> AinariError {
     match err {
-        enums::DbError::InternalError => {
-            log::error!("Error while searching {obj_type} with UUID '{uuid}' in DB");
-            AinariError::InternalError("Internal Error".to_string())
-        }
+        enums::DbError::InternalError => AinariError::internal(format!(
+            "Error while searching {obj_type} with UUID '{uuid}' in DB"
+        )),
         enums::DbError::NotFound => {
             AinariError::InvalidInput(format!("{obj_type} with UUID '{uuid}' not found."))
         }
@@ -344,12 +408,18 @@ pub fn map_db_uuid_get_delete_ainari_error(
 ///
 /// * `obj_type` - A string slice describing the type of object being listed.
 /// * `e` - A diesel::result::Error object indicating the database error.
+/// * `context` - Context of the request, whose user the error is assigned to, or `None` outside
+///   of a request.
 ///
 /// # Returns
 ///
 /// An ErrorResponse object corresponding to the database error.
-pub fn map_db_list_error(obj_type: &str, e: diesel::result::Error) -> ErrorResponse {
-    log::error!("Failed to list {obj_type} with error: '{e}'");
+pub fn map_db_list_error(
+    obj_type: &str,
+    e: diesel::result::Error,
+    context: Option<&UserContext>,
+) -> ErrorResponse {
+    crate::report_internal_error!(context, "Failed to list {obj_type} with error: '{e}'");
     ErrorResponse::InternalError("Internal Error".to_string())
 }
 
@@ -359,12 +429,18 @@ pub fn map_db_list_error(obj_type: &str, e: diesel::result::Error) -> ErrorRespo
 ///
 /// * `obj_type` - A string slice describing the type of object being counted.
 /// * `e` - A diesel::result::Error object indicating the database error.
+/// * `context` - Context of the request, whose user the error is assigned to, or `None` outside
+///   of a request.
 ///
 /// # Returns
 ///
 /// An ErrorResponse object corresponding to the database error.
-pub fn map_db_count_error(obj_type: &str, e: diesel::result::Error) -> ErrorResponse {
-    log::error!("Failed to count {obj_type} with error: '{e}'");
+pub fn map_db_count_error(
+    obj_type: &str,
+    e: diesel::result::Error,
+    context: Option<&UserContext>,
+) -> ErrorResponse {
+    crate::report_internal_error!(context, "Failed to count {obj_type} with error: '{e}'");
     ErrorResponse::InternalError("Internal Error".to_string())
 }
 
@@ -387,15 +463,21 @@ pub fn permission_denied_response() -> ErrorResponse {
 ///
 /// * `action` - A string slice describing the action, which has failed.
 /// * `e` - A diesel::result::Error object indicating the database error.
+/// * `context` - Context of the request, whose user the error is assigned to, or `None` outside
+///   of a request.
 ///
 /// # Returns
 ///
 /// An ErrorResponse with status 403 for a blocked write-access, else the generic internal error.
-pub fn map_db_write_error(action: &str, e: diesel::result::Error) -> ErrorResponse {
+pub fn map_db_write_error(
+    action: &str,
+    e: diesel::result::Error,
+    context: Option<&UserContext>,
+) -> ErrorResponse {
     if enums::is_permission_denied(&e) {
         return permission_denied_response();
     }
-    log::error!("Failed to {action} with error: '{e}'");
+    crate::report_internal_error!(context, "Failed to {action} with error: '{e}'");
     ErrorResponse::InternalError("Internal Error".to_string())
 }
 
@@ -405,12 +487,18 @@ pub fn map_db_write_error(action: &str, e: diesel::result::Error) -> ErrorRespon
 ///
 /// * `action` - A string slice describing the action, which has failed.
 /// * `e` - The error, which occurred while performing the action.
+/// * `context` - Context of the request, whose user the error is assigned to, or `None` outside
+///   of a request.
 ///
 /// # Returns
 ///
 /// An ErrorResponse object with the generic internal error message.
-pub fn map_internal_error(action: &str, e: impl std::fmt::Display) -> ErrorResponse {
-    log::error!("Failed to {action} with error: '{e}'");
+pub fn map_internal_error(
+    action: &str,
+    e: impl std::fmt::Display,
+    context: Option<&UserContext>,
+) -> ErrorResponse {
+    crate::report_internal_error!(context, "Failed to {action} with error: '{e}'");
     ErrorResponse::InternalError("Internal Error".to_string())
 }
 
@@ -421,6 +509,8 @@ pub fn map_internal_error(action: &str, e: impl std::fmt::Display) -> ErrorRespo
 /// * `obj_type` - A string slice describing the type of object being checked.
 /// * `id` - A string slice containing the ID of the object.
 /// * `ret` - A Result object containing either the object or a DbError.
+/// * `context` - Context of the request, whose user the error is assigned to, or `None` outside
+///   of a request.
 ///
 /// # Returns
 ///
@@ -431,6 +521,7 @@ pub fn check_if_id_exist_in_db<T>(
     obj_type: &str,
     id: &str,
     ret: Result<T, enums::DbError>,
+    context: Option<&UserContext>,
 ) -> Result<(), ErrorResponse> {
     match ret {
         Ok(_) => {
@@ -438,6 +529,10 @@ pub fn check_if_id_exist_in_db<T>(
             return Err(ErrorResponse::Conflict(msg));
         }
         Err(enums::DbError::InternalError) => {
+            crate::report_internal_error!(
+                context,
+                "Error while checking, if {obj_type} with ID '{id}' already exists in DB"
+            );
             return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
         Err(enums::DbError::NotFound) => {

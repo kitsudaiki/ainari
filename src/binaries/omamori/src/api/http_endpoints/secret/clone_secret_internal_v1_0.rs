@@ -52,7 +52,7 @@ pub async fn clone_secret_internal(
     // check if the source-secret exist and is accessible with the given context
     let source_uuid = body.secret_uuid;
     let source_secret = secret_table::get_secret(&source_uuid, &context)
-        .map_err(|e| map_db_uuid_get_delete_error("secret", &source_uuid, e))?;
+        .map_err(|e| map_db_uuid_get_delete_error("secret", &source_uuid, e, Some(&context)))?;
 
     // only user-owned secrets can be cloned
     if source_secret.owned_by != "user" {
@@ -67,7 +67,7 @@ pub async fn clone_secret_internal(
     let simple_crypto = SimpleCrypto::new();
     simple_crypto
         .clone_payload(&source_uuid, &secret_uuid)
-        .map_err(map_ainari_error_to_api_response)?;
+        .map_err(|e| map_ainari_error_to_api_response(e, Some(&context)))?;
 
     // add new secret to database
     if let Err(e) = secret_table::add_new_secret(
@@ -82,12 +82,13 @@ pub async fn clone_secret_internal(
         return Err(map_db_write_error(
             &format!("add secret with UUID '{secret_uuid}' to database"),
             e,
+            Some(&context),
         ));
     }
 
     // get new created secret from database to get additional information
     let secret = secret_table::get_secret(&secret_uuid, &context)
-        .map_err(|e| map_db_uuid_get_after_add_error("secret", &secret_uuid, e))?;
+        .map_err(|e| map_db_uuid_get_after_add_error("secret", &secret_uuid, e, Some(&context)))?;
 
     let resp = SecretResp {
         uuid: secret_uuid,

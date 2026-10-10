@@ -35,7 +35,8 @@ pub async fn list_user_admin(context: UserContext) -> Result<Json<UserListResp>,
     // validate request
     check_admin_context(&context)?;
 
-    let users = user_table::list_users(&context).map_err(|e| map_db_list_error("users", e))?;
+    let users = user_table::list_users(&context)
+        .map_err(|e| map_db_list_error("users", e, Some(&context)))?;
 
     let mut resp = UserListResp { users: Vec::new() };
 

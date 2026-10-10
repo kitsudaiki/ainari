@@ -78,8 +78,9 @@ pub async fn create_floating_ip(
                 }
             }
         }
-        None => floating_ip_table::get_floating_ip(&floating_ip_uuid, &context)
-            .map_err(|e| map_db_uuid_get_after_add_error("floating_ip", &floating_ip_uuid, e))?,
+        None => floating_ip_table::get_floating_ip(&floating_ip_uuid, &context).map_err(|e| {
+            map_db_uuid_get_after_add_error("floating_ip", &floating_ip_uuid, e, Some(&context))
+        })?,
     };
 
     Ok(CreatedJson(to_floating_ip_resp(floating_ip_entry)))
@@ -115,7 +116,7 @@ fn map_reserve_error(
             ErrorResponse::Forbidden("Permission denied.".to_string())
         }
         FloatingIpReserveError::InvalidCidr | FloatingIpReserveError::InternalError => {
-            log::error!("Failed to add new floating_ip to database.");
+            ainari_api::report_internal_error!(None, "Failed to add new floating_ip to database.");
             ErrorResponse::InternalError("Internal Error".to_string())
         }
     }
@@ -147,7 +148,10 @@ async fn check_quota(context: &UserContext) -> Result<(), ErrorResponse> {
     // This count is used to compare against the project's quota limit
     let current_number_of_floating_ips =
         floating_ip_table::count_floating_ips_of_project(&context.project_id).map_err(|e| {
-            log::error!("Failed to count floating_ips in database.: {e}");
+            ainari_api::report_internal_error!(
+                Some(context),
+                "Failed to count floating_ips in database.: {e}"
+            );
             ErrorResponse::InternalError("Internal Error".to_string())
         })?;
 
@@ -161,7 +165,7 @@ async fn check_quota(context: &UserContext) -> Result<(), ErrorResponse> {
         config::CONFIG.skip_tls_verification,
     )
     .await
-    .map_err(map_ainari_error_to_api_response)?;
+    .map_err(|e| map_ainari_error_to_api_response(e, Some(context)))?;
 
     // Convert the quota's maximum floating_ip count to i64 for comparison
     let max_number_of_floating_ips = quota.max_floating_ip as i64;

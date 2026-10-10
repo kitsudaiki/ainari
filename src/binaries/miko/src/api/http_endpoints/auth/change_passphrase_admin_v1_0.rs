@@ -46,7 +46,7 @@ pub async fn change_passphrase_admin(
 
     // write new passphrase to database, which also checks, if the user exist
     user_table::update_passphrase(user_id, &body.new_passphrase, &context)
-        .map_err(|e| map_db_id_get_delete_error("user", user_id, e))?;
+        .map_err(|e| map_db_id_get_delete_error("user", user_id, e, Some(&context)))?;
 
     Ok(NoContent)
 }

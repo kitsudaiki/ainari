@@ -34,7 +34,10 @@ pub async fn list_virtual_machine_internal(
     let virtual_machines = match virtual_machine_table::list_virtual_machines(&context) {
         Ok(virtual_machines) => virtual_machines,
         Err(e) => {
-            log::error!("Failed to get list of virtual_machines form database: '{e}'");
+            ainari_api::report_internal_error!(
+                Some(&context),
+                "Failed to get list of virtual_machines form database: '{e}'"
+            );
             return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
     };

@@ -37,7 +37,8 @@ pub async fn list_host_admin(
 ) -> Result<Json<SakuraHostListResp>, ErrorResponse> {
     check_admin_context(&context)?;
 
-    let hosts = host_table::list_hosts(&context).map_err(|e| map_db_list_error("hosts", e))?;
+    let hosts = host_table::list_hosts(&context)
+        .map_err(|e| map_db_list_error("hosts", e, Some(&context)))?;
 
     let mut resp = SakuraHostListResp { hosts: Vec::new() };
 

@@ -32,7 +32,7 @@ use ainari_api_structs::user_context::UserContext;
 pub async fn get_virtual_machine_count(context: UserContext) -> Result<Json<Count>, ErrorResponse> {
     let number_of_virtual_machine =
         meta_virtual_machine_table::count_meta_virtual_machines(&context)
-            .map_err(|e| map_db_count_error("virtual_machine-meta", e))?;
+            .map_err(|e| map_db_count_error("virtual_machine-meta", e, Some(&context)))?;
 
     let virtual_machine_resp = Count {
         number_of_items: number_of_virtual_machine as u64,

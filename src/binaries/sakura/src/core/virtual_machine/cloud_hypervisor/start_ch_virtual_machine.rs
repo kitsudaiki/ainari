@@ -72,16 +72,17 @@ pub(super) async fn start_vm(uuid: &Uuid, context: &UserContext) -> Result<(), A
         // a paused virtual_machine is still booted, so it only has to continue
         VmState::Paused => {
             log::info!("Resume paused VM {uuid}");
-            client.resume_vm().await.map_err(|e| {
-                AinariError::InternalError(format!("Resume VM {uuid} failed: {e:?}"))
-            })?;
+            client
+                .resume_vm()
+                .await
+                .map_err(|e| AinariError::internal(format!("Resume VM {uuid} failed: {e:?}")))?;
         }
         VmState::Created | VmState::Shutdown => {
             log::info!("Start VM {uuid}");
             client
                 .boot_vm()
                 .await
-                .map_err(|e| AinariError::InternalError(format!("Boot VM {uuid} failed: {e:?}")))?;
+                .map_err(|e| AinariError::internal(format!("Boot VM {uuid} failed: {e:?}")))?;
             log::info!("VM {uuid} started");
         }
     }
@@ -124,7 +125,7 @@ async fn start_in_new_vmm(uuid: &Uuid, context: &UserContext) -> Result<(), Aina
     client
         .boot_vm()
         .await
-        .map_err(|e| AinariError::InternalError(format!("Boot VM {uuid} failed: {e:?}")))?;
+        .map_err(|e| AinariError::internal(format!("Boot VM {uuid} failed: {e:?}")))?;
     log::info!("VM {uuid} started");
 
     set_vm_state(uuid, VirtualMachineState::Running, context)

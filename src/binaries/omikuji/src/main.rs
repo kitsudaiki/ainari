@@ -18,6 +18,8 @@ mod api;
 mod config;
 mod database;
 
+use ainari_api::omikuji_logging::OmikujiLogging;
+
 /// Entrypoint of the omikuji.
 ///
 /// Central collection of the error-messages and audit-logs of all components.
@@ -31,6 +33,17 @@ mod database;
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = &config::CONFIG;
     ainari_common::logger::init_logger(config.log_type, &config.log_path, "omikuji", config.debug)?;
+
+    // the entries are added over the internal endpoints, so they are not logged themselves,
+    // because else each added entry would add another entry
+    OmikujiLogging::new(
+        "omikuji",
+        &config.miko,
+        &config::INTERNAL_API_KEY,
+        config.skip_tls_verification,
+    )
+    .skip_internal_endpoints()
+    .init();
 
     database::init_database()?;
 

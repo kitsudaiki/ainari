@@ -69,7 +69,7 @@ pub async fn configure_interface(
         std::process::Command::new("ip")
             .args(["link", "set", name, "up"])
             .status()
-            .map_err(|e| map_internal_error(&format!("bring interface '{name}' up"), e))?;
+            .map_err(|e| map_internal_error(&format!("bring interface '{name}' up"), e, None))?;
     }
 
     // Adding an address, which the interface already has, fails. Only an address, which was
@@ -100,7 +100,7 @@ pub async fn configure_interface(
             .iface_map
             .insert(ifindex, IfaceConfigPod(cfg), 0)
             .map_err(|e| {
-                log::error!("eBPF Map error (interface): {e}");
+                ainari_api::report_internal_error!(None, "eBPF Map error (interface): {e}");
                 ErrorResponse::InternalError("Internal Error".to_string())
             })
             .and_then(|_| persist());
@@ -185,18 +185,18 @@ pub async fn register_tap(req: &TapReq) -> Result<(), ErrorResponse> {
         std::process::Command::new("ip")
             .args(["tuntap", "add", "mode", "tap", name])
             .status()
-            .map_err(|e| map_internal_error(&format!("create TAP '{name}'"), e))?;
+            .map_err(|e| map_internal_error(&format!("create TAP '{name}'"), e, None))?;
     }
 
     std::process::Command::new("ip")
         .args(["link", "set", name, "up"])
         .status()
-        .map_err(|e| map_internal_error(&format!("bring TAP '{name}' up"), e))?;
+        .map_err(|e| map_internal_error(&format!("bring TAP '{name}' up"), e, None))?;
 
     std::process::Command::new("ethtool")
         .args(["-K", name, "tx", "off", "rx", "off"])
         .status()
-        .map_err(|e| map_internal_error(&format!("disable offloading of TAP '{name}'"), e))?;
+        .map_err(|e| map_internal_error(&format!("disable offloading of TAP '{name}'"), e, None))?;
 
     // The TAP must not own any address: the eBPF datapath is the gateway of the
     // VM, and an address here would collide with every other TAP serving the
@@ -207,7 +207,7 @@ pub async fn register_tap(req: &TapReq) -> Result<(), ErrorResponse> {
 
     let ifindex = get_ifindex(name);
     if ifindex == 0 {
-        log::error!("TAP '{name}' has no interface index");
+        ainari_api::report_internal_error!(None, "TAP '{name}' has no interface index");
         return Err(ErrorResponse::InternalError("Internal Error".to_string()));
     }
 
@@ -225,10 +225,15 @@ pub async fn register_tap(req: &TapReq) -> Result<(), ErrorResponse> {
         let route = format!("{}/32", vm_ip_str);
         let mut args = vec!["route", "replace", route.as_str(), "dev", name.as_str()];
         with_table(&mut args, &table);
-        run_ip(&args).map_err(|e| map_internal_error(&format!("add host-route '{route}'"), e))?;
+        run_ip(&args)
+            .map_err(|e| map_internal_error(&format!("add host-route '{route}'"), e, None))?;
 
         bind_iface_to_table(name, &table, Ipv4Addr::from(vm_ip)).map_err(|e| {
-            map_internal_error(&format!("bind '{name}' to the table of its tenant"), e)
+            map_internal_error(
+                &format!("bind '{name}' to the table of its tenant"),
+                e,
+                None,
+            )
         })?;
 
         // The kernel can't check the source of the unnumbered TAP and would drop everything the
@@ -237,7 +242,11 @@ pub async fn register_tap(req: &TapReq) -> Result<(), ErrorResponse> {
         // VM in `main` leads back over the TAP, which satisfies it.
         if table.is_some() {
             exempt_from_rp_filter(name).map_err(|e| {
-                map_internal_error(&format!("exempt '{name}' from the reverse-path filter"), e)
+                map_internal_error(
+                    &format!("exempt '{name}' from the reverse-path filter"),
+                    e,
+                    None,
+                )
             })?;
         }
 
@@ -257,7 +266,9 @@ pub async fn register_tap(req: &TapReq) -> Result<(), ErrorResponse> {
                 "nud",
                 "permanent",
             ])
-            .map_err(|e| map_internal_error(&format!("add neighbour-entry '{vm_ip_str}'"), e))?;
+            .map_err(|e| {
+                map_internal_error(&format!("add neighbour-entry '{vm_ip_str}'"), e, None)
+            })?;
         }
         enable_forwarding(&format!("/proc/sys/net/ipv4/conf/{}/forwarding", name));
     }
@@ -277,7 +288,7 @@ pub async fn register_tap(req: &TapReq) -> Result<(), ErrorResponse> {
             .insert(ifindex, ArpProxyPod(proxy), 0)
             .is_err()
         {
-            log::error!("eBPF Map error (ARP proxy)");
+            ainari_api::report_internal_error!(None, "eBPF Map error (ARP proxy)");
             return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
 
@@ -292,7 +303,7 @@ pub async fn register_tap(req: &TapReq) -> Result<(), ErrorResponse> {
             .insert(ifindex, IfaceConfigPod(cfg), 0)
             .is_err()
         {
-            log::error!("eBPF Map error (interface)");
+            ainari_api::report_internal_error!(None, "eBPF Map error (interface)");
             return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
 
@@ -348,7 +359,10 @@ pub async fn register_tap(req: &TapReq) -> Result<(), ErrorResponse> {
         // check every packet twice.
         if !ebpf_interf.tap_tc_links.contains_key(name.as_str()) {
             let link_id = attach_tap_egress(&mut ebpf_interf, name).map_err(|e| {
-                log::error!("Failed to attach tap_egress to '{name}': {e}");
+                ainari_api::report_internal_error!(
+                    None,
+                    "Failed to attach tap_egress to '{name}': {e}"
+                );
                 ErrorResponse::InternalError("Internal Error".to_string())
             })?;
             ebpf_interf.tap_tc_links.insert(name.to_string(), link_id);

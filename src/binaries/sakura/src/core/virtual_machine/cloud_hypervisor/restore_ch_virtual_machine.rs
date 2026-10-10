@@ -105,7 +105,7 @@ pub async fn restore_ch_virtual_machine(
         client
             .shutdown_vm()
             .await
-            .map_err(|e| AinariError::InternalError(format!("Shutdown VM {uuid} failed: {e:?}")))?;
+            .map_err(|e| AinariError::internal(format!("Shutdown VM {uuid} failed: {e:?}")))?;
     }
     // the virtual_machine is already shut down, so a failure here must not skip its boot below
     if let Err(e) = set_vm_state(uuid, VirtualMachineState::Restoring, context) {
@@ -119,7 +119,7 @@ pub async fn restore_ch_virtual_machine(
     let boot_result = client
         .boot_vm()
         .await
-        .map_err(|e| AinariError::InternalError(format!("Boot VM {uuid} failed: {e:?}")));
+        .map_err(|e| AinariError::internal(format!("Boot VM {uuid} failed: {e:?}")));
     mark_error_on_failure(uuid, context, boot_result)?;
     set_vm_state(uuid, VirtualMachineState::Running, context)?;
     restore_result?;
@@ -167,7 +167,7 @@ async fn replace_root_disk(
         )
         .await
         .map_err(|e| {
-            AinariError::InternalError(format!("Failed to download snapshot-file from onsen: {e}"))
+            AinariError::internal(format!("Failed to download snapshot-file from onsen: {e}"))
         })?;
         decrypt_file(&local_encrypted_file_path, &local_file_path, secret).await?;
         super::run_command(
@@ -208,7 +208,7 @@ async fn replace_root_disk(
 /// * `Err(AinariError)` if the disk could not be moved
 fn rename_disk(source_path: &str, target_path: &str) -> Result<(), AinariError> {
     fs::rename(source_path, target_path).map_err(|e| {
-        AinariError::InternalError(format!(
+        AinariError::internal(format!(
             "Failed to move disk {source_path} to {target_path}: {e}"
         ))
     })

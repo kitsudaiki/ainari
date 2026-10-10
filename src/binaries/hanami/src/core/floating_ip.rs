@@ -52,12 +52,18 @@ pub async fn attach_floating_ip(
     context: &UserContext,
 ) -> Result<FloatingIpEntry, ErrorResponse> {
     // check, that the virtual_machine exists and the user is allowed to access it
-    meta_virtual_machine_table::get_meta_virtual_machine(virtual_machine_uuid, context)
-        .map_err(|e| map_db_uuid_get_delete_error("virtual_machine", virtual_machine_uuid, e))?;
+    meta_virtual_machine_table::get_meta_virtual_machine(virtual_machine_uuid, context).map_err(
+        |e| map_db_uuid_get_delete_error("virtual_machine", virtual_machine_uuid, e, Some(context)),
+    )?;
 
     let address =
         address_table::get_address_of_virtual_machine(virtual_machine_uuid).map_err(|e| {
-            map_db_uuid_get_delete_error("address of virtual_machine", virtual_machine_uuid, e)
+            map_db_uuid_get_delete_error(
+                "address of virtual_machine",
+                virtual_machine_uuid,
+                e,
+                Some(context),
+            )
         })?;
 
     let floating_ip_entry = floating_ip_table::attach_floating_ip(
@@ -78,7 +84,10 @@ pub async fn attach_floating_ip(
             "Virtual_machine '{virtual_machine_uuid}' already has a floating ip."
         )),
         FloatingIpAttachError::InternalError => {
-            log::error!("Failed to attach floating ip '{floating_ip_uuid}' in database.");
+            ainari_api::report_internal_error!(
+                Some(context),
+                "Failed to attach floating ip '{floating_ip_uuid}' in database."
+            );
             ErrorResponse::InternalError("Internal Error".to_string())
         }
     })?;
@@ -86,7 +95,7 @@ pub async fn attach_floating_ip(
     let result = async {
         let endpoints = get_endpoints(&config::CONFIG.miko, config::CONFIG.skip_tls_verification)
             .await
-            .map_err(map_ainari_error_to_api_response)?;
+            .map_err(|e| map_ainari_error_to_api_response(e, Some(context)))?;
 
         floating_ip_clients::create_floating_ip(
             &endpoints.torii,
@@ -100,7 +109,7 @@ pub async fn attach_floating_ip(
             config::CONFIG.skip_tls_verification,
         )
         .await
-        .map_err(map_ainari_error_to_api_response)
+        .map_err(|e| map_ainari_error_to_api_response(e, Some(context)))
     }
     .await;
 
@@ -142,7 +151,7 @@ pub async fn detach_floating_ip(
 
     let endpoints = get_endpoints(&config::CONFIG.miko, config::CONFIG.skip_tls_verification)
         .await
-        .map_err(map_ainari_error_to_api_response)?;
+        .map_err(|e| map_ainari_error_to_api_response(e, Some(context)))?;
 
     floating_ip_clients::delete_floating_ip(
         &endpoints.torii,
@@ -152,10 +161,11 @@ pub async fn detach_floating_ip(
         config::CONFIG.skip_tls_verification,
     )
     .await
-    .map_err(map_ainari_error_to_api_response)?;
+    .map_err(|e| map_ainari_error_to_api_response(e, Some(context)))?;
 
-    floating_ip_table::detach_floating_ip(&floating_ip_entry.uuid, context)
-        .map_err(|e| map_db_uuid_get_delete_error("floating_ip", &floating_ip_entry.uuid, e))
+    floating_ip_table::detach_floating_ip(&floating_ip_entry.uuid, context).map_err(|e| {
+        map_db_uuid_get_delete_error("floating_ip", &floating_ip_entry.uuid, e, Some(context))
+    })
 }
 
 /// Converts a floating ip-address of the database into the response of the api.
