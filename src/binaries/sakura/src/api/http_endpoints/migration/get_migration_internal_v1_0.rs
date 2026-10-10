@@ -23,7 +23,7 @@ use ainari_api_structs::user_context::UserContext;
 #[api_operation(
     tag = "migration",
     summary = "Get migration",
-    description = r###"Get the description of a virtual_machine, which is exported on this host for its migration.
+    description = r###"Get the description of a virtual_machine, which is prepared on this host for its migration.
 
 It contains everything the target host needs to create the virtual_machine with the same
 identity, including its owner and its project."###,
@@ -38,7 +38,7 @@ pub async fn get_migration_internal(
     context: UserContext,
 ) -> Result<Json<MigrationDescriptionResp>, ErrorResponse> {
     let virtual_machine_data =
-        super::get_exported_virtual_machine(&virtual_machine_uuid, &context)?;
+        super::get_prepared_virtual_machine(&virtual_machine_uuid, &context)?;
 
     Ok(Json(MigrationDescriptionResp {
         uuid: virtual_machine_data.uuid,

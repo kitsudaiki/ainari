@@ -59,8 +59,8 @@ pub fn v1alpha_routes() -> Scope {
                             remove_migrated_virtual_machine_internal_v1_0::remove_migrated_virtual_machine_internal,
                         )),
                 )
-                .service(resource("/{virtual_machine_uuid}/migration/export/internal").route(
-                    post().to(export_virtual_machine_internal_v1_0::export_virtual_machine_internal),
+                .service(resource("/{virtual_machine_uuid}/migration/prepare/internal").route(
+                    post().to(prepare_migration_internal_v1_0::prepare_migration_internal),
                 ))
                 .service(resource("/{virtual_machine_uuid}/migration/cancel/internal").route(
                     post().to(cancel_migration_internal_v1_0::cancel_migration_internal),

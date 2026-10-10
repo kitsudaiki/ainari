@@ -32,7 +32,7 @@ use ainari_common::secret::Secret;
 use crate::handle_response;
 use crate::prepare_client;
 
-/// Asks the source sakura-host to export a virtual_machine.
+/// Asks the source sakura-host to prepare a virtual_machine for its migration.
 ///
 /// The virtual_machine is shut down and frozen in the state `MIGRATING`, so it can not be
 /// started on the source anymore, while its files are pulled by the target.
@@ -42,13 +42,13 @@ use crate::prepare_client;
 /// * `sakura_address` - The base URL of the source sakura-host.
 /// * `token` - Authentication token for the API.
 /// * `internal_api_key` - Internal API key for authorization.
-/// * `virtual_machine_uuid` - UUID of the virtual_machine to export.
+/// * `virtual_machine_uuid` - UUID of the virtual_machine to prepare.
 /// * `insecure_client` - Whether to use an insecure client (no TLS verification).
 ///
 /// # Returns
 ///
-/// A `Result` containing the task of the export, or an `AinariError` on failure.
-pub async fn export_virtual_machine(
+/// A `Result` containing the task of the preparation, or an `AinariError` on failure.
+pub async fn prepare_migration(
     sakura_address: &str,
     token: &str,
     internal_api_key: &Secret,
@@ -56,7 +56,7 @@ pub async fn export_virtual_machine(
     insecure_client: bool,
 ) -> Result<TaskResp, AinariError> {
     let url = format!(
-        "{sakura_address}/v1alpha/virtual_machine/{virtual_machine_uuid}/migration/export/internal"
+        "{sakura_address}/v1alpha/virtual_machine/{virtual_machine_uuid}/migration/prepare/internal"
     );
     post_task(url, token, internal_api_key, None::<&()>, insecure_client).await
 }
@@ -68,14 +68,14 @@ pub async fn export_virtual_machine(
 /// * `sakura_address` - The base URL of the source sakura-host.
 /// * `token` - Authentication token for the API.
 /// * `internal_api_key` - Internal API key for authorization.
-/// * `virtual_machine_uuid` - UUID of the exported virtual_machine.
+/// * `virtual_machine_uuid` - UUID of the prepared virtual_machine.
 /// * `boot` - Boot the virtual_machine again, because it was running before the migration.
 /// * `insecure_client` - Whether to use an insecure client (no TLS verification).
 ///
 /// # Returns
 ///
 /// A `Result` containing the task of the cancellation, or an `AinariError` on failure.
-pub async fn cancel_export(
+pub async fn cancel_migration(
     sakura_address: &str,
     token: &str,
     internal_api_key: &Secret,
@@ -90,7 +90,7 @@ pub async fn cancel_export(
     post_task(url, token, internal_api_key, Some(&body), insecure_client).await
 }
 
-/// Asks the target sakura-host to take over a virtual_machine, which was exported by the source.
+/// Asks the target sakura-host to take over a virtual_machine, which was prepared by the source.
 ///
 /// # Arguments
 ///
@@ -153,14 +153,14 @@ pub async fn remove_migrated_virtual_machine(
     handle_response(response, "migration", &virtual_machine_uuid.to_string()).await
 }
 
-/// Reads the description of an exported virtual_machine from the source sakura-host.
+/// Reads the description of a prepared virtual_machine from the source sakura-host.
 ///
 /// # Arguments
 ///
 /// * `sakura_address` - The base URL of the source sakura-host.
 /// * `token` - Authentication token for the API.
 /// * `internal_api_key` - Internal API key for authorization.
-/// * `virtual_machine_uuid` - UUID of the exported virtual_machine.
+/// * `virtual_machine_uuid` - UUID of the prepared virtual_machine.
 /// * `insecure_client` - Whether to use an insecure client (no TLS verification).
 ///
 /// # Returns
@@ -188,7 +188,7 @@ pub async fn get_migration_description(
     handle_response(response, "migration", &virtual_machine_uuid.to_string()).await
 }
 
-/// Streams a file of an exported virtual_machine from the source sakura-host into a sink.
+/// Streams a file of a prepared virtual_machine from the source sakura-host into a sink.
 ///
 /// The body is written into the sink as it is received, so files of any size can be transferred
 /// without holding them in memory. The encoding of the body is up to the caller.
@@ -198,7 +198,7 @@ pub async fn get_migration_description(
 /// * `sakura_address` - The base URL of the source sakura-host.
 /// * `token` - Authentication token for the API.
 /// * `internal_api_key` - Internal API key for authorization.
-/// * `virtual_machine_uuid` - UUID of the exported virtual_machine.
+/// * `virtual_machine_uuid` - UUID of the prepared virtual_machine.
 /// * `file` - The file to transfer.
 /// * `sink` - Receives the body of the response.
 /// * `insecure_client` - Whether to use an insecure client (no TLS verification).

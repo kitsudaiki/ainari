@@ -36,7 +36,7 @@ use ainari_clients::virtual_machine_migration::get_migration_description;
 #[api_operation(
     tag = "migration",
     summary = "Import virtual_machine",
-    description = r###"Take over a virtual_machine, which was exported by another host.
+    description = r###"Take over a virtual_machine, which was prepared by another host.
 
 The description of the virtual_machine is read from the source host and the virtual_machine is
 created on this host with the same identity, owner and project, in the state `MIGRATING`. A task
@@ -61,7 +61,7 @@ pub async fn import_virtual_machine_internal(
 
     let virtual_machine_uuid = body.virtual_machine_uuid;
 
-    // fails, if the virtual_machine is not exported on the source host
+    // fails, if the virtual_machine is not prepared on the source host
     let description = get_migration_description(
         &body.source_address,
         &context.token,

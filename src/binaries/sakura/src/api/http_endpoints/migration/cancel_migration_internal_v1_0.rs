@@ -35,7 +35,7 @@ use ainari_api_structs::user_context::UserContext;
     description = r###"Create a new task, which unfreezes a virtual_machine on this host, whose migration failed.
 
 The virtual_machine is marked as stopped again and booted with `boot`, because it was running
-before the migration. A virtual_machine, which is not exported, is left as it is."###,
+before the migration. A virtual_machine, which is not prepared, is left as it is."###,
     error_code = 400,
     error_code = 401,
     error_code = 404,

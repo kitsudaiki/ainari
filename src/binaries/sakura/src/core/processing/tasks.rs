@@ -24,10 +24,10 @@ use crate::config;
 use crate::core::virtual_machine::cloud_hypervisor::create_ch_virtual_machine::create_ch_virtual_machine;
 use crate::core::virtual_machine::cloud_hypervisor::delete_ch_virtual_machine::delete_ch_virtual_machine;
 use crate::core::virtual_machine::cloud_hypervisor::migration::ensure_not_migrating;
-use crate::core::virtual_machine::cloud_hypervisor::migration::export::{
-    cancel_ch_export, export_ch_virtual_machine,
-};
 use crate::core::virtual_machine::cloud_hypervisor::migration::import::import_ch_virtual_machine;
+use crate::core::virtual_machine::cloud_hypervisor::migration::prepare::{
+    cancel_ch_migration, prepare_ch_migration,
+};
 use crate::core::virtual_machine::cloud_hypervisor::migration::remove::remove_migrated_ch_virtual_machine;
 use crate::core::virtual_machine::cloud_hypervisor::reboot_ch_virtual_machine::reboot_ch_virtual_machine;
 use crate::core::virtual_machine::cloud_hypervisor::restore_ch_virtual_machine::restore_ch_virtual_machine;
@@ -136,7 +136,7 @@ pub enum TaskVariant {
     CloudHypervisorVirtualMachineStart(CloudHypervisorVirtualMachinePowerInfo),
     CloudHypervisorVirtualMachineStop(CloudHypervisorVirtualMachinePowerInfo),
     CloudHypervisorVirtualMachineReboot(CloudHypervisorVirtualMachinePowerInfo),
-    CloudHypervisorVirtualMachineMigrationExport(CloudHypervisorVirtualMachineMigrationInfo),
+    CloudHypervisorVirtualMachineMigrationPrepare(CloudHypervisorVirtualMachineMigrationInfo),
     CloudHypervisorVirtualMachineMigrationCancel(CloudHypervisorVirtualMachineMigrationCancelInfo),
     CloudHypervisorVirtualMachineMigrationImport(CloudHypervisorVirtualMachineMigrationImportInfo),
     CloudHypervisorVirtualMachineMigrationRemove(CloudHypervisorVirtualMachineMigrationInfo),
@@ -162,7 +162,7 @@ impl TaskVariant {
             TaskVariant::CloudHypervisorVirtualMachineCreate(_)
             | TaskVariant::CloudHypervisorVirtualMachineDelete(_)
             | TaskVariant::CloudHypervisorVirtualMachineSnapshot(_)
-            | TaskVariant::CloudHypervisorVirtualMachineMigrationExport(_)
+            | TaskVariant::CloudHypervisorVirtualMachineMigrationPrepare(_)
             | TaskVariant::CloudHypervisorVirtualMachineMigrationCancel(_)
             | TaskVariant::CloudHypervisorVirtualMachineMigrationImport(_)
             | TaskVariant::CloudHypervisorVirtualMachineMigrationRemove(_) => None,
@@ -279,11 +279,11 @@ impl Task {
             TaskVariant::CloudHypervisorVirtualMachineReboot(task_info) => {
                 handle_vm_reboot(&self.uuid, &self.resouce_uuid, &mut self.meta, task_info).await
             }
-            TaskVariant::CloudHypervisorVirtualMachineMigrationExport(task_info) => {
-                export_ch_virtual_machine(&self.resouce_uuid, &task_info.context).await
+            TaskVariant::CloudHypervisorVirtualMachineMigrationPrepare(task_info) => {
+                prepare_ch_migration(&self.resouce_uuid, &task_info.context).await
             }
             TaskVariant::CloudHypervisorVirtualMachineMigrationCancel(task_info) => {
-                cancel_ch_export(&self.resouce_uuid, task_info.boot, &task_info.context).await
+                cancel_ch_migration(&self.resouce_uuid, task_info.boot, &task_info.context).await
             }
             TaskVariant::CloudHypervisorVirtualMachineMigrationImport(task_info) => {
                 import_ch_virtual_machine(

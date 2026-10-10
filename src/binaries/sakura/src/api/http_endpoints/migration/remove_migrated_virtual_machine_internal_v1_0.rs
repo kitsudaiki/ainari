@@ -31,7 +31,7 @@ use ainari_api_structs::user_context::UserContext;
     description = r###"Create a new task, which removes the copy of a migrated virtual_machine from this host.
 
 This is the source host after a successful migration, or the target host after a failed one.
-Only a virtual_machine, which is exported or whose import failed, is removed. Unlike a normal
+Only a virtual_machine, which is prepared or whose import failed, is removed. Unlike a normal
 deletion, no deleted entry is kept, because the virtual_machine still exists on the other host."###,
     error_code = 400,
     error_code = 401,

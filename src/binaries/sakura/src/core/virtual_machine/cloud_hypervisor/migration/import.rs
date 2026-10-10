@@ -26,7 +26,7 @@ use super::transfer::receive_file;
 use crate::database::virtual_machine_table;
 use crate::database::virtual_machine_table::VirtualMachineState;
 
-/// Takes over a virtual_machine, which was exported by the source host
+/// Takes over a virtual_machine, which was prepared by the source host
 ///
 /// The database-entry of the virtual_machine was already created with the same identity as on
 /// the source by the import-endpoint. Its seed-image and its root-disk are pulled from the source

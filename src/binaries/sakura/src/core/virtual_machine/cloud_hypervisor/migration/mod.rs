@@ -17,7 +17,7 @@
 //! hanami orchestrates the migration, this host only provides its steps, which run as tasks of
 //! the virtual_machine, so they are serialized with all its other tasks:
 //!
-//! 1. `export`: the source shuts the virtual_machine down and freezes it in the state
+//! 1. `prepare`: the source shuts the virtual_machine down and freezes it in the state
 //!    `MIGRATING`, so nothing changes its disk anymore.
 //! 2. `import`: the target creates the virtual_machine with the same identity, pulls its
 //!    seed-image and its root-disk from the source (see `transfer`) and boots it, if it was
@@ -28,8 +28,8 @@
 //! The virtual_machine keeps its UUID, its address, its MAC-address and its TAP-device on the new
 //! host. Only the network of the gateways is moved by hanami.
 
-pub mod export;
 pub mod import;
+pub mod prepare;
 pub mod remove;
 pub mod transfer;
 

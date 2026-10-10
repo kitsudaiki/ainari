@@ -15,7 +15,7 @@
 //! Structs of the cold migration of a virtual_machine from one sakura-host to another.
 //!
 //! hanami orchestrates the migration over its admin-endpoint. The sakura-hosts only provide the
-//! steps: the source exports the virtual_machine (shuts it down and freezes it), the target
+//! steps: the source prepares the virtual_machine (shuts it down and freezes it), the target
 //! imports it (pulls its description and its files from the source and starts it) and both can
 //! remove their copy of it again.
 
@@ -45,7 +45,7 @@ pub struct VirtualMachineMigrateResp {
     pub target_host_uuid: Uuid,
 }
 
-/// Request to the target sakura-host to take over a virtual_machine, which was exported by the
+/// Request to the target sakura-host to take over a virtual_machine, which was prepared by the
 /// source sakura-host
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
 pub struct MigrationImportReq {
@@ -65,7 +65,7 @@ pub struct MigrationCancelReq {
     pub boot: bool,
 }
 
-/// Everything the target sakura-host needs to know about an exported virtual_machine to
+/// Everything the target sakura-host needs to know about a prepared virtual_machine to
 /// create it again with the same identity
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
 pub struct MigrationDescriptionResp {
@@ -123,7 +123,7 @@ impl FromStr for MigrationFile {
     }
 }
 
-/// Path of the endpoint, which streams a file of an exported virtual_machine
+/// Path of the endpoint, which streams a file of a prepared virtual_machine
 #[derive(Debug, Deserialize, JsonSchema, ApiComponent)]
 pub struct MigrationFilePath {
     pub virtual_machine_uuid: Uuid,

@@ -145,7 +145,7 @@ impl Write for ChannelWriter<'_> {
     }
 }
 
-/// Pulls a file of an exported virtual_machine from the source host.
+/// Pulls a file of a prepared virtual_machine from the source host.
 ///
 /// The file is written next to its final path first and only moved there, after it was received
 /// completely and intact, so an interrupted transfer never leaves a file behind, which looks

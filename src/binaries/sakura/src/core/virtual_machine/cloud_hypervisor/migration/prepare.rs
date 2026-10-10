@@ -35,7 +35,7 @@ use cloud_hypervisor_client::models::VmState;
 /// virtual_machine is frozen in the state `MIGRATING`, which blocks every other operation on it,
 /// so its files don't change anymore, while the target pulls them.
 ///
-/// A virtual_machine, which is already exported, is left as it is, so a repeated export doesn't
+/// A virtual_machine, which is already prepared, is left as it is, so a repeated preparation doesn't
 /// fail.
 ///
 /// # Arguments
@@ -46,16 +46,13 @@ use cloud_hypervisor_client::models::VmState;
 /// * `Ok(())` if the virtual_machine is shut down and frozen
 /// * `Err(AinariError::InvalidInput)` if the virtual_machine is in a state, which can't be
 ///   migrated, otherwise an appropriate error on failure
-pub async fn export_ch_virtual_machine(
-    uuid: &Uuid,
-    context: &UserContext,
-) -> Result<(), AinariError> {
+pub async fn prepare_ch_migration(uuid: &Uuid, context: &UserContext) -> Result<(), AinariError> {
     let virtual_machine_data = virtual_machine_table::get_virtual_machine(uuid, context)
         .map_err(|e| map_db_uuid_get_delete_ainari_error("virtual_machine", uuid, e))?;
 
     let state = virtual_machine_data.vm_state.as_str();
     if state == VirtualMachineState::Migrating.as_str() {
-        log::warn!("VM {uuid} is already exported for its migration.");
+        log::warn!("VM {uuid} is already prepared for its migration.");
         return Ok(());
     }
     if state != VirtualMachineState::Running.as_str()
@@ -71,7 +68,7 @@ pub async fn export_ch_virtual_machine(
         )));
     }
 
-    log::info!("Export VM {uuid} for its migration");
+    log::info!("Prepare VM {uuid} for its migration");
 
     if !vmm_exited(uuid) {
         let (client, vm_state) = connect_to_vmm(uuid, context).await?;
@@ -91,7 +88,7 @@ pub async fn export_ch_virtual_machine(
 
     set_vm_state(uuid, VirtualMachineState::Migrating, context)?;
 
-    log::info!("VM {uuid} exported for its migration");
+    log::info!("VM {uuid} prepared for its migration");
     Ok(())
 }
 
@@ -99,7 +96,7 @@ pub async fn export_ch_virtual_machine(
 ///
 /// The virtual_machine is marked as stopped again and booted, if it was running before the
 /// migration. A virtual_machine, which is not frozen, is left as it is, so a cancellation after
-/// a failed export doesn't change anything.
+/// a failed preparation doesn't change anything.
 ///
 /// # Arguments
 /// * `uuid` - Unique identifier of the virtual_machine
@@ -109,7 +106,7 @@ pub async fn export_ch_virtual_machine(
 /// # Returns
 /// * `Ok(())` if the virtual_machine is unfrozen and booted, if requested
 /// * `Err(AinariError)` with an appropriate error on failure
-pub async fn cancel_ch_export(
+pub async fn cancel_ch_migration(
     uuid: &Uuid,
     boot: bool,
     context: &UserContext,
@@ -118,7 +115,7 @@ pub async fn cancel_ch_export(
         .map_err(|e| map_db_uuid_get_delete_ainari_error("virtual_machine", uuid, e))?;
 
     if virtual_machine_data.vm_state != VirtualMachineState::Migrating.as_str() {
-        log::warn!("VM {uuid} is not exported, so there is no migration to cancel.");
+        log::warn!("VM {uuid} is not prepared, so there is no migration to cancel.");
         return Ok(());
     }
 

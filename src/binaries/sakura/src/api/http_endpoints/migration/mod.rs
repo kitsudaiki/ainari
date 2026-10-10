@@ -19,10 +19,10 @@
 //! `core::virtual_machine::cloud_hypervisor::migration` for the steps.
 
 pub mod cancel_migration_internal_v1_0;
-pub mod export_virtual_machine_internal_v1_0;
 pub mod get_migration_file_internal_v1_0;
 pub mod get_migration_internal_v1_0;
 pub mod import_virtual_machine_internal_v1_0;
+pub mod prepare_migration_internal_v1_0;
 pub mod remove_migrated_virtual_machine_internal_v1_0;
 
 use uuid::Uuid;
@@ -94,10 +94,10 @@ fn add_migration_task(
 /// * `context` - User context containing authentication information
 ///
 /// # Returns
-/// * `Ok(VirtualMachineEntry)` with the exported virtual_machine
-/// * `Err(ErrorResponse)` with `Conflict`, if the virtual_machine is not exported, otherwise an
+/// * `Ok(VirtualMachineEntry)` with the prepared virtual_machine
+/// * `Err(ErrorResponse)` with `Conflict`, if the virtual_machine is not prepared, otherwise an
 ///   appropriate error on failure
-fn get_exported_virtual_machine(
+fn get_prepared_virtual_machine(
     virtual_machine_uuid: &Uuid,
     context: &UserContext,
 ) -> Result<VirtualMachineEntry, ErrorResponse> {
@@ -108,7 +108,7 @@ fn get_exported_virtual_machine(
 
     if virtual_machine_data.vm_state != VirtualMachineState::Migrating.as_str() {
         return Err(ErrorResponse::Conflict(format!(
-            "Virtual_machine '{virtual_machine_uuid}' is not exported for a migration."
+            "Virtual_machine '{virtual_machine_uuid}' is not prepared for a migration."
         )));
     }
     Ok(virtual_machine_data)

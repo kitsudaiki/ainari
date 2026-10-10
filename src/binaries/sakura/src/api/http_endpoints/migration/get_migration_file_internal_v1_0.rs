@@ -29,11 +29,11 @@ use ainari_api_structs::user_context::UserContext;
 #[api_operation(
     tag = "migration",
     summary = "Get file of migration",
-    description = r###"Stream a file of a virtual_machine, which is exported on this host for its migration.
+    description = r###"Stream a file of a virtual_machine, which is prepared on this host for its migration.
 
 The file is sent as a single zstd-frame, which contains the size and a checksum of the content.
 The size of the uncompressed file is also sent in the header `X-Migration-File-Size`. The
-virtual_machine has to be exported and its cloud-hypervisor process stopped, so the file doesn't
+virtual_machine has to be prepared and its cloud-hypervisor process stopped, so the file doesn't
 change during the transfer."###,
     error_code = 400,
     error_code = 401,
@@ -47,9 +47,9 @@ pub async fn get_migration_file_internal(
 ) -> Result<HttpResponse, ErrorResponse> {
     let virtual_machine_uuid = path.virtual_machine_uuid;
     let virtual_machine_data =
-        super::get_exported_virtual_machine(&virtual_machine_uuid, &context)?;
+        super::get_prepared_virtual_machine(&virtual_machine_uuid, &context)?;
 
-    // the export stops the process, which would still write into the disk otherwise
+    // the preparation stops the process, which would still write into the disk otherwise
     if FilePath::new(&vm_socket_path(&virtual_machine_uuid)).exists() {
         return Err(ErrorResponse::Conflict(format!(
             "Virtual_machine '{virtual_machine_uuid}' still has a running cloud-hypervisor process."

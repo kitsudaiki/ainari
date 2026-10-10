@@ -27,18 +27,18 @@ use ainari_api_structs::user_context::UserContext;
 
 #[api_operation(
     tag = "migration",
-    summary = "Export virtual_machine",
+    summary = "Prepare migration",
     description = r###"Create a new task, which prepares a virtual_machine on this host for its migration to another host.
 
 A running virtual_machine is shut down gracefully, so it writes all its data to its disk.
 Afterwards it is frozen in the state `MIGRATING`, so it can not be started or changed anymore,
-while the target host pulls its files. Only a running or stopped virtual_machine can be exported."###,
+while the target host pulls its files. Only a running or stopped virtual_machine can be prepared."###,
     error_code = 400,
     error_code = 401,
     error_code = 404,
     error_code = 500
 )]
-pub async fn export_virtual_machine_internal(
+pub async fn prepare_migration_internal(
     virtual_machine_uuid: Path<Uuid>,
     context: UserContext,
 ) -> Result<CreatedJson<TaskResp>, ErrorResponse> {
@@ -47,7 +47,7 @@ pub async fn export_virtual_machine_internal(
         .map_err(|e| map_db_uuid_get_delete_error("virtual_machine", &virtual_machine_uuid, e))?;
 
     let description =
-        format!("Export virtual machine with UUID {virtual_machine_uuid} for its migration");
+        format!("Prepare migration of virtual machine with UUID {virtual_machine_uuid}");
     let info = CloudHypervisorVirtualMachineMigrationInfo {
         vm_uuid: *virtual_machine_uuid,
         description: description.clone(),
@@ -56,9 +56,9 @@ pub async fn export_virtual_machine_internal(
 
     let resp = super::add_migration_task(
         &virtual_machine_uuid,
-        TaskType::MigrationExport,
+        TaskType::MigrationPrepare,
         description,
-        TaskVariant::CloudHypervisorVirtualMachineMigrationExport(info),
+        TaskVariant::CloudHypervisorVirtualMachineMigrationPrepare(info),
         &context,
     )?;
 

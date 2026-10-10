@@ -237,7 +237,7 @@
           "migration"
         ],
         "summary": "Import virtual_machine",
-        "description": "Take over a virtual_machine, which was exported by another host.\\\n\\\nThe description of the virtual_machine is read from the source host and the virtual_machine is\\\ncreated on this host with the same identity, owner and project, in the state `MIGRATING`. A task\\\npulls its files from the source host afterwards and boots it with `boot`, because it was running\\\nbefore the migration. The TAP-device of the virtual_machine has to exist on this host already.",
+        "description": "Take over a virtual_machine, which was prepared by another host.\\\n\\\nThe description of the virtual_machine is read from the source host and the virtual_machine is\\\ncreated on this host with the same identity, owner and project, in the state `MIGRATING`. A task\\\npulls its files from the source host afterwards and boots it with `boot`, because it was running\\\nbefore the migration. The TAP-device of the virtual_machine has to exist on this host already.",
         "requestBody": {
           "content": {
             "application/json": {
@@ -337,7 +337,7 @@
           "migration"
         ],
         "summary": "Get migration",
-        "description": "Get the description of a virtual_machine, which is exported on this host for its migration.\\\n\\\nIt contains everything the target host needs to create the virtual_machine with the same\\\nidentity, including its owner and its project.",
+        "description": "Get the description of a virtual_machine, which is prepared on this host for its migration.\\\n\\\nIt contains everything the target host needs to create the virtual_machine with the same\\\nidentity, including its owner and its project.",
         "parameters": [
           {
             "name": "virtual_machine_uuid",
@@ -389,7 +389,7 @@
           "migration"
         ],
         "summary": "Remove migrated virtual_machine",
-        "description": "Create a new task, which removes the copy of a migrated virtual_machine from this host.\\\n\\\nThis is the source host after a successful migration, or the target host after a failed one.\\\nOnly a virtual_machine, which is exported or whose import failed, is removed. Unlike a normal\\\ndeletion, no deleted entry is kept, because the virtual_machine still exists on the other host.",
+        "description": "Create a new task, which removes the copy of a migrated virtual_machine from this host.\\\n\\\nThis is the source host after a successful migration, or the target host after a failed one.\\\nOnly a virtual_machine, which is prepared or whose import failed, is removed. Unlike a normal\\\ndeletion, no deleted entry is kept, because the virtual_machine still exists on the other host.",
         "parameters": [
           {
             "name": "virtual_machine_uuid",
@@ -482,13 +482,13 @@
         ]
       }
     },
-    "/v1alpha/virtual_machine/{virtual_machine_uuid}/migration/export/internal": {
+    "/v1alpha/virtual_machine/{virtual_machine_uuid}/migration/prepare/internal": {
       "post": {
         "tags": [
           "migration"
         ],
-        "summary": "Export virtual_machine",
-        "description": "Create a new task, which prepares a virtual_machine on this host for its migration to another host.\\\n\\\nA running virtual_machine is shut down gracefully, so it writes all its data to its disk.\\\nAfterwards it is frozen in the state `MIGRATING`, so it can not be started or changed anymore,\\\nwhile the target host pulls its files. Only a running or stopped virtual_machine can be exported.",
+        "summary": "Prepare migration",
+        "description": "Create a new task, which prepares a virtual_machine on this host for its migration to another host.\\\n\\\nA running virtual_machine is shut down gracefully, so it writes all its data to its disk.\\\nAfterwards it is frozen in the state `MIGRATING`, so it can not be started or changed anymore,\\\nwhile the target host pulls its files. Only a running or stopped virtual_machine can be prepared.",
         "parameters": [
           {
             "name": "virtual_machine_uuid",
@@ -587,7 +587,7 @@
           "migration"
         ],
         "summary": "Cancel migration",
-        "description": "Create a new task, which unfreezes a virtual_machine on this host, whose migration failed.\\\n\\\nThe virtual_machine is marked as stopped again and booted with `boot`, because it was running\\\nbefore the migration. A virtual_machine, which is not exported, is left as it is.",
+        "description": "Create a new task, which unfreezes a virtual_machine on this host, whose migration failed.\\\n\\\nThe virtual_machine is marked as stopped again and booted with `boot`, because it was running\\\nbefore the migration. A virtual_machine, which is not prepared, is left as it is.",
         "parameters": [
           {
             "name": "virtual_machine_uuid",
@@ -696,7 +696,7 @@
           "migration"
         ],
         "summary": "Get file of migration",
-        "description": "Stream a file of a virtual_machine, which is exported on this host for its migration.\\\n\\\nThe file is sent as a single zstd-frame, which contains the size and a checksum of the content.\\\nThe size of the uncompressed file is also sent in the header `X-Migration-File-Size`. The\\\nvirtual_machine has to be exported and its cloud-hypervisor process stopped, so the file doesn't\\\nchange during the transfer.",
+        "description": "Stream a file of a virtual_machine, which is prepared on this host for its migration.\\\n\\\nThe file is sent as a single zstd-frame, which contains the size and a checksum of the content.\\\nThe size of the uncompressed file is also sent in the header `X-Migration-File-Size`. The\\\nvirtual_machine has to be prepared and its cloud-hypervisor process stopped, so the file doesn't\\\nchange during the transfer.",
         "parameters": [
           {
             "name": "file",
@@ -1638,7 +1638,7 @@
       },
       "MigrationDescriptionResp": {
         "title": "MigrationDescriptionResp",
-        "description": "Everything the target sakura-host needs to know about an exported virtual_machine to create it again with the same identity",
+        "description": "Everything the target sakura-host needs to know about a prepared virtual_machine to create it again with the same identity",
         "type": "object",
         "required": [
           "created_at",
@@ -1718,7 +1718,7 @@
       },
       "MigrationImportReq": {
         "title": "MigrationImportReq",
-        "description": "Request to the target sakura-host to take over a virtual_machine, which was exported by the source sakura-host",
+        "description": "Request to the target sakura-host to take over a virtual_machine, which was prepared by the source sakura-host",
         "type": "object",
         "required": [
           "boot",
@@ -1915,7 +1915,7 @@
           "VirtualMachineStart",
           "VirtualMachineStop",
           "VirtualMachineReboot",
-          "MigrationExport",
+          "MigrationPrepare",
           "MigrationImport",
           "MigrationRemove",
           "MigrationCancel"

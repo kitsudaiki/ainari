@@ -17,7 +17,7 @@
 //!
 //! The migration runs in the background and moves the virtual_machine in these steps:
 //!
-//! 1. The source host exports the virtual_machine: it is shut down and frozen.
+//! 1. The source host prepares the virtual_machine: it is shut down and frozen.
 //! 2. The network of the virtual_machine is prepared on the target host and all gateways route
 //!    the virtual_machine to the target host (see `network`).
 //! 3. The target host imports the virtual_machine: it pulls its files directly from the source
@@ -164,8 +164,8 @@ pub fn spawn_migration(migration: Migration, session: Session, guard: MigrationG
 enum Progress {
     /// Nothing was changed yet, besides the allocated resources on the target host
     Started,
-    /// The export on the source host was requested
-    ExportRequested,
+    /// The preparation on the source host was requested
+    PrepareRequested,
     /// The network was touched on the target host and the other gateways
     NetworkMoved,
     /// The import on the target host was requested
@@ -242,8 +242,8 @@ async fn move_virtual_machine(
     .map_err(map_ainari_error_to_api_response)?;
     *boot = virtual_machine.vm_state == "RUNNING";
 
-    *progress = Progress::ExportRequested;
-    let task = migration_clients::export_virtual_machine(
+    *progress = Progress::PrepareRequested;
+    let task = migration_clients::prepare_migration(
         &migration.source.address,
         &session.context().await?.token,
         &config::INTERNAL_API_KEY,
@@ -253,7 +253,7 @@ async fn move_virtual_machine(
     .await
     .map_err(map_ainari_error_to_api_response)?;
     wait_for_task(session, &migration.source, &task).await?;
-    log::info!("Virtual_machine '{uuid}' is exported on the source host");
+    log::info!("Virtual_machine '{uuid}' is prepared on the source host");
 
     // the virtual_machine is shut down now, so its network can be moved, before it is started
     // on the target host
@@ -359,9 +359,9 @@ async fn rollback(
         log_rollback_step(uuid, "move the network back to the source host", result);
     }
 
-    if progress >= Progress::ExportRequested {
+    if progress >= Progress::PrepareRequested {
         let result = match session.context().await {
-            Ok(context) => migration_clients::cancel_export(
+            Ok(context) => migration_clients::cancel_migration(
                 &migration.source.address,
                 &context.token,
                 &config::INTERNAL_API_KEY,
@@ -616,8 +616,8 @@ mod tests {
     #[test]
     fn test_rollback_order_of_progress() {
         // a later step implies the earlier ones, which the rollback relies on
-        assert!(Progress::Started < Progress::ExportRequested);
-        assert!(Progress::ExportRequested < Progress::NetworkMoved);
+        assert!(Progress::Started < Progress::PrepareRequested);
+        assert!(Progress::PrepareRequested < Progress::NetworkMoved);
         assert!(Progress::NetworkMoved < Progress::ImportRequested);
     }
 }
