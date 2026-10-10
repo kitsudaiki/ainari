@@ -47,6 +47,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - optional field `host_uuid` for virtual-machine-create, with which an admin places the virtual
   machine on a specific sakura-host. It fails, if the host has not enough free resources. It is
   available as `--host` in `ainarictl vm create` and in the python- and go-sdk.
+- new component omikuji for central error- and audit-logging
 
 ### Fixed
 

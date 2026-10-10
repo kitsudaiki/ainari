@@ -257,3 +257,19 @@ These pages are only available for admins.
     ![Hosts](img/admin_host.jpg)
 
     ![Set host isolation](img/admin_host_isolation.jpg)
+
+- **Error Log** lists the newest 100 internal errors of all components, which are collected by
+    omikuji, with the newest first. Every entry contains the component and the host, where the
+    error occurred, and the user and project, whose request caused it. Errors of background jobs,
+    which no user caused, have no user and project. Long messages are shortened in the table,
+    **Info** shows the complete entry.
+
+    ![Error log](img/admin_error_log.jpg)
+
+    ![Error log entry](img/admin_error_log_info.jpg)
+
+- **Audit Log** lists the newest 100 requests against the api of all components, with the newest
+    first. Every entry contains the component and its host, the user and project of the request,
+    the type of the request and the called endpoint. **Info** shows the complete entry.
+
+    ![Audit log](img/admin_audit_log.jpg)

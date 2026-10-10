@@ -1260,6 +1260,17 @@
           "omamori": {
             "$ref": "#/components/schemas/EndpointField"
           },
+          "omikuji": {
+            "default": {
+              "internal_address": "",
+              "public_address": ""
+            },
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EndpointField"
+              }
+            ]
+          },
           "ryokan": {
             "$ref": "#/components/schemas/EndpointField"
           },

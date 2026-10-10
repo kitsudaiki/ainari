@@ -113,12 +113,7 @@ marked code too.
 
 ### Audit-Log
 
-**Status: <span style="color:#e6b800">partially implemented</span>**
-
-!!! info
-
-    For the API: Middleware already exists, but there is no target to send the information at the
-    moment.
+**Status: <span style="color:#4caf50">implemented</span> (since v0.22.0)**
 
 Any API access by any user is handled by a middleware in front of each API. Every REST-API request
 must go through this middleware. The access information is then sent to a central log service, where
@@ -269,7 +264,7 @@ a Monorepo makes much more sense for this project, even it contains microservice
 
 ### Built-in central error-logging
 
-**Status: <span style="color:#e53935">planned</span>**
+**Status: <span style="color:#4caf50">implemented</span> (since v0.22.0)**
 
 Any internal error is sent to a central error-log, with all information around the error with
 user-id and so on, to make problems of users easier to find and debug.
@@ -281,3 +276,17 @@ user-id and so on, to make problems of users easier to find and debug.
 The complete stack is deployed by a kubernetes operator from a single custom-resource of the kind
 `Ainari`. So only the operator has to be deployed by the user and the rest, including all keys and
 passwords, is handled by the operator.
+
+### Project-Backups
+
+**Status: <span style="color:#e53935">planned</span>**
+
+Entire projects can be backuped with network configurations and so on, to restore not only the
+disks for VMs, but entire projects with user-, network- and VM-configuration.
+
+### Load-balancer-as-a-Service
+
+**Status: <span style="color:#e53935">planned</span>**
+
+To share load between multiple VMs, a load-balancer can be added as minimal pre-defined
+VM into the project network, to split incoming traffic.

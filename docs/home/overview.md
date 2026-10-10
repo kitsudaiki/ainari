@@ -15,50 +15,9 @@ must at first login in his user-account over Miko, which returns a JWT-token. Th
 user can also access all other component, except the Onsen. Each components checks the provided
 JWT-tokens against Miko, to check if the token is valid.
 
-!!! info
-
-    At the moment the project-management is basically non-existing even the project-db-table and
-    endpoints are present. Will be fixed in the future. Also RBAC roles will be handled later by
-    Miko too.
-
-### Omamori
-
-Omamori is the protection component and is basically a key-manager. It provides basic functionality
-to upload, generate and download keys.
-
-!!! info
-
-    Current only a simple crypto process is done by omamori, where uploaded and generated keys are
-    encrypted by a key from the config and stored encrypted within the database. Will be updated by
-    a Vault-connection and other backends in the future.
-
-### Onsen
-
-The Onsen is the storage-pool all images and snapshots from the Ryokan and Sakura are stored
-here. This component is/must not be accessible from the internet. Its also doesn't check JWT-tokens,
-because it doesn't contain a REST-API. It interacts with the Ryokan and Sakura over a
-grpc-connection and protobuffer-messages. In the kubernetes-setup these 2 connections are secured by
-a wireguard-tunnel.
-
-!!! info
-
-    In the kubernetes-installation Onsen can run with multiple instances. Every one has its own
-    volume and registers itself at Ryokan, and the operator connects every Onsen with every Ryokan
-    and every Sakura-host over the wireguard-tunnel.
-
-### Ryokan
-
-Ryokan manage the Onsen-hosts. Images for new virtual machines
-can be uploaded, and will be converted and against a key from Omamori encrypted before the files are
-placed in the Onsen.
-
 ### Sakura
 
 Sakura is the compute hosts of this IaaS stack. It manage the cloud hypervisor VMs.
-
-!!! info
-
-    Migration of model between Sakura-hosts is currently not possible. Will come later.
 
 ### Hanami
 
@@ -80,6 +39,40 @@ Torii is the gateway-component, is configured by hanami and handles 2 differen p
 2. Torii also provides the networks between the virtual machines and from the virtual machines to
    the internet. There is a public Torii as gateway to the outside and one Torii on each Sakura
    Host.
+
+### Onsen
+
+The Onsen is the storage-pool all images and snapshots from the Ryokan and Sakura are stored
+here. This component is/must not be accessible from the internet. Its also doesn't check JWT-tokens,
+because it doesn't contain a REST-API. It interacts with the Ryokan and Sakura over a
+grpc-connection and protobuffer-messages. In the kubernetes-setup these 2 connections are secured by
+a wireguard-tunnel.
+
+### Ryokan
+
+Ryokan manage the Onsen-hosts. Images for new virtual machines
+can be uploaded, and will be converted and against a key from Omamori encrypted before the files are
+placed in the Onsen.
+
+### Omikuji
+
+Omikuji is the central point to collect error- and audit-log entries from all components of the stack.
+
+### Izakaya
+
+Izakaya provide the key-exchange mechanis to provide keys to the hosts for the IPsec encryption. It uses
+the MLS (Messaging Layer Security) for the exchange.
+
+### Omamori
+
+Omamori is the protection component and is basically a key-manager. It provides basic functionality
+to upload, generate and download keys.
+
+!!! info
+
+    Current only a simple crypto process is done by omamori, where uploaded and generated keys are
+    encrypted by a key from the config and stored encrypted within the database. Will be updated by
+    a Vault-connection and other backends in the future.
 
 ## other
 
