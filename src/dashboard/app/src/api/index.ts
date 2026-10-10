@@ -19,6 +19,7 @@
 export * as hanami from "./hanami";
 export * as miko from "./miko";
 export * as omamori from "./omamori";
+export * as omikuji from "./omikuji";
 export * as ryokan from "./ryokan";
 export * as sakura from "./sakura";
 export * from "./types";

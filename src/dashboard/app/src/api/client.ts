@@ -53,6 +53,11 @@ export function omamoriClient(): AxiosInstance {
     return createClient(getAuthContext().omamori_address);
 }
 
+/** Client for the omikuji, which collects the error- and audit-logs of all components. */
+export function omikujiClient(): AxiosInstance {
+    return createClient(getAuthContext().omikuji_address);
+}
+
 /**
  * Creates a client for the sakura of a single virtual-machine. The sakura is not
  * reachable directly, but only through the torii, which provides one port per

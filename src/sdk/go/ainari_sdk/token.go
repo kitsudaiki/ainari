@@ -69,6 +69,8 @@ func RequestContext(address, user, passphrase, projectId string, skipTlsVerifica
 	ryokanAddr := resp["ryokan"].(map[string]interface{})
 	toriiAddr := resp["torii"].(map[string]interface{})
 	omamoriAddr := resp["omamori"].(map[string]interface{})
+	// omikuji is optional, so a deployment without it has no or an empty endpoint for it
+	omikujiAddr, _ := resp["omikuji"].(map[string]interface{})
 
 	// fill context
 	context.token = token
@@ -76,6 +78,7 @@ func RequestContext(address, user, passphrase, projectId string, skipTlsVerifica
 	context.HanamiAddress = hanamiAddr["public_address"].(string)
 	context.RyokanAddress = ryokanAddr["public_address"].(string)
 	context.OmamoriAddress = omamoriAddr["public_address"].(string)
+	context.OmikujiAddress, _ = omikujiAddr["public_address"].(string)
 	context.ToriiAddress = toriiAddr["public_address"].(string)
 	context.ToriiBaseAddress = toriiAddr["public_address"].(string)
 	context.skipTlsVerification = skipTlsVerification

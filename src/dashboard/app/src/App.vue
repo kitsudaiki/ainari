@@ -104,6 +104,8 @@ import AdminProjectMember from "@/components/admin/project/project_member_overvi
 import AdminQuota from "@/components/admin/quota/quota_overview.vue";
 import AdminHost from "@/components/admin/host/host_overview.vue";
 import AdminVmType from "@/components/admin/vm_type/vm_type_overview.vue";
+import AdminErrorLog from "@/components/admin/error_log/error_log_overview.vue";
+import AdminAuditLog from "@/components/admin/audit_log/audit_log_overview.vue";
 import StorageImage from "@/components/storage/image/image_overview.vue";
 import NetworkNetwork from "@/components/network/network/network_overview.vue";
 import NetworkFloatingIp from "@/components/network/floating_ip/floating_ip_overview.vue";
@@ -154,6 +156,8 @@ const components = {
     AdminQuota,
     AdminHost,
     AdminVmType,
+    AdminErrorLog,
+    AdminAuditLog,
     StorageImage,
     NetworkNetwork,
     NetworkFloatingIp,
