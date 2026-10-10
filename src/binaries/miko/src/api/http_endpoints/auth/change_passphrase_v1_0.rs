@@ -45,7 +45,7 @@ pub async fn change_passphrase(
 
     // get user from database
     let user = user_table::get_auth_user(user_id)
-        .map_err(|e| map_db_id_get_delete_error("user", user_id, e))?;
+        .map_err(|e| map_db_id_get_delete_error("user", user_id, e, Some(&context)))?;
 
     // check old passphrase
     if !user_table::verify_passphrase(&user, &body.old_passphrase) {
@@ -56,7 +56,7 @@ pub async fn change_passphrase(
 
     // write new passphrase to database
     user_table::update_passphrase(user_id, &body.new_passphrase, &context)
-        .map_err(|e| map_db_id_get_delete_error("user", user_id, e))?;
+        .map_err(|e| map_db_id_get_delete_error("user", user_id, e, Some(&context)))?;
 
     Ok(NoContent)
 }

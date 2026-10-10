@@ -70,8 +70,14 @@ pub async fn update_route_internal(
             Ok(()) => Ok(()),
             Err(enums::DbError::NotFound) => route_table::add_new_route(route, &context)
                 .map(|_| ())
-                .map_err(|e| map_db_write_error(&format!("persist route '{route_uuid}'"), e)),
+                .map_err(|e| {
+                    map_db_write_error(&format!("persist route '{route_uuid}'"), e, Some(&context))
+                }),
             Err(enums::DbError::InternalError) => {
+                ainari_api::report_internal_error!(
+                    Some(&context),
+                    "Failed to update route '{route_uuid}' in database"
+                );
                 Err(ErrorResponse::InternalError("Internal Error".to_string()))
             }
             Err(enums::DbError::PermissionDenied) => Err(permission_denied_response()),

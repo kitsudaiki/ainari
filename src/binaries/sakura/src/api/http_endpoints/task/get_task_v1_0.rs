@@ -40,7 +40,7 @@ pub async fn get_task(
     let task_uuid = task_uuid.into_inner();
 
     let task_data = task_table::get_task(&task_uuid, &context)
-        .map_err(|e| map_db_uuid_get_delete_error("task", &task_uuid, e))?;
+        .map_err(|e| map_db_uuid_get_delete_error("task", &task_uuid, e, Some(&context)))?;
 
     let resp = TaskResp {
         uuid: task_uuid,

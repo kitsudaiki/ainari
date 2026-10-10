@@ -38,8 +38,8 @@ pub async fn list_project_admin(
     check_admin_context(&context)?;
 
     // get list of all projects from database
-    let projects =
-        project_table::list_projects(&context).map_err(|e| map_db_list_error("projects", e))?;
+    let projects = project_table::list_projects(&context)
+        .map_err(|e| map_db_list_error("projects", e, Some(&context)))?;
 
     let mut resp = ProjectListResp {
         projects: Vec::new(),

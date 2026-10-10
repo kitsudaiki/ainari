@@ -45,3 +45,7 @@ internal_address = "http://127.0.0.1:10421"
 [endpoints.izakaya]
 public_address = "http://127.0.0.1:11423"
 internal_address = "http://127.0.0.1:10423"
+
+[endpoints.omikuji]
+public_address = "http://127.0.0.1:11424"
+internal_address = "http://127.0.0.1:10424"

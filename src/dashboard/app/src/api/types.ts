@@ -568,3 +568,30 @@ export interface TaskSnapshotRestoreReq {
     /** Image, which must be a snapshot. */
     image_uuid: string;
 }
+
+//=============================================================================
+// error-log / audit-log (omikuji)
+//=============================================================================
+
+/** Mirror of `log_structs::ErrorLogResp`. */
+export interface ErrorLogResp {
+    uuid: string;
+    message: string;
+    component_name: string;
+    host_name: string;
+    user_id: string;
+    project_id: string;
+    created_at: string;
+}
+
+/** Mirror of `log_structs::AuditLogResp`. */
+export interface AuditLogResp {
+    uuid: string;
+    request_type: string;
+    endpoint: string;
+    component_name: string;
+    host_name: string;
+    user_id: string;
+    project_id: string;
+    created_at: string;
+}

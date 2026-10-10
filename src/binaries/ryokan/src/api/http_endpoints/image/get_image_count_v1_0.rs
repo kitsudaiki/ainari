@@ -30,8 +30,8 @@ use ainari_api_structs::user_context::UserContext;
     error_code = 500
 )]
 pub async fn get_image_count(context: UserContext) -> Result<Json<Count>, ErrorResponse> {
-    let number_of_image =
-        image_table::count_images(&context).map_err(|e| map_db_count_error("image-meta", e))?;
+    let number_of_image = image_table::count_images(&context)
+        .map_err(|e| map_db_count_error("image-meta", e, Some(&context)))?;
 
     let image_resp = Count {
         number_of_items: number_of_image as u64,

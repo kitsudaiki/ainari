@@ -64,7 +64,9 @@ pub async fn check_token(
                     log::error!(
                         "Error while sending request for token-validation. Got response-code: {code}"
                     );
-                    return Err(AinariError::InternalError("".to_string()));
+                    return Err(AinariError::internal(format!(
+                        "Error while sending request for token-validation. Got response-code: {code}"
+                    )));
                 }
             }
 
@@ -72,7 +74,9 @@ pub async fn check_token(
                 Ok(body) => String::from_utf8_lossy(&body).into_owned(),
                 Err(e) => {
                     log::error!("Error while getting token-validation-body: {e}");
-                    return Err(AinariError::InternalError("".to_string()));
+                    return Err(AinariError::internal(format!(
+                        "Error while getting token-validation-body: {e}"
+                    )));
                 }
             };
             Ok(body_str)
@@ -80,7 +84,9 @@ pub async fn check_token(
         }
         Err(e) => {
             log::error!("Error while sending request for token-validation: {e}");
-            Err(AinariError::InternalError("".to_string()))
+            Err(AinariError::internal(format!(
+                "Error while sending request for token-validation: {e}"
+            )))
         }
     }
 }

@@ -35,13 +35,13 @@ has to process them. They stay until the gateway acknowledges them by deleting t
 )]
 pub async fn list_mls_message_internal(
     path: Path<ClientPath>,
-    _context: UserContext,
+    context: UserContext,
 ) -> Result<Json<MlsMessageListResp>, ErrorResponse> {
     // the gateways poll their messages all the time, which tells, that they are alive
     record_contact(&path.client_id);
 
     let entries = mls_message_table::list_mls_messages(&path.client_id)
-        .map_err(|e| map_db_list_error("mls-message", e))?;
+        .map_err(|e| map_db_list_error("mls-message", e, Some(&context)))?;
 
     let mut resp = MlsMessageListResp::default();
     for entry in entries {

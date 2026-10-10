@@ -1,0 +1,759 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Omikuji-API-Documentation",
+    "contact": {
+      "email": "tobias.anker@kitsunemimi.moe"
+    },
+    "license": {
+      "name": "Apache 2.0",
+      "url": "http://www.apache.org/licenses/LICENSE-2.0.html"
+    },
+    "version": "unknown"
+  },
+  "servers": [],
+  "paths": {
+    "/v1alpha/version": {
+      "get": {
+        "tags": [
+          "version"
+        ],
+        "summary": "Get version",
+        "description": "Get the version of the binary consisting of Tag or Branch-name together with the commit-hash.",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VersionResp"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/is_ready": {
+      "get": {
+        "tags": [
+          "version"
+        ],
+        "summary": "Get ready status",
+        "description": "Get status of the service endpoint.",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadyResp"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/error_log/internal": {
+      "post": {
+        "tags": [
+          "error_log"
+        ],
+        "summary": "Add error-message (internal)",
+        "description": "Add a new error-message of another component to the central error-log.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ErrorLogAddInternalReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "ErrorLogResp",
+                  "description": "Single entry of the error-log.",
+                  "type": "object",
+                  "required": [
+                    "component_name",
+                    "created_at",
+                    "host_name",
+                    "message",
+                    "project_id",
+                    "user_id",
+                    "uuid"
+                  ],
+                  "properties": {
+                    "component_name": {
+                      "type": "string"
+                    },
+                    "created_at": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "host_name": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "project_id": {
+                      "type": "string"
+                    },
+                    "user_id": {
+                      "type": "string"
+                    },
+                    "uuid": {
+                      "type": "string",
+                      "format": "uuid"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false
+      }
+    },
+    "/v1alpha/error_log/admin": {
+      "get": {
+        "tags": [
+          "error_log"
+        ],
+        "summary": "List error-messages",
+        "description": "List the error-messages of the central error-log, sorted by their creation-time with the newest first. They can be filtered by the optional query-parameters `project_id`, `user_id` and `host_name`, and the number of returned entries can be limited by `limit`, which defaults to 100. This can only be done by an admin.",
+        "parameters": [
+          {
+            "name": "host_name",
+            "in": "query",
+            "description": "Only list the entries of this host",
+            "required": false,
+            "schema": {
+              "description": "Only list the entries of this host",
+              "type": "string",
+              "nullable": true
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum number of entries to return, the newest first. Defaults to 100.",
+            "required": false,
+            "schema": {
+              "description": "Maximum number of entries to return, the newest first. Defaults to 100.",
+              "type": "integer",
+              "format": "uint32",
+              "maximum": 10000.0,
+              "minimum": 1.0,
+              "nullable": true
+            }
+          },
+          {
+            "name": "project_id",
+            "in": "query",
+            "description": "Only list the entries of this project",
+            "required": false,
+            "schema": {
+              "description": "Only list the entries of this project",
+              "type": "string",
+              "nullable": true
+            }
+          },
+          {
+            "name": "user_id",
+            "in": "query",
+            "description": "Only list the entries of this user",
+            "required": false,
+            "schema": {
+              "description": "Only list the entries of this user",
+              "type": "string",
+              "nullable": true
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorLogListResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/error_log/{error_log_uuid}/admin": {
+      "get": {
+        "tags": [
+          "error_log"
+        ],
+        "summary": "Get error-message",
+        "description": "Get a single error-message from the central error-log. This can only be done by an admin.",
+        "parameters": [
+          {
+            "name": "error_log_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Uuid",
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorLogResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/audit_log/internal": {
+      "post": {
+        "tags": [
+          "audit_log"
+        ],
+        "summary": "Add audit-log entry (internal)",
+        "description": "Add a new entry of another component to the central audit-log.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuditLogAddInternalReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "AuditLogResp",
+                  "description": "Single entry of the audit-log.",
+                  "type": "object",
+                  "required": [
+                    "component_name",
+                    "created_at",
+                    "endpoint",
+                    "host_name",
+                    "project_id",
+                    "request_type",
+                    "user_id",
+                    "uuid"
+                  ],
+                  "properties": {
+                    "component_name": {
+                      "type": "string"
+                    },
+                    "created_at": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "endpoint": {
+                      "type": "string"
+                    },
+                    "host_name": {
+                      "type": "string"
+                    },
+                    "project_id": {
+                      "type": "string"
+                    },
+                    "request_type": {
+                      "type": "string"
+                    },
+                    "user_id": {
+                      "type": "string"
+                    },
+                    "uuid": {
+                      "type": "string",
+                      "format": "uuid"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false
+      }
+    },
+    "/v1alpha/audit_log/admin": {
+      "get": {
+        "tags": [
+          "audit_log"
+        ],
+        "summary": "List audit-log entries",
+        "description": "List the entries of the central audit-log, sorted by their creation-time with the newest first. They can be filtered by the optional query-parameters `project_id`, `user_id` and `host_name`, and the number of returned entries can be limited by `limit`, which defaults to 100. This can only be done by an admin.",
+        "parameters": [
+          {
+            "name": "host_name",
+            "in": "query",
+            "description": "Only list the entries of this host",
+            "required": false,
+            "schema": {
+              "description": "Only list the entries of this host",
+              "type": "string",
+              "nullable": true
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum number of entries to return, the newest first. Defaults to 100.",
+            "required": false,
+            "schema": {
+              "description": "Maximum number of entries to return, the newest first. Defaults to 100.",
+              "type": "integer",
+              "format": "uint32",
+              "maximum": 10000.0,
+              "minimum": 1.0,
+              "nullable": true
+            }
+          },
+          {
+            "name": "project_id",
+            "in": "query",
+            "description": "Only list the entries of this project",
+            "required": false,
+            "schema": {
+              "description": "Only list the entries of this project",
+              "type": "string",
+              "nullable": true
+            }
+          },
+          {
+            "name": "user_id",
+            "in": "query",
+            "description": "Only list the entries of this user",
+            "required": false,
+            "schema": {
+              "description": "Only list the entries of this user",
+              "type": "string",
+              "nullable": true
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditLogListResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/audit_log/{audit_log_uuid}/admin": {
+      "get": {
+        "tags": [
+          "audit_log"
+        ],
+        "summary": "Get audit-log entry",
+        "description": "Get a single entry from the central audit-log. This can only be done by an admin.",
+        "parameters": [
+          {
+            "name": "audit_log_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Uuid",
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditLogResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AuditLogAddInternalReq": {
+        "title": "AuditLogAddInternalReq",
+        "description": "Request of the other components to add an entry to the audit-log of omikuji.",
+        "type": "object",
+        "required": [
+          "component_name",
+          "endpoint",
+          "host_name",
+          "project_id",
+          "request_type",
+          "user_id"
+        ],
+        "properties": {
+          "component_name": {
+            "description": "Name of the component, which reports the entry, like `hanami`",
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1
+          },
+          "endpoint": {
+            "description": "Endpoint, which was called by the audited request",
+            "type": "string",
+            "maxLength": 1024,
+            "minLength": 1
+          },
+          "host_name": {
+            "description": "Host, where the entry was created",
+            "type": "string",
+            "maxLength": 256
+          },
+          "project_id": {
+            "description": "Project, which is related to the entry. Empty, if the entry belongs to no project.",
+            "type": "string",
+            "maxLength": 256
+          },
+          "request_type": {
+            "description": "Type of the audited request, like `POST`",
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1
+          },
+          "user_id": {
+            "description": "User, which is related to the entry. Empty, if the entry was not caused by a user.",
+            "type": "string",
+            "maxLength": 256
+          }
+        }
+      },
+      "AuditLogListResp": {
+        "title": "AuditLogListResp",
+        "type": "object",
+        "required": [
+          "entries"
+        ],
+        "properties": {
+          "entries": {
+            "description": "The entries, sorted by their creation-time with the newest first",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AuditLogResp"
+            }
+          }
+        }
+      },
+      "AuditLogResp": {
+        "title": "AuditLogResp",
+        "description": "Single entry of the audit-log.",
+        "type": "object",
+        "required": [
+          "component_name",
+          "created_at",
+          "endpoint",
+          "host_name",
+          "project_id",
+          "request_type",
+          "user_id",
+          "uuid"
+        ],
+        "properties": {
+          "component_name": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endpoint": {
+            "type": "string"
+          },
+          "host_name": {
+            "type": "string"
+          },
+          "project_id": {
+            "type": "string"
+          },
+          "request_type": {
+            "type": "string"
+          },
+          "user_id": {
+            "type": "string"
+          },
+          "uuid": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "ErrorLogAddInternalReq": {
+        "title": "ErrorLogAddInternalReq",
+        "description": "Request of the other components to add an error-message to the error-log of omikuji.",
+        "type": "object",
+        "required": [
+          "component_name",
+          "host_name",
+          "message",
+          "project_id",
+          "user_id"
+        ],
+        "properties": {
+          "component_name": {
+            "description": "Name of the component, which reports the entry, like `hanami`",
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1
+          },
+          "host_name": {
+            "description": "Host, where the entry was created",
+            "type": "string",
+            "maxLength": 256
+          },
+          "message": {
+            "type": "string",
+            "maxLength": 65535,
+            "minLength": 1
+          },
+          "project_id": {
+            "description": "Project, which is related to the entry. Empty, if the entry belongs to no project.",
+            "type": "string",
+            "maxLength": 256
+          },
+          "user_id": {
+            "description": "User, which is related to the entry. Empty, if the entry was not caused by a user.",
+            "type": "string",
+            "maxLength": 256
+          }
+        }
+      },
+      "ErrorLogListResp": {
+        "title": "ErrorLogListResp",
+        "type": "object",
+        "required": [
+          "entries"
+        ],
+        "properties": {
+          "entries": {
+            "description": "The entries, sorted by their creation-time with the newest first",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ErrorLogResp"
+            }
+          }
+        }
+      },
+      "ErrorLogResp": {
+        "title": "ErrorLogResp",
+        "description": "Single entry of the error-log.",
+        "type": "object",
+        "required": [
+          "component_name",
+          "created_at",
+          "host_name",
+          "message",
+          "project_id",
+          "user_id",
+          "uuid"
+        ],
+        "properties": {
+          "component_name": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "host_name": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "project_id": {
+            "type": "string"
+          },
+          "user_id": {
+            "type": "string"
+          },
+          "uuid": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "ReadyResp": {
+        "title": "ReadyResp",
+        "type": "object",
+        "required": [
+          "api"
+        ],
+        "properties": {
+          "api": {
+            "type": "boolean"
+          }
+        }
+      },
+      "VersionResp": {
+        "title": "VersionResp",
+        "type": "object",
+        "required": [
+          "commit_hash",
+          "timestamp",
+          "version"
+        ],
+        "properties": {
+          "commit_hash": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "user_context": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  },
+  "externalDocs": {
+    "description": "Find out more about Swagger",
+    "url": "http://swagger.io"
+  }
+}

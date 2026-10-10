@@ -36,8 +36,9 @@ pub async fn delete_public_key(
     public_key_uuid: Path<Uuid>,
     context: UserContext,
 ) -> Result<NoContent, ErrorResponse> {
-    public_key_table::delete_public_key(&public_key_uuid, &context)
-        .map_err(|e| map_db_uuid_get_delete_error("public_key", &public_key_uuid, e))?;
+    public_key_table::delete_public_key(&public_key_uuid, &context).map_err(|e| {
+        map_db_uuid_get_delete_error("public_key", &public_key_uuid, e, Some(&context))
+    })?;
 
     Ok(NoContent)
 }

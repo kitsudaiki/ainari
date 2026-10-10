@@ -39,13 +39,13 @@ pub async fn list_virtual_machine(
 ) -> Result<Json<VirtualMachineListResp>, ErrorResponse> {
     // get virtual_machines from db
     let virtual_machines = meta_virtual_machine_table::list_meta_virtual_machines(&context)
-        .map_err(|e| map_db_list_error("hosts", e))?;
+        .map_err(|e| map_db_list_error("hosts", e, Some(&context)))?;
 
     // get endpoints from miko
     let miko_endpoint = &config::CONFIG.miko;
     let endpoints = get_endpoints(miko_endpoint, config::CONFIG.skip_tls_verification)
         .await
-        .map_err(map_ainari_error_to_api_response)?;
+        .map_err(|e| map_ainari_error_to_api_response(e, Some(&context)))?;
 
     // prepare response
     let mut resp = VirtualMachineListResp {
@@ -65,12 +65,15 @@ pub async fn list_virtual_machine(
             config::CONFIG.skip_tls_verification,
         )
         .await
-        .map_err(map_ainari_error_to_api_response)?;
+        .map_err(|e| map_ainari_error_to_api_response(e, Some(&context)))?;
 
         // add single object to the reponse-list
         // the number of cores comes from an i32 at the reservation, so it always fits
         let number_of_cores = i32::try_from(virtual_machine.number_of_cores).map_err(|_| {
-            log::error!("Invalid number of cores of virtual_machine with UUID '{uuid}'.");
+            ainari_api::report_internal_error!(
+                Some(&context),
+                "Invalid number of cores of virtual_machine with UUID '{uuid}'."
+            );
             ErrorResponse::InternalError("Internal Error".to_string())
         })?;
 

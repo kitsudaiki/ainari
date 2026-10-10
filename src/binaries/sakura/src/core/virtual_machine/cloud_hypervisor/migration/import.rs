@@ -110,7 +110,7 @@ async fn import(
     client
         .boot_vm()
         .await
-        .map_err(|e| AinariError::InternalError(format!("Boot VM {uuid} failed: {e:?}")))?;
+        .map_err(|e| AinariError::internal(format!("Boot VM {uuid} failed: {e:?}")))?;
     set_vm_state(uuid, VirtualMachineState::Running, context)?;
 
     log::info!("VM {uuid} imported and started");

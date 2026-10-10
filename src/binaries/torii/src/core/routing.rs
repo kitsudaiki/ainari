@@ -127,7 +127,7 @@ pub async fn add_route(
         .route_map
         .insert(route_key, RouteTargetPod(target), 0)
         .map_err(|e| {
-            log::error!("eBPF Map error: {e}");
+            ainari_api::report_internal_error!(None, "eBPF Map error: {e}");
             ErrorResponse::InternalError("Internal Error".to_string())
         })
         .and_then(|_| persist(&route));
@@ -266,7 +266,13 @@ pub async fn update_route(
                 .map(RouteTargetPod),
         };
         let rollback = previous_target
-            .map_err(ErrorResponse::InternalError)
+            .map_err(|e| {
+                ainari_api::report_internal_error!(
+                    None,
+                    "Failed to build the previous target of route '{route_uuid}': {e}"
+                );
+                ErrorResponse::InternalError(e)
+            })
             .and_then(|target| {
                 program_route(&mut ebpf_interf, &updated_route, &previous_route, target)
             });
@@ -308,7 +314,7 @@ fn program_route(
     // ATOMIC KERNEL UPDATE: overwriting the key redirects the traffic instantly,
     // without a delete/create gap.
     if let Err(e) = ebpf_interf.route_map.insert(RouteKeyPod(to_key), target, 0) {
-        log::error!("eBPF Map error on update: {e}");
+        ainari_api::report_internal_error!(None, "eBPF Map error on update: {e}");
         return Err(ErrorResponse::InternalError("Internal Error".to_string()));
     }
 
@@ -322,7 +328,11 @@ fn program_route(
 
     // The packet filters belong to the address the route leads to, so they move with the route.
     move_filters(ebpf_interf, from, to).map_err(|e| {
-        log::error!("Failed to move packet-filters of route '{}': {e}", to.uuid);
+        ainari_api::report_internal_error!(
+            None,
+            "Failed to move packet-filters of route '{}': {e}",
+            to.uuid
+        );
         ErrorResponse::InternalError("Internal Error".to_string())
     })?;
 

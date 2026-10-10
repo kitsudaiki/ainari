@@ -31,10 +31,10 @@ use ainari_api_structs::user_context::UserContext;
 )]
 pub async fn get_key_package_count_internal(
     path: Path<ClientPath>,
-    _context: UserContext,
+    context: UserContext,
 ) -> Result<Json<KeyPackageCountResp>, ErrorResponse> {
     let count = key_package_table::count_key_packages(&path.client_id)
-        .map_err(|e| map_db_count_error("key-package", e))?;
+        .map_err(|e| map_db_count_error("key-package", e, Some(&context)))?;
 
     Ok(Json(KeyPackageCountResp {
         client_id: path.client_id.clone(),

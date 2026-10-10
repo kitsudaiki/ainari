@@ -149,12 +149,12 @@ fn kill_vmm(socket_path: &str) -> Result<(), AinariError> {
     let status = Command::new("pkill")
         .args(["-KILL", "-f", "--", &pattern])
         .status()
-        .map_err(|e| AinariError::InternalError(format!("Failed to execute pkill process: {e}")))?;
+        .map_err(|e| AinariError::internal(format!("Failed to execute pkill process: {e}")))?;
 
     // exit-code 1 of pkill means, that no process matched, so it is already gone
     match status.code() {
         Some(0) | Some(1) => Ok(()),
-        _ => Err(AinariError::InternalError(format!(
+        _ => Err(AinariError::internal(format!(
             "pkill failed with exit status: {status}"
         ))),
     }
@@ -172,7 +172,7 @@ fn remove_file(path: &str) -> Result<(), AinariError> {
     match std::fs::remove_file(path) {
         Ok(()) => Ok(()),
         Err(e) if e.kind() == ErrorKind::NotFound => Ok(()),
-        Err(e) => Err(AinariError::InternalError(format!(
+        Err(e) => Err(AinariError::internal(format!(
             "Failed to delete file {path}: {e}"
         ))),
     }
@@ -190,7 +190,7 @@ fn remove_directory(path: &str) -> Result<(), AinariError> {
     match std::fs::remove_dir_all(path) {
         Ok(()) => Ok(()),
         Err(e) if e.kind() == ErrorKind::NotFound => Ok(()),
-        Err(e) => Err(AinariError::InternalError(format!(
+        Err(e) => Err(AinariError::internal(format!(
             "Failed to delete directory {path}: {e}"
         ))),
     }

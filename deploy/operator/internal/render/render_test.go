@@ -58,6 +58,7 @@ func testSpec() *ainariv1alpha1.AinariSpec {
 		Sakura:  ainariv1alpha1.SakuraSpec{Replicas: 1, Image: "kitsudaiki/sakura:develop", Domain: "local-sakura", KVMGID: 993, HostDataPath: "/etc/ainari"},
 		Ryokan:  ainariv1alpha1.RyokanSpec{Replicas: 1, Image: "kitsudaiki/ryokan:develop", Domain: "local-ryokan"},
 		Omamori: ainariv1alpha1.OmamoriSpec{Replicas: 1, Image: "kitsudaiki/omamori:develop", Domain: "local-omamori"},
+		Omikuji: ainariv1alpha1.OmikujiSpec{Replicas: 1, Image: "kitsudaiki/omikuji:develop", Domain: "local-omikuji"},
 		Izakaya: ainariv1alpha1.IzakayaSpec{Replicas: 1, Image: "kitsudaiki/izakaya:develop", Domain: "local-izakaya", KeyRotationInterval: 3600, MemberTimeout: 120},
 		Onsen: ainariv1alpha1.OnsenSpec{
 			Replicas: 1, Image: "kitsudaiki/onsen:develop", StorageClass: "local-path", StorageSize: resource.MustParse("1Gi"),
@@ -118,6 +119,7 @@ func TestRenderDefaultStack(t *testing.T) {
 
 	for _, key := range []string{
 		"Deployment/miko", "Deployment/hanami", "Deployment/omamori", "Deployment/izakaya",
+		"Deployment/omikuji", "Ingress/omikuji-ingress",
 		"Deployment/torii-public", "Deployment/dashboard",
 		"StatefulSet/mysql", "StatefulSet/ryokan", "StatefulSet/onsen", "StatefulSet/sakura",
 		"Issuer/ainari-ca-issuer", "Certificate/miko-cert", "Ingress/miko-ingress",
@@ -282,4 +284,23 @@ func hasContainer(containers []corev1.Container, name string) bool {
 		}
 	}
 	return false
+}
+
+func TestRenderOmikuji(t *testing.T) {
+	objects := renderObjects(t, testSpec())
+
+	// miko hands out the address of omikuji, so the other components can send their logs to it
+	mikoConfig := objects["ConfigMap/miko-config"].(*corev1.ConfigMap).Data["miko.toml"]
+	if !strings.Contains(mikoConfig, "[endpoints.omikuji]") ||
+		!strings.Contains(mikoConfig, `internal_address = "https://omikuji-tls-service.test.svc.cluster.local:8443"`) {
+		t.Errorf("the endpoint of omikuji is missing in the config of miko:\n%s", mikoConfig)
+	}
+
+	// omikuji stores the logs in its own database of the mysql-server
+	config := objects["ConfigMap/omikuji-config"].(*corev1.ConfigMap).Data["omikuji.toml"]
+	for _, wanted := range []string{`database_type = "mysql"`, "internal_port = 10424", "[mysql]"} {
+		if !strings.Contains(config, wanted) {
+			t.Errorf("'%s' is missing in the config of omikuji:\n%s", wanted, config)
+		}
+	}
 }

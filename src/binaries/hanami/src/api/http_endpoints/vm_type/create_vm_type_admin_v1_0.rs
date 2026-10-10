@@ -57,12 +57,14 @@ pub async fn create_vm_type_admin(
         map_db_write_error(
             &format!("add vm-type with UUID '{vm_type_uuid}' to database"),
             e,
+            Some(&context),
         )
     })?;
 
     // get new created vm-type from database to get additional information
-    let vm_type = vm_type_table::get_vm_type(&vm_type_uuid)
-        .map_err(|e| map_db_uuid_get_after_add_error("vm-type", &vm_type_uuid, e))?;
+    let vm_type = vm_type_table::get_vm_type(&vm_type_uuid).map_err(|e| {
+        map_db_uuid_get_after_add_error("vm-type", &vm_type_uuid, e, Some(&context))
+    })?;
 
     let resp = VmTypeResp {
         uuid: vm_type_uuid,

@@ -40,7 +40,7 @@ pub async fn get_host_admin(
     check_admin_context(&context)?;
 
     let host_data = host_table::get_host(&host_uuid, &context)
-        .map_err(|e| map_db_uuid_get_delete_error("onsen-host", &host_uuid, e))?;
+        .map_err(|e| map_db_uuid_get_delete_error("onsen-host", &host_uuid, e, Some(&context)))?;
 
     let resp = HostResp {
         uuid: *host_uuid,

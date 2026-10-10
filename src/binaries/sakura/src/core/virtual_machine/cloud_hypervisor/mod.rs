@@ -42,14 +42,15 @@ const SHUTDOWN_POLL_INTERVAL: Duration = Duration::from_millis(500);
 /// * `Ok(())` if the command was successful
 /// * `Err(AinariError)` if the command could not be started or failed
 pub fn run_command(program: &str, args: &[&str]) -> Result<(), AinariError> {
-    let status = Command::new(program).args(args).status().map_err(|e| {
-        AinariError::InternalError(format!("Failed to execute {program} process: {e}"))
-    })?;
+    let status = Command::new(program)
+        .args(args)
+        .status()
+        .map_err(|e| AinariError::internal(format!("Failed to execute {program} process: {e}")))?;
 
     if status.success() {
         Ok(())
     } else {
-        Err(AinariError::InternalError(format!(
+        Err(AinariError::internal(format!(
             "{program} failed with exit status: {status}"
         )))
     }
@@ -147,7 +148,7 @@ pub async fn connect_to_vmm(
     let vm_info = client
         .vm_info_get()
         .await
-        .map_err(|e| AinariError::InternalError(format!("Get info of VM {uuid} failed: {e:?}")))?;
+        .map_err(|e| AinariError::internal(format!("Get info of VM {uuid} failed: {e:?}")))?;
 
     Ok((client, vm_info.state))
 }
@@ -253,7 +254,7 @@ pub(super) async fn shutdown_gracefully(
         Ok(()) => Ok(()),
         // the guest could have powered itself off in the meantime
         Err(_) if vmm_exited(uuid) => Ok(()),
-        Err(e) => Err(AinariError::InternalError(format!(
+        Err(e) => Err(AinariError::internal(format!(
             "Shutdown VM {uuid} failed: {e:?}"
         ))),
     }

@@ -65,12 +65,14 @@ pub async fn create_network(
         map_db_write_error(
             &format!("add network with UUID '{network_uuid}' to database"),
             e,
+            Some(&context),
         )
     })?;
 
     // get new created network from database to get additional information
-    let network = network_table::get_network(&network_uuid, &context)
-        .map_err(|e| map_db_uuid_get_after_add_error("project", &network_uuid, e))?;
+    let network = network_table::get_network(&network_uuid, &context).map_err(|e| {
+        map_db_uuid_get_after_add_error("project", &network_uuid, e, Some(&context))
+    })?;
 
     let resp = NetworkResp {
         uuid: network_uuid,
@@ -112,7 +114,10 @@ async fn check_quota(context: &UserContext) -> Result<(), ErrorResponse> {
     // This count is used to compare against the project's quota limit
     let current_number_of_networks = network_table::count_networks_of_project(&context.project_id)
         .map_err(|e| {
-            log::error!("Failed to count networks in database.: {e}");
+            ainari_api::report_internal_error!(
+                Some(context),
+                "Failed to count networks in database.: {e}"
+            );
             ErrorResponse::InternalError("Internal Error".to_string())
         })?;
 
@@ -126,7 +131,7 @@ async fn check_quota(context: &UserContext) -> Result<(), ErrorResponse> {
         config::CONFIG.skip_tls_verification,
     )
     .await
-    .map_err(map_ainari_error_to_api_response)?;
+    .map_err(|e| map_ainari_error_to_api_response(e, Some(context)))?;
 
     // Convert the quota's maximum network count to i64 for comparison
     let max_number_of_networks = quota.max_network as i64;

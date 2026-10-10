@@ -21,6 +21,7 @@ use actix_web::{
 };
 
 use crate::errors::ErrorResponse;
+use crate::omikuji_logging::{RequestInfo, send_audit_log};
 
 use ainari_clients::auth::check_token;
 use ainari_common::config::{Api, MikoEndpoint};
@@ -117,7 +118,7 @@ impl ApiValidationConfig {
 /// Checks if a path belongs to an internal endpoint, which is marked by the suffix `internal`.
 ///
 /// Only the path is checked, so a query-string can not hide the suffix.
-fn is_internal_endpoint(path: &str) -> bool {
+pub(crate) fn is_internal_endpoint(path: &str) -> bool {
     path.to_lowercase().ends_with("internal")
 }
 
@@ -216,6 +217,7 @@ pub async fn authorization_middleware(
     //}
 
     log::info!("Api-call against URI: {uri}");
+    send_audit_log(&RequestInfo::from_request(&req).await);
 
     let resp = next.call(req).await;
 
@@ -361,8 +363,12 @@ async fn check_auth_header(
         // miko doesn't know the user of the token anymore
         Err(AinariError::NotFound(msg)) => Err(ErrorResponse::Unauthorized(msg).into()),
         Err(AinariError::Forbidden(msg)) => Err(ErrorResponse::Unauthorized(msg).into()),
-        Err(AinariError::Conflict(msg)) | Err(AinariError::InternalError(msg)) => {
-            log::error!("Failed check token against Miko with error: '{msg}'");
+        Err(e @ (AinariError::Conflict(_) | AinariError::InternalError(_))) => {
+            // the token is not validated yet, so the error can not be assigned to its user
+            crate::report_internal_error!(
+                None,
+                "Failed check token against Miko with error: '{e}'"
+            );
             Err(ErrorResponse::InternalError("Internal Error".to_string()).into())
         }
     }

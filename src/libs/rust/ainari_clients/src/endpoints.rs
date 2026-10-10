@@ -51,7 +51,9 @@ pub async fn get_endpoints(
                 Ok(body) => String::from_utf8_lossy(&body).into_owned(),
                 Err(e) => {
                     log::error!("Error while getting endpoint-body: {e}");
-                    return Err(AinariError::InternalError("".to_string()));
+                    return Err(AinariError::internal(format!(
+                        "Error while getting endpoint-body: {e}"
+                    )));
                 }
             };
 
@@ -62,7 +64,7 @@ pub async fn get_endpoints(
                         Ok(body) => body,
                         Err(e) => {
                             let msg = format!("Error while requesting endpoints from miko: {e}");
-                            return Err(AinariError::InternalError(msg));
+                            return Err(AinariError::internal(msg));
                         }
                     };
 
@@ -87,19 +89,23 @@ pub async fn get_endpoints(
                             public_address: deserialized.izakaya.public_address,
                             internal_address: deserialized.izakaya.internal_address,
                         },
+                        omikuji: ainari_config::Endpoint {
+                            public_address: deserialized.omikuji.public_address,
+                            internal_address: deserialized.omikuji.internal_address,
+                        },
                     };
 
                     Ok(endpoints)
                 }
                 code => {
                     let msg = format!("Error while requesting endpoints from miko: {code}");
-                    Err(AinariError::InternalError(msg))
+                    Err(AinariError::internal(msg))
                 }
             }
         }
         Err(e) => {
             let msg = format!("Error while requesting endpoints from miko: {e}");
-            Err(AinariError::InternalError(msg))
+            Err(AinariError::internal(msg))
         }
     }
 }

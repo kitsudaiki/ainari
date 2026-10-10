@@ -17,6 +17,8 @@ mod config;
 mod core;
 mod database;
 
+use ainari_api::omikuji_logging::OmikujiLogging;
+
 /// Entrypoint of the torii.
 ///
 /// Gateway with its routes, proxies, packet-filters and NAT-configuration.
@@ -35,6 +37,14 @@ mod database;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = &config::CONFIG;
     ainari_common::logger::init_logger(config.log_type, &config.log_path, "torii", config.debug)?;
+
+    OmikujiLogging::new(
+        "torii",
+        &config.miko,
+        &config::INTERNAL_API_KEY,
+        config.skip_tls_verification,
+    )
+    .init();
 
     database::init_database()?;
 

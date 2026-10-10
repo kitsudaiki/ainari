@@ -52,7 +52,10 @@ pub async fn upload_public_key(
     // the fingerprint is not provided by the user, but calculated from the public-key itself.
     // the key was already validated above, so this can not fail here.
     let fingerprint = create_ssh_key_fingerprint(&body.public_key).ok_or_else(|| {
-        log::error!("Failed to create the fingerprint of an already validated ssh-public-key.");
+        ainari_api::report_internal_error!(
+            Some(&context),
+            "Failed to create the fingerprint of an already validated ssh-public-key."
+        );
         ErrorResponse::InternalError("Internal Error".to_string())
     })?;
 
@@ -70,12 +73,15 @@ pub async fn upload_public_key(
         map_db_write_error(
             &format!("add public-key with UUID '{public_key_uuid}' to database"),
             e,
+            Some(&context),
         )
     })?;
 
     // get new created public-key from database to get additional information
-    let public_key_entry = public_key_table::get_public_key(&public_key_uuid, &context)
-        .map_err(|e| map_db_uuid_get_after_add_error("public_key", &public_key_uuid, e))?;
+    let public_key_entry =
+        public_key_table::get_public_key(&public_key_uuid, &context).map_err(|e| {
+            map_db_uuid_get_after_add_error("public_key", &public_key_uuid, e, Some(&context))
+        })?;
 
     let resp = PublicKeyResp {
         uuid: public_key_entry.uuid,

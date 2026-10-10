@@ -43,14 +43,17 @@ pub async fn delete_floating_ip(
     // get the floating_ip from the database to know, if it is still attached. It also checks,
     // that the user is allowed to delete the floating_ip.
     let floating_ip_entry = floating_ip_table::get_floating_ip(&floating_ip_uuid, &context)
-        .map_err(|e| map_db_uuid_get_delete_error("floating_ip", &floating_ip_uuid, e))?;
+        .map_err(|e| {
+            map_db_uuid_get_delete_error("floating_ip", &floating_ip_uuid, e, Some(&context))
+        })?;
 
     // remove the NAT of the floating ip-address from the torii before releasing the address, so
     // the address is never free again, while the torii still translates it
     detach_floating_ip(&floating_ip_entry, &context).await?;
 
-    floating_ip_table::delete_floating_ip(&floating_ip_uuid, &context)
-        .map_err(|e| map_db_uuid_get_delete_error("floating_ip", &floating_ip_uuid, e))?;
+    floating_ip_table::delete_floating_ip(&floating_ip_uuid, &context).map_err(|e| {
+        map_db_uuid_get_delete_error("floating_ip", &floating_ip_uuid, e, Some(&context))
+    })?;
 
     Ok(NoContent)
 }

@@ -38,7 +38,7 @@ pub async fn init_neko_root_wrapper_client() -> Result<NekoRootWrapperClient<Cha
     NekoRootWrapperClient::connect("http://127.0.0.1:54515")
         .await
         .map_err(|e| {
-            AinariError::InternalError(format!("Connection to Neko-root-wrapper failed: {}", e))
+            AinariError::internal(format!("Connection to Neko-root-wrapper failed: {}", e))
         })
 }
 
@@ -73,7 +73,7 @@ pub async fn run_root_cmd(
     let response = client
         .execute(request)
         .await
-        .map_err(|e| AinariError::InternalError(format!("gRPC Error from Neko: {}", e.message())))?
+        .map_err(|e| AinariError::internal(format!("gRPC Error from Neko: {}", e.message())))?
         .into_inner();
 
     if response.success {
@@ -84,6 +84,6 @@ pub async fn run_root_cmd(
         } else {
             format!("exit code {}", response.exit_code)
         };
-        Err(AinariError::InternalError(err_msg))
+        Err(AinariError::internal(err_msg))
     }
 }

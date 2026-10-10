@@ -16,9 +16,10 @@
 # deploys the whole stack. It is started by testing/vagrant/setup_vagrant_stack.sh
 # ('make up vagrant'), which builds the images and the CA before.
 #
-#   ainari-mgmt-1    192.168.56.10   k3s-server and one replica of miko, hanami, ryokan, omamori
-#   ainari-mgmt-2    192.168.56.14   one replica of miko, hanami, ryokan, omamori
-#   ainari-mgmt-3    192.168.56.15   one replica of miko, hanami, ryokan, omamori
+#   ainari-mgmt-1    192.168.56.10   k3s-server and one replica of miko, hanami, ryokan, omamori,
+#                                    izakaya and omikuji
+#   ainari-mgmt-2    192.168.56.14   one replica of miko, hanami, ryokan, omamori, izakaya, omikuji
+#   ainari-mgmt-3    192.168.56.15   one replica of miko, hanami, ryokan, omamori, izakaya, omikuji
 #   ainari-mysql     192.168.56.16   the mysql-server, which all replicas share
 #   ainari-onsen     192.168.56.17   one onsen, which stores the images of the virtual machines
 #   ainari-onsen-2   192.168.56.18   the other onsen

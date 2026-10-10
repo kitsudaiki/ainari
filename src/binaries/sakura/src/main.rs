@@ -20,6 +20,8 @@ mod core;
 mod database;
 mod hanami_interaction;
 
+use ainari_api::omikuji_logging::OmikujiLogging;
+
 use ainari_common::functions::clear_directory;
 use std::fs;
 
@@ -41,6 +43,14 @@ use core::processing::worker_handler;
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = &config::CONFIG;
     ainari_common::logger::init_logger(config.log_type, &config.log_path, "sakura", config.debug)?;
+
+    OmikujiLogging::new(
+        "sakura",
+        &config.miko,
+        &config::INTERNAL_API_KEY,
+        config.skip_tls_verification,
+    )
+    .init();
 
     // create directories if they not exist
     let tempfile_dir = config::CONFIG.storage.tempfile_location.clone();

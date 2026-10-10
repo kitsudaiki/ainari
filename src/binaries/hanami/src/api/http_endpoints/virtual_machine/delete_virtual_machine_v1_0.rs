@@ -70,18 +70,24 @@ pub async fn delete_virtual_machine(
     let virtual_machine_data =
         meta_virtual_machine_table::get_meta_virtual_machine(&virtual_machine_uuid, &context)
             .map_err(|e| {
-                map_db_uuid_get_delete_error("virtual_machine-meta", &virtual_machine_uuid, e)
+                map_db_uuid_get_delete_error(
+                    "virtual_machine-meta",
+                    &virtual_machine_uuid,
+                    e,
+                    Some(&context),
+                )
             })?;
 
     let sakura_uuid = virtual_machine_data.sakura_host_uuid;
     let proxy_uuid = virtual_machine_data.proxy_uuid;
 
-    let host_data = host_table::get_host(&sakura_uuid, &context)
-        .map_err(|e| map_db_uuid_get_delete_error("sakura-host", &sakura_uuid, e))?;
+    let host_data = host_table::get_host(&sakura_uuid, &context).map_err(|e| {
+        map_db_uuid_get_delete_error("sakura-host", &sakura_uuid, e, Some(&context))
+    })?;
 
     let endpoints = get_endpoints(&config::CONFIG.miko, config::CONFIG.skip_tls_verification)
         .await
-        .map_err(map_ainari_error_to_api_response)?;
+        .map_err(|e| map_ainari_error_to_api_response(e, Some(&context)))?;
 
     // read the virtual_machine from its host, before it is deleted there, because its network
     // and its internal address are the only way to find the entry of the address-table, which
@@ -94,7 +100,7 @@ pub async fn delete_virtual_machine(
         config::CONFIG.skip_tls_verification,
     )
     .await
-    .map_err(map_ainari_error_to_api_response)?;
+    .map_err(|e| map_ainari_error_to_api_response(e, Some(&context)))?;
 
     // a floating ip-address must not point at the address of the virtual_machine any more,
     // after it is released. The floating ip-address itself stays reserved, so it can be
@@ -132,12 +138,17 @@ pub async fn delete_virtual_machine(
         config::CONFIG.skip_tls_verification,
     )
     .await
-    .map_err(map_ainari_error_to_api_response)?;
+    .map_err(|e| map_ainari_error_to_api_response(e, Some(&context)))?;
 
     // delete virtual_machine from database of hanami
     meta_virtual_machine_table::delete_meta_virtual_machine(&virtual_machine_uuid, &context)
         .map_err(|e| {
-            map_db_uuid_get_delete_error("virtual_machine-meta", &virtual_machine_uuid, e)
+            map_db_uuid_get_delete_error(
+                "virtual_machine-meta",
+                &virtual_machine_uuid,
+                e,
+                Some(&context),
+            )
         })?;
 
     // the torii drops the packet-filters of the virtual_machine together with the route towards
@@ -164,7 +175,7 @@ pub async fn delete_virtual_machine(
         config::CONFIG.skip_tls_verification,
     )
     .await
-    .map_err(map_ainari_error_to_api_response)?;
+    .map_err(|e| map_ainari_error_to_api_response(e, Some(&context)))?;
 
     // remove the routes from and to the virtual_machine and release its address
     cleanup_network(
@@ -196,7 +207,8 @@ async fn detach_floating_ip_of_virtual_machine(
     let floating_ip_entry =
         floating_ip_table::get_floating_ip_by_internal_ip(network_uuid, internal_ip).map_err(
             |_| {
-                log::error!(
+                ainari_api::report_internal_error!(
+                    Some(context),
                     "Failed to get floating ip of '{internal_ip}' in network '{network_uuid}' \
                      from database."
                 );
@@ -256,7 +268,7 @@ async fn cleanup_network(
     // the entry is marked as deleted first, so the addresses of the network, which are read
     // afterwards, are the virtual_machines, which keep their routes
     address_table::delete_address(&address.uuid, context)
-        .map_err(|e| map_db_uuid_get_delete_error("address", &address.uuid, e))?;
+        .map_err(|e| map_db_uuid_get_delete_error("address", &address.uuid, e, Some(context)))?;
 
     // an entry of a database, which was created before the host-address was stored with the
     // addresses, has no torii, which could be asked to delete the routes of its host
@@ -271,7 +283,8 @@ async fn cleanup_network(
 
     let remaining_addresses =
         address_table::list_addresses_of_network(network_uuid).map_err(|e| {
-            log::error!(
+            ainari_api::report_internal_error!(
+                Some(context),
                 "Failed to get the addresses of network '{network_uuid}' from database: '{e}'"
             );
             ErrorResponse::InternalError("Internal Error".to_string())

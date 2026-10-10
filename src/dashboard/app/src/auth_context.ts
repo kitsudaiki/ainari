@@ -28,6 +28,7 @@ import { getConfig } from "./config";
  * @property {string | null} torii_address - Full address for the Torii service (including port)
  * @property {string | null} torii_base_address - Base address for the Torii service (without port)
  * @property {string | null} omamori_address - Address for the Omamori service
+ * @property {string | null} omikuji_address - Address for the Omikuji service, null if it is not deployed
  */
 export interface AuthContext {
     token: string | null;
@@ -39,6 +40,7 @@ export interface AuthContext {
     torii_address: string | null;
     torii_base_address: string | null;
     omamori_address: string | null;
+    omikuji_address: string | null;
 }
 
 /**
@@ -160,6 +162,8 @@ export async function createAuthContext(token: string) {
         torii_address: endpoint_resp.data.torii.public_address,
         torii_base_address: null, // This will be set below
         omamori_address: endpoint_resp.data.omamori.public_address,
+        // omikuji is optional, so a deployment without it has no or an empty endpoint for it
+        omikuji_address: endpoint_resp.data.omikuji?.public_address || null,
     };
 
     // Extract the base address from the Torii address (remove port number)
@@ -207,6 +211,7 @@ export function getAuthContext(): AuthContext {
         torii_address: null,
         torii_base_address: null,
         omamori_address: null,
+        omikuji_address: null,
         ...(stored ? JSON.parse(stored) : {}), // Spread the parsed stored values
     };
 

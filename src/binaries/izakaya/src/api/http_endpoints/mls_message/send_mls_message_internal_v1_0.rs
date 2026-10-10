@@ -55,6 +55,7 @@ pub async fn send_mls_message_internal(
         map_db_write_error(
             &format!("add {} of group '{}'", body.message_type, body.group_id),
             e,
+            Some(&context),
         )
     })?;
 

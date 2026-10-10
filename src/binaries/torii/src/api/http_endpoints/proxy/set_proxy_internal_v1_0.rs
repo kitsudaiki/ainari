@@ -65,6 +65,7 @@ pub async fn register_proxy_internal(
         map_db_write_error(
             &format!("add proxy with UUID '{proxy_uuid}' to database"),
             e,
+            Some(&context),
         )
     })?;
 
@@ -73,11 +74,11 @@ pub async fn register_proxy_internal(
     proxy_handler
         .add_proxy(&proxy_uuid, free_port, &body.target_address)
         .await
-        .map_err(map_ainari_error_to_api_response)?;
+        .map_err(|e| map_ainari_error_to_api_response(e, Some(&context)))?;
 
     // get new created proxy from database to get additional information
     let proxy_data = proxy_table::get_proxy(&proxy_uuid, &context)
-        .map_err(|e| map_db_uuid_get_delete_error("proxy", &proxy_uuid, e))?;
+        .map_err(|e| map_db_uuid_get_delete_error("proxy", &proxy_uuid, e, Some(&context)))?;
 
     let resp = ProxyResp {
         uuid: proxy_uuid,

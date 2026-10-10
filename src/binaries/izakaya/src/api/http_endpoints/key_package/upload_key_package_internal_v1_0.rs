@@ -57,6 +57,7 @@ pub async fn upload_key_package_internal(
             map_db_write_error(
                 &format!("add key-packages of client '{}'", body.client_id),
                 e,
+                Some(&context),
             )
         })?;
 

@@ -37,8 +37,9 @@ pub async fn delete_mls_message_internal(
     path: Path<MlsMessagePath>,
     context: UserContext,
 ) -> Result<NoContent, ErrorResponse> {
-    mls_message_table::delete_mls_message(&path.client_id, &path.message_uuid, &context)
-        .map_err(|e| map_db_uuid_get_delete_error("mls-message", &path.message_uuid, e))?;
+    mls_message_table::delete_mls_message(&path.client_id, &path.message_uuid, &context).map_err(
+        |e| map_db_uuid_get_delete_error("mls-message", &path.message_uuid, e, Some(&context)),
+    )?;
 
     Ok(NoContent)
 }

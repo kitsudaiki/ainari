@@ -45,19 +45,25 @@ pub async fn get_virtual_machine(
     let virtual_machine_data =
         meta_virtual_machine_table::get_meta_virtual_machine(&virtual_machine_uuid, &context)
             .map_err(|e| {
-                map_db_uuid_get_delete_error("virtual_machine-meta", &virtual_machine_uuid, e)
+                map_db_uuid_get_delete_error(
+                    "virtual_machine-meta",
+                    &virtual_machine_uuid,
+                    e,
+                    Some(&context),
+                )
             })?;
 
     let sakura_uuid = virtual_machine_data.sakura_host_uuid;
 
-    let host_data = host_table::get_host(&sakura_uuid, &context)
-        .map_err(|e| map_db_uuid_get_delete_error("sakura-host", &sakura_uuid, e))?;
+    let host_data = host_table::get_host(&sakura_uuid, &context).map_err(|e| {
+        map_db_uuid_get_delete_error("sakura-host", &sakura_uuid, e, Some(&context))
+    })?;
 
     // get endpoints from miko
     let miko_endpoint = &config::CONFIG.miko;
     let endpoints = get_endpoints(miko_endpoint, config::CONFIG.skip_tls_verification)
         .await
-        .map_err(map_ainari_error_to_api_response)?;
+        .map_err(|e| map_ainari_error_to_api_response(e, Some(&context)))?;
 
     // send request to torii to get port
     let proxy_uuid = virtual_machine_data.proxy_uuid;
@@ -68,7 +74,7 @@ pub async fn get_virtual_machine(
         config::CONFIG.skip_tls_verification,
     )
     .await
-    .map_err(map_ainari_error_to_api_response)?;
+    .map_err(|e| map_ainari_error_to_api_response(e, Some(&context)))?;
 
     // get virtual_machine-information from sakura-host
     let mut virtual_machine_resp = virtual_machine_clients::get_virtual_machine(
@@ -79,7 +85,7 @@ pub async fn get_virtual_machine(
         config::CONFIG.skip_tls_verification,
     )
     .await
-    .map_err(map_ainari_error_to_api_response)?;
+    .map_err(|e| map_ainari_error_to_api_response(e, Some(&context)))?;
 
     // set port in response
     virtual_machine_resp.torii_port = proxy_resp.port;

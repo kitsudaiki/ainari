@@ -54,6 +54,10 @@ pub async fn delete_route_internal(
     // leaves the route untouched in the datapath. The routes, which the gateway derives from its
     // own config at startup, have no entry there.
     if let Err(enums::DbError::InternalError) = route_table::delete_route(&route, &context) {
+        ainari_api::report_internal_error!(
+            Some(&context),
+            "Failed to delete route '{route_uuid}' from database"
+        );
         return Err(ErrorResponse::InternalError("Internal Error".to_string()));
     }
 

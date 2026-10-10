@@ -63,7 +63,9 @@ pub async fn create_virtual_machine(
         &body.public_key_uuid,
         &context,
     )
-    .map_err(|e| map_db_uuid_get_after_add_error("virtual_machine", &virtual_machine_uuid, e))?;
+    .map_err(|e| {
+        map_db_uuid_get_after_add_error("virtual_machine", &virtual_machine_uuid, e, Some(&context))
+    })?;
 
     // mark the virtual_machine as created, before the task for its creation is queued
     virtual_machine_table::update_virtual_machine_state(
@@ -71,12 +73,17 @@ pub async fn create_virtual_machine(
         &VirtualMachineState::Created,
         &context,
     )
-    .map_err(|e| map_db_uuid_get_after_add_error("virtual_machine", &virtual_machine_uuid, e))?;
+    .map_err(|e| {
+        map_db_uuid_get_after_add_error("virtual_machine", &virtual_machine_uuid, e, Some(&context))
+    })?;
 
-    let virtual_machine_data =
-        virtual_machine_table::get_virtual_machine(&virtual_machine_uuid, &context).map_err(
-            |e| map_db_uuid_get_after_add_error("virtual_machine", &virtual_machine_uuid, e),
-        )?;
+    let virtual_machine_data = virtual_machine_table::get_virtual_machine(
+        &virtual_machine_uuid,
+        &context,
+    )
+    .map_err(|e| {
+        map_db_uuid_get_after_add_error("virtual_machine", &virtual_machine_uuid, e, Some(&context))
+    })?;
 
     // prepare task-info
     let task_description = format!(
@@ -91,7 +98,7 @@ pub async fn create_virtual_machine(
 
     let _endpoints = get_endpoints(&config::CONFIG.miko, config::CONFIG.skip_tls_verification)
         .await
-        .map_err(map_ainari_error_to_api_response)?;
+        .map_err(|e| map_ainari_error_to_api_response(e, Some(&context)))?;
 
     // create new task
     let task = Task {
@@ -111,7 +118,7 @@ pub async fn create_virtual_machine(
 
     // get new created task from database to get additional information
     let task_data = task_table::get_task(&task_uuid, &context)
-        .map_err(|e| map_db_uuid_get_after_add_error("task", &task_uuid, e))?;
+        .map_err(|e| map_db_uuid_get_after_add_error("task", &task_uuid, e, Some(&context)))?;
 
     let resp = TaskResp {
         uuid: task_uuid,

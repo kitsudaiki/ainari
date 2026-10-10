@@ -83,7 +83,14 @@ pub async fn create_token(body: String) -> Result<Json<UserTokenResp>, ErrorResp
     // create token based for the user
     let token =
         token_handling::create_token(&user.id, &project_id, &user.is_admin, project_role.as_str())
-            .map_err(|_| ErrorResponse::InternalError("Internal Error".to_string()))?;
+            .map_err(|_| {
+                ainari_api::report_internal_error!(
+                    None,
+                    "Failed to create token for user '{}' in project '{project_id}'",
+                    user.id
+                );
+                ErrorResponse::InternalError("Internal Error".to_string())
+            })?;
 
     let response = UserTokenResp {
         access_token: token,

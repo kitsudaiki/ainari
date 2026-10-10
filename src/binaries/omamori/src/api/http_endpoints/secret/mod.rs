@@ -49,7 +49,10 @@ async fn check_quota(context: &UserContext) -> Result<(), ErrorResponse> {
     // get number of secrets of the whole project
     let current_number_of_secrets = secret_table::count_secrets_of_project(&context.project_id)
         .inspect_err(|e| {
-            log::error!("Failed to count secrets in database.: {e}");
+            ainari_api::report_internal_error!(
+                Some(context),
+                "Failed to count secrets in database.: {e}"
+            );
         })
         .map_err(|_| ErrorResponse::InternalError("Internal Error".into()))?;
     {};
@@ -63,7 +66,7 @@ async fn check_quota(context: &UserContext) -> Result<(), ErrorResponse> {
         config::CONFIG.skip_tls_verification,
     )
     .await
-    .map_err(map_ainari_error_to_api_response)?;
+    .map_err(|e| map_ainari_error_to_api_response(e, Some(context)))?;
 
     // check if quota is already exceeded
     if current_number_of_secrets as i64 >= quota.max_secret as i64 {

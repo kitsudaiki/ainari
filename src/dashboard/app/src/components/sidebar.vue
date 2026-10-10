@@ -159,6 +159,12 @@ const menus = ref<Menu[]>([
             { view: "AdminQuota", label: "Quota", icon: "pi-chart-pie" },
             { view: "AdminHost", label: "Host", icon: "pi-server" },
             { view: "AdminVmType", label: "VM Types", icon: "pi-sliders-h" },
+            {
+                view: "AdminErrorLog",
+                label: "Error Log",
+                icon: "pi-exclamation-triangle",
+            },
+            { view: "AdminAuditLog", label: "Audit Log", icon: "pi-history" },
         ],
     },
 ]);

@@ -30,8 +30,8 @@ use ainari_api_structs::user_context::UserContext;
     error_code = 500
 )]
 pub async fn get_secret_count(context: UserContext) -> Result<Json<Count>, ErrorResponse> {
-    let number_of_secret =
-        secret_table::count_secrets(&context).map_err(|e| map_db_count_error("secret-meta", e))?;
+    let number_of_secret = secret_table::count_secrets(&context)
+        .map_err(|e| map_db_count_error("secret-meta", e, Some(&context)))?;
 
     let secret_resp = Count {
         number_of_items: number_of_secret as u64,

@@ -34,7 +34,7 @@ pub async fn get_quota(context: UserContext) -> Result<Json<QuotaResp>, ErrorRes
     // get quota of the project, for which the token was created, from database
     let project_id = &context.project_id;
     let quota = quota_table::get_quota(project_id, &context)
-        .map_err(|e| map_db_id_get_delete_error("quota", project_id, e))?;
+        .map_err(|e| map_db_id_get_delete_error("quota", project_id, e, Some(&context)))?;
 
     let resp = QuotaResp {
         project_id: quota.id,

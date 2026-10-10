@@ -37,8 +37,10 @@ pub async fn get_public_key(
     public_key_uuid: Path<Uuid>,
     context: UserContext,
 ) -> Result<Json<PublicKeyResp>, ErrorResponse> {
-    let public_key_data = public_key_table::get_public_key(&public_key_uuid, &context)
-        .map_err(|e| map_db_uuid_get_delete_error("public_key", &public_key_uuid, e))?;
+    let public_key_data =
+        public_key_table::get_public_key(&public_key_uuid, &context).map_err(|e| {
+            map_db_uuid_get_delete_error("public_key", &public_key_uuid, e, Some(&context))
+        })?;
 
     let resp = PublicKeyResp {
         uuid: public_key_data.uuid,

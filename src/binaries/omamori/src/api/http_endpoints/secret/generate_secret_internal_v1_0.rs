@@ -61,7 +61,7 @@ pub async fn generate_secret_internal(
     let simple_crypto = SimpleCrypto::new();
     simple_crypto
         .store(&secret_uuid, &b64)
-        .map_err(map_ainari_error_to_api_response)?;
+        .map_err(|e| map_ainari_error_to_api_response(e, Some(&context)))?;
 
     // add new secret to database
     secret_table::add_new_secret(
@@ -75,12 +75,13 @@ pub async fn generate_secret_internal(
         map_db_write_error(
             &format!("add secret with UUID '{secret_uuid}' to database"),
             e,
+            Some(&context),
         )
     })?;
 
     // get new created secret from database to get additional information
     let secret = secret_table::get_secret(&secret_uuid, &context)
-        .map_err(|e| map_db_uuid_get_after_add_error("secret", &secret_uuid, e))?;
+        .map_err(|e| map_db_uuid_get_after_add_error("secret", &secret_uuid, e, Some(&context)))?;
 
     let resp = SecretResp {
         uuid: secret_uuid,

@@ -35,7 +35,8 @@ pub async fn list_quota_admin(context: UserContext) -> Result<Json<QuotaListResp
     // validate request
     check_admin_context(&context)?;
 
-    let quotas = quota_table::list_quotas(&context).map_err(|e| map_db_list_error("quotas", e))?;
+    let quotas = quota_table::list_quotas(&context)
+        .map_err(|e| map_db_list_error("quotas", e, Some(&context)))?;
 
     let mut resp = QuotaListResp { quotas: Vec::new() };
 

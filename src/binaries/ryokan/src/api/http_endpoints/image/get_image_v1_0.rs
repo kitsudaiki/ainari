@@ -38,7 +38,7 @@ pub async fn get_image(
     context: UserContext,
 ) -> Result<Json<ImageResp>, ErrorResponse> {
     let image_data = image_table::get_image(&image_uuid, &context)
-        .map_err(|e| map_db_uuid_get_delete_error("image", &image_uuid, e))?;
+        .map_err(|e| map_db_uuid_get_delete_error("image", &image_uuid, e, Some(&context)))?;
 
     let resp = ImageResp {
         uuid: *image_uuid,

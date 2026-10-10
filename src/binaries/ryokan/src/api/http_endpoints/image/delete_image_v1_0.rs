@@ -40,20 +40,25 @@ pub async fn delete_image(
     context: UserContext,
 ) -> Result<NoContent, ErrorResponse> {
     let image_data = image_table::get_image(&image_uuid, &context)
-        .map_err(|e| map_db_uuid_get_delete_error("image", &image_uuid, e))?;
+        .map_err(|e| map_db_uuid_get_delete_error("image", &image_uuid, e, Some(&context)))?;
 
     // delete image from database
     image_table::delete_image(&image_uuid, &context)
-        .map_err(|e| map_db_uuid_get_delete_error("image", &image_uuid, e))?;
+        .map_err(|e| map_db_uuid_get_delete_error("image", &image_uuid, e, Some(&context)))?;
 
     // delete image-payload from onsen
-    delete_file_from_onsen(&image_data.onsen_address, &image_data.file_path).await?;
+    delete_file_from_onsen(
+        &image_data.onsen_address,
+        &image_data.file_path,
+        Some(&context),
+    )
+    .await?;
 
     // delete secret from omamori
     let miko_endpoint = &config::CONFIG.miko;
     let endpoints = get_endpoints(miko_endpoint, config::CONFIG.skip_tls_verification)
         .await
-        .map_err(map_ainari_error_to_api_response)?;
+        .map_err(|e| map_ainari_error_to_api_response(e, Some(&context)))?;
     let secret_uuid = image_data.secret_uuid;
     delete_secret(
         &endpoints.omamori,
@@ -63,7 +68,7 @@ pub async fn delete_image(
         config::CONFIG.skip_tls_verification,
     )
     .await
-    .map_err(map_ainari_error_to_api_response)?;
+    .map_err(|e| map_ainari_error_to_api_response(e, Some(&context)))?;
 
     Ok(NoContent)
 }

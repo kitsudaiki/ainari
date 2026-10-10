@@ -42,7 +42,7 @@ pub async fn abort_task(
 
     // check current state of the task to avoid to abort finished and errored tasks
     let old_task_data = task_table::get_task(&task_uuid, &context)
-        .map_err(|e| map_db_uuid_get_delete_error("task", &task_uuid, e))?;
+        .map_err(|e| map_db_uuid_get_delete_error("task", &task_uuid, e, Some(&context)))?;
 
     if old_task_data.task_state == TaskState::Aborted
         || old_task_data.task_state == TaskState::Error
@@ -56,11 +56,11 @@ pub async fn abort_task(
 
     // set abort-state in database
     task_table::update_task_state(&task_uuid, &TaskState::Aborted)
-        .map_err(|e| map_db_uuid_get_delete_error("task", &task_uuid, e))?;
+        .map_err(|e| map_db_uuid_get_delete_error("task", &task_uuid, e, Some(&context)))?;
 
     // get task from database
     let task_data = task_table::get_task(&task_uuid, &context)
-        .map_err(|e| map_db_uuid_get_delete_error("task", &task_uuid, e))?;
+        .map_err(|e| map_db_uuid_get_delete_error("task", &task_uuid, e, Some(&context)))?;
 
     let resp = TaskResp {
         uuid: task_uuid,

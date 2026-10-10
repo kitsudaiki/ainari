@@ -53,7 +53,7 @@ pub async fn list_resources_of_project(
             config::CONFIG.skip_tls_verification,
         )
         .await
-        .map_err(map_ainari_error_to_api_response)?;
+        .map_err(|e| map_ainari_error_to_api_response(e, Some(context)))?;
 
         for (resource_type, number) in resp.resource_counts {
             if number > 0 {
@@ -83,13 +83,14 @@ pub fn delete_project_completely(
     context: &UserContext,
 ) -> Result<(), ErrorResponse> {
     project_table::delete_project(project_id, context)
-        .map_err(|e| map_db_id_get_delete_error("project", project_id, e))?;
+        .map_err(|e| map_db_id_get_delete_error("project", project_id, e, Some(context)))?;
 
     quota_table::delete_quota(project_id, context)
-        .map_err(|e| map_db_id_get_delete_error("quota", project_id, e))?;
+        .map_err(|e| map_db_id_get_delete_error("quota", project_id, e, Some(context)))?;
 
-    user_project_mapping_table::delete_mappings_of_project(project_id)
-        .map_err(|e| map_db_id_get_delete_error("user-project-mapping", project_id, e))?;
+    user_project_mapping_table::delete_mappings_of_project(project_id).map_err(|e| {
+        map_db_id_get_delete_error("user-project-mapping", project_id, e, Some(context))
+    })?;
 
     Ok(())
 }

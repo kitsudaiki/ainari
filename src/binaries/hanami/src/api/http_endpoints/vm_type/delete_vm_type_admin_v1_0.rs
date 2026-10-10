@@ -39,7 +39,7 @@ pub async fn delete_vm_type_admin(
 
     // delete vm-type from database
     vm_type_table::delete_vm_type(&vm_type_uuid, &context)
-        .map_err(|e| map_db_uuid_get_delete_error("vm-type", &vm_type_uuid, e))?;
+        .map_err(|e| map_db_uuid_get_delete_error("vm-type", &vm_type_uuid, e, Some(&context)))?;
 
     Ok(NoContent)
 }

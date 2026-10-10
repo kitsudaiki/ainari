@@ -45,7 +45,10 @@ pub fn torii_of_host(
     let port = match rest.rsplit_once(':') {
         Some((_, port)) => port,
         None => {
-            log::error!("Torii-address '{torii_address}' has no port.");
+            ainari_api::report_internal_error!(
+                None,
+                "Torii-address '{torii_address}' has no port."
+            );
             return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
     };
@@ -93,15 +96,24 @@ pub async fn resolve_address(address: &str) -> Result<Ipv4Addr, ErrorResponse> {
     match resolved {
         Ok(Ok(Some(ip))) => Ok(ip),
         Ok(Ok(None)) => {
-            log::error!("Host '{host}' of address '{address}' has no ipv4-address.");
+            ainari_api::report_internal_error!(
+                None,
+                "Host '{host}' of address '{address}' has no ipv4-address."
+            );
             Err(ErrorResponse::InternalError("Internal Error".to_string()))
         }
         Ok(Err(e)) => {
-            log::error!("Failed to resolve host '{host}' of address '{address}': {e}");
+            ainari_api::report_internal_error!(
+                None,
+                "Failed to resolve host '{host}' of address '{address}': {e}"
+            );
             Err(ErrorResponse::InternalError("Internal Error".to_string()))
         }
         Err(e) => {
-            log::error!("Failed to run the resolver for host '{host}': {e}");
+            ainari_api::report_internal_error!(
+                None,
+                "Failed to run the resolver for host '{host}': {e}"
+            );
             Err(ErrorResponse::InternalError("Internal Error".to_string()))
         }
     }
@@ -148,7 +160,7 @@ pub async fn create_overlay_route(
         config::CONFIG.skip_tls_verification,
     )
     .await
-    .map_err(map_ainari_error_to_api_response)?;
+    .map_err(|e| map_ainari_error_to_api_response(e, Some(context)))?;
 
     Ok(())
 }
@@ -182,7 +194,7 @@ pub async fn delete_routes_to(
         config::CONFIG.skip_tls_verification,
     )
     .await
-    .map_err(map_ainari_error_to_api_response)?;
+    .map_err(|e| map_ainari_error_to_api_response(e, Some(context)))?;
 
     for route in routes.routes {
         if route.dest_ip != dest_ip || route.vni != vni {
@@ -197,7 +209,7 @@ pub async fn delete_routes_to(
             config::CONFIG.skip_tls_verification,
         )
         .await
-        .map_err(map_ainari_error_to_api_response)?;
+        .map_err(|e| map_ainari_error_to_api_response(e, Some(context)))?;
     }
 
     Ok(())
@@ -234,7 +246,7 @@ pub async fn list_routes(
         config::CONFIG.skip_tls_verification,
     )
     .await
-    .map_err(map_ainari_error_to_api_response)?
+    .map_err(|e| map_ainari_error_to_api_response(e, Some(context)))?
     .routes)
 }
 
@@ -291,7 +303,7 @@ pub async fn ensure_route(
                 config::CONFIG.skip_tls_verification,
             )
             .await
-            .map_err(map_ainari_error_to_api_response)?;
+            .map_err(|e| map_ainari_error_to_api_response(e, Some(context)))?;
         }
         None => {
             route_clients::create_route(
@@ -302,7 +314,7 @@ pub async fn ensure_route(
                 config::CONFIG.skip_tls_verification,
             )
             .await
-            .map_err(map_ainari_error_to_api_response)?;
+            .map_err(|e| map_ainari_error_to_api_response(e, Some(context)))?;
         }
     }
 
@@ -316,7 +328,7 @@ pub async fn ensure_route(
                 config::CONFIG.skip_tls_verification,
             )
             .await
-            .map_err(map_ainari_error_to_api_response)?;
+            .map_err(|e| map_ainari_error_to_api_response(e, Some(context)))?;
         }
     }
     Ok(())

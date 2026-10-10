@@ -45,10 +45,13 @@ pub async fn delete_virtual_machine_internal(
     context: UserContext,
 ) -> Result<NoContent, ErrorResponse> {
     // check that the virtual_machine exists, before a task for it is created
-    let virtual_machine_data =
-        virtual_machine_table::get_virtual_machine(&virtual_machine_uuid, &context).map_err(
-            |e| map_db_uuid_get_delete_error("virtual_machine", &virtual_machine_uuid, e),
-        )?;
+    let virtual_machine_data = virtual_machine_table::get_virtual_machine(
+        &virtual_machine_uuid,
+        &context,
+    )
+    .map_err(|e| {
+        map_db_uuid_get_delete_error("virtual_machine", &virtual_machine_uuid, e, Some(&context))
+    })?;
 
     let task_uuid = Uuid::new_v4();
     let task_type = TaskType::VirtualMachineDelete;

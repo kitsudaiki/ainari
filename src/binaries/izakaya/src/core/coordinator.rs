@@ -183,7 +183,7 @@ fn parse_list(value: Option<&str>) -> Vec<String> {
 
 /// Logs an error and turns it into the generic `InternalError`.
 fn internal_error(action: &str, e: impl std::fmt::Display) -> ErrorResponse {
-    log::error!("Failed to {action}: {e}");
+    ainari_api::report_internal_error!(None, "Failed to {action}: {e}");
     ErrorResponse::InternalError("Internal Error".to_string())
 }
 

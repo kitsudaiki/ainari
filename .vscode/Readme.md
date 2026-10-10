@@ -1,11 +1,11 @@
 # Local setup in VSCode
 
 The compounds `Ainari Debug` and `Ainari Release` in `launch.json` start the whole stack locally
-without any container. Miko, omamori, hanami, ryokan, sakura and onsen run as debug-sessions
-(CodeLLDB). Torii requires root, so it can not be debugged and runs instead as single-node gateway
-in the task `Run Torii (single-node)`, which is started first and asks for the sudo-password in its
-terminal. It keeps running after the debug-sessions were stopped, so stop it by terminating this
-task. The uplink stays until the task `remove single-node uplink` is run.
+without any container. Miko, omikuji, omamori, izakaya, hanami, ryokan, sakura and onsen run as
+debug-sessions (CodeLLDB). Torii requires root, so it can not be debugged and runs instead as
+single-node gateway in the task `Run Torii (single-node)`, which is started first and asks for the
+sudo-password in its terminal. It keeps running after the debug-sessions were stopped, so stop it
+by terminating this task. The uplink stays until the task `remove single-node uplink` is run.
 
 ## Required binaries
 
@@ -32,7 +32,7 @@ in `example_configs/ainari`:
 
 ```bash
 sudo mkdir -p /etc/ainari && sudo chown $USER: /etc/ainari
-cp example_configs/ainari/{miko,omamori,hanami,ryokan,sakura,onsen}.toml \
+cp example_configs/ainari/{miko,omikuji,omamori,izakaya,hanami,ryokan,sakura,onsen}.toml \
    example_configs/ainari/token_key /etc/ainari/
 ```
 

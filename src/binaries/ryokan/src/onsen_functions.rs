@@ -38,14 +38,17 @@ pub fn select_onsen(context: &UserContext) -> Result<HostEntry, ErrorResponse> {
     let hosts = match host_table::list_hosts(context) {
         Ok(hosts) => hosts,
         Err(e) => {
-            log::error!("Failed to get list of hosts form database: '{e}'");
+            ainari_api::report_internal_error!(
+                Some(context),
+                "Failed to get list of hosts form database: '{e}'"
+            );
             return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
     };
 
     // check that there is at least one host
     if hosts.is_empty() {
-        log::error!("No hosts to schedule new instance.");
+        ainari_api::report_internal_error!(Some(context), "No hosts to schedule new instance.");
         return Err(ErrorResponse::InternalError("Internal Error".to_string()));
     }
 
@@ -54,7 +57,10 @@ pub fn select_onsen(context: &UserContext) -> Result<HostEntry, ErrorResponse> {
     let selected_host = if let Some(host) = hosts.choose(&mut rng) {
         host.clone()
     } else {
-        log::error!("Failed to select a host out of the list of available hosts.");
+        ainari_api::report_internal_error!(
+            Some(context),
+            "Failed to select a host out of the list of available hosts."
+        );
         return Err(ErrorResponse::InternalError("Internal Error".to_string()));
     };
 

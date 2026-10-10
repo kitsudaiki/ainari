@@ -39,7 +39,9 @@ pub async fn get_floating_ip(
     context: UserContext,
 ) -> Result<Json<FloatingIpResp>, ErrorResponse> {
     let floating_ip_data = floating_ip_table::get_floating_ip(&floating_ip_uuid, &context)
-        .map_err(|e| map_db_uuid_get_delete_error("floating_ip", &floating_ip_uuid, e))?;
+        .map_err(|e| {
+            map_db_uuid_get_delete_error("floating_ip", &floating_ip_uuid, e, Some(&context))
+        })?;
 
     Ok(Json(to_floating_ip_resp(floating_ip_data)))
 }

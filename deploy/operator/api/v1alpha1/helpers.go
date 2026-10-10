@@ -37,6 +37,7 @@ func (d *MySQLDatabasesSpec) ByComponent() []ComponentDatabase {
 		{"ryokan", &d.Ryokan},
 		{"omamori", &d.Omamori},
 		{"izakaya", &d.Izakaya},
+		{"omikuji", &d.Omikuji},
 	}
 
 	databases := make([]ComponentDatabase, 0, len(specs))

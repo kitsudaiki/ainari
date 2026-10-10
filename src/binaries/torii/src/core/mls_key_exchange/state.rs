@@ -426,7 +426,7 @@ impl MlsState {
     /// `Ok(())` once the state is persisted, otherwise an `InternalError`
     pub fn save(&self) -> Result<(), ErrorResponse> {
         let internal_error = |e: String| {
-            log::error!("Failed to persist the MLS-state: {e}");
+            ainari_api::report_internal_error!(None, "Failed to persist the MLS-state: {e}");
             ErrorResponse::InternalError("Internal Error".to_string())
         };
 
@@ -479,7 +479,8 @@ impl MlsState {
             let client_id = match get_local_ip(&CONFIG.network.underlay_iface) {
                 Some(ip) => ip.to_string(),
                 None => {
-                    log::error!(
+                    ainari_api::report_internal_error!(
+                        None,
                         "No underlay address on {}, so the gateway has no MLS-identity",
                         CONFIG.network.underlay_iface
                     );
@@ -496,9 +497,13 @@ impl MlsState {
             );
         }
 
-        self.identity
-            .as_ref()
-            .ok_or_else(|| ErrorResponse::InternalError("Internal Error".to_string()))
+        self.identity.as_ref().ok_or_else(|| {
+            ainari_api::report_internal_error!(
+                None,
+                "The MLS-identity of the gateway was not created yet"
+            );
+            ErrorResponse::InternalError("Internal Error".to_string())
+        })
     }
 
     /// Creates a new identity for the gateway and persists it.
@@ -510,7 +515,7 @@ impl MlsState {
     /// `Ok(())` once the identity exists, otherwise an `InternalError`
     pub fn create_identity(&mut self, client_id: String) -> Result<(), ErrorResponse> {
         let internal_error = |action: &str, e: String| {
-            log::error!("Failed to {action} of the MLS-identity: {e}");
+            ainari_api::report_internal_error!(None, "Failed to {action} of the MLS-identity: {e}");
             ErrorResponse::InternalError("Internal Error".to_string())
         };
 
@@ -543,7 +548,10 @@ impl MlsState {
             .ok_or_else(|| ErrorResponse::NotFound(format!("No MLS-group for tenant {vni}")))?;
         let epoch = group.epoch().as_u64();
         let base = derive_base(group, self.provider.crypto()).map_err(|e| {
-            log::error!("Failed to record epoch {epoch} of tenant {vni}: {e}");
+            ainari_api::report_internal_error!(
+                None,
+                "Failed to record epoch {epoch} of tenant {vni}: {e}"
+            );
             ErrorResponse::InternalError("Internal Error".to_string())
         })?;
 

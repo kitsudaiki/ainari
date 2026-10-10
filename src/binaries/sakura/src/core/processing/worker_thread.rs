@@ -94,9 +94,12 @@ impl WorkerThread {
                             }
                             Err(AinariError::NotFound(msg))
                             | Err(AinariError::Conflict(msg))
-                            | Err(AinariError::Forbidden(msg))
-                            | Err(AinariError::InternalError(msg)) => {
+                            | Err(AinariError::Forbidden(msg)) => {
                                 log::error!("{msg}");
+                                // TODO: better error-handling
+                            }
+                            Err(AinariError::InternalError(details)) => {
+                                log::error!("{details}");
                                 // TODO: better error-handling
                             }
                         };

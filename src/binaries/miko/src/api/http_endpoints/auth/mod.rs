@@ -48,7 +48,13 @@ pub(crate) fn get_project_role_for_token(
         DbError::NotFound | DbError::PermissionDenied => {
             ErrorResponse::Unauthorized(no_access_msg.clone())
         }
-        DbError::InternalError => ErrorResponse::InternalError("Internal Error".to_string()),
+        DbError::InternalError => {
+            ainari_api::report_internal_error!(
+                None,
+                "Failed to get the role of user '{user_id}' in project '{project_id}' from DB"
+            );
+            ErrorResponse::InternalError("Internal Error".to_string())
+        }
     };
 
     // check if the project exist

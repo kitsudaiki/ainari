@@ -48,7 +48,7 @@ pub async fn set_host_isolation_admin(
 
     // update isolation in database
     let changed = host_table::set_host_isolation(&host_uuid, body.is_host_isolated, &context)
-        .map_err(|e| map_db_uuid_get_delete_error("host", &host_uuid, e))?;
+        .map_err(|e| map_db_uuid_get_delete_error("host", &host_uuid, e, Some(&context)))?;
     if !changed {
         return Err(ErrorResponse::Conflict(format!(
             "Isolation of host with UUID '{}' can not be changed, because resources are \
@@ -59,7 +59,7 @@ pub async fn set_host_isolation_admin(
 
     // get updated host from database
     let host_data = host_table::get_host(&host_uuid, &context)
-        .map_err(|e| map_db_uuid_get_delete_error("host", &host_uuid, e))?;
+        .map_err(|e| map_db_uuid_get_delete_error("host", &host_uuid, e, Some(&context)))?;
 
     let resp = SakuraHostResp {
         uuid: *host_uuid,

@@ -66,7 +66,7 @@ pub async fn get_migration_file_internal(
     };
 
     let (size, stream) = compressed_file_stream(FilePath::new(&file_path))
-        .map_err(|e| map_internal_error(&format!("stream {file_path}"), e))?;
+        .map_err(|e| map_internal_error(&format!("stream {file_path}"), e, Some(&context)))?;
 
     log::info!(
         "Send {} of virtual_machine '{virtual_machine_uuid}' with {size} bytes for its migration",

@@ -58,7 +58,13 @@ pub async fn config_interface_internal(
     configure_interface(&body, || {
         network_interface_table::set_network_interface(&body, &context)
             .map(|_| ())
-            .map_err(|e| map_db_write_error(&format!("persist interface '{}'", body.iface_name), e))
+            .map_err(|e| {
+                map_db_write_error(
+                    &format!("persist interface '{}'", body.iface_name),
+                    e,
+                    Some(&context),
+                )
+            })
     })
     .await?;
 

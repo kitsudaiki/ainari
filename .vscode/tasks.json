@@ -87,6 +87,34 @@
         "problemMatcher": ["$rustc"]
       },
       {
+        "label": "build izakaya debug",
+        "type": "shell",
+        "command": "cargo build -p izakaya",
+        "group": "build",
+        "problemMatcher": ["$rustc"]
+      },
+      {
+        "label": "build izakaya release",
+        "type": "shell",
+        "command": "cargo build --release -p izakaya",
+        "group": "build",
+        "problemMatcher": ["$rustc"]
+      },
+      {
+        "label": "build omikuji debug",
+        "type": "shell",
+        "command": "cargo build -p omikuji",
+        "group": "build",
+        "problemMatcher": ["$rustc"]
+      },
+      {
+        "label": "build omikuji release",
+        "type": "shell",
+        "command": "cargo build --release -p omikuji",
+        "group": "build",
+        "problemMatcher": ["$rustc"]
+      },
+      {
         "label": "build onsen debug",
         "type": "shell",
         "command": "cargo build -p onsen && sleep 5",

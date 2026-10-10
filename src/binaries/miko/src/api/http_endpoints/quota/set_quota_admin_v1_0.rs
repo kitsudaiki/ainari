@@ -45,7 +45,7 @@ pub async fn set_quota_admin(
 
     // get current quota of the project from database
     let mut current_quota = quota_table::get_quota(&project_id, &context)
-        .map_err(|e| map_db_id_get_delete_error("quota", &project_id, e))?;
+        .map_err(|e| map_db_id_get_delete_error("quota", &project_id, e, Some(&context)))?;
 
     // update values to set
     if body.max_virtual_machine != 0 {
@@ -74,11 +74,11 @@ pub async fn set_quota_admin(
         current_quota.max_floating_ip,
         &context,
     )
-    .map_err(|e| map_db_id_get_delete_error("quota", &project_id, e))?;
+    .map_err(|e| map_db_id_get_delete_error("quota", &project_id, e, Some(&context)))?;
 
     // get new quota of the project from database
     let quota = quota_table::get_quota(&project_id, &context)
-        .map_err(|e| map_db_id_get_delete_error("quota", &project_id, e))?;
+        .map_err(|e| map_db_id_get_delete_error("quota", &project_id, e, Some(&context)))?;
 
     let resp = QuotaResp {
         project_id: quota.id,

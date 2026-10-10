@@ -38,7 +38,7 @@ pub async fn get_secret(
     context: UserContext,
 ) -> Result<Json<SecretResp>, ErrorResponse> {
     let secret = secret_table::get_secret(&secret_uuid, &context)
-        .map_err(|e| map_db_uuid_get_delete_error("secret", &secret_uuid, e))?;
+        .map_err(|e| map_db_uuid_get_delete_error("secret", &secret_uuid, e, Some(&context)))?;
 
     let resp = SecretResp {
         uuid: *secret_uuid,

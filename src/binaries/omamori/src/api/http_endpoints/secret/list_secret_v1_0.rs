@@ -30,8 +30,8 @@ use ainari_api_structs::user_context::UserContext;
     error_code = 500
 )]
 pub async fn list_secret(context: UserContext) -> Result<Json<SecretListResp>, ErrorResponse> {
-    let secrets =
-        secret_table::list_secrets(&context).map_err(|e| map_db_list_error("secrets", e))?;
+    let secrets = secret_table::list_secrets(&context)
+        .map_err(|e| map_db_list_error("secrets", e, Some(&context)))?;
 
     let mut resp = SecretListResp {
         secrets: Vec::new(),

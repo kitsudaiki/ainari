@@ -88,7 +88,7 @@ impl ProxyHandler {
                 let msg = format!(
                     "Failed to convert address '{addr_str}' into a SocketAddr with error: {e}"
                 );
-                return Err(AinariError::InternalError(msg));
+                return Err(AinariError::internal(msg));
             }
         };
 
@@ -185,7 +185,7 @@ impl ProxyHandler {
             Ok(proxys) => proxys,
             Err(e) => {
                 let msg = format!("Failed to get list of proxys form database: '{e}'");
-                return Err(AinariError::InternalError(msg));
+                return Err(AinariError::internal(msg));
             }
         };
 

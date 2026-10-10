@@ -64,14 +64,19 @@ pub async fn register_host_internal(
             // add new host to database if address not already exist
             host_table::add_new_host(&host_uuid, &body.name, &body.host_address, &context)
                 .map_err(|e| {
-                    map_db_write_error(&format!("add host with UUID '{host_uuid}' to database"), e)
+                    map_db_write_error(
+                        &format!("add host with UUID '{host_uuid}' to database"),
+                        e,
+                        Some(&context),
+                    )
                 })?;
         }
     };
 
     // get new created host from database to get additional information
-    let host_data = host_table::get_host(&host_uuid, &context)
-        .map_err(|e| map_db_uuid_get_after_add_error("onsen-host", &host_uuid, e))?;
+    let host_data = host_table::get_host(&host_uuid, &context).map_err(|e| {
+        map_db_uuid_get_after_add_error("onsen-host", &host_uuid, e, Some(&context))
+    })?;
 
     let resp = HostResp {
         uuid: host_uuid,

@@ -54,6 +54,7 @@ pub fn add_task(
         map_db_write_error(
             &format!("add task with UUID '{}' to database", task.uuid),
             e,
+            Some(context),
         )
     })?;
 

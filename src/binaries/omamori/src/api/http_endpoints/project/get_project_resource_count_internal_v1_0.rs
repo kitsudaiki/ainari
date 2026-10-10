@@ -42,13 +42,19 @@ pub async fn get_project_resource_count_internal(
     let mut resource_counts = BTreeMap::new();
 
     let number = secret_table::count_secrets_of_project(&project_id).map_err(|e| {
-        log::error!("Failed to count the secrets of project '{project_id}' in database: {e}");
+        ainari_api::report_internal_error!(
+            Some(&context),
+            "Failed to count the secrets of project '{project_id}' in database: {e}"
+        );
         ErrorResponse::InternalError("Internal Error".to_string())
     })?;
     resource_counts.insert("secret".to_string(), number);
 
     let number = public_key_table::count_public_keys_of_project(&project_id).map_err(|e| {
-        log::error!("Failed to count the public_keys of project '{project_id}' in database: {e}");
+        ainari_api::report_internal_error!(
+            Some(&context),
+            "Failed to count the public_keys of project '{project_id}' in database: {e}"
+        );
         ErrorResponse::InternalError("Internal Error".to_string())
     })?;
     resource_counts.insert("public_key".to_string(), number);

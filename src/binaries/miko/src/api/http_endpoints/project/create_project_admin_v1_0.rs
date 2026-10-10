@@ -57,6 +57,7 @@ pub async fn create_project_admin(
         "project",
         project_id,
         project_table::get_project(project_id, &context),
+        Some(&context),
     )?;
 
     // add new project to database
@@ -64,12 +65,13 @@ pub async fn create_project_admin(
         map_db_write_error(
             &format!("add project with ID '{project_id}' to database"),
             e,
+            Some(&context),
         )
     })?;
 
     // get new created project from database to get additional information
     let project = project_table::get_project(project_id, &context)
-        .map_err(|e| map_db_id_get_after_add_error("project", project_id, e))?;
+        .map_err(|e| map_db_id_get_after_add_error("project", project_id, e, Some(&context)))?;
 
     let resp = ProjectResp {
         id: project.id,

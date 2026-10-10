@@ -129,7 +129,7 @@ async fn create_and_boot_vm(uuid: &Uuid, context: &UserContext) -> Result<VmHand
     client
         .boot_vm()
         .await
-        .map_err(|e| AinariError::InternalError(format!("Boot VM {uuid} failed: {e:?}")))?;
+        .map_err(|e| AinariError::internal(format!("Boot VM {uuid} failed: {e:?}")))?;
 
     // the virtual_machine runs now, so its disks are stored and it is marked as running
     virtual_machine_table::update_virtual_machine(
@@ -185,7 +185,7 @@ pub(super) async fn spawn_vmm_with_vm(
         .arg("--api-socket")
         .arg(&socket_path)
         .spawn()
-        .map_err(|e| AinariError::InternalError(format!("Failed to spawn VMM: {e}")))?;
+        .map_err(|e| AinariError::internal(format!("Failed to spawn VMM: {e}")))?;
 
     // the process creates its API-socket shortly after its start
     let deadline = Instant::now() + VMM_SOCKET_TIMEOUT;
@@ -204,7 +204,7 @@ pub(super) async fn spawn_vmm_with_vm(
         // the process would stay without a virtual_machine otherwise
         let _ = child.kill();
         let _ = child.wait();
-        return Err(AinariError::InternalError(format!(
+        return Err(AinariError::internal(format!(
             "Create VM {uuid} failed: {e:?}"
         )));
     }
@@ -337,9 +337,9 @@ fn create_seed_file(
 
     // json-strings are valid double-quoted yaml-strings, so this escapes the values properly
     let quoted_mac_address = serde_json::to_string(mac_address)
-        .map_err(|e| AinariError::InternalError(format!("Failed to quote mac-address: {e}")))?;
+        .map_err(|e| AinariError::internal(format!("Failed to quote mac-address: {e}")))?;
     let quoted_public_key = serde_json::to_string(public_key.trim())
-        .map_err(|e| AinariError::InternalError(format!("Failed to quote public-key: {e}")))?;
+        .map_err(|e| AinariError::internal(format!("Failed to quote public-key: {e}")))?;
 
     let network_config = format!(
         "version: 2
@@ -366,11 +366,10 @@ ssh_authorized_keys:
     );
 
     fs::write(&network_config_path, network_config).map_err(|e| {
-        AinariError::InternalError(format!("Failed to write {network_config_path}: {e}"))
+        AinariError::internal(format!("Failed to write {network_config_path}: {e}"))
     })?;
-    fs::write(&user_data_path, user_data).map_err(|e| {
-        AinariError::InternalError(format!("Failed to write {user_data_path}: {e}"))
-    })?;
+    fs::write(&user_data_path, user_data)
+        .map_err(|e| AinariError::internal(format!("Failed to write {user_data_path}: {e}")))?;
 
     // combine network-config and user-data into the seed-image
     if let Err(e) = super::run_command(
@@ -429,7 +428,7 @@ async fn download_and_convert_image(
     .await
     .map_err(|e| {
         let _ = fs::remove_file(&local_encrypted_file_path);
-        AinariError::InternalError(format!("Failed to download image-file from onsen: {e}"))
+        AinariError::internal(format!("Failed to download image-file from onsen: {e}"))
     })?;
 
     // decrypt image

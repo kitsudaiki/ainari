@@ -186,7 +186,7 @@ pub fn get_proxy(proxy_uuid: &Uuid, context: &UserContext) -> Result<ProxyEntry,
 /// * `Result<u16, ErrorResponse>` containing the available port if found, or an error if no ports are available
 pub fn get_free_proxy(min_port: u16, max_port: u16) -> Result<u16, ErrorResponse> {
     // Get all active proxies sorted by port
-    let proxys = list_all_proxys_sorted().map_err(|e| map_db_list_error("proxys", e))?;
+    let proxys = list_all_proxys_sorted().map_err(|e| map_db_list_error("proxys", e, None))?;
 
     let mut prev_port = min_port;
 

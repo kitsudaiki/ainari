@@ -70,7 +70,10 @@ async fn check_image_quota(context: &UserContext) -> Result<(), ErrorResponse> {
     // get number of images of the whole project
     let current_number_of_images = image_table::count_images_of_project(&context.project_id)
         .map_err(|e| {
-            log::error!("Failed to count images in database.: {e}");
+            ainari_api::report_internal_error!(
+                Some(context),
+                "Failed to count images in database.: {e}"
+            );
             ErrorResponse::InternalError("Internal Error".to_string())
         })?;
 
@@ -83,7 +86,7 @@ async fn check_image_quota(context: &UserContext) -> Result<(), ErrorResponse> {
         config::CONFIG.skip_tls_verification,
     )
     .await
-    .map_err(map_ainari_error_to_api_response)?;
+    .map_err(|e| map_ainari_error_to_api_response(e, Some(context)))?;
 
     let max_number_of_images = quota.max_image as i64;
     // check if quota is already exceeded

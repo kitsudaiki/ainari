@@ -19,6 +19,8 @@ mod config;
 mod core;
 mod database;
 
+use ainari_api::omikuji_logging::OmikujiLogging;
+
 /// Entrypoint of the omamori.
 ///
 /// Manages the public-keys and the secrets of the users.
@@ -32,6 +34,14 @@ mod database;
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = &config::CONFIG;
     ainari_common::logger::init_logger(config.log_type, &config.log_path, "omamori", config.debug)?;
+
+    OmikujiLogging::new(
+        "omamori",
+        &config.miko,
+        &config::INTERNAL_API_KEY,
+        config.skip_tls_verification,
+    )
+    .init();
 
     database::init_database()?;
 

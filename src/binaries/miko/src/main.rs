@@ -19,6 +19,9 @@ mod config;
 mod core;
 mod database;
 
+use ainari_api::omikuji_logging::OmikujiLogging;
+use ainari_common::config::MikoEndpoint;
+
 /// Entrypoint of the miko.
 ///
 /// Provides the authentication together with the user-, project- and quota-management.
@@ -32,6 +35,16 @@ mod database;
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = &config::CONFIG;
     ainari_common::logger::init_logger(config.log_type, &config.log_path, "miko", config.debug)?;
+
+    // miko can not request the address of omikuji from itself, so it is taken from its config
+    OmikujiLogging::new(
+        "miko",
+        &MikoEndpoint::default(),
+        &config::INTERNAL_API_KEY,
+        config.skip_tls_verification,
+    )
+    .with_omikuji_endpoint(&config.endpoints.omikuji)
+    .init();
 
     database::init_database()?;
 

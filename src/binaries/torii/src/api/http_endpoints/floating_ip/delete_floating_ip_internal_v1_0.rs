@@ -56,6 +56,10 @@ pub async fn delete_floating_ip_internal(
         match floating_ip_table::delete_floating_ip(&floating_ip, &context) {
             Ok(()) | Err(enums::DbError::NotFound) => {}
             Err(enums::DbError::InternalError) => {
+                ainari_api::report_internal_error!(
+                    Some(&context),
+                    "Failed to delete floating ip '{floating_ip}' from database"
+                );
                 return Err(ErrorResponse::InternalError("Internal Error".to_string()));
             }
             Err(enums::DbError::PermissionDenied) => {

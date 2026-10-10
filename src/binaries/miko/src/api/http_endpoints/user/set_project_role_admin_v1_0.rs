@@ -61,7 +61,7 @@ pub async fn set_project_role_admin(
 
     // check if user exist
     user_table::get_user(&user_id, &context)
-        .map_err(|e| map_db_id_get_delete_error("user", &user_id, e))?;
+        .map_err(|e| map_db_id_get_delete_error("user", &user_id, e, Some(&context)))?;
 
     // update role in database, which only works, if the user is already assigned to the project
     user_project_mapping_table::set_mapping_role(project_id, &user_id, body.project_role, &context)
@@ -71,7 +71,8 @@ pub async fn set_project_role_admin(
             )),
             DbError::PermissionDenied => permission_denied_response(),
             DbError::InternalError => {
-                log::error!(
+                ainari_api::report_internal_error!(
+                    Some(&context),
                     "Failed to set role of user '{user_id}' in project '{project_id}' in database."
                 );
                 ErrorResponse::InternalError("Internal Error".to_string())
@@ -79,8 +80,9 @@ pub async fn set_project_role_admin(
         })?;
 
     // get updated mapping from database to get the stored values
-    let mapping = user_project_mapping_table::get_mapping(project_id, &user_id)
-        .map_err(|e| map_db_id_get_after_add_error("user-project-mapping", &user_id, e))?;
+    let mapping = user_project_mapping_table::get_mapping(project_id, &user_id).map_err(|e| {
+        map_db_id_get_after_add_error("user-project-mapping", &user_id, e, Some(&context))
+    })?;
 
     let resp = UserSetProjectRoleResp {
         user_id: mapping.user_id,

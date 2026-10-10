@@ -40,7 +40,7 @@ pub async fn delete_host_admin(
 
     // delete host from database
     host_table::delete_host_admin(&host_uuid, &context)
-        .map_err(|e| map_db_uuid_get_delete_error("sakura-host", &host_uuid, e))?;
+        .map_err(|e| map_db_uuid_get_delete_error("sakura-host", &host_uuid, e, Some(&context)))?;
 
     Ok(NoContent)
 }

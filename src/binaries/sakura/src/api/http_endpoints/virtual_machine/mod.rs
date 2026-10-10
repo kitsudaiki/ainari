@@ -98,7 +98,7 @@ fn add_power_task(
     // check that the virtual_machine exists, before a task for it is created
     let virtual_machine_data =
         virtual_machine_table::get_virtual_machine(virtual_machine_uuid, context).map_err(|e| {
-            map_db_uuid_get_delete_error("virtual_machine", virtual_machine_uuid, e)
+            map_db_uuid_get_delete_error("virtual_machine", virtual_machine_uuid, e, Some(context))
         })?;
     reject_migrating(&virtual_machine_data)?;
 
@@ -130,7 +130,7 @@ fn add_power_task(
 
     // get new created task from database to get additional information
     let task_data = task_table::get_task(&task_uuid, context)
-        .map_err(|e| map_db_uuid_get_delete_error("task", &task_uuid, e))?;
+        .map_err(|e| map_db_uuid_get_delete_error("task", &task_uuid, e, Some(context)))?;
 
     Ok(TaskResp {
         uuid: task_uuid,

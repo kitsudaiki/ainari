@@ -103,7 +103,7 @@ fn program_floating_ip(
         .insert(u32::from(floating_ip), FipTargetPod(target), 0)
         .is_err()
     {
-        log::error!("eBPF Map error (DNAT)");
+        ainari_api::report_internal_error!(None, "eBPF Map error (DNAT)");
         return Err(ErrorResponse::InternalError("Internal Error".to_string()));
     }
 
@@ -113,7 +113,7 @@ fn program_floating_ip(
         .insert(snat_key, u32::from(floating_ip), 0)
         .is_err()
     {
-        log::error!("eBPF Map error (SNAT)");
+        ainari_api::report_internal_error!(None, "eBPF Map error (SNAT)");
         return Err(ErrorResponse::InternalError("Internal Error".to_string()));
     }
 

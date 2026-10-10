@@ -37,7 +37,7 @@ pub async fn list_proxy(context: UserContext) -> Result<Json<ProxyListResp>, Err
     let miko_endpoint = &config::CONFIG.miko;
     let endpoints = get_endpoints(miko_endpoint, config::CONFIG.skip_tls_verification)
         .await
-        .map_err(map_ainari_error_to_api_response)?;
+        .map_err(|e| map_ainari_error_to_api_response(e, Some(&context)))?;
 
     let proxy_list = proxy_clients::list_proxy(
         &endpoints.torii,
@@ -45,7 +45,7 @@ pub async fn list_proxy(context: UserContext) -> Result<Json<ProxyListResp>, Err
         config::CONFIG.skip_tls_verification,
     )
     .await
-    .map_err(map_ainari_error_to_api_response)?;
+    .map_err(|e| map_ainari_error_to_api_response(e, Some(&context)))?;
 
     Ok(Json(proxy_list))
 }

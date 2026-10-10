@@ -50,6 +50,7 @@ pub async fn get_network_filter(
                     &format!("{direction} network_filter of virtual_machine"),
                     &virtual_machine_uuid,
                     e,
+                    Some(&context),
                 )
             })?;
 

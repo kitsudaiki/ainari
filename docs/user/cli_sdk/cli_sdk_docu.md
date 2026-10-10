@@ -271,6 +271,81 @@ An admin can also place a new virtual machine on a specific host (see
     # }
     ```
 
+## Error and audit log
+
+Omikuji collects the internal errors and the api-requests of all components centrally. The
+error-log contains every internal error together with the component and the host, where it
+occurred, and the user and project, whose request caused it. The audit-log contains every request
+against the api of a component with its type and endpoint. The entries are only added by the
+components themselves, so they can only be read, but not changed or deleted.
+
+!!! info
+
+    Only admins are allowed to read the error- and audit-log.
+
+Both lists are sorted by the creation-time of the entries with the newest first. They can be
+filtered by project, user and host and limited to a maximum number of entries, which is 100, if it
+is not set.
+
+=== "CLI"
+
+    ```bash
+    ainarictl error_log list [--project <PROJECT_ID>] [--user <USER_ID>] [--host <HOST_NAME>] [--limit <NUMBER>]
+    ainarictl error_log get <ENTRY_UUID>
+
+    ainarictl audit_log list [--project <PROJECT_ID>] [--user <USER_ID>] [--host <HOST_NAME>] [--limit <NUMBER>]
+    ainarictl audit_log get <ENTRY_UUID>
+    ```
+
+    example:
+
+    ```bash
+    ainarictl audit_log list --user asdf --limit 2
+
+    ┌────────────────┬────────────────────────────────┬──────────────────────────┬──────────────┬──────────────┬──────────────┬─────────┬──────────────────────────────────────┐
+    │ COMPONENT NAME │           CREATED AT           │         ENDPOINT         │  HOST NAME   │  PROJECT ID  │ REQUEST TYPE │ USER ID │                 UUID                 │
+    ├────────────────┼────────────────────────────────┼──────────────────────────┼──────────────┼──────────────┼──────────────┼─────────┼──────────────────────────────────────┤
+    │ miko           │ 2026-10-10T20:15:31.506364899Z │ /v1alpha/endpoints       │ 98f844d338bf │ default-asdf │ GET          │ asdf    │ 265d9234-0297-430f-b87d-3465ae57a29a │
+    │ omikuji        │ 2026-10-10T20:14:56.038895072Z │ /v1alpha/audit_log/admin │ 510a6b6407fb │ default-asdf │ GET          │ asdf    │ 171bb3b8-b7a4-4a1c-804b-1bb616d95148 │
+    └────────────────┴────────────────────────────────┴──────────────────────────┴──────────────┴──────────────┴──────────────┴─────────┴──────────────────────────────────────┘
+    ```
+
+=== "Python-SDK"
+
+    ```python
+    from ainari_sdk import audit_log, error_log
+
+    # every filter is optional
+    error_log.list_error_logs(context, project_id=None, user_id=None, host_name=None, limit=None)
+    error_log.get_error_log(context, entry_uuid)
+
+    audit_log.list_audit_logs(context, project_id=None, user_id=None, host_name=None, limit=None)
+    audit_log.get_audit_log(context, entry_uuid)
+
+    # example-content of the result of list_error_logs:
+    #
+    # {
+    #     "entries": [
+    #         {
+    #             "uuid": "1df55583-ef83-43c1-a10c-71df71b3ccc4",
+    #             "message": "Task b95d8f26-0520-410b-bfe5-85af4e17b25f (Create virtual machine with UUID cf7b3ad5-d3a9-4868-9f9c-cd148ef14ac5) failed: cloud-localds failed with exit status: exit status: 1",
+    #             "component_name": "sakura",
+    #             "host_name": "06e69bf521b8",
+    #             "user_id": "asdf",
+    #             "project_id": "default-asdf",
+    #             "created_at": "2026-10-10T20:14:16.408813599Z"
+    #         },
+    #         ...
+    #     ]
+    # }
+    #
+    # the entries of the audit-log have the fields "request_type" and "endpoint" instead of
+    # "message"
+    ```
+
+    The entries of background jobs, which no user caused, have an empty `user_id` and
+    `project_id`. Without omikuji in the deployment, `context.omikuji_address` is empty.
+
 ## Public keys
 
 ssh-public-keys, which are deployed into virtual machines for the default-user of the image.

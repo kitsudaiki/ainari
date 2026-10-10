@@ -13,3 +13,12 @@ that there is more than one task open in the task-queue per VM and resuming an a
 because depending on the task there are many edge cases possible. The restart shouldn't be happening in general, 
 as long as there are VMs on the sakura host. So to keep thing simple, in this rare error-case, 
 all open tasks are marked as ERROR instead of implementing a big resume-process.
+
+## All components have always the same version
+
+Each componet within the same release also has the same version number, no matter, when the component was introduced.
+So instead of starting at v0.1.0, the new component starts where the other are already are.
+
+This was done to make it easier to identify, which versions belong together. If each component starts its development at
+v0.1.0, which others are for example at v0.11.0, v0.20.0, ... at the same time, it becomes hard to identify, which versions
+belong together to have a consistent setup. When all have always the same version, then it is clear, what belongs togehter.

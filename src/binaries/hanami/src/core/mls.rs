@@ -132,7 +132,7 @@ pub async fn grant_membership(
         skip_tls,
     )
     .await
-    .map_err(map_ainari_error_to_api_response)?;
+    .map_err(|e| map_ainari_error_to_api_response(e, Some(context)))?;
 
     if identity.client_id != host_ip.to_string() {
         log::error!(
@@ -303,7 +303,7 @@ async fn store_grant(
     payload: &MlsGrantPayload,
 ) -> Result<(), ErrorResponse> {
     if endpoints.izakaya.internal_address.is_empty() {
-        log::error!("Miko has no endpoint of the izakaya configured");
+        ainari_api::report_internal_error!(None, "Miko has no endpoint of the izakaya configured");
         return Err(ErrorResponse::InternalError("Internal Error".to_string()));
     }
 
@@ -315,7 +315,7 @@ async fn store_grant(
         config::CONFIG.skip_tls_verification,
     )
     .await
-    .map_err(map_ainari_error_to_api_response)
+    .map_err(|e| map_ainari_error_to_api_response(e, None))
 }
 
 /// Pins the signature-key of the torii of a host with its first grant and checks it with every
@@ -332,7 +332,7 @@ fn pinned_signature_key(
     signature_key: &str,
     client_id: &str,
 ) -> Result<String, ErrorResponse> {
-    let db_error = |e| map_db_uuid_get_delete_error("sakura-host", &host.uuid, e);
+    let db_error = |e| map_db_uuid_get_delete_error("sakura-host", &host.uuid, e, None);
 
     host_table::pin_mls_signature_key(&host.uuid, signature_key, client_id).map_err(db_error)?;
     let pinned = host_table::get_mls_signature_key(&host.uuid)

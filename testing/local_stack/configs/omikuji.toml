@@ -1,0 +1,17 @@
+# Config of omikuji for the local docker-compose setup.
+debug = true
+log_path = "/var/log"
+database_type = "sqlite"
+skip_tls_verification = true
+
+[api]
+public_ip = "0.0.0.0"
+public_port = 11424
+internal_ip = "0.0.0.0"
+internal_port = 10424
+
+[miko]
+address = "http://miko:11417"
+
+[sqlite]
+file_path = "/etc/ainari/omikuji_db"

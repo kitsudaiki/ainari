@@ -36,10 +36,10 @@ The amount of memory is given in MiB."###,
 )]
 pub async fn get_vm_type(
     vm_type_uuid: Path<Uuid>,
-    _context: UserContext,
+    context: UserContext,
 ) -> Result<Json<VmTypeResp>, ErrorResponse> {
     let vm_type_data = vm_type_table::get_vm_type(&vm_type_uuid)
-        .map_err(|e| map_db_uuid_get_delete_error("vm-type", &vm_type_uuid, e))?;
+        .map_err(|e| map_db_uuid_get_delete_error("vm-type", &vm_type_uuid, e, Some(&context)))?;
 
     let resp = VmTypeResp {
         uuid: vm_type_data.uuid,

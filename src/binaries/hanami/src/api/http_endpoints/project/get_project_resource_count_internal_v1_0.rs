@@ -45,7 +45,8 @@ pub async fn get_project_resource_count_internal(
     // count virtual machines
     let number = meta_virtual_machine_table::count_meta_virtual_machines_of_project(&project_id)
         .map_err(|e| {
-            log::error!(
+            ainari_api::report_internal_error!(
+                Some(&context),
                 "Failed to count the virtual_machines of project '{project_id}' in database: {e}"
             );
             ErrorResponse::InternalError("Internal Error".to_string())
@@ -54,14 +55,20 @@ pub async fn get_project_resource_count_internal(
 
     // count networks
     let number = network_table::count_networks_of_project(&project_id).map_err(|e| {
-        log::error!("Failed to count the networks of project '{project_id}' in database: {e}");
+        ainari_api::report_internal_error!(
+            Some(&context),
+            "Failed to count the networks of project '{project_id}' in database: {e}"
+        );
         ErrorResponse::InternalError("Internal Error".to_string())
     })?;
     resource_counts.insert("network".to_string(), number);
 
     // count flowing-ips
     let number = floating_ip_table::count_floating_ips_of_project(&project_id).map_err(|e| {
-        log::error!("Failed to count the floating_ips of project '{project_id}' in database: {e}");
+        ainari_api::report_internal_error!(
+            Some(&context),
+            "Failed to count the floating_ips of project '{project_id}' in database: {e}"
+        );
         ErrorResponse::InternalError("Internal Error".to_string())
     })?;
     resource_counts.insert("floating_ip".to_string(), number);

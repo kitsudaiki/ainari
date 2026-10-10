@@ -232,7 +232,7 @@ pub async fn is_virtual_machine_deleted(
         .send()
         .await
         .map_err(|e| {
-            AinariError::InternalError(format!(
+            AinariError::internal(format!(
                 "Error while getting virtual_machine with uuid '{virtual_machine_uuid}' : {e}"
             ))
         })?;
@@ -243,7 +243,7 @@ pub async fn is_virtual_machine_deleted(
         StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => {
             Err(AinariError::Unauthorized("Invalid token".to_string()))
         }
-        code => Err(AinariError::InternalError(format!(
+        code => Err(AinariError::internal(format!(
             "Error while getting virtual_machine with uuid '{virtual_machine_uuid}'. \
              Got response-code: {code}"
         ))),

@@ -30,6 +30,10 @@ internal_address = {{ quote (printf "https://torii-public.%s.svc.cluster.local:8
 [endpoints.omamori]
 public_address = {{ quote (publicAddress "omamori") }}
 internal_address = {{ quote (internalAddress "omamori") }}
+
+[endpoints.omikuji]
+public_address = {{ quote (publicAddress "omikuji") }}
+internal_address = {{ quote (internalAddress "omikuji") }}
 {{- if .Spec.Hanami.Network.MLSEncryption }}
 
 # only the other components talk to izakaya, it has no external api

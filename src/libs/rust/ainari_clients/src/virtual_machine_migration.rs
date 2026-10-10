@@ -230,7 +230,7 @@ pub async fn download_migration_file<W: Write>(
         .send()
         .await
         .map_err(|e| {
-            AinariError::InternalError(format!(
+            AinariError::internal(format!(
                 "Failed to request {file} of virtual_machine '{virtual_machine_uuid}': {e}"
             ))
         })?;
@@ -246,7 +246,7 @@ pub async fn download_migration_file<W: Write>(
             StatusCode::UNAUTHORIZED => AinariError::Unauthorized(msg),
             StatusCode::NOT_FOUND => AinariError::NotFound(msg),
             StatusCode::CONFLICT => AinariError::Conflict(msg),
-            _ => AinariError::InternalError(msg),
+            _ => AinariError::internal(msg),
         });
     }
 
@@ -256,7 +256,7 @@ pub async fn download_migration_file<W: Write>(
         .and_then(|value| value.to_str().ok())
         .and_then(|value| value.parse::<u64>().ok())
         .ok_or_else(|| {
-            AinariError::InternalError(format!(
+            AinariError::internal(format!(
                 "Response for {file} of virtual_machine '{virtual_machine_uuid}' has no valid \
                  header '{MIGRATION_FILE_SIZE_HEADER}'"
             ))
@@ -264,12 +264,12 @@ pub async fn download_migration_file<W: Write>(
 
     while let Some(chunk) = response.next().await {
         let chunk = chunk.map_err(|e| {
-            AinariError::InternalError(format!(
+            AinariError::internal(format!(
                 "Transfer of {file} of virtual_machine '{virtual_machine_uuid}' broke off: {e}"
             ))
         })?;
         sink.write_all(&chunk).map_err(|e| {
-            AinariError::InternalError(format!(
+            AinariError::internal(format!(
                 "Failed to write {file} of virtual_machine '{virtual_machine_uuid}': {e}"
             ))
         })?;
@@ -294,9 +294,8 @@ async fn post_task<T: Serialize>(
 
     let response = match body {
         Some(body) => {
-            let json_str = serde_json::to_string(body).map_err(|e| {
-                AinariError::InternalError(format!("Failed to serialize request: {e}"))
-            })?;
+            let json_str = serde_json::to_string(body)
+                .map_err(|e| AinariError::internal(format!("Failed to serialize request: {e}")))?;
             request
                 .insert_header(("Content-Type", "application/json"))
                 .send_body(json_str)

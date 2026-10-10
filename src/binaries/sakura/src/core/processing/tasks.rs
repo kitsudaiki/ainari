@@ -14,6 +14,7 @@
 
 use uuid::Uuid;
 
+use ainari_api::omikuji_logging::report_internal_error;
 use ainari_api_structs::task_structs::*;
 use ainari_api_structs::user_context::UserContext;
 use ainari_clients::endpoints::get_endpoints;
@@ -143,6 +144,27 @@ pub enum TaskVariant {
 }
 
 impl TaskVariant {
+    /// Returns the context of the user, who has created the task.
+    ///
+    /// # Returns
+    ///
+    /// The context of the task
+    pub fn context(&self) -> &UserContext {
+        match self {
+            TaskVariant::CloudHypervisorVirtualMachineCreate(info) => &info.context,
+            TaskVariant::CloudHypervisorVirtualMachineDelete(info) => &info.context,
+            TaskVariant::CloudHypervisorVirtualMachineSnapshot(info) => &info.context,
+            TaskVariant::CloudHypervisorVirtualMachineRestore(info) => &info.context,
+            TaskVariant::CloudHypervisorVirtualMachineStart(info)
+            | TaskVariant::CloudHypervisorVirtualMachineStop(info)
+            | TaskVariant::CloudHypervisorVirtualMachineReboot(info) => &info.context,
+            TaskVariant::CloudHypervisorVirtualMachineMigrationPrepare(info)
+            | TaskVariant::CloudHypervisorVirtualMachineMigrationRemove(info) => &info.context,
+            TaskVariant::CloudHypervisorVirtualMachineMigrationCancel(info) => &info.context,
+            TaskVariant::CloudHypervisorVirtualMachineMigrationImport(info) => &info.context,
+        }
+    }
+
     /// Returns the context of a task, which must not run, while its virtual_machine is migrated,
     /// because it would start or change the frozen virtual_machine.
     ///
@@ -226,8 +248,29 @@ pub async fn process_task(task: &mut Task) -> Result<(), AinariError> {
             let _ = task_table::update_task_state(&task.uuid, &TaskState::Finished);
         }
         Err(e) => {
-            log::error!("Task {} ({}) failed: {e}", task.uuid, task.description);
-            let _ = task_table::add_message_to_task(&task.uuid, &e.to_string());
+            let message = e.to_string();
+            match e {
+                // the task is processed in the background, so its error is never converted into
+                // a response and has to be reported here
+                AinariError::InternalError(details) => {
+                    let details = if details.user_id.is_empty() {
+                        let context = task.info.context();
+                        details.with_ids(&context.user_id, &context.project_id)
+                    } else {
+                        details
+                    };
+                    report_internal_error(details.with_message_prefix(&format!(
+                        "Task {} ({}) failed: ",
+                        task.uuid, task.description
+                    )));
+                }
+                _ => log::error!(
+                    "Task {} ({}) failed: {message}",
+                    task.uuid,
+                    task.description
+                ),
+            }
+            let _ = task_table::add_message_to_task(&task.uuid, &message);
             let _ = task_table::update_task_state(&task.uuid, &TaskState::Error);
         }
     }

@@ -64,7 +64,7 @@ pub async fn upload_binary(
 
     super::check_image_quota(&context).await?;
 
-    create_directory_api(&target_dir_path).await?;
+    create_directory_api(&target_dir_path, Some(&context)).await?;
 
     let selected_onsen = select_onsen(&context)?;
 
@@ -88,12 +88,13 @@ pub async fn upload_binary(
 
         encrypt_file(&source_path, &encrypted_result_path, &secret)
             .await
-            .map_err(map_ainari_error_to_api_response)?;
+            .map_err(|e| map_ainari_error_to_api_response(e, Some(&context)))?;
 
         upload_file_to_onsen(
             &selected_onsen.address,
             &upload_file_path_str,
             &encrypted_result_path,
+            Some(&context),
         )
         .await?;
 
@@ -114,10 +115,10 @@ pub async fn upload_binary(
         false,
         &context,
     )
-    .map_err(|e| map_db_write_error("add image to database", e))?;
+    .map_err(|e| map_db_write_error("add image to database", e, Some(&context)))?;
 
     let image_data = image_table::get_image(&image_uuid, &context)
-        .map_err(|e| map_db_uuid_get_after_add_error("image", &image_uuid, e))?;
+        .map_err(|e| map_db_uuid_get_after_add_error("image", &image_uuid, e, Some(&context)))?;
 
     let resp = ImageResp {
         uuid: image_uuid,
@@ -153,7 +154,10 @@ fn get_disk_image_path(temp_file_paths: &[PathBuf]) -> Result<String, ErrorRespo
     match temp_file_paths[0].to_str() {
         Some(path) => Ok(path.to_string()),
         None => {
-            log::error!("Path of the uploaded disk-image is not valid utf-8.");
+            ainari_api::report_internal_error!(
+                None,
+                "Path of the uploaded disk-image is not valid utf-8."
+            );
             Err(ErrorResponse::InternalError("Internal Error".to_string()))
         }
     }
@@ -210,7 +214,10 @@ async fn write_payload_into_file(
                 .as_os_str()
                 .to_str()
                 .unwrap_or("Invalid-path");
-            log::error!("Failed to create upload-file '{path}' with error: {e}.");
+            ainari_api::report_internal_error!(
+                None,
+                "Failed to create upload-file '{path}' with error: {e}."
+            );
             ErrorResponse::InternalError("Internal Error".to_string())
         })?;
 
@@ -220,18 +227,27 @@ async fn write_payload_into_file(
         let result = async {
             while let Some(chunk) = field.next().await {
                 let data = chunk.map_err(|e| {
-                    log::error!("Failed to fill content into file with error '{e}'");
+                    ainari_api::report_internal_error!(
+                        None,
+                        "Failed to fill content into file with error '{e}'"
+                    );
                     ErrorResponse::InternalError("Internal Error".to_string())
                 })?;
 
                 f.write_all(&data).await.map_err(|e| {
-                    log::error!("Failed to write all chunks into file with error: '{e}'");
+                    ainari_api::report_internal_error!(
+                        None,
+                        "Failed to write all chunks into file with error: '{e}'"
+                    );
                     ErrorResponse::InternalError("Internal Error".to_string())
                 })?;
             }
 
             f.sync_all().await.map_err(|e| {
-                log::error!("Failed to sync file to disc with error: '{e}'");
+                ainari_api::report_internal_error!(
+                    None,
+                    "Failed to sync file to disc with error: '{e}'"
+                );
                 ErrorResponse::InternalError("Internal Error".to_string())
             })?;
 
