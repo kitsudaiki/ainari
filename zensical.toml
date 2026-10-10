@@ -22,6 +22,9 @@ nav = [
     "home/license.md",
     "home/CHANGELOG.md",
   ] },
+  { "Concepts" = [
+    "concepts/design_decisions.md",
+  ] },
   { "User-Docu" = [
     "user/dashboard/dashboard.md",
     { "CLI and SDK" = [

@@ -334,7 +334,8 @@ sequenceDiagram
 
 - The job lives only in the memory of hanami. If hanami restarts during a migration, the VM stays
   frozen in the state `MIGRATING` on the source host and has to be cleaned up by hand.
-- The task-queues of sakura are not persisted. If the target host restarts during an import, hanami
-  waits for the task up to its limit of 24 hours.
+- The task-queues of sakura only live in its memory. At its start, sakura marks all tasks as failed,
+  which didn't end before its restart. So a step of a migration, which was interrupted by a restart
+  of its host, fails and the migration is rolled back.
 - The files are transferred over the internal api of the sakura-hosts. They are only encrypted, if
   the address of the source host, which it registered at hanami, uses `https`.
