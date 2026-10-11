@@ -40,9 +40,13 @@ pub async fn get_image(
     let image_data = image_table::get_image(&image_uuid, &context)
         .map_err(|e| map_db_uuid_get_delete_error("image", &image_uuid, e, Some(&context)))?;
 
+    let image_status = super::image_status_of(&image_data)?;
     let resp = ImageResp {
         uuid: *image_uuid,
         name: image_data.name,
+        file_type: image_data.file_type,
+        file_size: image_data.file_size as u64,
+        image_status,
         is_snapshot: image_data.is_snapshot,
         created_by: image_data.created_by,
         created_at: image_data.created_at,

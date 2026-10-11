@@ -67,7 +67,7 @@ run was aborted.
 | ------------------ | --------------------------------------------------------------------------------------------- |
 | `auth`             | validate/renew token, wrong passphrase, invalid token, endpoints, component-versions, quota   |
 | `hosts`            | sakura-hosts registered, get/list, reported resources, unknown host → 404, onsen-hosts        |
-| `resources`        | public key upload/get/list plus an invalid key, image upload/get/list/count, network, secrets |
+| `resources`        | public key upload/get/list plus an invalid key, image upload/get/list/count incl. file type, size and status, network, secrets |
 | `host_isolation`   | isolate an unused sakura-host, normal virtual machine avoids it, isolated virtual machine binds it to the project, change of a host in use rejected, deleting the last virtual machine releases it, unknown host → 404 |
 | `virtual_machines` | reserve, host-resources allocated, oversized virtual machine rejected, create → `RUNNING`, get/list/count |
 | `proxies`          | list/get proxies, sakura reachable through each proxy-port, tasks listed through the proxy    |
@@ -77,7 +77,7 @@ run was aborted.
 | `network_filters`  | invalid filter-requests rejected, add/get/list/remove of ip-ranges and ports incl. canonical notation, ingress ip-ranges and ports and egress ip-ranges block and allow the traffic between the virtual machines, filters of deleted virtual machines are gone |
 | `users`            | second user: no admin-access, can't see or use the virtual machines, network or floating ip-addresses of the other user; deleted afterwards |
 | `power`            | reboot (new boot-id), stop (unreachable), stop twice, other virtual machines unaffected, start, start while running |
-| `snapshots`        | write a marker-file → save snapshot → listed as snapshot-image → change the disk → restore → marker is back and the later file is gone; invalid restores rejected |
+| `snapshots`        | write a marker-file → save snapshot → listed as qcow2 snapshot-image → change the disk → restore → marker is back and the later file is gone; invalid restores rejected |
 | `tasks`            | every task created during the run is `Finished`, has consistent timestamps and shows up in the list |
 | `cleanup`          | deletes everything and checks, that it is gone, including the release of the host-resources  |
 

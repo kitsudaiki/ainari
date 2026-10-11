@@ -24,19 +24,20 @@ import (
 	"fmt"
 )
 
-// const chunkSize = 128 * 1024 // 128 KiB
-
 // CreateDiskImage uploads a disk-image, which is used as boot-disk of a virtual machine. The file
 // is stored as it is, so it has to be an image, which cloud-hypervisor can boot, like a
 // qcow2-cloud-image. With a secretUuid, the image is encrypted with this already existing secret,
-// instead of a new generated secret. An empty secretUuid generates a new secret.
-func CreateDiskImage(context AccessContext, imageName, filePath, secretUuid string) (map[string]interface{}, error) {
-	path := fmt.Sprintf("v1alpha/image/disk/%s", imageName)
-	if secretUuid != "" {
-		path += fmt.Sprintf("?secret_uuid=%s", secretUuid)
+// instead of a new generated secret. An empty secretUuid generates a new secret. Type and size of
+// the file are identified by ryokan and returned as file_type and file_size. If progress is not
+// nil, it is called while the file is uploaded.
+func CreateDiskImage(context AccessContext, imageName, filePath, secretUuid string, progress UploadProgressFunc) (map[string]interface{}, error) {
+	path := "v1alpha/image"
+	fields := map[string]string{
+		"name":        imageName,
+		"image_type":  "disk",
+		"secret_uuid": secretUuid,
 	}
-	files := []string{filePath}
-	return UploadFiles(context, path, files)
+	return UploadFile(context, path, fields, filePath, progress)
 }
 
 func GetImage(context AccessContext, imageUuid string,) (map[string]interface{}, error) {

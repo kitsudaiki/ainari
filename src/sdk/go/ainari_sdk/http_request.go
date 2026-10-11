@@ -34,10 +34,8 @@ import (
 	"os"
 	"mime/multipart"
 	"path/filepath"
+	"sort"
 )
-
-// chunkSize defines the size of chunks for file uploads in bytes (1 MiB).
-const chunkSize = 1024 * 1024 // 1 MiB
 
 // RequestError represents an error that occurs during an HTTP request.
 // It contains the HTTP status code and the error message from the response.
@@ -210,45 +208,82 @@ func sendGenericRequest(address, token, requestType, path string, jsonBody *map[
 	return outputMap, nil
 }
 
-// UploadFiles uploads multiple files to the specified path.
+// UploadProgressFunc is called during an upload with the number of bytes, which were already
+// sent, and the total size of the request-body in bytes.
+type UploadProgressFunc func(sent, total int64)
+
+// progressReader wraps the reader of a request-body and reports, how much of it was already read
+// by the http-client.
+type progressReader struct {
+	reader   io.Reader
+	sent     int64
+	total    int64
+	progress UploadProgressFunc
+}
+
+func (r *progressReader) Read(p []byte) (int, error) {
+	n, err := r.reader.Read(p)
+	if n > 0 {
+		r.sent += int64(n)
+		r.progress(r.sent, r.total)
+	}
+	return n, err
+}
+
+// UploadFile uploads a file together with additional text-fields as multipart-form to the
+// specified path. Fields with an empty value are not sent. The file is sent as field "file".
 // It uses the provided AccessContext for authentication and TLS configuration.
-// Files are streamed in chunks of size defined by chunkSize.
-func UploadFiles(context AccessContext, path string, filePaths []string) (map[string]interface{}, error) {
-	body := &bytes.Buffer{}
-	writer := multipart.NewWriter(body)
+// The file is streamed from disk, instead of loading it into memory. If progress is not nil, it
+// is called while the request-body is sent.
+func UploadFile(context AccessContext, path string, fields map[string]string, filePath string, progress UploadProgressFunc) (map[string]interface{}, error) {
 	outputMap := map[string]interface{}{}
 
-	// Open and stream each file into multipart writer
-	for idx, path := range filePaths {
-		file, err := os.Open(path)
-		if err != nil {
-			return outputMap, fmt.Errorf("failed to open file %s: %v", path, err)
-		}
-		defer file.Close()
-
-		part, err := writer.CreateFormFile(fmt.Sprintf("file%d", idx), filepath.Base(path))
-		if err != nil {
-			return outputMap, fmt.Errorf("failed to create form part for %s: %v", path, err)
-		}
-
-		buf := make([]byte, chunkSize)
-		for {
-			n, err := file.Read(buf)
-			if err != nil && err != io.EOF {
-				return outputMap, fmt.Errorf("error reading file %s: %v", path, err)
-			}
-			if n == 0 {
-				break
-			}
-			if _, err := part.Write(buf[:n]); err != nil {
-				return outputMap, fmt.Errorf("error writing part for %s: %v", path, err)
-			}
-		}
+	file, err := os.Open(filePath)
+	if err != nil {
+		return outputMap, fmt.Errorf("failed to open file %s: %v", filePath, err)
+	}
+	defer file.Close()
+	fileInfo, err := file.Stat()
+	if err != nil {
+		return outputMap, fmt.Errorf("failed to get size of file %s: %v", filePath, err)
 	}
 
-	// Close the writer to finish the form
+	// The text-fields and the header of the file-part are written in front of the file and the
+	// closing boundary behind it. So the file can be streamed between them and the size of the
+	// whole body is known in advance, which is required for the progress.
+	form := &bytes.Buffer{}
+	writer := multipart.NewWriter(form)
+
+	// write the text-fields in a fixed order before the file
+	keys := make([]string, 0, len(fields))
+	for key := range fields {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		if fields[key] == "" {
+			continue
+		}
+		if err := writer.WriteField(key, fields[key]); err != nil {
+			return outputMap, fmt.Errorf("failed to write form field %s: %v", key, err)
+		}
+	}
+	if _, err := writer.CreateFormFile("file", filepath.Base(filePath)); err != nil {
+		return outputMap, fmt.Errorf("failed to create form part for %s: %v", filePath, err)
+	}
+	head := bytes.Clone(form.Bytes())
+
+	// Close the writer to get the closing boundary of the form
+	form.Reset()
 	if err := writer.Close(); err != nil {
 		return outputMap, fmt.Errorf("failed to close writer: %w", err)
+	}
+	tail := bytes.Clone(form.Bytes())
+
+	totalSize := int64(len(head)) + fileInfo.Size() + int64(len(tail))
+	var body io.Reader = io.MultiReader(bytes.NewReader(head), file, bytes.NewReader(tail))
+	if progress != nil {
+		body = &progressReader{reader: body, total: totalSize, progress: progress}
 	}
 
 	// check if https or not
@@ -262,6 +297,7 @@ func UploadFiles(context AccessContext, path string, filePaths []string) (map[st
 	if err != nil {
 		return outputMap, fmt.Errorf("failed to create request: %w", err)
 	}
+	req.ContentLength = totalSize
 
 	var bearer_token = fmt.Sprintf("Bearer %s", context.token)
 	req.Header.Set("Authorization",  bearer_token)

@@ -15,7 +15,7 @@
 -->
 
 <template>
-    <div class="modal-overlay" @click.self="cancel">
+    <div class="modal-overlay" @click.self="!uploading && cancel()">
         <div class="modal image-create-modal">
             <!-- Modal topbar -->
             <div class="modal-topbar">
@@ -28,6 +28,7 @@
                     <input
                         v-model="form.imageName"
                         type="text"
+                        :disabled="uploading"
                         placeholder="Image-Name"
                         :class="{ invalid_input: imageNameError }"
                     />
@@ -37,7 +38,12 @@
                 </div>
                 <div class="field-row">
                     <label for="secret">Secret: </label>
-                    <select id="secret" v-model="form.secretUuid" class="select-dropdown">
+                    <select
+                        id="secret"
+                        v-model="form.secretUuid"
+                        class="select-dropdown"
+                        :disabled="uploading"
+                    >
                         <option value="">None (generate new secret)</option>
                         <option
                             v-for="secret in secrets"
@@ -57,6 +63,7 @@
                         <button
                             class="tablinks"
                             :class="{ active: isSelected('disk') }"
+                            :disabled="uploading"
                             @click="selectTab('disk')"
                         >
                             DISK
@@ -67,7 +74,11 @@
                             <br />
                             <label>
                                 Boot-disk of the virtual machine:
-                                <input type="file" @change="onFile1Change" />
+                                <input
+                                    type="file"
+                                    :disabled="uploading"
+                                    @change="onFile1Change"
+                                />
                             </label>
                         </div>
                     </div>
@@ -75,12 +86,23 @@
                         All files of the selected type must be provided
                     </p>
                 </div>
+                <ProgressBar
+                    v-if="uploading"
+                    class="upload-progress"
+                    :percentage="uploadPercentage"
+                    :indeterminate="uploadProcessing"
+                    :label="uploadLabel"
+                />
             </div>
 
             <!-- Modal bottombar -->
             <div class="modal-bottombar">
                 <div class="modal-actions">
-                    <button class="icon-button" @click="handleAccept">
+                    <button
+                        class="icon-button"
+                        :disabled="uploading"
+                        @click="handleAccept"
+                    >
                         <img :src="icons.acceptIcon" alt="Accept" />
                     </button>
                     <button class="icon-button" @click="cancel">
@@ -97,11 +119,14 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, reactive, onMounted } from "vue";
+import { ref, reactive, computed, onMounted, onBeforeUnmount } from "vue";
+import axios from "axios";
 
 import { omamori, ryokan } from "@/api";
 import type { ImageType, SecretBasicResp } from "@/api";
+import common from "@/common";
 import { handleAxiosError } from "@/handleAxiosError";
+import ProgressBar from "@/components/progress_bar.vue";
 
 interface Props {
     icons: { acceptIcon: string; cancelIcon: string };
@@ -159,25 +184,77 @@ async function handleAccept() {
         return;
     }
 
+    uploading.value = true;
+    uploadedBytes.value = 0;
+    totalBytes.value = 0;
+    abortController = new AbortController();
+
     try {
         await ryokan.createImage(
             selectedTab.value,
             form.imageName,
             files,
             form.secretUuid || undefined,
+            {
+                onProgress: (loaded, total) => {
+                    uploadedBytes.value = loaded;
+                    totalBytes.value = total;
+                },
+                signal: abortController.signal,
+            },
         );
         emit("accept");
     } catch (err) {
-        errorPopupMsg.value = handleAxiosError(
-            err,
-            `Failed to upload ${selectedTab.value.toUpperCase()}-file`,
-        );
+        // an upload, which was aborted by the user, is not an error
+        if (!axios.isCancel(err)) {
+            errorPopupMsg.value = handleAxiosError(
+                err,
+                `Failed to upload ${selectedTab.value.toUpperCase()}-file`,
+            );
+        }
+    } finally {
+        uploading.value = false;
+        abortController = null;
     }
 }
 
 function cancel() {
+    // closing the modal aborts a running upload, instead of letting it continue invisibly
+    abortController?.abort();
     emit("cancel");
 }
+
+//=============================================================================
+// Upload-progress
+//=============================================================================
+const uploading = ref(false);
+const uploadedBytes = ref(0);
+const totalBytes = ref(0);
+let abortController: AbortController | null = null;
+
+const uploadPercentage = computed(() =>
+    totalBytes.value > 0 ? (uploadedBytes.value / totalBytes.value) * 100 : 0,
+);
+
+// after the file was sent, ryokan still encrypts it and stores it in the onsen, which has no
+// progress, but can take a while for big images
+const uploadProcessing = computed(
+    () => totalBytes.value > 0 && uploadedBytes.value >= totalBytes.value,
+);
+
+const uploadLabel = computed(() => {
+    if (uploadProcessing.value) {
+        return "Encrypting and storing image ...";
+    }
+    const percentage = Math.floor(uploadPercentage.value);
+    const loaded = common.formatFileSize(uploadedBytes.value);
+    const total = common.formatFileSize(totalBytes.value);
+    return `Uploading ${percentage}% (${loaded} / ${total})`;
+});
+
+onBeforeUnmount(() => {
+    abortController?.abort();
+});
 
 //=============================================================================
 // Tabs
@@ -218,5 +295,9 @@ onMounted(fetchSecrets);
 .image-tabcontent {
     margin-top: 0.5rem;
     height: 7rem;
+}
+
+.upload-progress {
+    margin-top: 0.5rem;
 }
 </style>

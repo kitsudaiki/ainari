@@ -26,6 +26,9 @@
                     <tr>
                         <th>UUID</th>
                         <th>Name</th>
+                        <th>File Type</th>
+                        <th>File Size</th>
+                        <th>Status</th>
                         <th>Snapshot</th>
                         <th>Actions</th>
                     </tr>
@@ -34,6 +37,9 @@
                     <tr v-for="image in images" :key="image.uuid">
                         <td>{{ image.uuid }}</td>
                         <td>{{ image.name }}</td>
+                        <td>{{ image.file_type }}</td>
+                        <td>{{ common.formatFileSize(image.file_size) }}</td>
+                        <td>{{ image.image_status }}</td>
                         <td>{{ image.is_snapshot ? "Yes" : "No" }}</td>
                         <td>
                             <!-- Dropdown menu -->
@@ -91,10 +97,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, inject } from "vue";
+import { ref, watch, onMounted, onBeforeUnmount, inject } from "vue";
 
 import { ryokan } from "@/api";
 import type { ImageBasicResp } from "@/api";
+import common from "@/common";
 import ImageCreateModal from "./image_create_modal.vue";
 import ImageInfoModal from "./image_info_modal.vue";
 import ImageDeleteModal from "./image_delete_modal.vue";
@@ -118,6 +125,25 @@ async function fetchImages() {
         errorPopupMsg.value = handleAxiosError(err, "Failed to load images");
     }
 }
+
+//=============================================================================
+// Refresh while images are uploaded or encrypted
+//=============================================================================
+const REFRESH_INTERVAL_MS = 5000;
+let refreshTimer: ReturnType<typeof setInterval> | null = null;
+
+// uploads of other users or snapshots change their status in the background, so the list is
+// reloaded, until all images are ready
+function refreshWhilePending() {
+    const pending = images.value.some((image) => image.image_status !== "READY");
+    if (pending && refreshTimer === null) {
+        refreshTimer = setInterval(fetchImages, REFRESH_INTERVAL_MS);
+    } else if (!pending && refreshTimer !== null) {
+        clearInterval(refreshTimer);
+        refreshTimer = null;
+    }
+}
+watch(images, refreshWhilePending);
 
 //=============================================================================
 // Dropdown in table
@@ -196,6 +222,9 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
     window.removeEventListener("click", handleClickOutside);
+    if (refreshTimer !== null) {
+        clearInterval(refreshTimer);
+    }
 });
 </script>
 

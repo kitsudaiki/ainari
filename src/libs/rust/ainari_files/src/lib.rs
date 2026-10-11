@@ -15,3 +15,4 @@
 #![forbid(unsafe_code)]
 
 pub mod file_encryption;
+pub mod file_info;

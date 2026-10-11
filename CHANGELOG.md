@@ -55,6 +55,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   machine on a specific sakura-host. It fails, if the host has not enough free resources. It is
   available as `--host` in `ainarictl vm create` and in the python- and go-sdk.
 - new component omikuji for central error- and audit-logging
+- updates for images:
+    - images storing now also the file type and size
+    - image-status: "ENCRYPTING", "UPLOADING" and "READY"
+    - images and snapshots can only be used, when they are READY
+    - image upload progress bar for CLI and dashboard
 
 ### Fixed
 

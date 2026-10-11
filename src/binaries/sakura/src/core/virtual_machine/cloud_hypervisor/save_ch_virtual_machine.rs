@@ -20,13 +20,15 @@ use cloud_hypervisor_client::socket_based_api_client;
 use uuid::Uuid;
 
 use ainari_api::common_functions::*;
+use ainari_api_structs::image_structs::ImageStatus;
 use ainari_api_structs::user_context::UserContext;
 use ainari_clients::endpoints::get_endpoints;
-use ainari_clients::image::get_image;
+use ainari_clients::image::{get_image, update_image_status};
 use ainari_clients::onsen_file_transfer::upload_file;
 use ainari_clients::secret::get_secret_payload;
 use ainari_common::error::AinariError;
 use ainari_files::file_encryption::encrypt_file;
+use ainari_files::file_info::get_disk_image_info;
 
 use super::{snapshot_temp_directory, vm_socket_path};
 use crate::config;
@@ -36,7 +38,9 @@ use crate::database::virtual_machine_table;
 ///
 /// The snapshot must already be registered in ryokan as image, which is marked as snapshot.
 /// Ryokan also generated the secret for it in omamori, if the user didn't provide an existing
-/// one. The root-disk is copied into a qcow2-image in the temp-directory, while the
+/// one. The image is registered with the status `ENCRYPTING`, which is changed to `UPLOADING`
+/// before the encrypted file is uploaded and to `READY` at the end. The root-disk is copied into a
+/// qcow2-image in the temp-directory, while the
 /// virtual_machine is paused, so the disk doesn't change during the copy. Afterwards the image is encrypted with the secret of the snapshot and uploaded into
 /// the onsen, which was selected by ryokan.
 ///
@@ -97,14 +101,40 @@ pub async fn save_ch_virtual_machine(
 
     let result = async {
         copy_root_disk(uuid, &root_disk_path, &local_file_path).await?;
+        // the type and size can only be measured on the unencrypted file
+        let file_info = get_disk_image_info(&local_file_path).await?;
         encrypt_file(&local_file_path, &local_encrypted_file_path, &secret).await?;
+        update_image_status(
+            &endpoints.ryokan,
+            &context.token,
+            &config::INTERNAL_API_KEY,
+            image_uuid,
+            ImageStatus::Uploading,
+            Some((&file_info.file_type, file_info.file_size)),
+            config::CONFIG.skip_tls_verification,
+        )
+        .await?;
         upload_file(
             &image_resp.onsen_address,
             &image_resp.file_path,
             &local_encrypted_file_path,
         )
         .await
-        .map_err(|e| AinariError::internal(format!("Failed to upload snapshot-file to onsen: {e}")))
+        .map_err(|e| {
+            AinariError::internal(format!("Failed to upload snapshot-file to onsen: {e}"))
+        })?;
+        // only now the snapshot is complete and can be restored
+        update_image_status(
+            &endpoints.ryokan,
+            &context.token,
+            &config::INTERNAL_API_KEY,
+            image_uuid,
+            ImageStatus::Ready,
+            None,
+            config::CONFIG.skip_tls_verification,
+        )
+        .await
+        .map(|_| ())
     }
     .await;
 

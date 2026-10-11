@@ -126,18 +126,28 @@
                         :class="{ invalid_input: imageError }"
                     >
                         <option value="" disabled>Select an image</option>
+                        <!-- images, which are still uploaded or encrypted, can not be used yet -->
                         <option
                             v-for="image in images"
                             :key="image.uuid"
                             :value="image.uuid"
+                            :disabled="image.image_status !== 'READY'"
                         >
                             {{ image.name }}
+                            {{
+                                image.image_status !== "READY"
+                                    ? `(${image.image_status})`
+                                    : ""
+                            }}
                         </option>
                     </select>
                 </div>
                 <p v-if="imageError" class="error-msg">
                     <template v-if="images.length === 0">
                         No images available. Upload one under Storage first.
+                    </template>
+                    <template v-else-if="!images.some((i) => i.image_status === 'READY')">
+                        No image is ready yet. Wait until the upload is finished.
                     </template>
                     <template v-else>An image must be selected</template>
                 </p>

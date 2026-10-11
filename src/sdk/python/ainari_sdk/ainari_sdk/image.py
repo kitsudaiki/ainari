@@ -66,14 +66,18 @@ def upload_disk_file(context: AccessContext,
     it is, so it has to be an image, which cloud-hypervisor can boot, like a qcow2-cloud-image.
 
     With `secret_uuid`, the image is encrypted with this already existing secret, instead of a new
-    generated secret.
+    generated secret. Type and size of the file are identified by ryokan and returned as
+    `file_type` and `file_size`.
     """
-    path = f"/v1alpha/image/disk/{name}"
-    if secret_uuid:
-        path += f"?secret_uuid={secret_uuid}"
-    files = [input_file_path]
+    path = "/v1alpha/image"
+    form_fields = {
+        "name": name,
+        "image_type": "disk",
+        "secret_uuid": secret_uuid,
+    }
 
-    return ainari_request.upload_files(context,
-                                       context.ryokan_adress,
-                                       path,
-                                       files)
+    return ainari_request.upload_file(context,
+                                      context.ryokan_adress,
+                                      path,
+                                      form_fields,
+                                      input_file_path)

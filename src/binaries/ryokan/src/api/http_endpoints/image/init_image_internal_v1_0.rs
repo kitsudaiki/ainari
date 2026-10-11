@@ -31,7 +31,8 @@ use ainari_api_structs::user_context::UserContext;
     description = r###"Initialize a new image.
 
 Prepares the database-entry and the onsen, before the files are uploaded. Sakura uses this to
-store the root-disk of a virtual_machine as snapshot, which is marked by `is_snapshot`. With
+store the root-disk of a virtual_machine as snapshot, which is marked by `is_snapshot`. The image
+starts with the status `ENCRYPTING` and can not be used, until sakura sets it to `READY`. With
 `secret_uuid`, the image is encrypted with this already existing secret of the omamori, instead of
 a new generated secret.
 
@@ -73,13 +74,18 @@ pub async fn init_image(
 
     let selected_onsen = select_onsen(&context)?;
 
+    // the file of the snapshot doesn't exist yet. Sakura copies the root-disk and encrypts it
+    // first, so the image starts as encrypting. Its status, type and size are updated by sakura.
     image_table::add_new_image(
         image_uuid,
         name,
         &selected_onsen.address,
         &file_path_str,
+        "unknown",
+        0,
         &secret_uuid,
         body.is_snapshot,
+        &ImageStatus::Encrypting,
         &context,
     )
     .map_err(|e| map_db_write_error("add image to database", e, Some(&context)))?;
@@ -88,11 +94,15 @@ pub async fn init_image(
         .map_err(|e| map_db_uuid_get_delete_error("image", image_uuid, e, Some(&context)))?;
 
     let secret_uuid = image_data.secret_uuid;
+    let image_status = super::image_status_of(&image_data)?;
     let resp = ImageInternalResp {
         uuid: *image_uuid,
         name: image_data.name,
         onsen_address: image_data.onsen_address,
         file_path: image_data.file_path,
+        file_type: image_data.file_type,
+        file_size: image_data.file_size as u64,
+        image_status,
         is_snapshot: image_data.is_snapshot,
         secret_uuid,
         created_by: image_data.created_by,

@@ -45,7 +45,18 @@ var createDiskImageCmd = &cobra.Command{
 			os.Exit(1)
 		}
 		imageName := args[0]
-		content, err := ainari_sdk.CreateDiskImage(context, imageName, inputFilePath, imageSecretUuid)
+		bar := ainarictl_common.NewProgressBar("uploading")
+		progress := func(sent, total int64) {
+			bar.Update(sent, total)
+			if sent >= total {
+				// after the upload ryokan still has to encrypt the image and to store it in the
+				// onsen, which takes a while for big images
+				fmt.Fprintln(os.Stderr, "upload finished, ryokan encrypts and stores the image ...")
+			}
+		}
+		content, err := ainari_sdk.CreateDiskImage(context, imageName, inputFilePath, imageSecretUuid, progress)
+		// an aborted upload leaves the bar unfinished, so the error has to start in a new line
+		bar.Finish()
 		if err == nil {
 			ainarictl_common.PrintSingle(content)
 		} else {

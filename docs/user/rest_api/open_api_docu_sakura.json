@@ -843,7 +843,7 @@
           "task"
         ],
         "summary": "Create new virtual_machine",
-        "description": "Create a new task, which creates the virtual_machine.\\\n\\\nThe image and the public-key of the request are stored on the reserved\\\nvirtual_machine, before the task is queued.",
+        "description": "Create a new task, which creates the virtual_machine.\\\n\\\nThe image and the public-key of the request are stored on the reserved\\\nvirtual_machine, before the task is queued. The image must have the status `READY`, so an image,\\\nwhich is still uploaded or encrypted, is rejected.",
         "parameters": [
           {
             "name": "virtual_machine_uuid",
@@ -933,6 +933,12 @@
           },
           "500": {
             "description": "Internal error"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "409": {
+            "description": "Conflict with existing resources"
           }
         },
         "deprecated": false,
@@ -1154,6 +1160,9 @@
           },
           "500": {
             "description": "Internal error"
+          },
+          "409": {
+            "description": "Conflict with existing resources"
           }
         },
         "deprecated": false,

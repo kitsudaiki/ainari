@@ -32,6 +32,18 @@
                             <td>{{ info.name }}</td>
                         </tr>
                         <tr>
+                            <td>File Type</td>
+                            <td>{{ info.file_type }}</td>
+                        </tr>
+                        <tr>
+                            <td>File Size</td>
+                            <td>{{ common.formatFileSize(info.file_size) }}</td>
+                        </tr>
+                        <tr>
+                            <td>Status</td>
+                            <td>{{ info.image_status }}</td>
+                        </tr>
+                        <tr>
                             <td>Snapshot</td>
                             <td>{{ info.is_snapshot ? "Yes" : "No" }}</td>
                         </tr>

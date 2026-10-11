@@ -396,6 +396,20 @@ ssh-public-keys, which are deployed into virtual machines for the default-user o
 Disk-images, which are used as boot-disk of virtual machines, for example an ubuntu-cloud-image.
 Snapshots of virtual machines are stored as images too, with `is_snapshot` set.
 
+While an image is uploaded with the CLI, a progress-bar shows the uploaded part of the file. It is
+written to stderr and only shown in a terminal, so the output on stdout can still be parsed. After
+the upload, ryokan still encrypts the image and stores it, which takes a while for big images.
+
+Before an image is encrypted, its type is identified and its size is measured. Both are returned as
+`file_type` and `file_size` (in bytes) by the upload, get and list. The type is named like the formats
+of `qemu-img` (e.g. `qcow2` or `iso`), a file without known format is `raw`.
+
+The `image_status` shows the state of the file of the image. An uploaded image appears, after its
+file was completely uploaded. While ryokan encrypts it, it is `ENCRYPTING`, while ryokan stores the
+encrypted file in the onsen, it is `UPLOADING` and afterwards `READY`. Only a `READY` image can be used to create a virtual machine or to restore a snapshot, other
+images are rejected with a conflict. If the encryption or the storing fails, the image is removed
+again. `IN_USE` is reserved and not set at the moment.
+
 === "CLI"
 
     ```bash
@@ -411,12 +425,12 @@ Snapshots of virtual machines are stored as images too, with `is_snapshot` set.
     ```bash
     ainarictl image list
 
-    ┌─────────────┬───────────────────────┬──────────────────────────────────────┐
-    │ IS SNAPSHOT │         NAME          │                 UUID                 │
-    ├─────────────┼───────────────────────┼──────────────────────────────────────┤
-    │ false       │ ubuntu-noble          │ 0fefb138-6077-489a-930c-afad9c5c54bf │
-    │ true        │ my-snapshot           │ 0ff16ea5-5380-4f3d-af62-08b1fe5d615b │
-    └─────────────┴───────────────────────┴──────────────────────────────────────┘
+    ┌───────────┬───────────┬──────────────┬─────────────┬───────────────────────┬──────────────────────────────────────┐
+    │ FILE SIZE │ FILE TYPE │ IMAGE STATUS │ IS SNAPSHOT │         NAME          │                 UUID                 │
+    ├───────────┼───────────┼──────────────┼─────────────┼───────────────────────┼──────────────────────────────────────┤
+    │ 597688320 │ qcow2     │ READY        │ false       │ ubuntu-noble          │ 0fefb138-6077-489a-930c-afad9c5c54bf │
+    │ 912261120 │ qcow2     │ READY        │ true        │ my-snapshot           │ 0ff16ea5-5380-4f3d-af62-08b1fe5d615b │
+    └───────────┴───────────┴──────────────┴─────────────┴───────────────────────┴──────────────────────────────────────┘
     ```
 
 === "Python-SDK"
@@ -429,7 +443,9 @@ Snapshots of virtual machines are stored as images too, with `is_snapshot` set.
     result = image.upload_disk_file(context, "ubuntu-noble", "./noble-server-cloudimg-amd64.img",
                                     secret_uuid=secret_uuid)
 
-    image.list_images(context)        # {"images": [{"uuid": ..., "name": ..., "is_snapshot": false}]}
+    # {"images": [{"uuid": ..., "name": ..., "file_type": "qcow2", "file_size": 597688320,
+    #              "image_status": "READY", "is_snapshot": false}]}
+    image.list_images(context)
     image.get_image(context, image_uuid)
     image.get_image_count(context)    # {"number_of_items": 1}
     image.delete_image(context, image_uuid)
@@ -1070,7 +1086,11 @@ the reason is listed in `MESSAGES`.
 ### Snapshots
 
 A snapshot saves the root-disk of a virtual machine as new image with `is_snapshot` set. It can
-be restored into a virtual machine later on.
+be restored into a virtual machine later on. The root-disk is stored as qcow2-image, so the
+`file_type` of a snapshot is `qcow2`. While the snapshot-task is still running, the image has the
+`file_type` `unknown` and the `file_size` `0`. Its `image_status` is `ENCRYPTING`, while sakura copies
+and encrypts the root-disk, then `UPLOADING`, while the encrypted file is stored, and `READY` at the
+end. Only a `READY` snapshot can be restored.
 
 !!! warning
 

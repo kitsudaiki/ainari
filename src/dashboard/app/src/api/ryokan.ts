@@ -27,37 +27,54 @@ import type {
 // image
 //=============================================================================
 
+/** Options of an upload. */
+export interface UploadOptions {
+    /** Called while the files are sent, with the bytes already sent and the total bytes. */
+    onProgress?: (loaded: number, total: number) => void;
+    /** Aborts the upload, if the signal is triggered. */
+    signal?: AbortSignal;
+}
+
 /**
- * `POST /v1alpha/image/{type}/{name}`
+ * `POST /v1alpha/image`
  *
- * Uploads the files of a new image. The number of files depends on the type:
- * `disk` expects a single file.
+ * Uploads a new image as multipart-form. The number of files depends on the type:
+ * `disk` expects a single file. Type and size of the file are identified by ryokan.
  *
  * @param imageType - Type of the image, currently only `disk`
  * @param name - Name of the new image
  * @param files - Files to upload, in the order expected by the type
  * @param secretUuid - Optional existing secret to encrypt the image with. Without it, a new
  *                     secret is generated for the image.
+ * @param options - Optional callback for the upload-progress and signal to abort the upload
  */
 export async function createImage(
     imageType: ImageType,
     name: string,
     files: File[],
     secretUuid?: string,
+    options: UploadOptions = {},
 ): Promise<ImageResp> {
     const formData = new FormData();
-    files.forEach((file, index) => {
-        formData.append(`file${index + 1}`, file);
+    formData.append("name", name);
+    formData.append("image_type", imageType);
+    if (secretUuid) {
+        formData.append("secret_uuid", secretUuid);
+    }
+    files.forEach((file) => {
+        formData.append("file", file);
     });
 
-    const resp = await ryokanClient().post(
-        `/v1alpha/image/${imageType}/${name}`,
-        formData,
-        {
-            headers: { "Content-Type": "multipart/form-data" },
-            params: secretUuid ? { secret_uuid: secretUuid } : undefined,
+    const resp = await ryokanClient().post("/v1alpha/image", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+        signal: options.signal,
+        onUploadProgress: (event) => {
+            // the total is only unknown, if the browser can not determine the size of the body
+            if (options.onProgress && event.total) {
+                options.onProgress(event.loaded, event.total);
+            }
         },
-    );
+    });
     return resp.data;
 }
 
