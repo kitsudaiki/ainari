@@ -17,13 +17,11 @@ nav = [
     "index.md",
     "home/about.md",
     "home/quick_start.md",
+    "home/architecture_overview.md",
     "home/features.md",
-    "home/overview.md",
+    "home/design_decisions.md",
     "home/license.md",
     "home/CHANGELOG.md",
-  ] },
-  { "Concepts" = [
-    "concepts/design_decisions.md",
   ] },
   { "User-Docu" = [
     "user/dashboard/dashboard.md",
@@ -45,6 +43,7 @@ nav = [
   { "Deployer/Admin-Docu" = [
     { "Installation" = [
       "deployer/installation/kubernetes_installation.md",
+      "deployer/installation/offline_installation.md",
     ] },
     { "Configuration" = [
       "deployer/config/sakura_config.md",

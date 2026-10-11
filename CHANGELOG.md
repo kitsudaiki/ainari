@@ -36,6 +36,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - creates the wireguard-configs itself and connects every onsen with every ryokan and every
       sakura, so onsen and ryokan can run with multiple replicas
     - the kind- and the vagrant-setup deploy the stack with the operator
+- offline-installation of the whole stack with zarf in `deploy/zarf`:
+    - `scripts/create_zarf_package.sh` creates a package with the operator, the images of all
+      components, cert-manager and Envoy Gateway, together with the binary and init-package of zarf
+    - the package deploys the stack on a kubernetes without access to the internet
 - cold migration of virtual machines to another sakura-host:
     - new admin-endpoint in hanami to move a virtual machine to a given host, which runs in the
       background and rolls back to the old host, if it fails

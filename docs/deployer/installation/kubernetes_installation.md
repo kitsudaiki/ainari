@@ -10,6 +10,9 @@ deploys the stack of a single custom-resource of the kind `Ainari`, generates al
 passwords itself and keeps the stack in the state of the resource. All components run with the
 pre-built images of [docker-hub](https://hub.docker.com/u/kitsudaiki).
 
+For a kubernetes without access to the internet, see
+[Offline-installation](offline_installation.md).
+
 Every image has the tag `develop` for the latest state of the develop-branch and the version of
 every release without the leading `v`, for example `0.21.0`. `VERSION` stands for one of these
 tags in the following steps.

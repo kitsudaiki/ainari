@@ -1,0 +1,174 @@
+# Copyright 2022-2026 Tobias Anker <tobias.anker@kitsunemimi.moe>
+#
+# Licensed under the Apache License, Version 2.0 (the "License")
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Offline-package of the whole ainari-stack for zarf (https://zarf.dev): cert-manager, Envoy
+# Gateway with the gateway of deploy/k8s/gateway.yaml, the operator of deploy/operator, the
+# Ainari-resource of ainari.yaml and all images, which they and the components deployed by the
+# operator need. So it can be deployed on a kubernetes without access to the internet, after the
+# cluster was initialized with the init-package of zarf. The agent of zarf rewrites the images of
+# all pods, also the ones created later by the operator, towards the registry of zarf in the
+# cluster.
+#
+# The package is created by scripts/create_zarf_package.sh, which also adds the binary of zarf
+# and its init-package, see docs/deployer/installation/offline_installation.md.
+
+kind: ZarfPackageConfig
+metadata:
+  name: ainari
+  description: ainari-stack with its operator, cert-manager and Envoy Gateway
+  # tag of the images of ainari, for example 'develop' or '0.21.0', see
+  # scripts/create_zarf_package.sh
+  version: "###ZARF_PKG_TMPL_AINARI_VERSION###"
+  url: https://github.com/kitsudaiki/ainari
+
+constants:
+  - name: AINARI_VERSION
+    description: tag of the images of ainari within the package
+    value: "###ZARF_PKG_TMPL_AINARI_VERSION###"
+
+# variables of the Ainari-resource of ainari.yaml
+variables:
+  - name: ADMIN_ID
+    description: id of the initial admin-user, its passphrase is generated into the secret 'miko-admin'
+    default: admin
+    prompt: true
+    pattern: "^[a-zA-Z][a-zA-Z_0-9@]{3,255}$"
+  - name: ADMIN_NAME
+    description: name of the initial admin-user
+    default: admin
+    prompt: true
+    pattern: "^[a-zA-Z][a-zA-Z_0-9 ]{3,255}$"
+  - name: FLOATING_IP_CIDR
+    description: network of the floating ips, which are served by the gateway 'torii-public'
+    prompt: true
+    pattern: "^[0-9.]+/[0-9]+$"
+  - name: UPLINK_IFACE
+    description: interface of the uplink within the pod of 'torii-public', where the floating ips are served
+    default: veth-gw
+    prompt: true
+  - name: UPLINK_NEXT_HOP
+    description: address of the router behind the uplink of 'torii-public'
+    prompt: true
+    pattern: "^[0-9.]+$"
+  - name: KVM_GID
+    description: id of the group of /dev/kvm on the sakura-nodes (output of 'stat -c %g /dev/kvm')
+    default: "993"
+    prompt: true
+    pattern: "^[0-9]+$"
+  - name: STRICT_SCHEDULING
+    description: run every component only on the nodes with its label (for example 'hanami-node=true')
+    default: "true"
+    pattern: "^(true|false)$"
+  - name: GATEWAY_ENABLED
+    description: create the TLSRoutes of the components for the gateway 'ainari-gateway'
+    default: "true"
+    pattern: "^(true|false)$"
+  - name: STORAGE_CLASS
+    description: storage-class of all volumes, the one of the CRD ('local-path'), if empty
+    default: ""
+
+components:
+  # Required by the operator, because all components talk https to each other with certificates of
+  # cert-manager. It can be skipped, if the cluster already has cert-manager.
+  - name: cert-manager
+    description: cert-manager, which issues the certificates of all components
+    default: true
+    manifests:
+      - name: cert-manager
+        # the same version as in testing/kind/setup_kind_stack.sh
+        files:
+          - https://github.com/cert-manager/cert-manager/releases/download/v1.18.2/cert-manager.yaml@0546b64bc806237885ccc80e345bce1585eb2ec2f476a7af593f030abdb3a16f
+    images:
+      - quay.io/jetstack/cert-manager-cainjector:v1.18.2
+      - quay.io/jetstack/cert-manager-controller:v1.18.2
+      - quay.io/jetstack/cert-manager-webhook:v1.18.2
+    actions:
+      onDeploy:
+        after:
+          # the operator creates the issuer and certificates, which are validated by the webhook
+          - wait:
+              cluster:
+                kind: Deployment
+                name: cert-manager-webhook
+                namespace: cert-manager
+                condition: Available
+
+  # Implementation of the gateway-api with its CRDs. It can be skipped, if the cluster already has
+  # an implementation, which supports TLSRoutes with the mode Passthrough.
+  - name: envoy-gateway
+    description: Envoy Gateway with the CRDs of the gateway-api
+    default: true
+    charts:
+      - name: gateway-helm
+        url: oci://docker.io/envoyproxy/gateway-helm
+        version: v1.9.2
+        namespace: envoy-gateway-system
+        releaseName: eg
+    images:
+      - docker.io/envoyproxy/gateway:v1.9.2
+      # The envoy-proxies of the gateways are created by Envoy Gateway itself with the default
+      # image of DefaultEnvoyProxyImage in api/v1alpha1/shared_types.go of its version.
+      - docker.io/envoyproxy/envoy:distroless-v1.39.1@sha256:eb2c01c13125d1629637cb4e4cce7207009fb7cc2c8027f9742758549d15b6f4
+
+  # The gateway, to which the operator attaches the TLSRoutes of the components. Its GatewayClass
+  # is the one of Envoy Gateway.
+  - name: gateway
+    description: gateway 'ainari-gateway' of deploy/k8s/gateway.yaml with a tls-passthrough listener
+    default: true
+    manifests:
+      - name: gateway
+        namespace: ainari-gateway
+        files:
+          - ../k8s/gateway.yaml
+
+  - name: ainari-operator
+    description: CRD and operator of the ainari-stack with the images of all components
+    required: true
+    manifests:
+      - name: ainari-operator
+        namespace: ainari-system
+        kustomizations:
+          - operator
+    images:
+      - docker.io/kitsudaiki/ainari_operator:###ZARF_PKG_TMPL_AINARI_VERSION###
+      # the images of all components, which the operator deploys
+      - docker.io/kitsudaiki/miko:###ZARF_PKG_TMPL_AINARI_VERSION###
+      - docker.io/kitsudaiki/hanami:###ZARF_PKG_TMPL_AINARI_VERSION###
+      - docker.io/kitsudaiki/ryokan:###ZARF_PKG_TMPL_AINARI_VERSION###
+      - docker.io/kitsudaiki/omamori:###ZARF_PKG_TMPL_AINARI_VERSION###
+      - docker.io/kitsudaiki/omikuji:###ZARF_PKG_TMPL_AINARI_VERSION###
+      - docker.io/kitsudaiki/izakaya:###ZARF_PKG_TMPL_AINARI_VERSION###
+      - docker.io/kitsudaiki/onsen:###ZARF_PKG_TMPL_AINARI_VERSION###
+      - docker.io/kitsudaiki/sakura:###ZARF_PKG_TMPL_AINARI_VERSION###
+      - docker.io/kitsudaiki/torii:###ZARF_PKG_TMPL_AINARI_VERSION###
+      - docker.io/kitsudaiki/ainari_dashboard:###ZARF_PKG_TMPL_AINARI_VERSION###
+      # the defaults of global.nginxImage and mysql.image of the CRD
+      - docker.io/library/nginx:latest
+      - docker.io/library/mysql:8.4
+    healthChecks:
+      - apiVersion: apps/v1
+        kind: Deployment
+        name: ainari-operator
+        namespace: ainari-system
+
+  # The Ainari-resource of the stack. Without this component, an own Ainari-resource can be created,
+  # see docs/deployer/installation/offline_installation.md.
+  - name: ainari
+    description: Ainari-resource of the stack in the namespace 'ainari'
+    default: true
+    manifests:
+      - name: ainari
+        namespace: ainari
+        files:
+          - ainari.yaml

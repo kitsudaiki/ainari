@@ -1,0 +1,58 @@
+# Copyright 2022-2026 Tobias Anker <tobias.anker@kitsunemimi.moe>
+#
+# Licensed under the Apache License, Version 2.0 (the "License")
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Ainari-resource of the zarf-package. The values are the variables of deploy/zarf/zarf.yaml, which
+# are set on deploy. All images have the tag of the images within the package. Every other field
+# has the default of the CRD, see deploy/operator/api/v1alpha1/ainari_types.go.
+apiVersion: ainari.cloud/v1alpha1
+kind: Ainari
+metadata:
+  name: ainari
+  namespace: ainari
+spec:
+  global:
+    gateway:
+      enabled: ###ZARF_VAR_GATEWAY_ENABLED###
+    strictScheduling: ###ZARF_VAR_STRICT_SCHEDULING###
+    storageClass: "###ZARF_VAR_STORAGE_CLASS###"
+  miko:
+    image: kitsudaiki/miko:###ZARF_CONST_AINARI_VERSION###
+    admin:
+      id: "###ZARF_VAR_ADMIN_ID###"
+      name: "###ZARF_VAR_ADMIN_NAME###"
+  hanami:
+    image: kitsudaiki/hanami:###ZARF_CONST_AINARI_VERSION###
+    network:
+      floatingIpCidr: "###ZARF_VAR_FLOATING_IP_CIDR###"
+  ryokan:
+    image: kitsudaiki/ryokan:###ZARF_CONST_AINARI_VERSION###
+  omamori:
+    image: kitsudaiki/omamori:###ZARF_CONST_AINARI_VERSION###
+  omikuji:
+    image: kitsudaiki/omikuji:###ZARF_CONST_AINARI_VERSION###
+  izakaya:
+    image: kitsudaiki/izakaya:###ZARF_CONST_AINARI_VERSION###
+  onsen:
+    image: kitsudaiki/onsen:###ZARF_CONST_AINARI_VERSION###
+  sakura:
+    image: kitsudaiki/sakura:###ZARF_CONST_AINARI_VERSION###
+    kvmGid: ###ZARF_VAR_KVM_GID###
+  torii:
+    image: kitsudaiki/torii:###ZARF_CONST_AINARI_VERSION###
+    public:
+      overlayIface: "###ZARF_VAR_UPLINK_IFACE###"
+      uplinkIface: "###ZARF_VAR_UPLINK_IFACE###"
+      uplinkNextHop: "###ZARF_VAR_UPLINK_NEXT_HOP###"
+  dashboard:
+    image: kitsudaiki/ainari_dashboard:###ZARF_CONST_AINARI_VERSION###

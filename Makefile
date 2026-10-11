@@ -18,6 +18,7 @@
 #   make down local
 #   make up kind       the same setup on a kind-cluster (testing/kind/setup_kind_stack.sh)
 #   make down kind
+#                      with ZARF=1 the kind-setup is deployed with the offline-package of zarf
 #   make up vagrant    the same setup on a k3s-cluster of eight virtual machines
 #   make down vagrant  (testing/vagrant/setup_vagrant_stack.sh)
 #
@@ -48,6 +49,7 @@ help:
 	@echo "    make up local      start the docker-compose setup (needs sudo)"
 	@echo "    make down local    stop the docker-compose setup"
 	@echo "    make up kind       start the setup on a kind-cluster (asks for sudo)"
+	@echo "                       with ZARF=1 deployed with the offline-package of zarf"
 	@echo "    make down kind     delete the kind-cluster"
 	@echo "    make up vagrant    start the setup on eight virtual machines (asks for sudo)"
 	@echo "    make down vagrant  destroy the virtual machines"
@@ -56,7 +58,7 @@ help:
 up down: $(if $(filter kind,$(STACK)),$(KIND)) $(if $(filter vagrant,$(STACK)),$(ANSIBLE_PLAYBOOK))
 	@case "$(STACK)" in \
 		local) sudo ./testing/local_stack/setup_local_stack.sh $(if $(filter down,$@),--down) ;; \
-		kind) KIND="$(abspath $(KIND))" ./testing/kind/setup_kind_stack.sh $(if $(filter down,$@),--down) ;; \
+		kind) KIND="$(abspath $(KIND))" ./testing/kind/setup_kind_stack.sh $(if $(filter down,$@),--down,$(if $(ZARF),--zarf)) ;; \
 		vagrant) PATH="$(abspath $(dir $(ANSIBLE_PLAYBOOK))):$$PATH" ./testing/vagrant/setup_vagrant_stack.sh $(if $(filter down,$@),--down) ;; \
 		*) echo "Usage: make $@ local|kind|vagrant"; exit 1 ;; \
 	esac

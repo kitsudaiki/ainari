@@ -1,4 +1,4 @@
-# Overview
+# Architecture Overview
 
 Ainari consist of a micro-service architecture. The overview of the current state of the setup is
 shown and described below:

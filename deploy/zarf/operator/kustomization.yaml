@@ -1,0 +1,23 @@
+# Copyright 2022-2026 Tobias Anker <tobias.anker@kitsunemimi.moe>
+#
+# Licensed under the Apache License, Version 2.0 (the "License")
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# The CRD and the operator of deploy/operator/config/default with the image of the version of the
+# zarf-package. The tag is a constant of zarf, which is replaced on deploy, so it is always the
+# tag of the image within the package.
+resources:
+  - ../../operator/config/default
+
+images:
+  - name: kitsudaiki/ainari_operator
+    newTag: "###ZARF_CONST_AINARI_VERSION###"
