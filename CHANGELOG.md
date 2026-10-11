@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - the helm-chart of `deploy/k8s/ainari` was removed. The whole stack is deployed on kubernetes by
   the new operator instead.
+- the ingresses of ingress-nginx were replaced by TLSRoutes of the gateway-api, which still pass the
+  tls-connections through to the nginx-sidecars of the components. `deploy/k8s/gateway.yaml`
+  replaces `deploy/k8s/ingress-nginx-controller.yaml`.
 
 ### Added
 

@@ -9,7 +9,7 @@ easier for a new person to understand the code.
 .
 ├── .github                     # ci-pipeline, issue-templates
 ├── deploy
-│   ├── k8s                     # service of an ingress-nginx-controller
+│   ├── k8s                     # gateway, which publishes the stack
 │   └── operator                # kubernetes-operator, which deploys the whole stack
 ├── dockerfiles
 │   ├── debian_based            # debian-based images for local debugging
@@ -61,9 +61,10 @@ easier for a new person to understand the code.
 
 - **deploy**
 
-    - **k8s/ingress-nginx-controller.yaml**
+    - **k8s/gateway.yaml**
 
-        Service of the type `LoadBalancer` for an ingress-nginx-controller.
+        Gateway of the gateway-api with a tls-passthrough listener, to which the operator attaches
+        the TLSRoutes of the components.
 
     - **operator**
 

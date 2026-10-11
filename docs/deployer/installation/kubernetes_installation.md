@@ -49,19 +49,40 @@ tags in the following steps.
     cd ainari
     ```
 
-1. **Ingress-nginx-controller** (if not already exist in your kubernetes)
+1. **Gateway** (if not already exist in your kubernetes)
 
-    The ingresses use the ingress-class `nginx`. It can be installed for example with its
-    helm-chart:
+    The components are published over the [gateway-api](https://gateway-api.sigs.k8s.io). The
+    operator creates a `TLSRoute` for the domain of every component, which is attached to the
+    listener `tls-passthrough` of the gateway `ainari-gateway` in the namespace `ainari-gateway`.
+    The gateway doesn't terminate tls, it only passes the connections through to the
+    nginx-sidecars of the components, which terminate tls themselves.
+
+    This requires an implementation of the gateway-api, which supports `TLSRoute` with the mode
+    `Passthrough`, for example [Envoy Gateway](https://gateway.envoyproxy.io). Its helm-chart
+    also installs the CRDs of the gateway-api:
 
     ```bash
-    helm upgrade --install ingress-nginx ingress-nginx \
-        --repo https://kubernetes.github.io/ingress-nginx \
-        --namespace ingress-nginx --create-namespace
+    helm upgrade --install eg oci://docker.io/envoyproxy/gateway-helm \
+        --version v1.9.2 \
+        --namespace envoy-gateway-system --create-namespace
+    kubectl -n envoy-gateway-system wait deployment --all --for=condition=Available --timeout=300s
     ```
 
-    Without an ingress-controller the ingresses have to be disabled and the apis published over
-    node-ports instead, see *Without ingress-controller* in the step *Ainari-resource*.
+    Then the gateway can be created with:
+
+    ```bash
+    kubectl apply -f deploy/k8s/gateway.yaml
+    kubectl -n ainari-gateway wait gateway/ainari-gateway --for=condition=Programmed --timeout=300s
+    ```
+
+    For another implementation the `GatewayClass` in `deploy/k8s/gateway.yaml` has to be
+    replaced. An already existing gateway can be used with `global.gateway.name`,
+    `global.gateway.namespace` and `global.gateway.listener`, if it has a listener with the
+    protocol `TLS` and the mode `Passthrough`, which allows `TLSRoutes` from the namespace of the
+    stack.
+
+    Without a gateway the TLSRoutes have to be disabled and the apis published over node-ports
+    instead, see *Without gateway* in the step *Ainari-resource*.
 
 1. **Cert-Manager** (if not already exist in your kubernetes)
 
@@ -211,9 +232,9 @@ tags in the following steps.
           creates the keys and configs of all pods itself, also for multiple replicas of onsen,
           ryokan and sakura, and updates the running pods, when the number of replicas changes.
 
-    - Without ingress-controller
+    - Without gateway
 
-        - Set `global.ingress.enabled: false` and `global.externalServices.enabled: true`. Then
+        - Set `global.gateway.enabled: false` and `global.externalServices.enabled: true`. Then
           the apis are published on node-ports, which are the ports of the components plus
           `global.externalServices.nodePortOffset` (default `20000`), for example `31417` for
           miko.
@@ -288,10 +309,10 @@ kubectl -n ainari create secret generic miko-admin --from-literal=passphrase=PAS
     kubectl -n ainari get pods
     ```
 
-- get IP-address of the ingresses
+- get IP-address of the gateway
 
     ```bash
-    kubectl -n ainari get ingress
+    kubectl -n ainari-gateway get gateway ainari-gateway -o jsonpath='{.status.addresses[*].value}'
     ```
 
 - add the domains with this ip to `/etc/hosts`

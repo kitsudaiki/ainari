@@ -23,6 +23,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	ainariv1alpha1 "github.com/kitsudaiki/ainari/deploy/operator/api/v1alpha1"
@@ -34,7 +35,7 @@ import (
 func testSpec() *ainariv1alpha1.AinariSpec {
 	return &ainariv1alpha1.AinariSpec{
 		Global: ainariv1alpha1.GlobalSpec{
-			Ingress:          ainariv1alpha1.IngressSpec{Enabled: true, ClassName: "nginx"},
+			Gateway:          ainariv1alpha1.GatewaySpec{Enabled: true, Name: "ainari-gateway", Namespace: "ainari-gateway", Listener: "tls-passthrough"},
 			WireGuard:        ainariv1alpha1.WireGuardSpec{Enabled: true},
 			StrictScheduling: true,
 			NginxImage:       "nginx:latest",
@@ -119,10 +120,10 @@ func TestRenderDefaultStack(t *testing.T) {
 
 	for _, key := range []string{
 		"Deployment/miko", "Deployment/hanami", "Deployment/omamori", "Deployment/izakaya",
-		"Deployment/omikuji", "Ingress/omikuji-ingress",
+		"Deployment/omikuji", "TLSRoute/omikuji-route",
 		"Deployment/torii-public", "Deployment/dashboard",
 		"StatefulSet/mysql", "StatefulSet/ryokan", "StatefulSet/onsen", "StatefulSet/sakura",
-		"Issuer/ainari-ca-issuer", "Certificate/miko-cert", "Ingress/miko-ingress",
+		"Issuer/ainari-ca-issuer", "Certificate/miko-cert", "TLSRoute/miko-route",
 		"Secret/wg-onsen-secret", "ConfigMap/wireguard-scripts",
 	} {
 		if _, ok := objects[key]; !ok {
@@ -147,7 +148,7 @@ func TestRenderOptionalComponents(t *testing.T) {
 	spec := testSpec()
 	spec.Dashboard.Enabled = false
 	spec.Hanami.Network.MLSEncryption = false
-	spec.Global.Ingress.Enabled = false
+	spec.Global.Gateway.Enabled = false
 	spec.Global.WireGuard.Enabled = false
 	spec.MySQL.Deploy = false
 	spec.MySQL.Host = "mysql.example"
@@ -155,7 +156,7 @@ func TestRenderOptionalComponents(t *testing.T) {
 	objects := renderObjects(t, spec)
 
 	for key := range objects {
-		for _, unwanted := range []string{"dashboard", "izakaya", "Ingress/", "wg-", "wireguard", "mls-grant", "StatefulSet/mysql"} {
+		for _, unwanted := range []string{"dashboard", "izakaya", "TLSRoute/", "wg-", "wireguard", "mls-grant", "StatefulSet/mysql"} {
 			if strings.Contains(key, unwanted) {
 				t.Errorf("the object %s is rendered, although it is disabled", key)
 			}
@@ -168,6 +169,32 @@ func TestRenderOptionalComponents(t *testing.T) {
 	password := objects["Deployment/miko"].(*appsv1.Deployment).Spec.Template.Spec.Containers[0].Env[0]
 	if password.Name != "AINARI_MYSQL_PASSWORD" || password.ValueFrom.SecretKeyRef.Name != "external-mysql" {
 		t.Errorf("miko doesn't read its password from the secret of the external server: %+v", password)
+	}
+}
+
+func TestRenderTLSRoute(t *testing.T) {
+	objects := renderObjects(t, testSpec())
+
+	route := objects["TLSRoute/miko-route"].(*unstructured.Unstructured).Object
+	parentRefs, _, _ := unstructured.NestedSlice(route, "spec", "parentRefs")
+	wantParent := map[string]any{"name": "ainari-gateway", "namespace": "ainari-gateway", "sectionName": "tls-passthrough"}
+	if !reflect.DeepEqual(parentRefs, []any{wantParent}) {
+		t.Errorf("the route has the wrong parent: %v", parentRefs)
+	}
+	hostnames, _, _ := unstructured.NestedStringSlice(route, "spec", "hostnames")
+	if !reflect.DeepEqual(hostnames, []string{"local-miko"}) {
+		t.Errorf("the route has the wrong hostnames: %v", hostnames)
+	}
+
+	// the tls is passed through, so the backend has to be the service of a nginx-sidecar
+	rules, _, _ := unstructured.NestedSlice(route, "spec", "rules")
+	backend := rules[0].(map[string]any)["backendRefs"].([]any)[0].(map[string]any)
+	service, ok := objects["Service/"+backend["name"].(string)].(*corev1.Service)
+	if !ok {
+		t.Fatalf("the backend %v of the route is not rendered", backend)
+	}
+	if port := service.Spec.Ports[0]; int64(port.Port) != backend["port"] || port.TargetPort.IntVal != 9443 {
+		t.Errorf("the backend %v doesn't point to the external nginx-sidecar: %+v", backend, port)
 	}
 }
 

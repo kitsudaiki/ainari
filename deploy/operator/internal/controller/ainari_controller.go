@@ -22,7 +22,6 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -49,7 +48,7 @@ var prunedKinds = []schema.GroupVersionKind{
 	corev1.SchemeGroupVersion.WithKind("ConfigMap"),
 	corev1.SchemeGroupVersion.WithKind("Secret"),
 	corev1.SchemeGroupVersion.WithKind("PersistentVolumeClaim"),
-	networkingv1.SchemeGroupVersion.WithKind("Ingress"),
+	{Group: "gateway.networking.k8s.io", Version: "v1", Kind: "TLSRoute"},
 	{Group: "cert-manager.io", Version: "v1", Kind: "Issuer"},
 	{Group: "cert-manager.io", Version: "v1", Kind: "Certificate"},
 }
@@ -67,7 +66,7 @@ type AinariReconciler struct {
 // +kubebuilder:rbac:groups=ainari.cloud,resources=ainaris/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=apps,resources=deployments;statefulsets,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="",resources=services;configmaps;secrets;persistentvolumeclaims,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=networking.k8s.io,resources=ingresses,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=gateway.networking.k8s.io,resources=tlsroutes,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=cert-manager.io,resources=issuers;certificates,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile deploys the stack of an Ainari-resource and updates its status.
@@ -168,7 +167,6 @@ func (r *AinariReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&corev1.ConfigMap{}).
 		Owns(&corev1.Secret{}).
 		Owns(&corev1.PersistentVolumeClaim{}).
-		Owns(&networkingv1.Ingress{}).
 		Named("ainari").
 		Complete(r)
 }

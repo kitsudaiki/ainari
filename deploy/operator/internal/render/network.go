@@ -18,8 +18,8 @@ import (
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
-	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -65,7 +65,7 @@ func headlessService(name, app string, ports ...corev1.ServicePort) *corev1.Serv
 }
 
 // externalService returns the service of the external api of a component, which publishes the
-// given port, forwarded to the targetPort of the pod. It always exists, because the ingress
+// given port, forwarded to the targetPort of the pod. It always exists, because the TLSRoute
 // forwards to it as well, but it only publishes the port outside of the cluster, if
 // global.externalServices is enabled, otherwise it has the type ClusterIP. With the type
 // NodePort, the node-port is the port itself plus a fixed offset, so the kind-setup can map it
@@ -93,42 +93,34 @@ func (r *renderer) externalService(app string, port, targetPort int32) *corev1.S
 	}
 }
 
-// ingress returns the ingress of a component, which passes the tls-connections through to the
-// given service, or nothing, if the ingresses are disabled.
-func (r *renderer) ingress(name, domain, service string, port int32) []client.Object {
-	if !r.Spec.Global.Ingress.Enabled {
+// tlsRoute returns the TLSRoute of a component, which attaches the domain to the gateway and passes
+// the tls-connections through to the given service, so the tls is terminated by the nginx-sidecar
+// of the component and not by the gateway. It returns nothing, if the gateway is disabled. The
+// gateway-api is not imported as a library, so the route is created as unstructured object.
+func (r *renderer) tlsRoute(name, domain, service string, port int32) []client.Object {
+	gateway := r.Spec.Global.Gateway
+	if !gateway.Enabled {
 		return nil
 	}
-	pathType := networkingv1.PathTypePrefix
-	return []client.Object{&networkingv1.Ingress{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: name + "-ingress",
-			Annotations: map[string]string{
-				"nginx.ingress.kubernetes.io/ssl-passthrough":    "true",
-				"nginx.ingress.kubernetes.io/force-ssl-redirect": "true",
-				"nginx.ingress.kubernetes.io/backend-protocol":   "HTTPS",
-				"nginx.ingress.kubernetes.io/proxy-body-size":    "1G",
-			},
-		},
-		Spec: networkingv1.IngressSpec{
-			IngressClassName: &r.Spec.Global.Ingress.ClassName,
-			Rules: []networkingv1.IngressRule{{
-				Host: domain,
-				IngressRuleValue: networkingv1.IngressRuleValue{
-					HTTP: &networkingv1.HTTPIngressRuleValue{
-						Paths: []networkingv1.HTTPIngressPath{{
-							Path:     "/",
-							PathType: &pathType,
-							Backend: networkingv1.IngressBackend{
-								Service: &networkingv1.IngressServiceBackend{
-									Name: service,
-									Port: networkingv1.ServiceBackendPort{Number: port},
-								},
-							},
-						}},
-					},
-				},
-			}},
-		},
-	}}
+
+	parentRef := map[string]any{"name": gateway.Name}
+	if gateway.Namespace != "" {
+		parentRef["namespace"] = gateway.Namespace
+	}
+	if gateway.Listener != "" {
+		parentRef["sectionName"] = gateway.Listener
+	}
+
+	route := &unstructured.Unstructured{}
+	route.SetAPIVersion("gateway.networking.k8s.io/v1")
+	route.SetKind("TLSRoute")
+	route.SetName(name + "-route")
+	route.Object["spec"] = map[string]any{
+		"parentRefs": []any{parentRef},
+		"hostnames":  []any{domain},
+		"rules": []any{map[string]any{
+			"backendRefs": []any{map[string]any{"name": service, "port": int64(port)}},
+		}},
+	}
+	return []client.Object{route}
 }

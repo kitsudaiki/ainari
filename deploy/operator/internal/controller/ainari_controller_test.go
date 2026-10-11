@@ -17,6 +17,7 @@ package controller
 import (
 	"context"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -32,28 +33,39 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
+	// only imported, so the module stays in go.mod, because the tests load the CRD of the
+	// TLSRoute from its directory (see GATEWAY_API_CRDS in the Makefile)
+	_ "sigs.k8s.io/gateway-api/apis/v1"
 
 	ainariv1alpha1 "github.com/kitsudaiki/ainari/deploy/operator/api/v1alpha1"
 	"github.com/kitsudaiki/ainari/deploy/operator/internal/apply"
 	"github.com/kitsudaiki/ainari/deploy/operator/internal/secrets"
 )
 
-// testEnv is an api-server with the CRDs of the operator and cert-manager.
+// testEnv is an api-server with the CRDs of the operator, cert-manager and the gateway-api.
 type testEnv struct {
 	client     client.Client
 	reconciler *AinariReconciler
 }
 
 // startTestEnv starts an api-server, which needs the binaries of envtest in KUBEBUILDER_ASSETS
-// (see 'make test').
+// and the CRDs of the gateway-api of the go-module in GATEWAY_API_CRDS (see 'make test').
 func startTestEnv(t *testing.T) *testEnv {
 	t.Helper()
 	if os.Getenv("KUBEBUILDER_ASSETS") == "" {
 		t.Skip("KUBEBUILDER_ASSETS is not set, run the tests with 'make test'")
 	}
+	gatewayAPICRDs := os.Getenv("GATEWAY_API_CRDS")
+	if gatewayAPICRDs == "" {
+		t.Fatal("GATEWAY_API_CRDS is not set, run the tests with 'make test'")
+	}
 
 	env := &envtest.Environment{
-		CRDDirectoryPaths:     []string{"../../config/crd/bases", "testdata"},
+		CRDDirectoryPaths: []string{
+			"../../config/crd/bases",
+			"testdata",
+			filepath.Join(gatewayAPICRDs, "gateway.networking.k8s.io_tlsroutes.yaml"),
+		},
 		ErrorIfCRDPathMissing: true,
 	}
 	cfg, err := env.Start()
