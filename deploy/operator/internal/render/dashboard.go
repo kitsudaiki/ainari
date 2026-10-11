@@ -60,7 +60,7 @@ func (r *renderer) dashboard() ([]client.Object, error) {
 		r.externalService("dashboard", dashboardPort, internalTLSPort),
 		r.certificate("dashboard", spec.Domain, tlsServiceName("dashboard")),
 	}
-	return append(objects, r.ingress("dashboard", spec.Domain, tlsServiceName("dashboard"), internalTLSPort)...), nil
+	return append(objects, r.tlsRoute("dashboard", spec.Domain, tlsServiceName("dashboard"), internalTLSPort)...), nil
 }
 
 // dashboardDeployment returns the deployment of the dashboard.

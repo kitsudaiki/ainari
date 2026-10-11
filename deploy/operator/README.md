@@ -8,8 +8,9 @@ ignored.
 ## Requirements
 
 - [cert-manager](https://cert-manager.io), which issues the certificates of all components
-- [ingress-nginx](https://kubernetes.github.io/ingress-nginx/) with ssl-passthrough, if the
-  ingresses are enabled
+- an implementation of the [gateway-api](https://gateway-api.sigs.k8s.io) with a gateway, which
+  has a listener for `TLSRoutes` with the mode `Passthrough`, if `global.gateway` is enabled (see
+  `deploy/k8s/gateway.yaml`)
 - the node-labels like `hanami-node=true`, if `global.strictScheduling` is enabled
 
 ## Installation

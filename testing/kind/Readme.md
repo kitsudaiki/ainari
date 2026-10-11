@@ -9,7 +9,9 @@ kind-cluster (kubernetes in docker), and connects the host to it. The stack is d
 operator of `deploy/operator` from the `Ainari`-resource
 `deploy/operator/config/samples/ainari_v1alpha1_ainari_kind.yaml`. The debian-based images and the
 image of the operator are built with [build_local_images.sh](build_local_images.sh) and docker and
-loaded into the cluster.
+loaded into the cluster. With `--zarf` (`make up kind ZARF=1`), they are deployed with the
+offline-package of zarf instead, see
+[Kind setup](../../docs/developer/local_testing/kind_setup.md#with-the-offline-package-of-zarf).
 The components talk https to each other with certificates of cert-manager, which are signed by the
 CA of [create_local_ca.sh](create_local_ca.sh). See
 [Kind setup](../../docs/developer/local_testing/kind_setup.md) for the details of the setup.
@@ -17,8 +19,9 @@ CA of [create_local_ca.sh](create_local_ca.sh). See
 ### Usage
 
 ```bash
-make up kind      # or ./testing/kind/setup_kind_stack.sh
-make down kind    # or ./testing/kind/setup_kind_stack.sh --down
+make up kind          # or ./testing/kind/setup_kind_stack.sh
+make up kind ZARF=1   # or ./testing/kind/setup_kind_stack.sh --zarf
+make down kind        # or ./testing/kind/setup_kind_stack.sh --down
 ```
 
 The binary of kind can be given with `KIND`. `make up kind` downloads kind into
@@ -35,6 +38,8 @@ The binary of kind can be given with `KIND`. `make up kind` downloads kind into
   the setup can't run together with the docker-compose setup, the vagrant-setup or the uplink of
   [setup_single_node_uplink.sh](../local_stack/setup_single_node_uplink.sh).
 - The manifest of cert-manager is downloaded from GitHub, so the host needs access to the internet.
+  With `--zarf`, zarf, its init-package and all images of the package are downloaded instead.
+- Switching between the setup with and without `--zarf` deletes and creates the cluster again.
 - `net.ipv4.ip_forward` stays enabled on the host after `--down`, because docker needs it for its
   own networks as well.
 - The virtual machines only reach the internet over the first default-route of the host.

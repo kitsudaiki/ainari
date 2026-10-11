@@ -50,6 +50,7 @@ vet: ## Check the code with go vet.
 .PHONY: test
 test: generate manifests fmt vet $(SETUP_ENVTEST) ## Run all tests, including the ones with an api-server.
 	KUBEBUILDER_ASSETS="$$($(SETUP_ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" \
+		GATEWAY_API_CRDS="$$(go list -m -f '{{.Dir}}' sigs.k8s.io/gateway-api)/config/crd/standard" \
 		go test ./... -coverprofile cover.out
 
 ##@ Build

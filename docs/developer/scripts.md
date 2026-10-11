@@ -9,6 +9,7 @@ All scripts are started from the root of the repository.
 | [`build_ainari_base.sh`](#build_ainari_basesh) | builds and pushes the nix- and debian-based base-images for amd64 and arm64 |
 | [`build_docker_images.sh`](#build_docker_imagessh) | builds all images with the tag `local_test` and saves them in a tar-file |
 | [`collect-api-specs.sh`](#collect-api-specssh) | downloads the openapi-specs of the running components into the docs |
+| [`create_zarf_package.sh`](#create_zarf_packagesh) | creates the offline-installation of the whole stack with zarf |
 | [`generate_sbom.sh`](#generate_sbomsh) | generates the SBOMs of all docker-images |
 | [`update_version.sh`](#update_versionsh) | sets the version of all components |
 
@@ -123,6 +124,66 @@ SAKURA_ADDRESS=172.30.0.20:11420 ./scripts/collect-api-specs.sh
   script lists these components at the end and fails.
 - The specs describe the running images, so the images have to be built from the current state
   of the repository, which `setup_local_stack.sh` always does.
+
+## create_zarf_package.sh
+
+### Purpose
+
+Creates the offline-installation of the whole stack with [zarf](https://zarf.dev) out of the
+package-definition `deploy/zarf/zarf.yaml` (see [Offline-installation](../deployer/installation/offline_installation.md)).
+The package contains cert-manager, Envoy Gateway with the gateway of `deploy/k8s/gateway.yaml`,
+the operator of `deploy/operator`, the `Ainari`-resource of `deploy/zarf/ainari.yaml` and all images,
+which they and the components deployed by the operator need. The output directory contains
+everything to deploy the stack on a kubernetes without access to the internet:
+
+| File | Content |
+| --- | --- |
+| `zarf` | binary of zarf for the target-architecture |
+| `zarf-init-<ARCH>-<ZARF_VERSION>.tar.zst` | init-package of zarf with its registry and the zarf-agent |
+| `zarf-package-ainari-<ARCH>-<VERSION>.tar.zst` | the package of ainari |
+
+The binary and the init-package are downloaded from the release of zarf, if they don't exist in
+the output directory yet. The binary of zarf for the host, which creates the package, is taken
+from the `PATH` or downloaded into `temporary_files/bin`.
+
+### Usage
+
+```bash
+./scripts/create_zarf_package.sh                          # images of docker-hub with the tag develop
+./scripts/create_zarf_package.sh --version 0.21.0         # images of a release
+./scripts/create_zarf_package.sh --version 0.21.0 --arch arm64
+./scripts/create_zarf_package.sh --local                  # build and use the images of the working tree
+./scripts/create_zarf_package.sh --local --no-build       # use the existing local images
+./scripts/create_zarf_package.sh --output /media/usb      # another output directory
+```
+
+The default output directory is `temporary_files/zarf`. With `--local`, the images of the
+components are built with `testing/kind/build_local_images.sh nix` and the image of the operator
+with `dockerfiles/nix_based/Dockerfile_operator`. They are tagged additionally with the names of
+docker-hub and the tag `local`, for example `kitsudaiki/miko:local`, which the package refers to.
+
+Another binary of zarf can be given with `ZARF_BINARY`:
+
+```bash
+ZARF_BINARY=/usr/local/bin/zarf ./scripts/create_zarf_package.sh
+```
+
+### Limitations
+
+- The script needs access to the internet, `docker` and `curl`.
+- The version of zarf is fixed in `ZARF_VERSION` within the script, because the binary and the
+  init-package must have the same version. Another binary given with `ZARF_BINARY` must have this
+  version as well.
+- `--local` only works for amd64, because the local images are only built for the platform of
+  the host.
+- Zarf first tries to pull the local images from docker-hub and prints a warning for each of them,
+  before it takes them from the local docker-daemon. These warnings can be ignored.
+- The images of cert-manager (`v1.18.2`) and Envoy Gateway (`v1.9.2`) are fixed in
+  `deploy/zarf/zarf.yaml`. The image of the envoy-proxies is not part of the chart of Envoy
+  Gateway and has to be updated manually together with its version.
+- The package is created without SBOM (`--skip-sbom`), see [`generate_sbom.sh`](#generate_sbomsh)
+  for the SBOMs of the images of ainari.
+- The whole output directory has a size of about 1.4 GiB.
 
 ## generate_sbom.sh
 

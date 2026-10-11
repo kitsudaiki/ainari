@@ -59,7 +59,7 @@ spec:
                 properties:
                   domain:
                     default: local-ainari
-                    description: domain of the ingress
+                    description: domain of the TLSRoute
                     type: string
                   enabled:
                     default: true
@@ -109,7 +109,7 @@ spec:
                     default: {}
                     description: |-
                       Publishes the api of every component and the dashboard outside of the cluster, beside the
-                      ingresses.
+                      TLSRoutes of the gateway.
                     properties:
                       enabled:
                         default: false
@@ -130,26 +130,37 @@ spec:
                         - LoadBalancer
                         type: string
                     type: object
+                  gateway:
+                    default: {}
+                    description: |-
+                      Every component is reachable over a TLSRoute of the gateway-api, which passes the
+                      tls-connections through to the component. The components always talk https to each other
+                      over a nginx-sidecar with a certificate of cert-manager, so cert-manager is always required.
+                    properties:
+                      enabled:
+                        default: true
+                        type: boolean
+                      listener:
+                        default: tls-passthrough
+                        description: |-
+                          name of the listener of the gateway, which has the protocol TLS with the mode Passthrough,
+                          all matching listeners of the gateway, if empty
+                        type: string
+                      name:
+                        default: ainari-gateway
+                        description: name of the gateway, to which the TLSRoutes are
+                          attached
+                        type: string
+                      namespace:
+                        default: ainari-gateway
+                        description: namespace of the gateway, the namespace of the
+                          Ainari-resource, if empty
+                        type: string
+                    type: object
                   imagePullPolicy:
                     description: overwrites the pull-policy of all components, if
                       set
                     type: string
-                  ingress:
-                    default: {}
-                    description: |-
-                      Every component is reachable over an ingress of ingress-nginx. The components always talk
-                      https to each other over a nginx-sidecar with a certificate of cert-manager, so
-                      cert-manager is always required.
-                    properties:
-                      className:
-                        default: nginx
-                        description: ingress-class of ingress-nginx, which has to
-                          support ssl-passthrough
-                        type: string
-                      enabled:
-                        default: true
-                        type: boolean
-                    type: object
                   nginxImage:
                     default: nginx:latest
                     description: image of the nginx-sidecars, which terminate tls
@@ -185,7 +196,7 @@ spec:
                 properties:
                   domain:
                     default: local-hanami
-                    description: domain of the ingress
+                    description: domain of the TLSRoute
                     type: string
                   image:
                     default: kitsudaiki/hanami:develop
@@ -245,7 +256,7 @@ spec:
                   domain:
                     default: local-izakaya
                     description: domain, which the certificate of izakaya is valid
-                      for, if the ingresses are enabled
+                      for, if the gateway is enabled
                     type: string
                   image:
                     default: kitsudaiki/izakaya:develop
@@ -296,7 +307,7 @@ spec:
                     type: object
                   domain:
                     default: local-miko
-                    description: domain of the ingress
+                    description: domain of the TLSRoute
                     type: string
                   image:
                     default: kitsudaiki/miko:develop
@@ -495,7 +506,7 @@ spec:
                 properties:
                   domain:
                     default: local-omamori
-                    description: domain of the ingress
+                    description: domain of the TLSRoute
                     type: string
                   image:
                     default: kitsudaiki/omamori:develop
@@ -521,7 +532,7 @@ spec:
                 properties:
                   domain:
                     default: local-omikuji
-                    description: domain of the ingress
+                    description: domain of the TLSRoute
                     type: string
                   image:
                     default: kitsudaiki/omikuji:develop
@@ -579,7 +590,7 @@ spec:
                 properties:
                   domain:
                     default: local-ryokan
-                    description: domain of the ingress
+                    description: domain of the TLSRoute
                     type: string
                   image:
                     default: kitsudaiki/ryokan:develop
@@ -607,7 +618,7 @@ spec:
                   domain:
                     default: local-sakura
                     description: domain, which the certificate of sakura is valid
-                      for, if the ingresses are enabled
+                      for, if the gateway is enabled
                     type: string
                   hostDataPath:
                     default: /etc/ainari
@@ -653,7 +664,7 @@ spec:
                 properties:
                   domain:
                     default: local-torii
-                    description: domain of the ingress
+                    description: domain of the TLSRoute
                     type: string
                   image:
                     default: kitsudaiki/torii:develop

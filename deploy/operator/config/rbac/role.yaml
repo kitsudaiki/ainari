@@ -64,9 +64,9 @@ rules:
   - update
   - watch
 - apiGroups:
-  - networking.k8s.io
+  - gateway.networking.k8s.io
   resources:
-  - ingresses
+  - tlsroutes
   verbs:
   - create
   - delete

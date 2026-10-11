@@ -9,8 +9,9 @@ easier for a new person to understand the code.
 .
 ├── .github                     # ci-pipeline, issue-templates
 ├── deploy
-│   ├── k8s                     # service of an ingress-nginx-controller
-│   └── operator                # kubernetes-operator, which deploys the whole stack
+│   ├── k8s                     # gateway, which publishes the stack
+│   ├── operator                # kubernetes-operator, which deploys the whole stack
+│   └── zarf                    # offline-installation of the whole stack with zarf
 ├── dockerfiles
 │   ├── debian_based            # debian-based images for local debugging
 │   ├── files                   # start-scripts, shared by both variants
@@ -61,9 +62,10 @@ easier for a new person to understand the code.
 
 - **deploy**
 
-    - **k8s/ingress-nginx-controller.yaml**
+    - **k8s/gateway.yaml**
 
-        Service of the type `LoadBalancer` for an ingress-nginx-controller.
+        Gateway of the gateway-api with a tls-passthrough listener, to which the operator attaches
+        the TLSRoutes of the components.
 
     - **operator**
 
@@ -71,6 +73,13 @@ easier for a new person to understand the code.
         kind `Ainari`, including the wireguard-configs between onsen, ryokan and sakura and all keys
         and passwords. See [Kubernetes-installation](../../deployer/installation/kubernetes_installation.md)
         and `deploy/operator/README.md`.
+
+    - **zarf**
+
+        Offline-installation of the whole stack with [zarf](https://zarf.dev): the package of
+        `zarf.yaml` with the operator, the images of all components, cert-manager and Envoy
+        Gateway, which is created by `scripts/create_zarf_package.sh`. See
+        [Offline-installation](../../deployer/installation/offline_installation.md).
 
 - **dockerfiles**
 
@@ -93,8 +102,9 @@ easier for a new person to understand the code.
 - **scripts**
 
     Scripts to build the docker-images, to create a local CA, to set up and tear down the local
-    test-environments (docker-compose, kind and vagrant) and to collect the OpenAPI-specs for the
-    REST-API documentation.
+    test-environments (docker-compose, kind and vagrant), to collect the OpenAPI-specs for the
+    REST-API documentation and to create the offline-installation with zarf. See
+    [Scripts](scripts.md).
 
 - **src**
 

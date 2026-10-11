@@ -37,9 +37,9 @@ type backend struct {
 	// port of the readiness-endpoint of the component on localhost
 	probePort int32
 	// Only the other components talk to a component without an external api, so it has neither
-	// an external service nor an ingress.
+	// an external service nor a TLSRoute.
 	externalAPI bool
-	// domain of the ingress, which the certificate is also valid for
+	// domain of the TLSRoute, which the certificate is also valid for
 	domain string
 
 	// Config of the component in the key '<name>.toml', which is mounted to
@@ -76,7 +76,7 @@ func (r *renderer) backendObjects(b backend) ([]client.Object, error) {
 	if b.externalAPI {
 		port := portsOf(b.name).Public
 		objects = append(objects, r.externalService(b.name, port, externalTLSPort))
-		objects = append(objects, r.ingress(b.name, b.domain, externalServiceName(b.name), port)...)
+		objects = append(objects, r.tlsRoute(b.name, b.domain, externalServiceName(b.name), port)...)
 	}
 	return objects, nil
 }

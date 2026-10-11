@@ -84,12 +84,12 @@ type AinariSpec struct {
 
 // GlobalSpec contains the settings, which apply to all components.
 type GlobalSpec struct {
-	// Every component is reachable over an ingress of ingress-nginx. The components always talk
-	// https to each other over a nginx-sidecar with a certificate of cert-manager, so
-	// cert-manager is always required.
+	// Every component is reachable over a TLSRoute of the gateway-api, which passes the
+	// tls-connections through to the component. The components always talk https to each other
+	// over a nginx-sidecar with a certificate of cert-manager, so cert-manager is always required.
 	// +kubebuilder:default={}
 	// +optional
-	Ingress IngressSpec `json:"ingress"`
+	Gateway GatewaySpec `json:"gateway"`
 
 	// All certificates are signed by one CA, so a client only has to trust this CA.
 	// +kubebuilder:default={}
@@ -124,22 +124,34 @@ type GlobalSpec struct {
 	NginxImage string `json:"nginxImage"`
 
 	// Publishes the api of every component and the dashboard outside of the cluster, beside the
-	// ingresses.
+	// TLSRoutes of the gateway.
 	// +kubebuilder:default={}
 	// +optional
 	ExternalServices ExternalServicesSpec `json:"externalServices"`
 }
 
-// IngressSpec configures the ingresses of the components.
-type IngressSpec struct {
+// GatewaySpec configures the TLSRoutes of the components. The gateway itself is not created by
+// the operator, for example deploy/k8s/gateway.yaml can be used.
+type GatewaySpec struct {
 	// +kubebuilder:default=true
 	// +optional
 	Enabled bool `json:"enabled"`
 
-	// ingress-class of ingress-nginx, which has to support ssl-passthrough
-	// +kubebuilder:default="nginx"
+	// name of the gateway, to which the TLSRoutes are attached
+	// +kubebuilder:default="ainari-gateway"
 	// +optional
-	ClassName string `json:"className"`
+	Name string `json:"name"`
+
+	// namespace of the gateway, the namespace of the Ainari-resource, if empty
+	// +kubebuilder:default="ainari-gateway"
+	// +optional
+	Namespace string `json:"namespace,omitempty"`
+
+	// name of the listener of the gateway, which has the protocol TLS with the mode Passthrough,
+	// all matching listeners of the gateway, if empty
+	// +kubebuilder:default="tls-passthrough"
+	// +optional
+	Listener string `json:"listener,omitempty"`
 }
 
 // CertificatesSpec configures the CA and the certificates of the components.
@@ -301,7 +313,7 @@ type MikoSpec struct {
 	// +optional
 	ImagePullPolicy corev1.PullPolicy `json:"imagePullPolicy"`
 
-	// domain of the ingress
+	// domain of the TLSRoute
 	// +kubebuilder:default="local-miko"
 	// +optional
 	Domain string `json:"domain"`
@@ -352,7 +364,7 @@ type HanamiSpec struct {
 	// +optional
 	ImagePullPolicy corev1.PullPolicy `json:"imagePullPolicy"`
 
-	// domain of the ingress
+	// domain of the TLSRoute
 	// +kubebuilder:default="local-hanami"
 	// +optional
 	Domain string `json:"domain"`
@@ -407,7 +419,7 @@ type SakuraSpec struct {
 	// +optional
 	ImagePullPolicy corev1.PullPolicy `json:"imagePullPolicy"`
 
-	// domain, which the certificate of sakura is valid for, if the ingresses are enabled
+	// domain, which the certificate of sakura is valid for, if the gateway is enabled
 	// +kubebuilder:default="local-sakura"
 	// +optional
 	Domain string `json:"domain"`
@@ -448,7 +460,7 @@ type RyokanSpec struct {
 	// +optional
 	ImagePullPolicy corev1.PullPolicy `json:"imagePullPolicy"`
 
-	// domain of the ingress
+	// domain of the TLSRoute
 	// +kubebuilder:default="local-ryokan"
 	// +optional
 	Domain string `json:"domain"`
@@ -473,7 +485,7 @@ type OmamoriSpec struct {
 	// +optional
 	ImagePullPolicy corev1.PullPolicy `json:"imagePullPolicy"`
 
-	// domain of the ingress
+	// domain of the TLSRoute
 	// +kubebuilder:default="local-omamori"
 	// +optional
 	Domain string `json:"domain"`
@@ -499,7 +511,7 @@ type OmikujiSpec struct {
 	// +optional
 	ImagePullPolicy corev1.PullPolicy `json:"imagePullPolicy"`
 
-	// domain of the ingress
+	// domain of the TLSRoute
 	// +kubebuilder:default="local-omikuji"
 	// +optional
 	Domain string `json:"domain"`
@@ -526,7 +538,7 @@ type IzakayaSpec struct {
 	// +optional
 	ImagePullPolicy corev1.PullPolicy `json:"imagePullPolicy"`
 
-	// domain, which the certificate of izakaya is valid for, if the ingresses are enabled
+	// domain, which the certificate of izakaya is valid for, if the gateway is enabled
 	// +kubebuilder:default="local-izakaya"
 	// +optional
 	Domain string `json:"domain"`
@@ -598,7 +610,7 @@ type ToriiSpec struct {
 	// +optional
 	StorageSize resource.Quantity `json:"storageSize"`
 
-	// domain of the ingress
+	// domain of the TLSRoute
 	// +kubebuilder:default="local-torii"
 	// +optional
 	Domain string `json:"domain"`
@@ -677,7 +689,7 @@ type DashboardSpec struct {
 	// +optional
 	ImagePullPolicy corev1.PullPolicy `json:"imagePullPolicy"`
 
-	// domain of the ingress
+	// domain of the TLSRoute
 	// +kubebuilder:default="local-ainari"
 	// +optional
 	Domain string `json:"domain"`

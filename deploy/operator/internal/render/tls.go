@@ -79,14 +79,14 @@ func (r *renderer) issuer() ([]client.Object, error) {
 
 // certificate returns the certificate of the tls-termination of a component, which is stored in
 // the secret tlsSecretName(name). It is valid for the given services within the namespace, the
-// domain of the ingress and the names and addresses of global.certificates, like 127.0.0.1 in
+// domain of the TLSRoute and the names and addresses of global.certificates, like 127.0.0.1 in
 // the kind-setup.
 func (r *renderer) certificate(name, domain string, services ...string) *unstructured.Unstructured {
 	var dnsNames []any
 	for _, service := range services {
 		dnsNames = append(dnsNames, fmt.Sprintf("%s.%s.svc.cluster.local", service, r.Namespace))
 	}
-	if r.Spec.Global.Ingress.Enabled {
+	if r.Spec.Global.Gateway.Enabled {
 		dnsNames = append(dnsNames, domain)
 	}
 	for _, extra := range r.Spec.Global.Certificates.ExtraDNSNames {
@@ -132,7 +132,7 @@ func (r *renderer) nginxConfig(params nginxParams) (string, error) {
 // apiNginxConfigMap returns the configmap with the configs of the two nginx-sidecars of a
 // component, which has an internal and an external api. The internal one listens on 8443 for
 // '<component>-tls-service' and forwards to the internal port of the component, the external
-// one listens on 9443 for '<component>-external' and the ingress and forwards to the public port
+// one listens on 9443 for '<component>-external' and the TLSRoute and forwards to the public port
 // of the component.
 func (r *renderer) apiNginxConfigMap(name string) (*corev1.ConfigMap, error) {
 	p := portsOf(name)

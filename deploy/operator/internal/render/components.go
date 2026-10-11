@@ -76,7 +76,7 @@ func (r *renderer) internalAddress(name string) string {
 }
 
 // publicAddress is the address of a component, which miko hands out to the clients. An
-// explicitly configured address wins, otherwise it is the domain of the ingress.
+// explicitly configured address wins, otherwise it is the domain of the TLSRoute.
 func (r *renderer) publicAddress(name string) string {
 	domain, address := r.publicAPI(name)
 	if address != "" {

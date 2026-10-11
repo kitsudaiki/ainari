@@ -31,21 +31,6 @@ can not be stolen or manipulated.
 Snapshots of root disks of virtual machines are handled as images again and so they are also always
 AES-256-GCM encrypted before moving them from the compute host to the storage backend.
 
-### Encrypted tenant networks
-
-**Status: <span style="color:#4caf50">implemented</span> (since v0.22.0)**
-
-Network traffic between virtual machines can be encrypted with IPsec and AES-256-GCM by using XFRM.
-It is planned to use MLS with the [OpenMLS-library](https://github.com/openmls/openmls) for the
-key-exchange.
-
-### Filter for network traffic
-
-**Status: <span style="color:#4caf50">implemented</span> (since v0.21.0)**
-
-Network rules can be set, to limit incoming and outgoing network traffic to specific ports and
-ip-address ranges.
-
 ### "dumb" compute hosts
 
 **Status: <span style="color:#4caf50">implemented</span> (since v0.20.0)**
@@ -61,6 +46,21 @@ compute host (for example by breaking out of a virtual machine), the information
 sufficient to take over the entire deployment. Without additional tokens of other users, the 2 keys
 in the config of the compute host are not enough to steal other information outside of the
 compute-host.
+
+### Using Cloud-Hypervisor
+
+**Status: <span style="color:#4caf50">implemented</span> (since v0.20.0)**
+
+To manage the virtual machine, the
+[Cloud-Hypervisor](https://github.com/cloud-hypervisor/cloud-hypervisor) is used. In contrast to
+qemu it has a minimal code base and is written in Rust.
+
+### Filter for network traffic
+
+**Status: <span style="color:#4caf50">implemented</span> (since v0.21.0)**
+
+Network rules can be set, to limit incoming and outgoing network traffic to specific ports and
+ip-address ranges.
 
 ### Reproducable builds
 
@@ -79,6 +79,14 @@ instead.
 An automatic summary of all packages with versions used within the Nix-based docker-images, 
 to keep track of CVEs and which versions are affected by them.
 
+### Encrypted tenant networks
+
+**Status: <span style="color:#4caf50">implemented</span> (since v0.22.0)**
+
+Network traffic between virtual machines can be encrypted with IPsec and AES-256-GCM by using XFRM.
+It is planned to use MLS with the [OpenMLS-library](https://github.com/openmls/openmls) for the
+key-exchange.
+
 ### Project host isolation
 
 **Status: <span style="color:#4caf50">implemented</span> (since v0.22.0)**
@@ -96,21 +104,6 @@ host.
 Instead of letting the backend generate a key, users can upload their own keys to the key management
 and use them, in case they do not trust the random function of the backend.
 
-### Using Cloud-Hypervisor
-
-**Status: <span style="color:#4caf50">implemented</span> (since v0.20.0)**
-
-To manage the virtual machine, the
-[Cloud-Hypervisor](https://github.com/cloud-hypervisor/cloud-hypervisor) is used. In contrast to
-qemu it has a minimal code base and is written in Rust.
-
-### Backend in Rust
-
-**Status: <span style="color:#4caf50">Current state</span>**
-
-The entire backend is written in Rust. Besides the low-level network layer, the code avoids `unsafe`
-marked code too.
-
 ### Audit-Log
 
 **Status: <span style="color:#4caf50">implemented</span> (since v0.22.0)**
@@ -124,6 +117,13 @@ log is stored on the compute host and can be checked by any user of the virtual 
 task log it is visible which action (create, snapshot create, snapshot restore, ...) is done by
 which user, at which point in time and if this task was successful. This log is visible by the user,
 as long as the virtual machine lives.
+
+### Backend in Rust
+
+**Status: <span style="color:#4caf50">Current state</span>**
+
+The entire backend is written in Rust. Besides the low-level network layer, the code avoids `unsafe`
+marked code too.
 
 ### Hold your own key
 
@@ -140,13 +140,6 @@ in the memory of the specific compute host and only as long as necessary for the
 **Status: <span style="color:#e53935">planned</span>**
 
 To make logins much more secure, a second factor like OTP can be used as second login factor.
-
-### Offline deployable
-
-**Status: <span style="color:#e53935">planned</span>**
-
-To be able to run in air gapped environments, the whole deploy process will be done by an offline
-mirror.
 
 ### Optional four-eyes principle for projects
 
@@ -231,6 +224,28 @@ The whole stack is deployable on Kubernetes by providing a kubernetes-operator a
 See
 [Kubernetes installation-guide](/deployer/installation/kubernetes_installation/)
 
+### Built-in central error-logging
+
+**Status: <span style="color:#4caf50">implemented</span> (since v0.22.0)**
+
+Any internal error is sent to a central error-log, with all information around the error with
+user-id and so on, to make problems of users easier to find and debug.
+
+### Kubernetes Operator
+
+**Status: <span style="color:#4caf50">implemented</span> (since v0.22.0)**
+
+The complete stack is deployed by a kubernetes operator from a single custom-resource of the kind
+`Ainari`. So only the operator has to be deployed by the user and the rest, including all keys and
+passwords, is handled by the operator.
+
+### Offline deployable
+
+**Status: <span style="color:#4caf50">implemented</span> (since v0.22.0)**
+
+The whole stack can be packed as offline installation package using [Zarf](https://zarf.dev/). So it
+can be deployed on a kubernetes in an air-gaped environment, where not internet access is avaiable.
+
 ### Easy local development
 
 **Status: <span style="color:#4caf50">Current state</span>**
@@ -261,21 +276,6 @@ at one point in time split over 40 repositories. Dependency updates were a total
 A Monorepo makes implementing new features and updating dependecies much easier. It is also easy to 
 identify which versions of the different components belong together. Based on my experiences I made,
 a Monorepo makes much more sense for this project, even it contains microservices.
-
-### Built-in central error-logging
-
-**Status: <span style="color:#4caf50">implemented</span> (since v0.22.0)**
-
-Any internal error is sent to a central error-log, with all information around the error with
-user-id and so on, to make problems of users easier to find and debug.
-
-### Kubernetes Operator
-
-**Status: <span style="color:#4caf50">implemented</span> (since v0.22.0)**
-
-The complete stack is deployed by a kubernetes operator from a single custom-resource of the kind
-`Ainari`. So only the operator has to be deployed by the user and the rest, including all keys and
-passwords, is handled by the operator.
 
 ### Project-Backups
 

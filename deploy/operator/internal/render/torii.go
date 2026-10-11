@@ -70,7 +70,7 @@ func (r *renderer) torii() ([]client.Object, error) {
 		r.toriiGatewayService(),
 		r.certificate("torii", r.Spec.Torii.Domain, tlsServiceName("torii"), toriiPublicApp, "*.sakura"),
 	}
-	return append(objects, r.ingress("torii", r.Spec.Torii.Domain, tlsServiceName("torii"), internalTLSPort)...), nil
+	return append(objects, r.tlsRoute("torii", r.Spec.Torii.Domain, tlsServiceName("torii"), internalTLSPort)...), nil
 }
 
 // toriiContainer returns the container of a torii with the given config, which is shared by the

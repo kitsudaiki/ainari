@@ -29,9 +29,9 @@ metadata:
   name: ainari
 spec:
   global:
-    # there is no ingress-controller, the api and the dashboard are published by the servicelb of
-    # k3s on every node, with the same ports as in the other local setups
-    ingress:
+    # there is no gateway, the api and the dashboard are published by the servicelb of k3s on
+    # every node, with the same ports as in the other local setups
+    gateway:
       enabled: false
     externalServices:
       enabled: true
