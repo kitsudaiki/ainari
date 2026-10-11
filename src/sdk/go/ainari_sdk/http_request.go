@@ -37,9 +37,6 @@ import (
 	"sort"
 )
 
-// chunkSize defines the size of chunks for file uploads in bytes (1 MiB).
-const chunkSize = 1024 * 1024 // 1 MiB
-
 // RequestError represents an error that occurs during an HTTP request.
 // It contains the HTTP status code and the error message from the response.
 type RequestError struct {
@@ -211,14 +208,51 @@ func sendGenericRequest(address, token, requestType, path string, jsonBody *map[
 	return outputMap, nil
 }
 
+// UploadProgressFunc is called during an upload with the number of bytes, which were already
+// sent, and the total size of the request-body in bytes.
+type UploadProgressFunc func(sent, total int64)
+
+// progressReader wraps the reader of a request-body and reports, how much of it was already read
+// by the http-client.
+type progressReader struct {
+	reader   io.Reader
+	sent     int64
+	total    int64
+	progress UploadProgressFunc
+}
+
+func (r *progressReader) Read(p []byte) (int, error) {
+	n, err := r.reader.Read(p)
+	if n > 0 {
+		r.sent += int64(n)
+		r.progress(r.sent, r.total)
+	}
+	return n, err
+}
+
 // UploadFile uploads a file together with additional text-fields as multipart-form to the
 // specified path. Fields with an empty value are not sent. The file is sent as field "file".
 // It uses the provided AccessContext for authentication and TLS configuration.
-// The file is streamed in chunks of size defined by chunkSize.
-func UploadFile(context AccessContext, path string, fields map[string]string, filePath string) (map[string]interface{}, error) {
-	body := &bytes.Buffer{}
-	writer := multipart.NewWriter(body)
+// The file is streamed from disk, instead of loading it into memory. If progress is not nil, it
+// is called while the request-body is sent.
+func UploadFile(context AccessContext, path string, fields map[string]string, filePath string, progress UploadProgressFunc) (map[string]interface{}, error) {
 	outputMap := map[string]interface{}{}
+
+	file, err := os.Open(filePath)
+	if err != nil {
+		return outputMap, fmt.Errorf("failed to open file %s: %v", filePath, err)
+	}
+	defer file.Close()
+	fileInfo, err := file.Stat()
+	if err != nil {
+		return outputMap, fmt.Errorf("failed to get size of file %s: %v", filePath, err)
+	}
+
+	// The text-fields and the header of the file-part are written in front of the file and the
+	// closing boundary behind it. So the file can be streamed between them and the size of the
+	// whole body is known in advance, which is required for the progress.
+	form := &bytes.Buffer{}
+	writer := multipart.NewWriter(form)
 
 	// write the text-fields in a fixed order before the file
 	keys := make([]string, 0, len(fields))
@@ -234,36 +268,22 @@ func UploadFile(context AccessContext, path string, fields map[string]string, fi
 			return outputMap, fmt.Errorf("failed to write form field %s: %v", key, err)
 		}
 	}
-
-	// Open and stream the file into multipart writer
-	file, err := os.Open(filePath)
-	if err != nil {
-		return outputMap, fmt.Errorf("failed to open file %s: %v", filePath, err)
-	}
-	defer file.Close()
-
-	part, err := writer.CreateFormFile("file", filepath.Base(filePath))
-	if err != nil {
+	if _, err := writer.CreateFormFile("file", filepath.Base(filePath)); err != nil {
 		return outputMap, fmt.Errorf("failed to create form part for %s: %v", filePath, err)
 	}
+	head := bytes.Clone(form.Bytes())
 
-	buf := make([]byte, chunkSize)
-	for {
-		n, err := file.Read(buf)
-		if err != nil && err != io.EOF {
-			return outputMap, fmt.Errorf("error reading file %s: %v", filePath, err)
-		}
-		if n == 0 {
-			break
-		}
-		if _, err := part.Write(buf[:n]); err != nil {
-			return outputMap, fmt.Errorf("error writing part for %s: %v", filePath, err)
-		}
-	}
-
-	// Close the writer to finish the form
+	// Close the writer to get the closing boundary of the form
+	form.Reset()
 	if err := writer.Close(); err != nil {
 		return outputMap, fmt.Errorf("failed to close writer: %w", err)
+	}
+	tail := bytes.Clone(form.Bytes())
+
+	totalSize := int64(len(head)) + fileInfo.Size() + int64(len(tail))
+	var body io.Reader = io.MultiReader(bytes.NewReader(head), file, bytes.NewReader(tail))
+	if progress != nil {
+		body = &progressReader{reader: body, total: totalSize, progress: progress}
 	}
 
 	// check if https or not
@@ -277,6 +297,7 @@ func UploadFile(context AccessContext, path string, fields map[string]string, fi
 	if err != nil {
 		return outputMap, fmt.Errorf("failed to create request: %w", err)
 	}
+	req.ContentLength = totalSize
 
 	var bearer_token = fmt.Sprintf("Bearer %s", context.token)
 	req.Header.Set("Authorization",  bearer_token)

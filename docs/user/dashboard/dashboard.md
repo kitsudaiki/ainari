@@ -68,7 +68,9 @@ Go to **Storage > Image**, click **+**, enter a name and select the downloaded f
 The image is stored encrypted. By default a new secret is generated for it. To encrypt it with an
 already existing secret of **Security > Secrets** instead, select it in the **Secret**-dropdown.
 
-The upload takes a while, depending on the size of the image. Afterwards the image is listed:
+The upload takes a while, depending on the size of the image. A progress-bar shows the uploaded part
+of the file and afterwards, that ryokan encrypts and stores the image. **Cancel** aborts the upload.
+Afterwards the image is listed:
 
 ![Images](img/image_overview.jpg)
 

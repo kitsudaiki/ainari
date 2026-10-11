@@ -396,6 +396,10 @@ ssh-public-keys, which are deployed into virtual machines for the default-user o
 Disk-images, which are used as boot-disk of virtual machines, for example an ubuntu-cloud-image.
 Snapshots of virtual machines are stored as images too, with `is_snapshot` set.
 
+While an image is uploaded with the CLI, a progress-bar shows the uploaded part of the file. It is
+written to stderr and only shown in a terminal, so the output on stdout can still be parsed. After
+the upload, ryokan still encrypts the image and stores it, which takes a while for big images.
+
 Before an image is encrypted, its type is identified and its size is measured. Both are returned as
 `file_type` and `file_size` (in bytes) by the upload, get and list. The type is named like the formats
 of `qemu-img` (e.g. `qcow2` or `iso`), a file without known format is `raw`.
