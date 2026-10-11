@@ -26,11 +26,14 @@ use ainari_api_structs::user_context::UserContext;
 
 #[api_operation(
     tag = "image",
-    summary = "Set file-info of image (internal)",
-    description = r###"Set type and size of the file of an image.
+    summary = "Update status of image (internal)",
+    description = r###"Set the status of an image, optionally together with type and size of its
+file.
 
-Sakura uses this for snapshots, which are registered before their file exists. Type and size are
-measured on the unencrypted file.
+Sakura uses this for snapshots, which are registered before their file exists: the status is set to
+`UPLOADING` together with type and size of the file, before the encrypted file is uploaded into the
+onsen, and to `READY`, when the snapshot is complete. Type and size are measured on the unencrypted
+file and have to be provided together.
 
 This is an internal call, which is protected by the internal api-key."###,
     error_code = 400,
@@ -38,8 +41,8 @@ This is an internal call, which is protected by the internal api-key."###,
     error_code = 404,
     error_code = 500
 )]
-pub async fn update_file_info(
-    body: Json<ImageFileInfoReq>,
+pub async fn update_image_internal(
+    body: Json<ImageUpdateInternalReq>,
     image_uuid: Path<Uuid>,
     context: UserContext,
 ) -> Result<Json<ImageInternalResp>, ErrorResponse> {
@@ -47,15 +50,27 @@ pub async fn update_file_info(
     body.validate()
         .map_err(|e| ErrorResponse::BadRequest(format!("Invalid input: {e}")))?;
 
-    let file_size = i64::try_from(body.file_size)
-        .map_err(|_| ErrorResponse::BadRequest("File-size is too big.".to_string()))?;
+    let file_info = match (&body.file_type, body.file_size) {
+        (Some(file_type), Some(file_size)) => {
+            let file_size = i64::try_from(file_size)
+                .map_err(|_| ErrorResponse::BadRequest("File-size is too big.".to_string()))?;
+            Some((file_type.as_str(), file_size))
+        }
+        (None, None) => None,
+        _ => {
+            return Err(ErrorResponse::BadRequest(
+                "'file_type' and 'file_size' have to be provided together.".to_string(),
+            ));
+        }
+    };
 
-    image_table::update_file_info(&image_uuid, &body.file_type, file_size, &context)
+    image_table::update_image_status(&image_uuid, &body.image_status, file_info, &context)
         .map_err(|e| map_db_uuid_get_delete_error("image", &image_uuid, e, Some(&context)))?;
 
     let image_data = image_table::get_image(&image_uuid, &context)
         .map_err(|e| map_db_uuid_get_delete_error("image", &image_uuid, e, Some(&context)))?;
 
+    let image_status = super::image_status_of(&image_data)?;
     let resp = ImageInternalResp {
         uuid: *image_uuid,
         name: image_data.name,
@@ -63,6 +78,7 @@ pub async fn update_file_info(
         file_path: image_data.file_path,
         file_type: image_data.file_type,
         file_size: image_data.file_size as u64,
+        image_status,
         is_snapshot: image_data.is_snapshot,
         secret_uuid: image_data.secret_uuid,
         created_by: image_data.created_by,

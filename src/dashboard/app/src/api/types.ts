@@ -403,6 +403,12 @@ export interface NetworkFilterResp {
 /** Image-types accepted by the upload-endpoint of the ryokan. */
 export type ImageType = "disk";
 
+/**
+ * Mirror of `image_structs::ImageStatus`. Only a `READY` image can be used for a virtual-machine.
+ * `IN_USE` is reserved and not set at the moment.
+ */
+export type ImageStatus = "UPLOADING" | "ENCRYPTING" | "READY" | "IN_USE";
+
 /** Mirror of `image_structs::ImageBasicResp`. */
 export interface ImageBasicResp {
     uuid: string;
@@ -411,6 +417,8 @@ export interface ImageBasicResp {
     file_type: string;
     /** Size of the unencrypted file in bytes. */
     file_size: number;
+    /** State of the file of the image. */
+    image_status: ImageStatus;
     /** True, if the image is a snapshot of the root-disk of a virtual-machine. */
     is_snapshot: boolean;
 }
@@ -423,6 +431,8 @@ export interface ImageResp {
     file_type: string;
     /** Size of the unencrypted file in bytes. */
     file_size: number;
+    /** State of the file of the image. */
+    image_status: ImageStatus;
     /** True, if the image is a snapshot of the root-disk of a virtual-machine. */
     is_snapshot: boolean;
     created_at: string;

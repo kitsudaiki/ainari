@@ -118,7 +118,8 @@ pub async fn get_image(
     handle_response::<ImageInternalResp>(response, "image", &image_uuid.to_string()).await
 }
 
-/// Sets type and size of the file of an existing image in the Ryokan service.
+/// Sets the status of an existing image in the Ryokan service, optionally together with type and
+/// size of its file.
 ///
 /// This is used for snapshots, which are registered in ryokan before their file exists.
 ///
@@ -128,29 +129,30 @@ pub async fn get_image(
 /// * `token` - The authentication token for the API
 /// * `internal_api_key` - The internal API key for accessing protected endpoints
 /// * `image_uuid` - The unique identifier for the image to update
-/// * `file_type` - The type of the unencrypted file (e.g. "qcow2")
-/// * `file_size` - The size of the unencrypted file in bytes
+/// * `image_status` - The new status of the image
+/// * `file_info` - Type (e.g. "qcow2") and size in bytes of the unencrypted file, if they are known
 /// * `insecure_client` - Whether to use an insecure (HTTP) client instead of HTTPS
 ///
 /// # Returns
 ///
 /// A `Result` containing the updated image if successful, or an `AinariError` if the operation fails.
-pub async fn update_image_file_info(
+pub async fn update_image_status(
     ryokan_endpoint: &ainari_config::Endpoint,
     token: &String,
     internal_api_key: &Secret,
     image_uuid: &Uuid,
-    file_type: &str,
-    file_size: u64,
+    image_status: ImageStatus,
+    file_info: Option<(&str, u64)>,
     insecure_client: bool,
 ) -> Result<ImageInternalResp, AinariError> {
     let address = ryokan_endpoint.internal_address.clone();
     let client = prepare_client(&address, insecure_client);
     let url = format!("{address}/v1alpha/image/{image_uuid}/internal");
 
-    let body = ImageFileInfoReq {
-        file_type: file_type.to_owned(),
-        file_size,
+    let body = ImageUpdateInternalReq {
+        image_status,
+        file_type: file_info.map(|(file_type, _)| file_type.to_owned()),
+        file_size: file_info.map(|(_, file_size)| file_size),
     };
 
     let json_str = serde_json::to_string(&body).unwrap();

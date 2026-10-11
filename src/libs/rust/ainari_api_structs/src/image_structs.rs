@@ -16,8 +16,57 @@ use apistos::ApiComponent;
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use std::str::FromStr;
 use uuid::Uuid;
 use validator::Validate;
+
+/// State of the file of an image. Only an image with the state `READY` can be used for a
+/// virtual_machine.
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, JsonSchema, ApiComponent)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum ImageStatus {
+    /// The encrypted file is stored in the onsen, by ryokan for an uploaded image or by sakura for a
+    /// snapshot
+    Uploading,
+    /// The file is encrypted and stored in the onsen
+    Encrypting,
+    /// The image is complete and can be used
+    Ready,
+    /// Reserved for images, which are used by a virtual_machine. It is not set at the moment.
+    InUse,
+}
+
+impl ImageStatus {
+    /// Value of the status, like it is stored in the database
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            ImageStatus::Uploading => "UPLOADING",
+            ImageStatus::Encrypting => "ENCRYPTING",
+            ImageStatus::Ready => "READY",
+            ImageStatus::InUse => "IN_USE",
+        }
+    }
+}
+
+impl std::fmt::Display for ImageStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
+}
+
+impl FromStr for ImageStatus {
+    type Err = String;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value {
+            "UPLOADING" => Ok(ImageStatus::Uploading),
+            "ENCRYPTING" => Ok(ImageStatus::Encrypting),
+            "READY" => Ok(ImageStatus::Ready),
+            "IN_USE" => Ok(ImageStatus::InUse),
+            _ => Err(format!("'{value}' is not a valid image-status")),
+        }
+    }
+}
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
 pub struct ImageInitReq {
@@ -47,14 +96,18 @@ pub struct ImageUploadReq {
     pub secret_uuid: Option<Uuid>,
 }
 
-/// Type and size of the file of an image, which are measured before the file is encrypted
+/// New status of an image, optionally together with type and size of its file, which are measured
+/// before the file is encrypted
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
-pub struct ImageFileInfoReq {
-    /// Type of the unencrypted file (e.g. "qcow2")
+pub struct ImageUpdateInternalReq {
+    pub image_status: ImageStatus,
+    /// Type of the unencrypted file (e.g. "qcow2"). Must be provided together with `file_size`.
     #[validate(length(min = 1, max = 32))]
-    pub file_type: String,
-    /// Size of the unencrypted file in bytes
-    pub file_size: u64,
+    #[serde(default)]
+    pub file_type: Option<String>,
+    /// Size of the unencrypted file in bytes. Must be provided together with `file_type`.
+    #[serde(default)]
+    pub file_size: Option<u64>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
@@ -67,6 +120,7 @@ pub struct ImageInternalResp {
     pub file_type: String,
     /// Size of the unencrypted file in bytes
     pub file_size: u64,
+    pub image_status: ImageStatus,
     pub is_snapshot: bool,
     pub secret_uuid: Uuid,
     pub created_at: DateTime<Utc>,
@@ -83,6 +137,7 @@ pub struct ImageResp {
     pub file_type: String,
     /// Size of the unencrypted file in bytes
     pub file_size: u64,
+    pub image_status: ImageStatus,
     pub is_snapshot: bool,
     pub created_at: DateTime<Utc>,
     pub created_by: String,
@@ -98,10 +153,35 @@ pub struct ImageBasicResp {
     pub file_type: String,
     /// Size of the unencrypted file in bytes
     pub file_size: u64,
+    pub image_status: ImageStatus,
     pub is_snapshot: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
 pub struct ImageListResp {
     pub images: Vec<ImageBasicResp>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn image_status_roundtrip() {
+        for image_status in [
+            ImageStatus::Uploading,
+            ImageStatus::Encrypting,
+            ImageStatus::Ready,
+            ImageStatus::InUse,
+        ] {
+            // the value in the database and in the api have to be the same
+            let json = serde_json::to_string(&image_status).unwrap();
+            assert_eq!(json, format!("\"{}\"", image_status.as_str()));
+            assert_eq!(
+                image_status.as_str().parse::<ImageStatus>(),
+                Ok(image_status)
+            );
+        }
+        assert!("ACTIVE".parse::<ImageStatus>().is_err());
+    }
 }

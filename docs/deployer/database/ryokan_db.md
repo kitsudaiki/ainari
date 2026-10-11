@@ -37,6 +37,20 @@ snapshot is registered before its file exists, so it keeps the defaults `unknown
 sakura has copied the root-disk. In the SQLite-database both columns are at the end of the table,
 because SQLite can only append new columns.
 
+`image_status` is the state of the file of the image. Only a `READY` image can be used for a
+virtual machine. Existing images got `READY` with the migration, because they are complete.
+
+| image_status | meaning                                                                                   |
+| ------------ | ----------------------------------------------------------------------------------------- |
+| `UPLOADING`  | the encrypted file is stored in the onsen, by ryokan or by sakura for a snapshot          |
+| `ENCRYPTING` | ryokan encrypts the uploaded file and stores it, or sakura copies and encrypts a snapshot |
+| `READY`      | the image is complete and can be used                                                     |
+| `IN_USE`     | reserved, not set at the moment                                                           |
+
+An uploaded image is only registered, after its file was completely uploaded to ryokan. Like a
+snapshot, which is created by sakura, it goes through `ENCRYPTING` → `UPLOADING` → `READY`. If the encryption or the storing of an uploaded image fails, the image is
+deleted again together with its secret.
+
 | field         | type         | is primary | constraints                    |
 | ------------- | ------------ | ---------- | ------------------------------ |
 | uuid          | VARCHAR(40)  | x          |                                |
@@ -45,6 +59,7 @@ because SQLite can only append new columns.
 | file_path     | TEXT         |            |                                |
 | file_type     | VARCHAR(32)  |            | `NOT NULL DEFAULT 'unknown'`   |
 | file_size     | BIGINT       |            | `NOT NULL DEFAULT 0`           |
+| image_status  | VARCHAR(16)  |            | `NOT NULL DEFAULT 'READY'`     |
 | secret_uuid   | VARCHAR(40)  |            |                                |
 | is_snapshot   | BOOLEAN      |            | `NOT NULL DEFAULT FALSE`       |
 | owner_id      | VARCHAR(256) |            |                                |

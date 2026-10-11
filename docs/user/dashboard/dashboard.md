@@ -196,7 +196,10 @@ machines.
 **Storage > Image** lists the images and snapshots together with the type and size of their file,
 which are measured before the file is encrypted. The type is named like the formats of `qemu-img`
 (e.g. `qcow2`), a file without known format is `raw`. A snapshot shows the type `unknown`, until its
-task is finished. **Info** shows the details of an image and **Delete** removes it.
+task is finished. The column **Status** shows, if the image is still `ENCRYPTING` or `UPLOADING`, or
+already `READY`. While an image is not ready, the list is refreshed automatically. Only a `READY`
+image can be selected for a new virtual machine, the others are shown greyed out with their status.
+**Info** shows the details of an image and **Delete** removes it.
 
 ### Networks
 

@@ -42,6 +42,7 @@ pub async fn list_image(context: UserContext) -> Result<Json<ImageListResp>, Err
             name: image.name.clone(),
             file_type: image.file_type.clone(),
             file_size: image.file_size as u64,
+            image_status: super::image_status_of(&image)?,
             is_snapshot: image.is_snapshot,
         };
 

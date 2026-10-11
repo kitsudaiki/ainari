@@ -34,6 +34,7 @@ use crate::database::virtual_machine_table::{VirtualMachineEntry, VirtualMachine
 
 use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
+use ainari_api_structs::image_structs::{ImageInternalResp, ImageStatus};
 use ainari_api_structs::task_structs::*;
 use ainari_api_structs::user_context::UserContext;
 
@@ -68,6 +69,27 @@ fn reject_migrating(virtual_machine_data: &VirtualMachineEntry) -> Result<(), Er
         return Err(ErrorResponse::Conflict(format!(
             "Virtual_machine '{}' is migrated to another host right now.",
             virtual_machine_data.uuid
+        )));
+    }
+    Ok(())
+}
+
+/// Rejects an image, which is not completely uploaded and encrypted yet, before a task is created
+/// for it
+///
+/// # Arguments
+/// * `image_resp` - The image of the request
+///
+/// # Returns
+/// * `Ok(())` if the image is ready
+/// * `Err(ErrorResponse::Conflict)` if it is not ready
+fn reject_image_not_ready(image_resp: &ImageInternalResp) -> Result<(), ErrorResponse> {
+    if image_resp.image_status != ImageStatus::Ready {
+        return Err(ErrorResponse::Conflict(format!(
+            "Image '{}' has the status '{}' and can only be used, when it is '{}'.",
+            image_resp.uuid,
+            image_resp.image_status,
+            ImageStatus::Ready
         )));
     }
     Ok(())

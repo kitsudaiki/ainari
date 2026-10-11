@@ -89,12 +89,15 @@ def snapshot_image(ctx):
     # sakura copies the root-disk into a qcow2-image and reports its type and size to ryokan
     check_equal(result["file_type"], "qcow2", "type of the snapshot-file")
     check(result["file_size"] > 0, f"size of the snapshot-file is {result['file_size']}")
+    # the snapshot-task is finished, so sakura has set the snapshot to ready
+    check_equal(result["image_status"], "READY", "status of the snapshot")
     listed = {item["uuid"]: item for item in image.list_images(ctx.api)["images"]}
     check_in(snapshot_uuid, listed, "snapshot in image-list")
     check_equal(listed[snapshot_uuid]["is_snapshot"], True, "snapshot-flag in image-list")
     check_equal(listed[snapshot_uuid]["file_type"], "qcow2", "type of the snapshot in image-list")
     check_equal(listed[snapshot_uuid]["file_size"], result["file_size"],
                 "size of the snapshot in image-list")
+    check_equal(listed[snapshot_uuid]["image_status"], "READY", "status of the snapshot in list")
 
 
 @suite.test("virtual machine keeps running after the snapshot", requires=("snapshot",))

@@ -31,6 +31,7 @@ use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::task_structs::*;
 use ainari_api_structs::user_context::UserContext;
 use ainari_clients::endpoints::get_endpoints;
+use ainari_clients::image::get_image;
 
 #[api_operation(
     tag = "task",
@@ -38,9 +39,12 @@ use ainari_clients::endpoints::get_endpoints;
     description = r###"Create a new task, which creates the virtual_machine.
 
 The image and the public-key of the request are stored on the reserved
-virtual_machine, before the task is queued."###,
+virtual_machine, before the task is queued. The image must have the status `READY`, so an image,
+which is still uploaded or encrypted, is rejected."###,
     error_code = 400,
     error_code = 401,
+    error_code = 404,
+    error_code = 409,
     error_code = 500
 )]
 pub async fn create_virtual_machine(
@@ -54,6 +58,23 @@ pub async fn create_virtual_machine(
 
     let task_uuid = Uuid::new_v4();
     let task_type = TaskType::VirtualMachineCreate;
+
+    let endpoints = get_endpoints(&config::CONFIG.miko, config::CONFIG.skip_tls_verification)
+        .await
+        .map_err(|e| map_ainari_error_to_api_response(e, Some(&context)))?;
+
+    // check if the image exist and is ready, so an image, which is still uploaded or encrypted,
+    // is rejected before the task is queued
+    let image_resp = get_image(
+        &endpoints.ryokan,
+        &context.token,
+        &config::INTERNAL_API_KEY,
+        &body.image_uuid,
+        config::CONFIG.skip_tls_verification,
+    )
+    .await
+    .map_err(|e| map_ainari_error_to_api_response(e, Some(&context)))?;
+    super::reject_image_not_ready(&image_resp)?;
 
     // the virtual_machine was reserved without an image and without a public-key, so both are
     // stored now, before the task, which creates the virtual_machine, reads them again
@@ -95,10 +116,6 @@ pub async fn create_virtual_machine(
         description: task_description.clone(),
         context: context.clone(),
     };
-
-    let _endpoints = get_endpoints(&config::CONFIG.miko, config::CONFIG.skip_tls_verification)
-        .await
-        .map_err(|e| map_ainari_error_to_api_response(e, Some(&context)))?;
 
     // create new task
     let task = Task {

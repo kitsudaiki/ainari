@@ -44,6 +44,7 @@ The virtual_machine is shut down, while its root-disk is replaced, and booted ag
     error_code = 400,
     error_code = 401,
     error_code = 404,
+    error_code = 409,
     error_code = 500
 )]
 pub async fn snapshot_restore_task(
@@ -72,8 +73,8 @@ pub async fn snapshot_restore_task(
         .await
         .map_err(|e| map_ainari_error_to_api_response(e, Some(&context)))?;
 
-    // check if the image exist and is a snapshot, so an invalid image is rejected before the
-    // task is queued
+    // check if the image exist, is a snapshot and is ready, so an invalid image is rejected
+    // before the task is queued
     let image_resp = get_image(
         &endpoints.ryokan,
         &context.token,
@@ -89,6 +90,7 @@ pub async fn snapshot_restore_task(
             image_resp.uuid
         )));
     }
+    super::reject_image_not_ready(&image_resp)?;
 
     // prepare task-info
     let task_description = format!(

@@ -41,6 +41,7 @@ pub async fn get_image_internal(
         .map_err(|e| map_db_uuid_get_delete_error("image", &image_uuid, e, Some(&context)))?;
 
     let secret_uuid = image_data.secret_uuid;
+    let image_status = super::image_status_of(&image_data)?;
     let resp = ImageInternalResp {
         uuid: *image_uuid,
         name: image_data.name,
@@ -48,6 +49,7 @@ pub async fn get_image_internal(
         file_path: image_data.file_path,
         file_type: image_data.file_type,
         file_size: image_data.file_size as u64,
+        image_status,
         is_snapshot: image_data.is_snapshot,
         secret_uuid,
         created_by: image_data.created_by,

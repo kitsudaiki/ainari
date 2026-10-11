@@ -100,6 +100,11 @@ impl ApiComponent for ImageUploadPayload {
 With `secret_uuid`, the image is encrypted with this already existing secret of the omamori,
 instead of a new generated secret.
 
+The image is registered with the status `ENCRYPTING`, when the file is completely uploaded, while
+ryokan encrypts the file. While the encrypted file is stored in the onsen, the status is
+`UPLOADING`. Afterwards the image is `READY` and can be used for virtual machines. If the encryption
+or the storing fails, the image is removed again.
+
 Before the file is encrypted, its type (e.g. `qcow2` or `raw`) is identified and its size is
 measured. Both are returned as `file_type` and `file_size`."###,
     error_code = 400,
@@ -152,48 +157,75 @@ pub async fn upload_binary(
             }
         };
 
-        encrypt_file(&source_path, &encrypted_result_path, &secret)
-            .await
-            .map_err(|e| map_ainari_error_to_api_response(e, Some(&context)))?;
+        // the image is registered, while it is encrypted and stored, so it is visible, but can not
+        // be used yet
+        let stored = async {
+            image_table::add_new_image(
+                &image_uuid,
+                &req.name,
+                &selected_onsen.address,
+                &upload_file_path_str,
+                &file_info.file_type,
+                file_info.file_size as i64,
+                &secret_uuid,
+                false,
+                &ImageStatus::Encrypting,
+                &context,
+            )
+            .map_err(|e| map_db_write_error("add image to database", e, Some(&context)))?;
 
-        upload_file_to_onsen(
-            &selected_onsen.address,
-            &upload_file_path_str,
-            &encrypted_result_path,
-            Some(&context),
-        )
-        .await?;
+            encrypt_file(&source_path, &encrypted_result_path, &secret)
+                .await
+                .map_err(|e| map_ainari_error_to_api_response(e, Some(&context)))?;
 
-        Ok::<_, ErrorResponse>((req, file_info, secret_uuid))
+            image_table::update_image_status(&image_uuid, &ImageStatus::Uploading, None, &context)
+                .map_err(|e| {
+                    map_db_uuid_get_delete_error("image", &image_uuid, e, Some(&context))
+                })?;
+
+            upload_file_to_onsen(
+                &selected_onsen.address,
+                &upload_file_path_str,
+                &encrypted_result_path,
+                Some(&context),
+            )
+            .await?;
+
+            image_table::update_image_status(&image_uuid, &ImageStatus::Ready, None, &context)
+                .map_err(|e| map_db_uuid_get_delete_error("image", &image_uuid, e, Some(&context)))
+        }
+        .await;
+
+        // an incomplete image can never become ready, so it is removed together with its secret
+        if stored.is_err() {
+            super::remove_failed_image(
+                &image_uuid,
+                &selected_onsen.address,
+                &upload_file_path_str,
+                &secret_uuid,
+                &context,
+            )
+            .await;
+        }
+        stored
     }
     .await;
 
     // remove temporary directory again
     super::remove_all(&target_dir_path);
 
-    let (req, file_info, secret_uuid) = result?;
-
-    image_table::add_new_image(
-        &image_uuid,
-        &req.name,
-        &selected_onsen.address,
-        &upload_file_path_str,
-        &file_info.file_type,
-        file_info.file_size as i64,
-        &secret_uuid,
-        false,
-        &context,
-    )
-    .map_err(|e| map_db_write_error("add image to database", e, Some(&context)))?;
+    result?;
 
     let image_data = image_table::get_image(&image_uuid, &context)
         .map_err(|e| map_db_uuid_get_after_add_error("image", &image_uuid, e, Some(&context)))?;
 
+    let image_status = super::image_status_of(&image_data)?;
     let resp = ImageResp {
         uuid: image_uuid,
         name: image_data.name,
         file_type: image_data.file_type,
         file_size: image_data.file_size as u64,
+        image_status,
         is_snapshot: image_data.is_snapshot,
         created_by: image_data.created_by,
         created_at: image_data.created_at,
@@ -378,4 +410,136 @@ async fn write_field_into_file(field: &mut Field, file_path: &str) -> Result<(),
     }
 
     result
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use actix_web::error::PayloadError;
+    use actix_web::http::header::{CONTENT_TYPE, HeaderMap, HeaderValue};
+    use bytes::Bytes;
+    use std::time::Duration;
+
+    const BOUNDARY: &str = "test-boundary";
+
+    /// Creates a multipart-payload, which is delivered in small chunks like over the network
+    fn multipart(parts: &[(&str, &[u8])]) -> Multipart {
+        let mut body = Vec::new();
+        for (name, content) in parts {
+            body.extend_from_slice(
+                format!("--{BOUNDARY}\r\nContent-Disposition: form-data; name=\"{name}\"")
+                    .as_bytes(),
+            );
+            if *name == "file" {
+                body.extend_from_slice(
+                    b"; filename=\"disk.img\"\r\nContent-Type: application/octet-stream",
+                );
+            }
+            body.extend_from_slice(b"\r\n\r\n");
+            body.extend_from_slice(content);
+            body.extend_from_slice(b"\r\n");
+        }
+        body.extend_from_slice(format!("--{BOUNDARY}--\r\n").as_bytes());
+
+        let mut headers = HeaderMap::new();
+        let content_type = format!("multipart/form-data; boundary={BOUNDARY}");
+        headers.insert(CONTENT_TYPE, HeaderValue::from_str(&content_type).unwrap());
+        let chunks: Vec<Result<Bytes, PayloadError>> = body
+            .chunks(1000)
+            .map(|chunk| Ok(Bytes::copy_from_slice(chunk)))
+            .collect();
+        Multipart::new(&headers, futures_util::stream::iter(chunks))
+    }
+
+    /// Reads the form like the upload. A blocked payload makes the test fail instead of hanging.
+    async fn read_form(
+        payload: Multipart,
+        file_path: &str,
+    ) -> Result<ImageUploadReq, ErrorResponse> {
+        tokio::time::timeout(
+            Duration::from_secs(10),
+            read_upload_form(payload, file_path),
+        )
+        .await
+        .expect("reading the multipart-form is blocked")
+    }
+
+    fn temp_file_path(name: &str) -> String {
+        std::env::temp_dir()
+            .join(format!("{name}-{}", Uuid::new_v4()))
+            .to_string_lossy()
+            .to_string()
+    }
+
+    #[actix_rt::test]
+    async fn read_complete_form() {
+        let content: Vec<u8> = (0..100_000u32).map(|i| (i % 251) as u8).collect();
+        let secret_uuid = Uuid::new_v4();
+        let file_path = temp_file_path("upload");
+
+        let payload = multipart(&[
+            ("name", b"my-image"),
+            ("image_type", b"disk"),
+            ("secret_uuid", secret_uuid.to_string().as_bytes()),
+            ("file", &content),
+        ]);
+        let Ok(req) = read_form(payload, &file_path).await else {
+            panic!("valid form was rejected");
+        };
+
+        assert_eq!(req.name, "my-image");
+        assert_eq!(req.image_type, "disk");
+        assert_eq!(req.secret_uuid, Some(secret_uuid));
+        assert_eq!(std::fs::read(&file_path).unwrap(), content);
+        let _ = std::fs::remove_file(&file_path);
+    }
+
+    #[actix_rt::test]
+    async fn read_form_with_file_first() {
+        let file_path = temp_file_path("upload-file-first");
+
+        // the order of the fields doesn't matter, because the form is read completely first
+        let payload = multipart(&[
+            ("file", b"data"),
+            ("image_type", b"disk"),
+            ("name", b"my-image"),
+        ]);
+        let Ok(req) = read_form(payload, &file_path).await else {
+            panic!("valid form was rejected");
+        };
+
+        assert_eq!(req.name, "my-image");
+        assert_eq!(req.secret_uuid, None);
+        assert_eq!(std::fs::read(&file_path).unwrap(), b"data");
+        let _ = std::fs::remove_file(&file_path);
+    }
+
+    #[actix_rt::test]
+    async fn reject_invalid_forms() {
+        let file_path = temp_file_path("upload-invalid");
+        let invalid_forms: [&[(&str, &[u8])]; 4] = [
+            // the name is missing
+            &[("image_type", b"disk"), ("file", b"data")],
+            // the file is missing
+            &[("name", b"my-image"), ("image_type", b"disk")],
+            // only one file is allowed
+            &[
+                ("name", b"my-image"),
+                ("image_type", b"disk"),
+                ("file", b"data"),
+                ("file", b"data"),
+            ],
+            // unknown fields are rejected
+            &[
+                ("name", b"my-image"),
+                ("image_type", b"disk"),
+                ("other", b"x"),
+            ],
+        ];
+
+        for parts in invalid_forms {
+            let result = read_form(multipart(parts), &file_path).await;
+            assert!(matches!(result, Err(ErrorResponse::BadRequest(_))));
+        }
+        let _ = std::fs::remove_file(&file_path);
+    }
 }

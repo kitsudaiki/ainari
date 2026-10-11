@@ -48,7 +48,7 @@ pub fn v1alpha_routes() -> Scope {
                 .service(
                     resource("/{image_uuid}/internal")
                         .route(get().to(get_image_internal_v1_0::get_image_internal))
-                        .route(put().to(update_file_info_internal_v1_0::update_file_info)),
+                        .route(put().to(update_image_internal_v1_0::update_image_internal)),
                 )
                 .service(
                     resource("")

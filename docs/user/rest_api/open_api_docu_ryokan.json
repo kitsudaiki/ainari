@@ -82,7 +82,7 @@
           "image"
         ],
         "summary": "Initialize new image",
-        "description": "Initialize a new image.\\\n\\\nPrepares the database-entry and the onsen, before the files are uploaded. Sakura uses this to\\\nstore the root-disk of a virtual_machine as snapshot, which is marked by `is_snapshot`. With\\\n`secret_uuid`, the image is encrypted with this already existing secret of the omamori, instead of\\\na new generated secret.\\\n\\\nThis is an internal call, which is protected by the internal api-key.",
+        "description": "Initialize a new image.\\\n\\\nPrepares the database-entry and the onsen, before the files are uploaded. Sakura uses this to\\\nstore the root-disk of a virtual_machine as snapshot, which is marked by `is_snapshot`. The image\\\nstarts with the status `ENCRYPTING` and can not be used, until sakura sets it to `READY`. With\\\n`secret_uuid`, the image is encrypted with this already existing secret of the omamori, instead of\\\na new generated secret.\\\n\\\nThis is an internal call, which is protected by the internal api-key.",
         "requestBody": {
           "content": {
             "application/json": {
@@ -107,6 +107,7 @@
                     "file_path",
                     "file_size",
                     "file_type",
+                    "image_status",
                     "is_snapshot",
                     "name",
                     "onsen_address",
@@ -135,6 +136,9 @@
                     "file_type": {
                       "description": "Type of the unencrypted file (e.g. \"qcow2\")",
                       "type": "string"
+                    },
+                    "image_status": {
+                      "$ref": "#/components/schemas/ImageStatus"
                     },
                     "is_snapshot": {
                       "type": "boolean"
@@ -369,8 +373,8 @@
         "tags": [
           "image"
         ],
-        "summary": "Set file-info of image (internal)",
-        "description": "Set type and size of the file of an image.\\\n\\\nSakura uses this for snapshots, which are registered before their file exists. Type and size are\\\nmeasured on the unencrypted file.\\\n\\\nThis is an internal call, which is protected by the internal api-key.",
+        "summary": "Update status of image (internal)",
+        "description": "Set the status of an image, optionally together with type and size of its\\\nfile.\\\n\\\nSakura uses this for snapshots, which are registered before their file exists: the status is set to\\\n`UPLOADING` together with type and size of the file, before the encrypted file is uploaded into the\\\nonsen, and to `READY`, when the snapshot is complete. Type and size are measured on the unencrypted\\\nfile and have to be provided together.\\\n\\\nThis is an internal call, which is protected by the internal api-key.",
         "parameters": [
           {
             "name": "image_uuid",
@@ -387,7 +391,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ImageFileInfoReq"
+                "$ref": "#/components/schemas/ImageUpdateInternalReq"
               }
             }
           },
@@ -462,7 +466,7 @@
           "image"
         ],
         "summary": "Create new image",
-        "description": "Create new image by uploading a multipart-form with the fields `name`,\\\n`image_type` (at the moment only `disk`), the optional `secret_uuid` and the disk-image as `file`.\\\nWith `secret_uuid`, the image is encrypted with this already existing secret of the omamori,\\\ninstead of a new generated secret.\\\n\\\nBefore the file is encrypted, its type (e.g. `qcow2` or `raw`) is identified and its size is\\\nmeasured. Both are returned as `file_type` and `file_size`.",
+        "description": "Create new image by uploading a multipart-form with the fields `name`,\\\n`image_type` (at the moment only `disk`), the optional `secret_uuid` and the disk-image as `file`.\\\nWith `secret_uuid`, the image is encrypted with this already existing secret of the omamori,\\\ninstead of a new generated secret.\\\n\\\nThe image is registered with the status `ENCRYPTING`, when the file is completely uploaded, while\\\nryokan encrypts the file. While the encrypted file is stored in the onsen, the status is\\\n`UPLOADING`. Afterwards the image is `READY` and can be used for virtual machines. If the encryption\\\nor the storing fails, the image is removed again.\\\n\\\nBefore the file is encrypted, its type (e.g. `qcow2` or `raw`) is identified and its size is\\\nmeasured. Both are returned as `file_type` and `file_size`.",
         "requestBody": {
           "content": {
             "multipart/form-data": {
@@ -486,6 +490,7 @@
                     "created_by",
                     "file_size",
                     "file_type",
+                    "image_status",
                     "is_snapshot",
                     "name",
                     "updated_at",
@@ -509,6 +514,9 @@
                     "file_type": {
                       "description": "Type of the unencrypted file (e.g. \"qcow2\")",
                       "type": "string"
+                    },
+                    "image_status": {
+                      "$ref": "#/components/schemas/ImageStatus"
                     },
                     "is_snapshot": {
                       "type": "boolean"
@@ -937,6 +945,7 @@
         "required": [
           "file_size",
           "file_type",
+          "image_status",
           "is_snapshot",
           "name",
           "uuid"
@@ -952,6 +961,9 @@
             "description": "Type of the unencrypted file (e.g. \"qcow2\")",
             "type": "string"
           },
+          "image_status": {
+            "$ref": "#/components/schemas/ImageStatus"
+          },
           "is_snapshot": {
             "type": "boolean"
           },
@@ -961,29 +973,6 @@
           "uuid": {
             "type": "string",
             "format": "uuid"
-          }
-        }
-      },
-      "ImageFileInfoReq": {
-        "title": "ImageFileInfoReq",
-        "description": "Type and size of the file of an image, which are measured before the file is encrypted",
-        "type": "object",
-        "required": [
-          "file_size",
-          "file_type"
-        ],
-        "properties": {
-          "file_size": {
-            "description": "Size of the unencrypted file in bytes",
-            "type": "integer",
-            "format": "uint64",
-            "minimum": 0.0
-          },
-          "file_type": {
-            "description": "Type of the unencrypted file (e.g. \"qcow2\")",
-            "type": "string",
-            "maxLength": 32,
-            "minLength": 1
           }
         }
       },
@@ -1031,6 +1020,7 @@
           "file_path",
           "file_size",
           "file_type",
+          "image_status",
           "is_snapshot",
           "name",
           "onsen_address",
@@ -1059,6 +1049,9 @@
           "file_type": {
             "description": "Type of the unencrypted file (e.g. \"qcow2\")",
             "type": "string"
+          },
+          "image_status": {
+            "$ref": "#/components/schemas/ImageStatus"
           },
           "is_snapshot": {
             "type": "boolean"
@@ -1109,6 +1102,7 @@
           "created_by",
           "file_size",
           "file_type",
+          "image_status",
           "is_snapshot",
           "name",
           "updated_at",
@@ -1133,6 +1127,9 @@
             "description": "Type of the unencrypted file (e.g. \"qcow2\")",
             "type": "string"
           },
+          "image_status": {
+            "$ref": "#/components/schemas/ImageStatus"
+          },
           "is_snapshot": {
             "type": "boolean"
           },
@@ -1149,6 +1146,72 @@
           "uuid": {
             "type": "string",
             "format": "uuid"
+          }
+        }
+      },
+      "ImageStatus": {
+        "description": "State of the file of an image. Only an image with the state `READY` can be used for a virtual_machine.",
+        "oneOf": [
+          {
+            "title": "UPLOADING",
+            "description": "The encrypted file is stored in the onsen, by ryokan for an uploaded image or by sakura for a snapshot",
+            "type": "string",
+            "enum": [
+              "UPLOADING"
+            ]
+          },
+          {
+            "title": "ENCRYPTING",
+            "description": "The file is encrypted and stored in the onsen",
+            "type": "string",
+            "enum": [
+              "ENCRYPTING"
+            ]
+          },
+          {
+            "title": "READY",
+            "description": "The image is complete and can be used",
+            "type": "string",
+            "enum": [
+              "READY"
+            ]
+          },
+          {
+            "title": "IN_USE",
+            "description": "Reserved for images, which are used by a virtual_machine. It is not set at the moment.",
+            "type": "string",
+            "enum": [
+              "IN_USE"
+            ]
+          }
+        ]
+      },
+      "ImageUpdateInternalReq": {
+        "title": "ImageUpdateInternalReq",
+        "description": "New status of an image, optionally together with type and size of its file, which are measured before the file is encrypted",
+        "type": "object",
+        "required": [
+          "image_status"
+        ],
+        "properties": {
+          "file_size": {
+            "description": "Size of the unencrypted file in bytes. Must be provided together with `file_type`.",
+            "default": null,
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0,
+            "nullable": true
+          },
+          "file_type": {
+            "description": "Type of the unencrypted file (e.g. \"qcow2\"). Must be provided together with `file_size`.",
+            "default": null,
+            "type": "string",
+            "maxLength": 32,
+            "minLength": 1,
+            "nullable": true
+          },
+          "image_status": {
+            "$ref": "#/components/schemas/ImageStatus"
           }
         }
       },
