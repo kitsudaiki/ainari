@@ -46,6 +46,8 @@ pub async fn get_image_internal(
         name: image_data.name,
         onsen_address: image_data.onsen_address,
         file_path: image_data.file_path,
+        file_type: image_data.file_type,
+        file_size: image_data.file_size as u64,
         is_snapshot: image_data.is_snapshot,
         secret_uuid,
         created_by: image_data.created_by,

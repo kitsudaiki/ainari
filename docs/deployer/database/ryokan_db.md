@@ -30,20 +30,29 @@ Onsen-hosts, which registered themselves at ryokan and store the image-files.
 Images of virtual machines and the onsen-host, where the file is stored. Snapshots of virtual
 machines are images with `is_snapshot` set.
 
-| field         | type         | is primary | constraints              |
-| ------------- | ------------ | ---------- | ------------------------ |
-| uuid          | VARCHAR(40)  | x          |                          |
-| name          | VARCHAR(256) |            |                          |
-| onsen_address | VARCHAR(256) |            |                          |
-| file_path     | TEXT         |            |                          |
-| secret_uuid   | VARCHAR(40)  |            |                          |
-| is_snapshot   | BOOLEAN      |            | `NOT NULL DEFAULT FALSE` |
-| owner_id      | VARCHAR(256) |            |                          |
-| project_id    | VARCHAR(256) |            |                          |
-| status        | VARCHAR(8)   |            |                          |
-| created_at    | VARCHAR(64)  |            |                          |
-| created_by    | VARCHAR(256) |            |                          |
-| updated_at    | VARCHAR(64)  |            |                          |
-| updated_by    | VARCHAR(256) |            |                          |
-| deleted_at    | VARCHAR(64)  |            |                          |
-| deleted_by    | VARCHAR(256) |            |                          |
+`file_type` and `file_size` are measured on the unencrypted file, before it is encrypted. The type
+is identified by the magic-bytes of the file and named like the formats of `qemu-img` (`qcow2`,
+`qcow`, `qed`, `vhdx`, `vmdk`, `vdi`, `vpc`, `iso`), a file without known format is `raw`. A
+snapshot is registered before its file exists, so it keeps the defaults `unknown` and `0`, until
+sakura has copied the root-disk. In the SQLite-database both columns are at the end of the table,
+because SQLite can only append new columns.
+
+| field         | type         | is primary | constraints                    |
+| ------------- | ------------ | ---------- | ------------------------------ |
+| uuid          | VARCHAR(40)  | x          |                                |
+| name          | VARCHAR(256) |            |                                |
+| onsen_address | VARCHAR(256) |            |                                |
+| file_path     | TEXT         |            |                                |
+| file_type     | VARCHAR(32)  |            | `NOT NULL DEFAULT 'unknown'`   |
+| file_size     | BIGINT       |            | `NOT NULL DEFAULT 0`           |
+| secret_uuid   | VARCHAR(40)  |            |                                |
+| is_snapshot   | BOOLEAN      |            | `NOT NULL DEFAULT FALSE`       |
+| owner_id      | VARCHAR(256) |            |                                |
+| project_id    | VARCHAR(256) |            |                                |
+| status        | VARCHAR(8)   |            |                                |
+| created_at    | VARCHAR(64)  |            |                                |
+| created_by    | VARCHAR(256) |            |                                |
+| updated_at    | VARCHAR(64)  |            |                                |
+| updated_by    | VARCHAR(256) |            |                                |
+| deleted_at    | VARCHAR(64)  |            |                                |
+| deleted_by    | VARCHAR(256) |            |                                |

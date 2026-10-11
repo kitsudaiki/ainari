@@ -105,6 +105,8 @@
                     "created_at",
                     "created_by",
                     "file_path",
+                    "file_size",
+                    "file_type",
                     "is_snapshot",
                     "name",
                     "onsen_address",
@@ -122,6 +124,16 @@
                       "type": "string"
                     },
                     "file_path": {
+                      "type": "string"
+                    },
+                    "file_size": {
+                      "description": "Size of the unencrypted file in bytes",
+                      "type": "integer",
+                      "format": "uint64",
+                      "minimum": 0.0
+                    },
+                    "file_type": {
+                      "description": "Type of the unencrypted file (e.g. \"qcow2\")",
                       "type": "string"
                     },
                     "is_snapshot": {
@@ -352,6 +364,65 @@
             "user_context": []
           }
         ]
+      },
+      "put": {
+        "tags": [
+          "image"
+        ],
+        "summary": "Set file-info of image (internal)",
+        "description": "Set type and size of the file of an image.\\\n\\\nSakura uses this for snapshots, which are registered before their file exists. Type and size are\\\nmeasured on the unencrypted file.\\\n\\\nThis is an internal call, which is protected by the internal api-key.",
+        "parameters": [
+          {
+            "name": "image_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Uuid",
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImageFileInfoReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImageInternalResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
       }
     },
     "/v1alpha/image": {
@@ -385,50 +456,20 @@
             "user_context": []
           }
         ]
-      }
-    },
-    "/v1alpha/image/{type}/{name}": {
+      },
       "post": {
         "tags": [
           "image"
         ],
         "summary": "Create new image",
-        "description": "Create new image by uploading files. With the query-parameter `secret_uuid`,\\\nthe image is encrypted with this already existing secret of the omamori, instead of a new generated\\\nsecret.",
-        "parameters": [
-          {
-            "name": "type",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "title": "String",
-              "type": "string"
-            }
-          },
-          {
-            "name": "name",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "title": "String",
-              "type": "string"
-            }
-          },
-          {
-            "name": "secret_uuid",
-            "in": "query",
-            "description": "Already existing secret in the omamori, which is used to encrypt the image. Without it, a new secret is generated for the image.",
-            "required": false,
-            "schema": {
-              "description": "Already existing secret in the omamori, which is used to encrypt the image. Without it, a new secret is generated for the image.",
-              "type": "string",
-              "format": "uuid",
-              "nullable": true
-            }
-          }
-        ],
+        "description": "Create new image by uploading a multipart-form with the fields `name`,\\\n`image_type` (at the moment only `disk`), the optional `secret_uuid` and the disk-image as `file`.\\\nWith `secret_uuid`, the image is encrypted with this already existing secret of the omamori,\\\ninstead of a new generated secret.\\\n\\\nBefore the file is encrypted, its type (e.g. `qcow2` or `raw`) is identified and its size is\\\nmeasured. Both are returned as `file_type` and `file_size`.",
         "requestBody": {
           "content": {
-            "multipart/form-data": {}
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/ImageUploadForm"
+              }
+            }
           },
           "required": true
         },
@@ -443,6 +484,8 @@
                   "required": [
                     "created_at",
                     "created_by",
+                    "file_size",
+                    "file_type",
                     "is_snapshot",
                     "name",
                     "updated_at",
@@ -455,6 +498,16 @@
                       "format": "date-time"
                     },
                     "created_by": {
+                      "type": "string"
+                    },
+                    "file_size": {
+                      "description": "Size of the unencrypted file in bytes",
+                      "type": "integer",
+                      "format": "uint64",
+                      "minimum": 0.0
+                    },
+                    "file_type": {
+                      "description": "Type of the unencrypted file (e.g. \"qcow2\")",
                       "type": "string"
                     },
                     "is_snapshot": {
@@ -882,11 +935,23 @@
       "ImageBasicResp": {
         "type": "object",
         "required": [
+          "file_size",
+          "file_type",
           "is_snapshot",
           "name",
           "uuid"
         ],
         "properties": {
+          "file_size": {
+            "description": "Size of the unencrypted file in bytes",
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "file_type": {
+            "description": "Type of the unencrypted file (e.g. \"qcow2\")",
+            "type": "string"
+          },
           "is_snapshot": {
             "type": "boolean"
           },
@@ -896,6 +961,29 @@
           "uuid": {
             "type": "string",
             "format": "uuid"
+          }
+        }
+      },
+      "ImageFileInfoReq": {
+        "title": "ImageFileInfoReq",
+        "description": "Type and size of the file of an image, which are measured before the file is encrypted",
+        "type": "object",
+        "required": [
+          "file_size",
+          "file_type"
+        ],
+        "properties": {
+          "file_size": {
+            "description": "Size of the unencrypted file in bytes",
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "file_type": {
+            "description": "Type of the unencrypted file (e.g. \"qcow2\")",
+            "type": "string",
+            "maxLength": 32,
+            "minLength": 1
           }
         }
       },
@@ -941,6 +1029,8 @@
           "created_at",
           "created_by",
           "file_path",
+          "file_size",
+          "file_type",
           "is_snapshot",
           "name",
           "onsen_address",
@@ -958,6 +1048,16 @@
             "type": "string"
           },
           "file_path": {
+            "type": "string"
+          },
+          "file_size": {
+            "description": "Size of the unencrypted file in bytes",
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "file_type": {
+            "description": "Type of the unencrypted file (e.g. \"qcow2\")",
             "type": "string"
           },
           "is_snapshot": {
@@ -1007,6 +1107,8 @@
         "required": [
           "created_at",
           "created_by",
+          "file_size",
+          "file_type",
           "is_snapshot",
           "name",
           "updated_at",
@@ -1019,6 +1121,16 @@
             "format": "date-time"
           },
           "created_by": {
+            "type": "string"
+          },
+          "file_size": {
+            "description": "Size of the unencrypted file in bytes",
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "file_type": {
+            "description": "Type of the unencrypted file (e.g. \"qcow2\")",
             "type": "string"
           },
           "is_snapshot": {
@@ -1037,6 +1149,39 @@
           "uuid": {
             "type": "string",
             "format": "uuid"
+          }
+        }
+      },
+      "ImageUploadForm": {
+        "title": "ImageUploadForm",
+        "description": "Multipart-form to upload a new image",
+        "type": "object",
+        "required": [
+          "file",
+          "image_type",
+          "name"
+        ],
+        "properties": {
+          "file": {
+            "description": "The disk-image, which is used as boot-disk of a virtual machine",
+            "type": "string",
+            "format": "binary"
+          },
+          "image_type": {
+            "description": "Type of the image. At the moment only `disk` is supported.",
+            "type": "string"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 127,
+            "minLength": 4
+          },
+          "secret_uuid": {
+            "description": "Already existing secret in the omamori, which is used to encrypt the image. Without it, a new secret is generated for the image.",
+            "default": null,
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
           }
         }
       },

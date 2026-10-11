@@ -36,6 +36,16 @@ import (
 var PrintAsJson bool = false
 var DisableTlsVerification bool = false
 
+// formatValue converts a value of a json-response into a string for a table. Json-numbers are
+// decoded as float64, which %v prints in exponent-notation for big values (e.g. a file-size of
+// 597688320 as 5.9768832e+08), so they are printed without exponent instead.
+func formatValue(val interface{}) string {
+	if f, ok := val.(float64); ok {
+		return strconv.FormatFloat(f, 'f', -1, 64)
+	}
+	return fmt.Sprintf("%v", val)
+}
+
 func PrintSingle(input map[string]interface{}) {
 	if PrintAsJson {
 		jsonData, _ := json.MarshalIndent(input, "", "    ")
@@ -57,7 +67,7 @@ func PrintSingle(input map[string]interface{}) {
 		v := input[element]
 		lineData := []string{}
 		lineData = append(lineData, strings.ToUpper(strings.ReplaceAll(element, "_", " ")))
-		val := fmt.Sprintf("%v", v)
+		val := formatValue(v)
 		if reflect.ValueOf(v).Kind() == reflect.Map {
 			jsonData, _ := json.Marshal(v)
 			lineData = append(lineData, string(jsonData))
@@ -105,8 +115,7 @@ func PrintList(input []interface{}) {
 			if strVal, ok := val.(string); ok {
 				lineData = append(lineData, strVal)
 			} else {
-				str := fmt.Sprintf("%v", val)
-				lineData = append(lineData, str)
+				lineData = append(lineData, formatValue(val))
 			}
 		}
 		table.Append(lineData)

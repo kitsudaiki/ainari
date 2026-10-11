@@ -53,6 +53,25 @@ function formatDateTime(input?: string): string {
     return `${yyyy}-${mm}-${dd} ${hh}:${mi}:${ss}`;
 }
 
+/**
+ * Formats a size in bytes into the largest fitting binary unit with one decimal.
+ *
+ * @param bytes - The size in bytes.
+ *
+ * @returns A formatted size like "1.5 GiB", or "512 B" for sizes below 1 KiB.
+ */
+function formatFileSize(bytes: number): string {
+    const units = ["B", "KiB", "MiB", "GiB", "TiB"];
+    let size = bytes;
+    let unit = 0;
+    while (size >= 1024 && unit < units.length - 1) {
+        size /= 1024;
+        unit++;
+    }
+    return unit === 0 ? `${size} B` : `${size.toFixed(1)} ${units[unit]}`;
+}
+
 export default {
     formatDateTime,
+    formatFileSize,
 };

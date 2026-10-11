@@ -43,6 +43,8 @@ pub async fn get_image(
     let resp = ImageResp {
         uuid: *image_uuid,
         name: image_data.name,
+        file_type: image_data.file_type,
+        file_size: image_data.file_size as u64,
         is_snapshot: image_data.is_snapshot,
         created_by: image_data.created_by,
         created_at: image_data.created_at,

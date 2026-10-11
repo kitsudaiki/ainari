@@ -407,6 +407,10 @@ export type ImageType = "disk";
 export interface ImageBasicResp {
     uuid: string;
     name: string;
+    /** Type of the unencrypted file (e.g. "qcow2"). */
+    file_type: string;
+    /** Size of the unencrypted file in bytes. */
+    file_size: number;
     /** True, if the image is a snapshot of the root-disk of a virtual-machine. */
     is_snapshot: boolean;
 }
@@ -415,6 +419,10 @@ export interface ImageBasicResp {
 export interface ImageResp {
     uuid: string;
     name: string;
+    /** Type of the unencrypted file (e.g. "qcow2"). */
+    file_type: string;
+    /** Size of the unencrypted file in bytes. */
+    file_size: number;
     /** True, if the image is a snapshot of the root-disk of a virtual-machine. */
     is_snapshot: boolean;
     created_at: string;

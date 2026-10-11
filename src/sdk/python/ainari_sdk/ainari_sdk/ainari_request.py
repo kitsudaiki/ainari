@@ -212,18 +212,20 @@ def send_delete_request_with_body(context: AccessContext,
     return json.loads(_handle_response(response))
 
 
-def upload_files(context: AccessContext,
-                 address: str,
-                 path: str,
-                 file_paths):
+def upload_file(context: AccessContext,
+                address: str,
+                path: str,
+                form_fields: dict,
+                file_path: str):
     """
-    Uploads multiple files to the specified address and path.
+    Uploads a file together with additional text-fields as multipart-form.
 
     Args:
         context: The AccessContext object containing authentication and connection settings.
         address: The base URL of the API.
-        path: Additional path parameter with type and name of the new image.
-        file_paths: A list of file paths to upload.
+        path: The path of the endpoint.
+        form_fields: Text-fields of the form. Fields with value `None` are not sent.
+        file_path: Path of the file, which is uploaded as field `file`.
 
     Returns:
         dict: The parsed JSON response from the server.
@@ -234,26 +236,17 @@ def upload_files(context: AccessContext,
     url = f'{address}{path}'
     bearer_token = "Bearer " + context.token
 
-    fields = {}
-    open_files = []
+    fields = {key: str(value) for key, value in form_fields.items() if value is not None}
 
-    for i, file_path in enumerate(file_paths):
-        f = open(file_path, 'rb')
-        open_files.append(f)  # Keep open until after upload!
-        fields[f'file{i}'] = (os.path.basename(file_path), f, 'application/octet-stream')
+    with open(file_path, 'rb') as f:
+        fields['file'] = (os.path.basename(file_path), f, 'application/octet-stream')
+        encoder = MultipartEncoder(fields=fields)
+        headers = {
+            'Authorization': bearer_token,
+            'Content-Type': encoder.content_type
+        }
 
-    encoder = MultipartEncoder(fields=fields)
-    headers = {
-        'Authorization': bearer_token,
-        'Content-Type': encoder.content_type
-    }
-
-    try:
+        # the file is streamed by the encoder, so it has to stay open until the upload is done
         response = requests.post(url, data=encoder, headers=headers,
                                  verify=context.verify_connection)
         return json.loads(_handle_response(response))
-    except requests.exceptions.RequestException as e:
-        raise e
-    finally:
-        for f in open_files:
-            f.close()

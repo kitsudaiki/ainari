@@ -28,10 +28,10 @@ import type {
 //=============================================================================
 
 /**
- * `POST /v1alpha/image/{type}/{name}`
+ * `POST /v1alpha/image`
  *
- * Uploads the files of a new image. The number of files depends on the type:
- * `disk` expects a single file.
+ * Uploads a new image as multipart-form. The number of files depends on the type:
+ * `disk` expects a single file. Type and size of the file are identified by ryokan.
  *
  * @param imageType - Type of the image, currently only `disk`
  * @param name - Name of the new image
@@ -46,18 +46,18 @@ export async function createImage(
     secretUuid?: string,
 ): Promise<ImageResp> {
     const formData = new FormData();
-    files.forEach((file, index) => {
-        formData.append(`file${index + 1}`, file);
+    formData.append("name", name);
+    formData.append("image_type", imageType);
+    if (secretUuid) {
+        formData.append("secret_uuid", secretUuid);
+    }
+    files.forEach((file) => {
+        formData.append("file", file);
     });
 
-    const resp = await ryokanClient().post(
-        `/v1alpha/image/${imageType}/${name}`,
-        formData,
-        {
-            headers: { "Content-Type": "multipart/form-data" },
-            params: secretUuid ? { secret_uuid: secretUuid } : undefined,
-        },
-    );
+    const resp = await ryokanClient().post("/v1alpha/image", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+    });
     return resp.data;
 }
 

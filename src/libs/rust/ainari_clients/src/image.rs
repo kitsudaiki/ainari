@@ -118,6 +118,54 @@ pub async fn get_image(
     handle_response::<ImageInternalResp>(response, "image", &image_uuid.to_string()).await
 }
 
+/// Sets type and size of the file of an existing image in the Ryokan service.
+///
+/// This is used for snapshots, which are registered in ryokan before their file exists.
+///
+/// # Arguments
+///
+/// * `ryokan_endpoint` - The endpoint configuration for the Ryokan service
+/// * `token` - The authentication token for the API
+/// * `internal_api_key` - The internal API key for accessing protected endpoints
+/// * `image_uuid` - The unique identifier for the image to update
+/// * `file_type` - The type of the unencrypted file (e.g. "qcow2")
+/// * `file_size` - The size of the unencrypted file in bytes
+/// * `insecure_client` - Whether to use an insecure (HTTP) client instead of HTTPS
+///
+/// # Returns
+///
+/// A `Result` containing the updated image if successful, or an `AinariError` if the operation fails.
+pub async fn update_image_file_info(
+    ryokan_endpoint: &ainari_config::Endpoint,
+    token: &String,
+    internal_api_key: &Secret,
+    image_uuid: &Uuid,
+    file_type: &str,
+    file_size: u64,
+    insecure_client: bool,
+) -> Result<ImageInternalResp, AinariError> {
+    let address = ryokan_endpoint.internal_address.clone();
+    let client = prepare_client(&address, insecure_client);
+    let url = format!("{address}/v1alpha/image/{image_uuid}/internal");
+
+    let body = ImageFileInfoReq {
+        file_type: file_type.to_owned(),
+        file_size,
+    };
+
+    let json_str = serde_json::to_string(&body).unwrap();
+
+    let response = client
+        .put(url)
+        .insert_header(("Authorization", format!("Bearer {}", token)))
+        .insert_header(("X-Internal-API-Key", internal_api_key.reveal()))
+        .insert_header(("Content-Type", "application/json"))
+        .send_body(json_str)
+        .await;
+
+    handle_response::<ImageInternalResp>(response, "image", &image_uuid.to_string()).await
+}
+
 /// Deletes an existing image in ryokan, together with its file in the onsen and its secret
 ///
 /// # Arguments

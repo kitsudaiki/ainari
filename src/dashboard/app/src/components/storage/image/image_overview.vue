@@ -26,6 +26,8 @@
                     <tr>
                         <th>UUID</th>
                         <th>Name</th>
+                        <th>File Type</th>
+                        <th>File Size</th>
                         <th>Snapshot</th>
                         <th>Actions</th>
                     </tr>
@@ -34,6 +36,8 @@
                     <tr v-for="image in images" :key="image.uuid">
                         <td>{{ image.uuid }}</td>
                         <td>{{ image.name }}</td>
+                        <td>{{ image.file_type }}</td>
+                        <td>{{ common.formatFileSize(image.file_size) }}</td>
                         <td>{{ image.is_snapshot ? "Yes" : "No" }}</td>
                         <td>
                             <!-- Dropdown menu -->
@@ -95,6 +99,7 @@ import { ref, onMounted, onBeforeUnmount, inject } from "vue";
 
 import { ryokan } from "@/api";
 import type { ImageBasicResp } from "@/api";
+import common from "@/common";
 import ImageCreateModal from "./image_create_modal.vue";
 import ImageInfoModal from "./image_info_modal.vue";
 import ImageDeleteModal from "./image_delete_modal.vue";

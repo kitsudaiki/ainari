@@ -34,6 +34,7 @@ import (
 	"os"
 	"mime/multipart"
 	"path/filepath"
+	"sort"
 )
 
 // chunkSize defines the size of chunks for file uploads in bytes (1 MiB).
@@ -210,39 +211,53 @@ func sendGenericRequest(address, token, requestType, path string, jsonBody *map[
 	return outputMap, nil
 }
 
-// UploadFiles uploads multiple files to the specified path.
+// UploadFile uploads a file together with additional text-fields as multipart-form to the
+// specified path. Fields with an empty value are not sent. The file is sent as field "file".
 // It uses the provided AccessContext for authentication and TLS configuration.
-// Files are streamed in chunks of size defined by chunkSize.
-func UploadFiles(context AccessContext, path string, filePaths []string) (map[string]interface{}, error) {
+// The file is streamed in chunks of size defined by chunkSize.
+func UploadFile(context AccessContext, path string, fields map[string]string, filePath string) (map[string]interface{}, error) {
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
 	outputMap := map[string]interface{}{}
 
-	// Open and stream each file into multipart writer
-	for idx, path := range filePaths {
-		file, err := os.Open(path)
-		if err != nil {
-			return outputMap, fmt.Errorf("failed to open file %s: %v", path, err)
+	// write the text-fields in a fixed order before the file
+	keys := make([]string, 0, len(fields))
+	for key := range fields {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		if fields[key] == "" {
+			continue
 		}
-		defer file.Close()
-
-		part, err := writer.CreateFormFile(fmt.Sprintf("file%d", idx), filepath.Base(path))
-		if err != nil {
-			return outputMap, fmt.Errorf("failed to create form part for %s: %v", path, err)
+		if err := writer.WriteField(key, fields[key]); err != nil {
+			return outputMap, fmt.Errorf("failed to write form field %s: %v", key, err)
 		}
+	}
 
-		buf := make([]byte, chunkSize)
-		for {
-			n, err := file.Read(buf)
-			if err != nil && err != io.EOF {
-				return outputMap, fmt.Errorf("error reading file %s: %v", path, err)
-			}
-			if n == 0 {
-				break
-			}
-			if _, err := part.Write(buf[:n]); err != nil {
-				return outputMap, fmt.Errorf("error writing part for %s: %v", path, err)
-			}
+	// Open and stream the file into multipart writer
+	file, err := os.Open(filePath)
+	if err != nil {
+		return outputMap, fmt.Errorf("failed to open file %s: %v", filePath, err)
+	}
+	defer file.Close()
+
+	part, err := writer.CreateFormFile("file", filepath.Base(filePath))
+	if err != nil {
+		return outputMap, fmt.Errorf("failed to create form part for %s: %v", filePath, err)
+	}
+
+	buf := make([]byte, chunkSize)
+	for {
+		n, err := file.Read(buf)
+		if err != nil && err != io.EOF {
+			return outputMap, fmt.Errorf("error reading file %s: %v", filePath, err)
+		}
+		if n == 0 {
+			break
+		}
+		if _, err := part.Write(buf[:n]); err != nil {
+			return outputMap, fmt.Errorf("error writing part for %s: %v", filePath, err)
 		}
 	}
 

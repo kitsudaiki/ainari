@@ -19,6 +19,7 @@ pub mod get_image_internal_v1_0;
 pub mod get_image_v1_0;
 pub mod init_image_internal_v1_0;
 pub mod list_image_v1_0;
+pub mod update_file_info_internal_v1_0;
 
 use crate::config;
 use crate::database::image_table;

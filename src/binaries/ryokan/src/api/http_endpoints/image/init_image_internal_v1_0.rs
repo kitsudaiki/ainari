@@ -73,11 +73,14 @@ pub async fn init_image(
 
     let selected_onsen = select_onsen(&context)?;
 
+    // the file of the snapshot doesn't exist yet, so its type and size are set later by sakura
     image_table::add_new_image(
         image_uuid,
         name,
         &selected_onsen.address,
         &file_path_str,
+        "unknown",
+        0,
         &secret_uuid,
         body.is_snapshot,
         &context,
@@ -93,6 +96,8 @@ pub async fn init_image(
         name: image_data.name,
         onsen_address: image_data.onsen_address,
         file_path: image_data.file_path,
+        file_type: image_data.file_type,
+        file_size: image_data.file_size as u64,
         is_snapshot: image_data.is_snapshot,
         secret_uuid,
         created_by: image_data.created_by,

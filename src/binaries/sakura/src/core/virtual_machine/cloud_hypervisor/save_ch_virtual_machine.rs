@@ -22,11 +22,12 @@ use uuid::Uuid;
 use ainari_api::common_functions::*;
 use ainari_api_structs::user_context::UserContext;
 use ainari_clients::endpoints::get_endpoints;
-use ainari_clients::image::get_image;
+use ainari_clients::image::{get_image, update_image_file_info};
 use ainari_clients::onsen_file_transfer::upload_file;
 use ainari_clients::secret::get_secret_payload;
 use ainari_common::error::AinariError;
 use ainari_files::file_encryption::encrypt_file;
+use ainari_files::file_info::get_disk_image_info;
 
 use super::{snapshot_temp_directory, vm_socket_path};
 use crate::config;
@@ -97,6 +98,8 @@ pub async fn save_ch_virtual_machine(
 
     let result = async {
         copy_root_disk(uuid, &root_disk_path, &local_file_path).await?;
+        // the type and size can only be measured on the unencrypted file
+        let file_info = get_disk_image_info(&local_file_path).await?;
         encrypt_file(&local_file_path, &local_encrypted_file_path, &secret).await?;
         upload_file(
             &image_resp.onsen_address,
@@ -104,7 +107,20 @@ pub async fn save_ch_virtual_machine(
             &local_encrypted_file_path,
         )
         .await
-        .map_err(|e| AinariError::internal(format!("Failed to upload snapshot-file to onsen: {e}")))
+        .map_err(|e| {
+            AinariError::internal(format!("Failed to upload snapshot-file to onsen: {e}"))
+        })?;
+        update_image_file_info(
+            &endpoints.ryokan,
+            &context.token,
+            &config::INTERNAL_API_KEY,
+            image_uuid,
+            &file_info.file_type,
+            file_info.file_size,
+            config::CONFIG.skip_tls_verification,
+        )
+        .await
+        .map(|_| ())
     }
     .await;
 

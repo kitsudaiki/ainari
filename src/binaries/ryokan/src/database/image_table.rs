@@ -30,6 +30,8 @@ table! {
         name -> Varchar,
         onsen_address -> Varchar,
         file_path -> Text,
+        file_type -> Varchar,
+        file_size -> BigInt,
         secret_uuid -> Varchar,
         is_snapshot -> Bool,
         owner_id -> Varchar,
@@ -57,6 +59,10 @@ pub struct ImageEntry {
     pub onsen_address: String,
     /// Path to the file containing the image
     pub file_path: String,
+    /// Type of the unencrypted file (e.g. "qcow2"), which was identified before the encryption
+    pub file_type: String,
+    /// Size of the unencrypted file in bytes
+    pub file_size: i64,
     /// Secret UUID used for authentication with the image
     #[diesel(serialize_as = DbUuid, deserialize_as = DbUuid)]
     pub secret_uuid: Uuid,
@@ -95,17 +101,22 @@ pub struct ImageEntry {
 /// * `image_name` - The name of the image
 /// * `onsen_address` - The address of the Onsen service
 /// * `file_path` - The path to the file containing the image
+/// * `file_type` - The type of the unencrypted file
+/// * `file_size` - The size of the unencrypted file in bytes
 /// * `secret_uuid` - The secret UUID for authentication
 /// * `is_snapshot` - True, if the image is a snapshot of the root-disk of a virtual_machine
 /// * `context` - The user context containing authentication information
 ///
 /// # Returns
 /// * `QueryResult<usize>` - The number of rows affected by the insert operation
+#[allow(clippy::too_many_arguments)]
 pub fn add_new_image(
     image_uuid: &Uuid,
     image_name: &str,
     onsen_address: &str,
     file_path: &str,
+    file_type: &str,
+    file_size: i64,
     secret_uuid: &Uuid,
     is_snapshot: bool,
     context: &UserContext,
@@ -121,6 +132,8 @@ pub fn add_new_image(
         name: image_name.to_owned(),
         onsen_address: onsen_address.to_owned(),
         file_path: file_path.to_owned(),
+        file_type: file_type.to_owned(),
+        file_size,
         secret_uuid: *secret_uuid,
         is_snapshot,
         owner_id: context.user_id.clone(),
@@ -267,6 +280,54 @@ pub fn count_images_of_project(project: &str) -> QueryResult<i64> {
         .first::<i64>(&mut *conn)
 }
 
+/// Sets type and size of the file of an image.
+///
+/// Snapshots are registered before their file exists, so these values are only known after the
+/// root-disk of the virtual_machine was copied.
+///
+/// # Arguments
+/// * `image_uuid` - The UUID of the image to update
+/// * `new_file_type` - The type of the unencrypted file
+/// * `new_file_size` - The size of the unencrypted file in bytes
+/// * `context` - The user context containing authentication information
+///
+/// # Returns
+/// * `Result<(), enums::DbError>` - Success or an error
+pub fn update_file_info(
+    image_uuid: &Uuid,
+    new_file_type: &str,
+    new_file_size: i64,
+    context: &UserContext,
+) -> Result<(), enums::DbError> {
+    // observers without admin-privileges are only allowed to read
+    if context.is_read_only() {
+        return Err(enums::DbError::PermissionDenied);
+    }
+
+    // First verify that the image exists and is accessible to the user
+    get_image(image_uuid, context)?;
+
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+    use self::images::dsl::*;
+
+    match diesel::update(images.filter(uuid.eq(image_uuid.to_string())))
+        .set((
+            file_type.eq(new_file_type),
+            file_size.eq(new_file_size),
+            updated_at.eq(Utc::now().to_rfc3339()),
+            updated_by.eq(context.user_id.clone()),
+        ))
+        .execute(&mut *conn)
+    {
+        Ok(_) => Ok(()),
+        Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
+        Err(e) => {
+            log::error!("Database-error: {e:?}");
+            Err(enums::DbError::InternalError)
+        }
+    }
+}
+
 /// Deletes an image from the database.
 ///
 /// This function marks an image as deleted by updating its status and setting
@@ -342,6 +403,8 @@ mod tests {
             name: "Alice".to_string(),
             onsen_address: onsen_address.clone(),
             file_path: "/tmp/bla".to_string(),
+            file_type: "qcow2".to_string(),
+            file_size: 4096,
             secret_uuid,
             is_snapshot: true,
             owner_id: owner_id.clone(),
@@ -362,6 +425,8 @@ mod tests {
             assert_eq!(retrieved_image.uuid, image.uuid);
             assert_eq!(retrieved_image.name, image.name);
             assert_eq!(retrieved_image.file_path, image.file_path);
+            assert_eq!(retrieved_image.file_type, image.file_type);
+            assert_eq!(retrieved_image.file_size, image.file_size);
             assert_eq!(retrieved_image.secret_uuid, image.secret_uuid);
             assert_eq!(retrieved_image.is_snapshot, image.is_snapshot);
             assert_eq!(retrieved_image.status, image.status);
@@ -397,6 +462,8 @@ mod tests {
             name: "Alice".to_string(),
             onsen_address: onsen_address.clone(),
             file_path: "/tmp/bla".to_string(),
+            file_type: "qcow2".to_string(),
+            file_size: 4096,
             secret_uuid,
             is_snapshot: false,
             owner_id: owner_id.clone(),
@@ -415,6 +482,8 @@ mod tests {
             name: "Bob".to_string(),
             onsen_address: onsen_address.clone(),
             file_path: "/tmp/bla".to_string(),
+            file_type: "qcow2".to_string(),
+            file_size: 4096,
             secret_uuid,
             is_snapshot: false,
             owner_id: owner_id.clone(),
@@ -461,6 +530,8 @@ mod tests {
             name: "Alice".to_string(),
             onsen_address: onsen_address.clone(),
             file_path: "/tmp/bla".to_string(),
+            file_type: "qcow2".to_string(),
+            file_size: 4096,
             secret_uuid,
             is_snapshot: false,
             owner_id: owner_id.clone(),
@@ -480,6 +551,44 @@ mod tests {
         let _ = delete_image(&uuid1, &context);
         let result = get_image(&uuid1, &context);
         assert!(result.is_err());
+    }
+
+    #[test]
+    #[serial]
+    fn test_update_file_info() {
+        let uuid1 = Uuid::new_v4();
+        let context = UserContext {
+            token: "".to_string(),
+            user_id: "test-user".to_string(),
+            project_id: "test-project".to_string(),
+            is_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
+        };
+
+        hard_delete_image(&uuid1);
+
+        add_new_image(
+            &uuid1,
+            "Alice",
+            "127.0.0.1:1234",
+            "/tmp/bla",
+            "unknown",
+            0,
+            &Uuid::new_v4(),
+            true,
+            &context,
+        )
+        .unwrap();
+        assert!(update_file_info(&uuid1, "qcow2", 1 << 33, &context).is_ok());
+
+        let Ok(retrieved_image) = get_image(&uuid1, &context) else {
+            panic!("updated image not found");
+        };
+        assert_eq!(retrieved_image.file_type, "qcow2");
+        assert_eq!(retrieved_image.file_size, 1 << 33);
+
+        hard_delete_image(&uuid1);
+        assert!(update_file_info(&uuid1, "qcow2", 1, &context).is_err());
     }
 
     #[test]
@@ -507,6 +616,8 @@ mod tests {
             name: name.clone(),
             onsen_address: onsen_address.clone(),
             file_path: "/tmp/bla".to_string(),
+            file_type: "qcow2".to_string(),
+            file_size: 4096,
             secret_uuid,
             is_snapshot: false,
             owner_id: owner_id.clone(),
@@ -525,6 +636,8 @@ mod tests {
             name: name.clone(),
             onsen_address: onsen_address.clone(),
             file_path: "/tmp/bla".to_string(),
+            file_type: "qcow2".to_string(),
+            file_size: 4096,
             secret_uuid,
             is_snapshot: false,
             owner_id: owner_id.clone(),
@@ -543,6 +656,8 @@ mod tests {
             name: name.clone(),
             onsen_address: onsen_address.clone(),
             file_path: "/tmp/bla".to_string(),
+            file_type: "qcow2".to_string(),
+            file_size: 4096,
             secret_uuid,
             is_snapshot: false,
             owner_id: owner_id.clone(),
@@ -586,6 +701,8 @@ mod tests {
             name: "Alice".to_string(),
             onsen_address: onsen_address.clone(),
             file_path: "/tmp/bla".to_string(),
+            file_type: "qcow2".to_string(),
+            file_size: 4096,
             secret_uuid,
             is_snapshot: false,
             owner_id: "test-user-42".to_string(),
@@ -604,6 +721,8 @@ mod tests {
             name: "Bob".to_string(),
             onsen_address: onsen_address.clone(),
             file_path: "/tmp/bla".to_string(),
+            file_type: "qcow2".to_string(),
+            file_size: 4096,
             secret_uuid,
             is_snapshot: false,
             owner_id: "test-user-43".to_string(),
@@ -622,6 +741,8 @@ mod tests {
             name: "Poi".to_string(),
             onsen_address: onsen_address.clone(),
             file_path: "/tmp/bla".to_string(),
+            file_type: "qcow2".to_string(),
+            file_size: 4096,
             secret_uuid,
             is_snapshot: false,
             owner_id: "test-user-44".to_string(),
