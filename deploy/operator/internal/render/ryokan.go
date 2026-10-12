@@ -36,7 +36,7 @@ func (r *renderer) ryokan() ([]client.Object, error) {
 		replicas:    spec.Replicas,
 		image:       spec.Image,
 		pullPolicy:  spec.ImagePullPolicy,
-		rustLog:     "debug,h2=info",
+		rustLog:     r.rustLog("debug,h2=info"),
 		probePort:   portsOf("ryokan").Internal,
 		externalAPI: true,
 		domain:      spec.Domain,

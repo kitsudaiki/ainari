@@ -87,7 +87,7 @@ func (r *renderer) toriiContainer(configTemplate string) corev1.Container {
 		// created over /dev/net/tun
 		SecurityContext: &corev1.SecurityContext{Privileged: &privileged},
 		Env: []corev1.EnvVar{
-			envValue("RUST_LOG", "debug"),
+			envValue("RUST_LOG", r.rustLog("debug")),
 			envValue("CONFIG_TEMPLATE", configTemplate),
 			envInternalAPIKey(),
 		},

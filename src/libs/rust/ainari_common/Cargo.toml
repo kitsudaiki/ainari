@@ -21,6 +21,10 @@ chrono = { version = "0.4", features = ["serde"] }
 sha2 = "0.11.0"
 hex = "0.4"
 
+# constant-time comparison and wiping of secrets
+subtle = "2.6"
+zeroize = "1.9"
+
 # encoding
 base64 = "0.23"
 

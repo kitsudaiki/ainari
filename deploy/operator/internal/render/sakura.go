@@ -102,7 +102,7 @@ func (r *renderer) sakuraStatefulSet() *appsv1.StatefulSet {
 		SecurityContext: &corev1.SecurityContext{Privileged: &privileged},
 		Env: []corev1.EnvVar{
 			envValue("CONFIG_FILE", "/tmp/sakura.toml"),
-			envValue("RUST_LOG", "debug,h2=info"),
+			envValue("RUST_LOG", r.rustLog("debug,h2=info")),
 			envInternalAPIKey(),
 			envSecret("SAKURA_REGISTRATION_KEY", secrets.SakuraRegistrationKey),
 			envPodName(),

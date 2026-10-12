@@ -42,7 +42,7 @@ func (r *renderer) hanami() ([]client.Object, error) {
 		replicas:    spec.Replicas,
 		image:       spec.Image,
 		pullPolicy:  spec.ImagePullPolicy,
-		rustLog:     "debug",
+		rustLog:     r.rustLog("debug"),
 		probePort:   portsOf("hanami").Public,
 		externalAPI: true,
 		domain:      spec.Domain,

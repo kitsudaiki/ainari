@@ -31,7 +31,7 @@ func (r *renderer) omikuji() ([]client.Object, error) {
 		replicas:   spec.Replicas,
 		image:      spec.Image,
 		pullPolicy: spec.ImagePullPolicy,
-		rustLog:    "debug",
+		rustLog:    r.rustLog("debug"),
 		probePort:  portsOf("omikuji").Internal,
 		// the admins read the logs over the external api
 		externalAPI: true,

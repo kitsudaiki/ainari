@@ -31,7 +31,7 @@ func (r *renderer) omamori() ([]client.Object, error) {
 		replicas:    spec.Replicas,
 		image:       spec.Image,
 		pullPolicy:  spec.ImagePullPolicy,
-		rustLog:     "debug",
+		rustLog:     r.rustLog("debug"),
 		probePort:   portsOf("omamori").Internal,
 		externalAPI: true,
 		domain:      spec.Domain,

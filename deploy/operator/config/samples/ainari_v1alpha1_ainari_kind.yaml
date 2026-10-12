@@ -25,6 +25,8 @@ spec:
       enabled: false
     # there is only one node
     strictScheduling: false
+    # local test-setup, so the debug-logs are enabled
+    debug: true
     # the storage-class of the local-path-provisioner of kind
     storageClass: standard
     # the images are built locally and loaded into kind, they can not be pulled

@@ -16,7 +16,8 @@ use aes_gcm::aead::{Aead, KeyInit};
 use aes_gcm::{Aes256Gcm, Nonce};
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
-use rand::TryRng; // needed to use .encode() and .decode()
+use rand::TryRng;
+use rand::rngs::SysRng;
 use uuid::Uuid;
 
 use crate::config;
@@ -25,11 +26,47 @@ use crate::database::simple_crypto_table;
 use super::crypto_trait::*;
 
 use ainari_common::enums;
-use ainari_common::error::AinariError;
+use ainari_common::error::{AinariError, InternalErrorDetails};
 use ainari_common::secret::Secret;
 
 const NONCE_SIZE: usize = 12; // 96 bits
 const KEY_SIZE: usize = 32; // 256 bits
+
+/// Fills the buffer with random bytes directly from the random-generator of the operating system.
+///
+/// Used for keys and nonces, so a failure of the random-generator is returned as error, instead of
+/// continuing with a buffer, which is not or only partially random.
+///
+/// # Arguments
+/// * `dest` - The buffer to fill
+///
+/// # Errors
+/// * AinariError::InternalError - If the random-generator of the operating system failed
+fn fill_random(dest: &mut [u8]) -> Result<(), AinariError> {
+    SysRng.try_fill_bytes(dest).map_err(|e| {
+        AinariError::InternalError(InternalErrorDetails::new(format!(
+            "Failed to get random bytes from the system: {e}"
+        )))
+    })
+}
+
+/// Generates a random 256-bit key and encodes it as base64.
+///
+/// The key is generated on the server, so the payload of the secret never has to be sent over the
+/// network by the user.
+///
+/// # Returns
+/// The base64-encoded key as secret.
+///
+/// # Errors
+/// * AinariError::InternalError - If the random-generator of the operating system failed
+pub fn generate_256bit_key_base64() -> Result<Secret, AinariError> {
+    let mut key = [0u8; KEY_SIZE];
+    fill_random(&mut key)?;
+    let b64 = Secret::from(STANDARD.encode(key));
+    key.fill(0);
+    Ok(b64)
+}
 
 /// A simple cryptographic module that provides basic encryption and decryption functionality
 /// using AES-256-GCM algorithm.
@@ -69,7 +106,7 @@ impl SimpleCrypto {
 
         // generate random nonce
         let mut nonce_bytes = [0u8; NONCE_SIZE];
-        let _ = rand::rng().try_fill_bytes(&mut nonce_bytes);
+        fill_random(&mut nonce_bytes)?;
         let nonce = Nonce::from(nonce_bytes);
 
         // encrypt
@@ -292,6 +329,25 @@ impl CryptoModule for SimpleCrypto {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_generate_256bit_key_base64() {
+        let key = generate_256bit_key_base64().unwrap();
+        let other_key = generate_256bit_key_base64().unwrap();
+        assert_eq!(decode_base64_key(&key).unwrap().len(), KEY_SIZE);
+        assert_ne!(key, other_key);
+    }
+
+    #[test]
+    fn test_nonce_differs_per_encryption() {
+        let simple_crypto = SimpleCrypto::new();
+        let key_b64 = generate_256bit_key_base64().unwrap();
+        let plaintext = Secret::from("same plaintext");
+
+        let first = simple_crypto.encrypt(&plaintext, &key_b64).unwrap();
+        let second = simple_crypto.encrypt(&plaintext, &key_b64).unwrap();
+        assert_ne!(first, second);
+    }
 
     #[test]
     fn test_encrypt_decrypt_ok() {

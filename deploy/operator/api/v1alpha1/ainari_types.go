@@ -110,6 +110,12 @@ type GlobalSpec struct {
 	// +optional
 	StrictScheduling bool `json:"strictScheduling"`
 
+	// Enables the debug-logs of all components. They can contain internal details of the
+	// requests, so they should only be enabled for debugging and never in production.
+	// +kubebuilder:default=false
+	// +optional
+	Debug bool `json:"debug"`
+
 	// overwrites the storage-class of all components, if set
 	// +optional
 	StorageClass string `json:"storageClass,omitempty"`

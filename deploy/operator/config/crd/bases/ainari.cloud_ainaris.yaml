@@ -105,6 +105,12 @@ spec:
                           type: string
                         type: array
                     type: object
+                  debug:
+                    default: false
+                    description: |-
+                      Enables the debug-logs of all components. They can contain internal details of the
+                      requests, so they should only be enabled for debugging and never in production.
+                    type: boolean
                   externalServices:
                     default: {}
                     description: |-

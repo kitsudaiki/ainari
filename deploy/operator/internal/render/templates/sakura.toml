@@ -1,4 +1,4 @@
-debug = true
+debug = {{ .Spec.Global.Debug }}
 log_path = ""
 skip_tls_verification = true
 address = "https://@HOSTNAME@.sakura.{{ .Namespace }}.svc.cluster.local:8443"

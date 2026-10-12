@@ -1,0 +1,1 @@
+ALTER TABLE users MODIFY pw_hash VARCHAR(64);

@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use actix_web::web;
 use actix_web::web::Json;
 use apistos::actix::NoContent;
 use apistos::api_operation;
@@ -47,8 +48,16 @@ pub async fn change_passphrase(
     let user = user_table::get_auth_user(user_id)
         .map_err(|e| map_db_id_get_delete_error("user", user_id, e, Some(&context)))?;
 
-    // check old passphrase
-    if !user_table::verify_passphrase(&user, &body.old_passphrase) {
+    // check old passphrase. Argon2 is expensive by design, so it runs on the blocking thread-pool
+    // instead of blocking the worker-thread of the web-server.
+    let old_passphrase = body.old_passphrase.clone();
+    let is_valid = web::block(move || user_table::verify_passphrase(&user, &old_passphrase))
+        .await
+        .map_err(|e| {
+            ainari_api::report_internal_error!(Some(&context), "Failed to verify passphrase: {e}");
+            ErrorResponse::InternalError("Internal Error".to_string())
+        })?;
+    if !is_valid {
         return Err(ErrorResponse::Unauthorized(
             "Invalid old passphrase".to_string(),
         ));

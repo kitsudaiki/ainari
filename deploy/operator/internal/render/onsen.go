@@ -58,7 +58,7 @@ func (r *renderer) onsenStatefulSet() *appsv1.StatefulSet {
 				`exec /home/ainari/start_onsen.sh`},
 		Env: []corev1.EnvVar{
 			envValue("CONFIG_FILE", "/tmp/onsen.toml"),
-			envValue("RUST_LOG", "debug,h2=info"),
+			envValue("RUST_LOG", r.rustLog("debug,h2=info")),
 			envInternalAPIKey(),
 			envSecret("ONSEN_REGISTRATION_KEY", secrets.OnsenRegistrationKey),
 			envPodName(),

@@ -15,21 +15,17 @@
 use actix_web::web::Json;
 use apistos::actix::CreatedJson;
 use apistos::api_operation;
-use base64::Engine;
-use base64::engine::general_purpose::STANDARD;
-use rand::TryRng;
 use uuid::Uuid;
-use validator::Validate; // needed to use .encode() and .decode()
+use validator::Validate;
 
 use crate::core::crypto_trait::CryptoModule;
-use crate::core::simple_crypto::SimpleCrypto;
+use crate::core::simple_crypto::{SimpleCrypto, generate_256bit_key_base64};
 use crate::database::secret_table;
 
 use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::secret_structs::*;
 use ainari_api_structs::user_context::UserContext;
-use ainari_common::secret::Secret;
 
 #[api_operation(
     tag = "secret",
@@ -55,7 +51,8 @@ pub async fn generate_secret(
     let secret_uuid = Uuid::new_v4();
 
     // generate key
-    let b64 = generate_256bit_key_base64();
+    let b64 = generate_256bit_key_base64()
+        .map_err(|e| map_ainari_error_to_api_response(e, Some(&context)))?;
 
     // encrypt the secret with the simple-crypto-module
     let simple_crypto = SimpleCrypto::new();
@@ -92,18 +89,4 @@ pub async fn generate_secret(
     };
 
     Ok(CreatedJson(resp))
-}
-
-/// Generates a random 256-bit key and encodes it as base64.
-///
-/// The key is generated on the server, so the payload of the secret never has to be sent over the
-/// network by the user.
-///
-/// # Returns
-///
-/// The base64-encoded key as secret.
-fn generate_256bit_key_base64() -> Secret {
-    let mut key = [0u8; 32];
-    let _ = rand::rng().try_fill_bytes(&mut key);
-    Secret::from(STANDARD.encode(key))
 }

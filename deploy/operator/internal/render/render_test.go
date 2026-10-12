@@ -304,6 +304,43 @@ func TestRenderEscapesConfigValues(t *testing.T) {
 	}
 }
 
+// rustLogOf returns the value of RUST_LOG of the containers of a deployment.
+func rustLogOf(t *testing.T, objects map[string]client.Object, key string) string {
+	t.Helper()
+	for _, container := range objects[key].(*appsv1.Deployment).Spec.Template.Spec.Containers {
+		for _, env := range container.Env {
+			if env.Name == "RUST_LOG" {
+				return env.Value
+			}
+		}
+	}
+	t.Fatalf("RUST_LOG is missing in %s", key)
+	return ""
+}
+
+func TestRenderDebug(t *testing.T) {
+	// the debug-logs are disabled by default
+	objects := renderObjects(t, testSpec())
+	config := objects["ConfigMap/miko-config"].(*corev1.ConfigMap).Data["miko.toml"]
+	if !strings.Contains(config, "debug = false") {
+		t.Errorf("debug is not disabled in the config of miko:\n%s", config)
+	}
+	if rustLog := rustLogOf(t, objects, "Deployment/miko"); rustLog != "info" {
+		t.Errorf("miko has RUST_LOG '%s' instead of 'info'", rustLog)
+	}
+
+	spec := testSpec()
+	spec.Global.Debug = true
+	objects = renderObjects(t, spec)
+	config = objects["ConfigMap/miko-config"].(*corev1.ConfigMap).Data["miko.toml"]
+	if !strings.Contains(config, "debug = true") {
+		t.Errorf("debug is not enabled in the config of miko:\n%s", config)
+	}
+	if rustLog := rustLogOf(t, objects, "Deployment/miko"); rustLog != "debug" {
+		t.Errorf("miko has RUST_LOG '%s' instead of 'debug'", rustLog)
+	}
+}
+
 func hasContainer(containers []corev1.Container, name string) bool {
 	for _, c := range containers {
 		if c.Name == name {
