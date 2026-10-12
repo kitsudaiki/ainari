@@ -37,6 +37,30 @@ import (
 	"sort"
 )
 
+// secureClient and insecureClient have their own transports, so the TLS-settings of the SDK
+// never change http.DefaultTransport, which is shared with the rest of the process, which embeds
+// the SDK.
+var (
+	secureClient   = newHTTPClient(false)
+	insecureClient = newHTTPClient(true)
+)
+
+// newHTTPClient creates a client with a copy of the default transport, which only differs in the
+// verification of the TLS-certificates.
+func newHTTPClient(skipTlsVerification bool) *http.Client {
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: skipTlsVerification}
+	return &http.Client{Transport: transport}
+}
+
+// httpClient returns the client for the requested verification of the TLS-certificates.
+func httpClient(skipTlsVerification bool) *http.Client {
+	if skipTlsVerification {
+		return insecureClient
+	}
+	return secureClient
+}
+
 // RequestError represents an error that occurs during an HTTP request.
 // It contains the HTTP status code and the error message from the response.
 type RequestError struct {
@@ -107,11 +131,6 @@ func prepareVars(vars map[string]interface{}) string {
 func sendAuthRequest(address, path string, body string, skipTlsVerification bool) (map[string]interface{}, error) {
 	outputMap := map[string]interface{}{}
 
-	// check if https or not
-	if strings.Contains(address, "https") {
-		http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: skipTlsVerification}
-	}
-
 	// build uri
 	var reqBody = strings.NewReader(body)
 	completePath := fmt.Sprintf("%s/%s", address, path)
@@ -121,7 +140,7 @@ func sendAuthRequest(address, path string, body string, skipTlsVerification bool
 	}
 
 	// run request
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := httpClient(skipTlsVerification).Do(req)
 	if err != nil {
 		return outputMap, err
 	}
@@ -163,11 +182,6 @@ func sendGenericRequest(address, token, requestType, path string, jsonBody *map[
 		jsonDataStr = string(jsonData)
 	}
 
-	// check if https or not
-	if strings.Contains(address, "https") {
-		http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: skipTlsVerification}
-	}
-
 	// build uri
 	var reqBody = strings.NewReader(jsonDataStr)
 	completePath := fmt.Sprintf("%s/%s", address, path)
@@ -182,7 +196,7 @@ func sendGenericRequest(address, token, requestType, path string, jsonBody *map[
 	req.Header.Set("Content-Type", "application/json")
 
 	// run request
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := httpClient(skipTlsVerification).Do(req)
 	if err != nil {
 		return outputMap, err
 	}
@@ -286,11 +300,6 @@ func UploadFile(context AccessContext, path string, fields map[string]string, fi
 		body = &progressReader{reader: body, total: totalSize, progress: progress}
 	}
 
-	// check if https or not
-	if strings.Contains(context.RyokanAddress, "https") {
-		http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: context.skipTlsVerification}
-	}
-
 	// Create the request
 	completePath := fmt.Sprintf("%s/%s", context.RyokanAddress, path)
 	req, err := http.NewRequest("POST", completePath, body)
@@ -304,8 +313,7 @@ func UploadFile(context AccessContext, path string, fields map[string]string, fi
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 
 	// Send the request
-	client := &http.Client{}
-	resp, err := client.Do(req)
+	resp, err := httpClient(context.skipTlsVerification).Do(req)
 	if err != nil {
 		return outputMap, fmt.Errorf("request failed: %w", err)
 	}
