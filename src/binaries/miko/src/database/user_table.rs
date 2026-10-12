@@ -12,12 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use argon2::Argon2;
+use argon2::password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString};
 use chrono::{DateTime, Utc};
 use diesel::prelude::*;
 use diesel::result::DatabaseErrorKind;
-use rand::{RngExt, distr::Alphanumeric};
+use rand::RngExt;
 use std::env;
 use std::error::Error;
+use subtle::ConstantTimeEq;
 
 use crate::database::db_handle;
 use crate::database::project_table;
@@ -220,7 +223,11 @@ pub fn add_new_user(
     })
 }
 
-/// Creates a new random salt and hashes the passphrase together with it.
+/// Prefix of the passphrase-hashes, which were created with argon2id. Older hashes are plain
+/// salted sha256-hashes, which are upgraded at the next successful login.
+const ARGON2_HASH_PREFIX: &str = "$argon2";
+
+/// Hashes the passphrase with argon2id and a new random salt.
 ///
 /// # Arguments
 ///
@@ -228,20 +235,25 @@ pub fn add_new_user(
 ///
 /// # Returns
 ///
-/// The sha256-hash of the salted passphrase together with the salt, which both have to be stored
-/// in the database.
+/// The hash in the PHC string format, which contains the parameters and the salt, together with
+/// the value for the separate salt-column. The salt-column is only required by the legacy
+/// sha256-hashes, so it stays empty for argon2-hashes.
 fn hash_new_passphrase(passphrase: &Secret) -> (String, String) {
-    let salt: String = rand::rng()
-        .sample_iter(&Alphanumeric)
-        .take(64)
-        .map(char::from)
-        .collect();
-    let salted_passphrase = Secret::from(format!("{}{salt}", passphrase.reveal()));
+    let mut salt_bytes = [0u8; 16];
+    rand::rng().fill(&mut salt_bytes);
+    let salt = SaltString::encode_b64(&salt_bytes).expect("16 bytes are a valid salt-length");
 
-    (sha256_hash(salted_passphrase.reveal()), salt)
+    let pw_hash = Argon2::default()
+        .hash_password(passphrase.reveal().as_bytes(), &salt)
+        .expect("argon2 with default parameters can not fail for a valid salt")
+        .to_string();
+
+    (pw_hash, String::new())
 }
 
 /// Checks, if a passphrase matches the stored passphrase-hash of a user.
+///
+/// Supports argon2-hashes and the legacy salted sha256-hashes.
 ///
 /// # Arguments
 ///
@@ -252,8 +264,72 @@ fn hash_new_passphrase(passphrase: &Secret) -> (String, String) {
 ///
 /// True, if the passphrase is correct.
 pub fn verify_passphrase(user: &UserEntry, passphrase: &Secret) -> bool {
+    if !needs_passphrase_rehash(user) {
+        return match PasswordHash::new(&user.pw_hash) {
+            Ok(parsed_hash) => Argon2::default()
+                .verify_password(passphrase.reveal().as_bytes(), &parsed_hash)
+                .is_ok(),
+            Err(e) => {
+                log::error!("Invalid passphrase-hash of user '{}': {e}", user.id);
+                false
+            }
+        };
+    }
+
     let salted_passphrase = Secret::from(format!("{}{}", passphrase.reveal(), user.salt));
-    sha256_hash(salted_passphrase.reveal()) == user.pw_hash
+    sha256_hash(salted_passphrase.reveal())
+        .as_bytes()
+        .ct_eq(user.pw_hash.as_bytes())
+        .into()
+}
+
+/// Checks, if the passphrase-hash of a user is still a legacy sha256-hash, which should be
+/// replaced by an argon2-hash.
+///
+/// # Arguments
+///
+/// * `user` - The user from the database
+///
+/// # Returns
+///
+/// True, if the hash is not an argon2-hash.
+pub fn needs_passphrase_rehash(user: &UserEntry) -> bool {
+    !user.pw_hash.starts_with(ARGON2_HASH_PREFIX)
+}
+
+/// Replaces the legacy passphrase-hash of a user by an argon2-hash.
+///
+/// Must only be called after the passphrase was successfully verified, because there is no
+/// user-context to check, like when the user itself changes the passphrase.
+///
+/// # Arguments
+///
+/// * `user_id` - The ID of the user, whose hash should be upgraded
+/// * `passphrase` - The already verified plain passphrase
+///
+/// # Returns
+///
+/// Returns Ok(()) if the hash was successfully upgraded, or an appropriate DbError if the user
+/// wasn't found or if there was an internal error.
+pub fn upgrade_passphrase_hash(
+    user_id: &String,
+    passphrase: &Secret,
+) -> Result<(), enums::DbError> {
+    let (new_pw_hash, new_salt) = hash_new_passphrase(passphrase);
+
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+    use self::users::dsl::*;
+    match diesel::update(users.filter(id.eq(user_id).and(status.eq("ACTIVE"))))
+        .set((pw_hash.eq(new_pw_hash), salt.eq(new_salt)))
+        .execute(&mut *conn)
+    {
+        Ok(0) => Err(enums::DbError::NotFound),
+        Ok(_) => Ok(()),
+        Err(e) => {
+            log::error!("Database-error: {e:?}");
+            Err(enums::DbError::InternalError)
+        }
+    }
 }
 
 /// Sets a new passphrase for a user.
@@ -716,6 +792,52 @@ mod tests {
             update_passphrase(&"unknown-user".to_string(), &new_passphrase, &admin_context),
             Err(enums::DbError::NotFound)
         ));
+
+        hard_delete_user(&user_id);
+    }
+
+    #[test]
+    #[serial]
+    fn test_upgrade_legacy_passphrase_hash() {
+        let user_id = "test-user-8".to_string();
+        let passphrase = Secret::from("legacy-passphrase");
+        let wrong_passphrase = Secret::from("wrong-passphrase");
+
+        // new hashes are argon2-hashes, which contain their own salt
+        let (pw_hash, salt) = hash_new_passphrase(&passphrase);
+        assert!(pw_hash.starts_with(ARGON2_HASH_PREFIX));
+        assert!(salt.is_empty());
+
+        // user with a legacy salted sha256-hash, like created by older versions
+        hard_delete_user(&user_id);
+        let legacy_salt = "legacy-salt".to_string();
+        let user = UserEntry {
+            id: user_id.clone(),
+            name: "Erin".to_string(),
+            is_admin: false.to_string(),
+            pw_hash: sha256_hash(&format!("{}{legacy_salt}", passphrase.reveal())),
+            salt: legacy_salt,
+            status: "ACTIVE".to_string(),
+            created_at: Utc::now(),
+            created_by: "admin".to_string(),
+            updated_at: Utc::now(),
+            updated_by: "admin".to_string(),
+            deleted_at: None,
+            deleted_by: None,
+        };
+        add_user(user).unwrap();
+        let user = get_auth_user(&user_id).ok().expect("user not found");
+        assert!(needs_passphrase_rehash(&user));
+        assert!(verify_passphrase(&user, &passphrase));
+        assert!(!verify_passphrase(&user, &wrong_passphrase));
+
+        // after the upgrade the same passphrase still works with the argon2-hash
+        assert!(upgrade_passphrase_hash(&user_id, &passphrase).is_ok());
+        let user = get_auth_user(&user_id).ok().expect("user not found");
+        assert!(!needs_passphrase_rehash(&user));
+        assert!(user.salt.is_empty());
+        assert!(verify_passphrase(&user, &passphrase));
+        assert!(!verify_passphrase(&user, &wrong_passphrase));
 
         hard_delete_user(&user_id);
     }

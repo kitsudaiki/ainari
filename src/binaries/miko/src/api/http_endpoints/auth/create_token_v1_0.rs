@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use actix_web::web;
 use actix_web::web::Json;
 use apistos::api_operation;
 use validator::Validate;
@@ -23,7 +24,7 @@ use crate::database::user_table;
 
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::auth_structs::*;
-use ainari_common::functions::sha256_hash;
+use ainari_common::secret::Secret;
 
 #[api_operation(
     tag = "auth",
@@ -63,13 +64,39 @@ pub async fn create_token(body: String) -> Result<Json<UserTokenResp>, ErrorResp
     let user = user_table::get_auth_user(&parsed.client_id)
         .map_err(|_| ErrorResponse::Unauthorized("Invalid user-id or passphrase".to_string()))?;
 
-    // check passphrase
-    let salted_passphrase = format!("{}{}", parsed.client_secret, user.salt);
-    let pw_hash = sha256_hash(salted_passphrase.as_str());
-    if pw_hash != user.pw_hash {
+    // check passphrase. Argon2 is expensive by design, so it runs on the blocking thread-pool
+    // instead of blocking the worker-thread of the web-server.
+    let passphrase = Secret::from(parsed.client_secret);
+    let (user, passphrase, is_valid) = web::block(move || {
+        let is_valid = user_table::verify_passphrase(&user, &passphrase);
+        (user, passphrase, is_valid)
+    })
+    .await
+    .map_err(|e| {
+        ainari_api::report_internal_error!(None, "Failed to verify passphrase: {e}");
+        ErrorResponse::InternalError("Internal Error".to_string())
+    })?;
+    if !is_valid {
         return Err(ErrorResponse::Unauthorized(
             "Invalid user-id or passphrase".to_string(),
         ));
+    }
+
+    // replace a legacy sha256-hash by an argon2-hash, now that the plain passphrase is known.
+    // A failure is not critical, because the old hash still works and the upgrade is tried
+    // again at the next login.
+    if user_table::needs_passphrase_rehash(&user) {
+        let user_id = user.id.clone();
+        let result =
+            web::block(move || user_table::upgrade_passphrase_hash(&user_id, &passphrase)).await;
+        match result {
+            Ok(Ok(())) => log::info!("Upgraded passphrase-hash of user '{}' to argon2", user.id),
+            Ok(Err(_)) => log::warn!("Failed to upgrade passphrase-hash of user '{}'", user.id),
+            Err(e) => log::warn!(
+                "Failed to upgrade passphrase-hash of user '{}': {e}",
+                user.id
+            ),
+        }
     }
 
     // use the requested project, or the default-project of the user, if none was requested

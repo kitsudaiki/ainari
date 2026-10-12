@@ -29,6 +29,10 @@ serde_urlencoded = "0.7"
 # exactly one of `aws_lc_rs` and `rust_crypto` must be enabled, otherwise jsonwebtoken can not
 # determine a crypto-provider and panics at runtime instead of failing to compile.
 jsonwebtoken = { version = "11", features = ["aws_lc_rs"] }
+# passphrase-hashing
+argon2 = "0.5"
+# constant-time comparison of the legacy passphrase-hashes
+subtle = "2.6"
 # config-file
 toml = "1.1"
 # singleton (like used for the config-variable)
