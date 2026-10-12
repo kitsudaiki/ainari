@@ -60,10 +60,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - image-status: "ENCRYPTING", "UPLOADING" and "READY"
     - images and snapshots can only be used, when they are READY
     - image upload progress bar for CLI and dashboard
+- new option `global.debug` of the operator to enable the debug-logs of all components (per
+  default disabled)
+
+### Changed
+
+- passphrases are hashed with argon2id instead of a salted sha256-hash. Existing hashes are
+  upgraded automatically at the next login of the user.
+- the operator renders all configs with `debug = false` and `RUST_LOG=info`, as long as
+  `global.debug` is not enabled
 
 ### Fixed
 
 - updates for the compute hosts to survive a reboot
+- comparison of secrets like the internal API-key in constant time and wipe them from memory,
+  when they are not used anymore
+- omamori takes the keys and nonces directly from the random-generator of the operating system and
+  fails, if it is not available
+- the go-sdk doesn't change the `http.DefaultTransport` of the process anymore, so the option to
+  skip the tls-verification doesn't affect other http-clients of the same process
 
 ## v0.21.0
 

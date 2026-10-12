@@ -32,6 +32,15 @@ func appLabels(app string) map[string]string {
 	return map[string]string{"app": app}
 }
 
+// rustLog returns the value of RUST_LOG of a component. The debug-level of the component is only
+// used, if the debug-logs are enabled globally, otherwise only info and above is logged.
+func (r *renderer) rustLog(debugLevel string) string {
+	if r.Spec.Global.Debug {
+		return debugLevel
+	}
+	return "info"
+}
+
 // pullPolicy returns the pull-policy of a component. The global value overwrites the one of the
 // component, so a local setup can switch all of them at once.
 func (r *renderer) pullPolicy(policy corev1.PullPolicy) corev1.PullPolicy {

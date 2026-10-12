@@ -38,6 +38,8 @@ spec:
       type: LoadBalancer
     # every component runs only on the virtual machines with its label, which ansible sets
     strictScheduling: true
+    # local test-setup, so the debug-logs are enabled
+    debug: true
     # the storage-class of the local-path-provisioner of k3s
     storageClass: local-path
     # the images are built locally and imported into the nodes, they can not be pulled

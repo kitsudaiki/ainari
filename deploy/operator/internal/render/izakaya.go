@@ -35,7 +35,7 @@ func (r *renderer) izakaya() ([]client.Object, error) {
 		replicas:   spec.Replicas,
 		image:      spec.Image,
 		pullPolicy: spec.ImagePullPolicy,
-		rustLog:    "debug",
+		rustLog:    r.rustLog("debug"),
 		probePort:  portsOf("izakaya").Internal,
 		domain:     spec.Domain,
 		config:     configMap("izakaya-config", map[string]string{"izakaya.toml": config}),
