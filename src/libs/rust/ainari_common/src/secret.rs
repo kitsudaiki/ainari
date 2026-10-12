@@ -15,7 +15,9 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::fmt;
+use subtle::ConstantTimeEq;
 use validator::ValidateLength;
+use zeroize::Zeroize;
 
 /// Wrapper around a string, which must not be leaked into logs or error-messages.
 ///
@@ -63,15 +65,48 @@ impl Secret {
     }
 }
 
+/// Compares in constant time, so the duration of a failed comparison against a secret like the
+/// internal API-key doesn't reveal, how many leading bytes were correct. Only the length can still
+/// be derived from the timing.
 impl PartialEq for Secret {
     fn eq(&self, other: &Self) -> bool {
-        self.0 == other.0
+        self.0.as_bytes().ct_eq(other.0.as_bytes()).into()
     }
 }
 impl Eq for Secret {}
 
+/// Overwrites the content with zeros, before the memory is released, so the secret doesn't
+/// remain readable in freed memory.
+impl Drop for Secret {
+    fn drop(&mut self) {
+        self.0.zeroize();
+    }
+}
+
 impl ValidateLength<usize> for Secret {
     fn length(&self) -> Option<usize> {
         Some(self.0.len())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_secret_eq() {
+        assert_eq!(Secret::from("api-key"), Secret::from("api-key"));
+        assert_ne!(Secret::from("api-key"), Secret::from("api-kex"));
+        assert_ne!(Secret::from("api-key"), Secret::from("api-key-longer"));
+        assert_ne!(Secret::from("api-key"), Secret::from(""));
+        assert_eq!(Secret::from(""), Secret::from(""));
+    }
+
+    #[test]
+    fn test_secret_hidden_in_output() {
+        let secret = Secret::from("api-key");
+        assert_eq!(format!("{secret}"), "***");
+        assert_eq!(format!("{secret:?}"), "***");
+        assert_eq!(secret.reveal(), "api-key");
     }
 }
