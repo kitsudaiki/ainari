@@ -28,8 +28,8 @@
                             <td>{{ info.uuid }}</td>
                         </tr>
                         <tr>
-                            <td>Port</td>
-                            <td>{{ info.port }}</td>
+                            <td>Address</td>
+                            <td>{{ info.address }}</td>
                         </tr>
                         <tr>
                             <td>Target Address</td>

@@ -625,32 +625,58 @@ type ToriiSpec struct {
 	// +optional
 	PublicAddress string `json:"publicAddress,omitempty"`
 
-	// type of the service, which publishes the proxy-ports of the gateway at the edge
+	// type of the service, which publishes the proxies of the gateway at the edge
 	// +kubebuilder:default=LoadBalancer
 	// +optional
 	// +kubebuilder:validation:Enum=ClusterIP;NodePort;LoadBalancer
 	ServiceType corev1.ServiceType `json:"serviceType"`
 
-	// proxy-ports of the gateway at the edge
-	// +kubebuilder:default={start: 10040, end: 10050}
+	// +kubebuilder:default={}
 	// +optional
-	PortRange PortRangeSpec `json:"portRange"`
+	Proxy ToriiProxySpec `json:"proxy"`
 
 	// +kubebuilder:default={}
 	// +optional
 	Public ToriiPublicSpec `json:"public"`
 }
 
-// PortRangeSpec is a range of ports, including both ends.
-// +kubebuilder:validation:XValidation:rule="self.start <= self.end",message="the start of the port-range has to be lower or equal to its end"
-type PortRangeSpec struct {
-	// +kubebuilder:validation:Minimum=1
-	// +kubebuilder:validation:Maximum=65535
-	Start int32 `json:"start"`
+// ToriiProxySpec configures the proxies of the gateway at the edge, which make the external api
+// of the sakura-hosts reachable for the clients.
+//
+// All proxies share one port. Torii doesn't terminate the TLS-connections, but picks the proxy of
+// a connection by the server name of its TLS ClientHello. Every proxy is reachable as
+// https://<vm-uuid>.<domain>:<publicPort>, so the address of a virtual machine stays the same,
+// when it is moved to another sakura-host, and the clients never see the sakura-hosts.
+type ToriiProxySpec struct {
+	// Domain of the proxies. It needs a wildcard-entry '*.<domain>' in the DNS, which points to
+	// the service of the proxies. '*.localhost' resolves to 127.0.0.1 without any DNS-entry. The
+	// external api of the sakura-hosts gets a certificate, which is only valid for '*.<domain>'.
+	// +kubebuilder:default="ainari.localhost"
+	// +kubebuilder:validation:Pattern=`^([a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?\.)*[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?$`
+	// +optional
+	Domain string `json:"domain"`
 
+	// port, on which torii listens for all proxies
+	// +kubebuilder:default=10042
 	// +kubebuilder:validation:Minimum=1
 	// +kubebuilder:validation:Maximum=65535
-	End int32 `json:"end"`
+	// +optional
+	Port int32 `json:"port"`
+
+	// Port of the service, under which the clients reach the proxies. Falls back to port. With
+	// a NodePort-service, the node-port is this port plus global.externalServices.nodePortOffset.
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=65535
+	// +optional
+	PublicPort int32 `json:"publicPort,omitempty"`
+}
+
+// ServicePort returns the port of the service, under which the clients reach the proxies.
+func (s *ToriiProxySpec) ServicePort() int32 {
+	if s.PublicPort != 0 {
+		return s.PublicPort
+	}
+	return s.Port
 }
 
 // ToriiPublicSpec configures the gateway at the edge of the network, which serves the floating

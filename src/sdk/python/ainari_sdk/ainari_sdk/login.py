@@ -90,13 +90,9 @@ def request_context(address: str,
     # omikuji is optional, so a deployment without it has no or an empty endpoint for it
     omikuji_address = resp.get("omikuji", {}).get("public_address", "")
 
-    # Process torii address to extract base address
-    torii_address_split = torii_address.split(":")
-    torii_base_address = torii_address_split[0] + ":" + torii_address_split[1]
-
     # Create and return the context object
     context = AccessContext(token, miko_address, hanami_address,
-                            ryokan_address, omamori_address, torii_address, torii_base_address,
+                            ryokan_address, omamori_address, torii_address,
                             verify_connection, omikuji_address)
     return context
 

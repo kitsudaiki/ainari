@@ -60,17 +60,15 @@ export function omikujiClient(): AxiosInstance {
 
 /**
  * Creates a client for the sakura of a single virtual-machine. The sakura is not
- * reachable directly, but only through the torii, which provides one port per
- * virtual-machine.
+ * reachable directly, but only through a proxy of the torii, which has its own
+ * address for every virtual-machine.
  *
- * @param toriiPort - Port, which the torii assigned to the virtual-machine. It is
- *                    provided as `torii_port` by the get-endpoint and as `proxy_port`
- *                    by the list-endpoint of the virtual-machines.
+ * @param toriiAddress - Address of the proxy of the virtual-machine. It is
+ *                       provided as `torii_address` by the get-endpoint and as
+ *                       `proxy_address` by the list-endpoint of the virtual-machines.
  *
  * @returns Pre-configured axios-instance
  */
-export function sakuraClient(toriiPort: number): AxiosInstance {
-    const authContext = getAuthContext();
-
-    return createClient(`${authContext.torii_base_address}:${toriiPort}`);
+export function sakuraClient(toriiAddress: string): AxiosInstance {
+    return createClient(toriiAddress);
 }

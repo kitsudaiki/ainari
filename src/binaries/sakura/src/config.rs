@@ -41,7 +41,8 @@ pub struct Config {
     pub skip_tls_verification: bool,
     /// Address where the service will be available.
     pub address: String,
-    /// Address of the external api, which the proxy-port of the virtual_machines forwards to. The
+    /// Address of the external api, which the proxies of the virtual_machines forward to. The
+    /// proxies don't terminate tls, so the clients get the certificate of this api directly. The
     /// internal endpoints are not reachable over it. If not set, the proxies forward to `address`.
     #[serde(default)]
     pub external_address: Option<String>,

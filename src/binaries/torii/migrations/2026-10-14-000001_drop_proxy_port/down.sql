@@ -1,0 +1,1 @@
+ALTER TABLE proxys ADD COLUMN port INTEGER;

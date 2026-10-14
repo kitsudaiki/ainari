@@ -60,8 +60,8 @@
                             <td>{{ info.internal_ip }}</td>
                         </tr>
                         <tr>
-                            <td>Torii-Port</td>
-                            <td>{{ info.torii_port }}</td>
+                            <td>Torii-Address</td>
+                            <td>{{ info.torii_address }}</td>
                         </tr>
                         <tr>
                             <td>Created At</td>

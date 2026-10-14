@@ -54,7 +54,7 @@ flowchart TB
         end
         subgraph toriivm["VM ainari-torii 192.168.56.11"]
             uplink["service ainari-uplink<br/>10.0.0.1 on veth-uplink, NAT to the internet"]
-            public["pod torii-public<br/>floating ip-NAT, proxy-ports"]
+            public["pod torii-public<br/>floating ip-NAT, proxies"]
         end
         subgraph sak1["VM ainari-sakura-1 192.168.56.12 (nested kvm)"]
             pod0["pod sakura-N<br/>torii + sakura"]
@@ -148,14 +148,16 @@ The api is reachable on the host at:
 | dashboard | `https://192.168.56.10:11422` |
 
 The api of torii is only reachable within the cluster. The virtual machines and their sakura-hosts
-are reached over the proxy-ports of torii (`192.168.56.11:<proxy-port>`), and the proxies can be listed
-over hanami (`GET /v1alpha/proxy`).
+are reached over the proxies of torii (`https://<vm-uuid>.192-168-56-11.sslip.io:10042`, the
+`torii_address` of a virtual machine), and the proxies can be listed over hanami
+(`GET /v1alpha/proxy`). The public DNS of sslip.io resolves every name below
+`192-168-56-11.sslip.io` to `192.168.56.11`, so the host needs a working DNS-resolution for it.
 
 The admin-user is `asdf` with the passphrase `asdfasdf`.
 
 Build the cli in `src/cli/ainarictl` with `go build .` and point it at miko. Without the CA of the
 setup in the trust-store of the system (see
-[The CA of the kind- and the vagrant-setup](https_ca.md)), the cli has to skip the verification of
+[The CAs of the local setups](https_ca.md)), the cli has to skip the verification of
 the certificates:
 
 ```bash
@@ -257,8 +259,8 @@ virtual machines keep running, when the container is left; they are destroyed wi
 - **Certificates:** all certificates are signed by the CA
   `temporary_files/vagrant/ainari-vagrant-ca.crt`. Without it in the trust-stores, the clients have
   to skip the verification and the dashboard can't log in. How to trust it is described in
-  [The CA of the kind- and the vagrant-setup](https_ca.md).
-- **Ports:** the servicelb of k3s publishes the api and the proxy-ports of torii with their own
+  [The CAs of the local setups](https_ca.md).
+- **Ports:** the servicelb of k3s publishes the api and the port of the proxies of torii with their own
   ports on every virtual machine (`global.externalServices` with the type `LoadBalancer` in the
   `Ainari`-resource), so every address of the virtual machines works, not only the ones in the
   table.

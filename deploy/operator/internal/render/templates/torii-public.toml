@@ -10,9 +10,13 @@ file_path = "/etc/ainari/torii/torii_db"
 [miko]
 address = {{ quote mikoAddress }}
 
-[ports]
-min_port = {{ .Spec.Torii.PortRange.Start }}
-max_port = {{ .Spec.Torii.PortRange.End }}
+[proxy]
+# every proxy is reachable as https://<vm-uuid>.<domain>:<public_port>
+domain = {{ quote .Spec.Torii.Proxy.Domain }}
+port = {{ .Spec.Torii.Proxy.Port }}
+{{- with .Spec.Torii.Proxy.PublicPort }}
+public_port = {{ . }}
+{{- end }}
 # the api is only reachable over the tls-termination, the proxies from the outside
 listen_ip = "0.0.0.0"
 

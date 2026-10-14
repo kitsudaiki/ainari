@@ -51,12 +51,12 @@ def wait_until(condition, timeout: float, what: str, interval: float = 2.0):
     raise TimeoutError(message)
 
 
-def wait_for_task(context, torii_port: int, task_uuid: str, timeout: float) -> dict:
+def wait_for_task(context, torii_address: str, task_uuid: str, timeout: float) -> dict:
     """
     Waits until the task reached a final state and checks, that it was finished successfully.
     """
     result = wait_until(
-        lambda: _final_task(context, torii_port, task_uuid),
+        lambda: _final_task(context, torii_address, task_uuid),
         timeout,
         f"task '{task_uuid}' not finished")
     if result["state"] != "Finished":
@@ -65,8 +65,8 @@ def wait_for_task(context, torii_port: int, task_uuid: str, timeout: float) -> d
     return result
 
 
-def _final_task(context, torii_port: int, task_uuid: str):
-    result = task.get_task(context, torii_port, task_uuid)
+def _final_task(context, torii_address: str, task_uuid: str):
+    result = task.get_task(context, torii_address, task_uuid)
     if result["state"] in TASK_FINAL_STATES:
         return result
     return None

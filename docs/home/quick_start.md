@@ -31,6 +31,27 @@ Within the container, start the stack:
 make up local
 ```
 
+## Trust the CA of the setup
+
+The virtual machines are managed over the proxies of torii, which are only reachable over https
+(`https://<vm-uuid>.ainari.localhost:10042`). Their certificate is signed by the CA
+`temporary_files/local/ainari-local-ca.crt`, which `make up local` creates with its first start
+and keeps over all runs. On the host, trust it once for the system and for the browser of the
+dashboard:
+
+```bash
+SETUP=local
+# system: curl and the go-cli
+sudo cp temporary_files/$SETUP/ainari-$SETUP-ca.crt /usr/local/share/ca-certificates/ainari-$SETUP-ca.crt && sudo update-ca-certificates
+# Chrome and Chromium (certutil is part of libnss3-tools)
+certutil -d sql:$HOME/.pki/nssdb -A -t "C,," -n ainari-$SETUP-ca -i temporary_files/$SETUP/ainari-$SETUP-ca.crt
+```
+
+For Firefox and more details see
+[The CAs of the local setups](/developer/local_testing/https_ca/). Restart the browser completely
+afterwards. Without the trusted CA, the dashboard fails with *API did not respond* for everything,
+which is done on a virtual machine, like *Show tasks*.
+
 ## Create virtual machines
 
 Still within the container, create an ssh-key, an image, a network and two virtual machines with
@@ -67,6 +88,16 @@ source test_auth.sh    # user 'asdf', passphrase 'asdfasdf'
 ./ainarictl --help
 ```
 
+The trust-store of the container doesn't know the CA of the setup, so the commands, which are
+done on a virtual machine over its proxy (`vm create`, `vm start`, `vm stop`, `vm reboot` and the
+`task`-commands), need `--insecure` within the container:
+
+```bash
+./ainarictl --insecure task list <VIRTUAL_MACHINE_UUID>
+```
+
+On the host with the trusted CA, they work without it.
+
 ## Use the dashboard
 
 On the host, create the config of the dashboard and start it:
@@ -79,7 +110,9 @@ cd src/dashboard
 docker compose up --build
 ```
 
-Open [http://localhost:5173](http://localhost:5173) and log in with `asdf` / `asdfasdf`.
+Open [http://localhost:5173](http://localhost:5173) and log in with `asdf` / `asdfasdf`. The
+dashboard reaches the virtual machines over their proxies, so the CA has to be trusted in the
+browser, see [Trust the CA of the setup](#trust-the-ca-of-the-setup).
 
 ## Stop
 

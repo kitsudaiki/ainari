@@ -36,7 +36,7 @@
                                 virtualMachineName(proxy.virtual_machine_uuid)
                             }}
                         </td>
-                        <td>{{ torii_base_address }}:{{ proxy.port }}</td>
+                        <td>{{ proxy.address }}</td>
                         <td>{{ proxy.target_address }}</td>
                         <td>
                             <!-- Dropdown menu -->
@@ -78,7 +78,6 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, inject } from "vue";
 
-import { getAuthContext } from "@/auth_context";
 import { hanami } from "@/api";
 import type { ProxyBasicResp, VirtualMachineBasicResp } from "@/api";
 import ProxyInfoModal from "./proxy_info_modal.vue";
@@ -88,7 +87,6 @@ import NoEntries from "@/components/no_entries.vue";
 const errorPopupMsg = ref<string>("");
 const proxies = ref<ProxyBasicResp[]>([]);
 const virtualMachines = ref<VirtualMachineBasicResp[]>([]);
-const torii_base_address = ref<string | null>("");
 const showInfoModal = ref(false);
 const openDropdown = ref<string | null>(null);
 const proxyToShow = ref<ProxyBasicResp | null>(null);
@@ -106,8 +104,6 @@ function virtualMachineName(virtual_machine_uuid: string): string {
 }
 
 async function fetchProxies() {
-    torii_base_address.value = getAuthContext().torii_base_address;
-
     try {
         proxies.value = await hanami.listProxies();
     } catch (err) {

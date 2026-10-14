@@ -30,8 +30,8 @@ use ainari_api_structs::user_context::UserContext;
     summary = "Update proxy",
     description = r###"Point a proxy at another target address.
 
-The proxy keeps its UUID and its port, so its virtual_machine stays reachable under the same
-port, for example after it was migrated to another sakura-host. Open connections over the proxy
+The proxy keeps its UUID and with that its address, so its virtual_machine stays reachable
+under the same address, for example after it was migrated to another sakura-host. Open connections over the proxy
 are closed."###,
     error_code = 400,
     error_code = 401,
@@ -47,19 +47,21 @@ pub async fn update_proxy_internal(
     body.validate()
         .map_err(|e| ErrorResponse::BadRequest(format!("Invalid input: {e}")))?;
 
+    let proxy_conf =
+        proxy_conf().map_err(|e| map_ainari_error_to_api_response(e, Some(&context)))?;
+
     // the database is changed first, so the proxy-handler gets the same target after a restart
     let proxy_data = proxy_table::update_proxy_target(&proxy_uuid, &body.target_address, &context)
         .map_err(|e| map_db_uuid_get_delete_error("proxy", &proxy_uuid, e, Some(&context)))?;
 
     let mut proxy_handler = PROXY_HANDLER.write().await;
     proxy_handler
-        .retarget_proxy(&proxy_uuid, proxy_data.port as u16, &body.target_address)
-        .await
+        .retarget_proxy(&proxy_uuid, &body.target_address)
         .map_err(|e| map_ainari_error_to_api_response(e, Some(&context)))?;
 
     let resp = ProxyResp {
         uuid: proxy_data.uuid,
-        port: proxy_data.port as u16,
+        address: proxy_conf.address(&proxy_data.uuid),
         target_address: proxy_data.target_address,
         virtual_machine_uuid: proxy_data.virtual_machine_uuid,
         created_by: proxy_data.created_by,

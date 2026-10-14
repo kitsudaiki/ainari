@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### BREAKING-CHANGES
+
+- replaced torii ports by a new address approach
+
 ### Added
 
 - added to CI:
@@ -14,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - markdown-linter
     - license check
     - go-linter
+    - docker-scout check
 
 ### Changed
 
@@ -33,6 +38,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - the ingresses of ingress-nginx were replaced by TLSRoutes of the gateway-api, which still pass the
   tls-connections through to the nginx-sidecars of the components. `deploy/k8s/gateway.yaml`
   replaces `deploy/k8s/ingress-nginx-controller.yaml`.
+- the proxies of torii share a single port instead of having one port each. Torii picks the proxy
+  of a connection by the server name (SNI) of its TLS-connection, which it doesn't terminate:
+    - every virtual machine is reachable at `https://<vm-uuid>.<domain>:<port>`, which stays the
+      same, when it is migrated, and doesn't reveal the sakura-host. The proxy of a virtual
+      machine has the same uuid as the virtual machine.
+    - `torii_port` and `proxy_port` of the virtual machines are replaced by `torii_address` and
+      `proxy_address`, `port` of the proxies by `address`. The functions of the python- and
+      go-sdk take the address instead of the port.
+    - the section `[ports]` of the config of torii is replaced by `[proxy]` with its `domain`,
+      `torii.portRange` of the operator by `torii.proxy`
+    - the external api of the sakura-hosts has to be served over https with a certificate for
+      `*.<domain>`. The operator creates it, the docker-compose setup gets an nginx-sidecar for it.
 
 ### Added
 
@@ -64,12 +81,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
       background and rolls back to the old host, if it fails
     - the disk is transferred directly between the sakura-hosts as compressed and checksummed
       stream, without a temporary copy and with the unused parts of the disk kept sparse
-    - the virtual machine keeps its uuid, address, proxy-port and packet-filters and is started
+    - the virtual machine keeps its uuid, address, proxy-address and packet-filters and is started
       again on the new host, if it was running before
     - the token of the admin is renewed during the migration, so it can take longer than the
       lifetime of a token
     - new cli-command `ainarictl vm migrate` and functions in the python- and go-sdk
-- proxies of the torii can be pointed to another target, while they keep their port
+- proxies of the torii can be pointed to another target, while they keep their address
 - optional field `host_uuid` for virtual-machine-create, with which an admin places the virtual
   machine on a specific sakura-host. It fails, if the host has not enough free resources. It is
   available as `--host` in `ainarictl vm create` and in the python- and go-sdk.

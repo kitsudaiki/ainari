@@ -47,7 +47,7 @@ installed.
 Creates the CA of a local setup, which signs the certificates of all components of the setup, if
 it doesn't exist yet. The CA stays the same over all runs, so it only has to be added to the
 trust-store of the host once (see
-[The CA of the kind- and the vagrant-setup](../../docs/developer/local_testing/https_ca.md)).
+[The CAs of the local setups](../../docs/developer/local_testing/https_ca.md)).
 Its name-constraints limit it to the names of the setup, so it can't be misused for any other
 host, even if its key leaks. [setup_kind_stack.sh](../kind/setup_kind_stack.sh) and
 [setup_vagrant_stack.sh](setup_vagrant_stack.sh) call this script, so it is normally not called

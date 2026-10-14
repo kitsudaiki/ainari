@@ -15,14 +15,14 @@
 """
 Cold migration of a virtual machine to another sakura-host. The virtual machine is shut down,
 its disk is transferred directly between the hosts and it is booted on the new host again. It
-keeps its disk, its address, its proxy-port and its packet-filters, which are checked here.
+keeps its disk, its address, its proxy-address and its packet-filters, which are checked here.
 
 The end of a migration is recognized by the host-resources: the resources are allocated on the
 new host, before the migration starts, and released on the old host as its last step. If the
 migration fails, it is rolled back and the resources on the new host are released instead.
 
-The suite runs after the tasks, because the proxy-port of a migrated virtual machine leads to its
-new host, which doesn't know the tasks of the old host.
+The suite runs after the tasks, because the proxy-address of a migrated virtual machine leads to
+its new host, which doesn't know the tasks of the old host.
 """
 
 import time
@@ -104,13 +104,13 @@ def wait_for_migration(ctx, before: dict, source: str, target: str):
 
 def check_unchanged(ctx, entry: dict):
     """
-    Checks, that the virtual machine kept its address and its proxy-port.
+    Checks, that the virtual machine kept its address and its proxy-address.
     """
     result = virtual_machine.get_virtual_machine(ctx.api, entry["uuid"])
     check_equal(result["internal_ip"], entry["internal_ip"],
                 f"internal ip of {entry['name']} after the migration")
-    check_equal(result["torii_port"], entry["torii_port"],
-                f"proxy-port of {entry['name']} after the migration")
+    check_equal(result["torii_address"], entry["torii_address"],
+                f"proxy-address of {entry['name']} after the migration")
 
 
 def require_two(ctx) -> list:
@@ -191,7 +191,7 @@ def migrate_running(ctx):
 
 @suite.test("migrated virtual machine is managed by its new host", requires=("migrated",))
 def managed_by_new_host(ctx):
-    # the proxy-port leads to the new host now, which wouldn't know the virtual machine otherwise
+    # the proxy-address leads to the new host now, which wouldn't know the virtual machine otherwise
     entry = ctx.state["virtual_machines"][0]
     ctx.ssh.refresh_sudo()
     boot_id = ctx.ssh.run(entry["floating_ip"], BOOT_ID)

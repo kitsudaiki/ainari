@@ -69,12 +69,12 @@ def _register_snapshot_cleanup(ctx, result: dict, name: str):
 def save_snapshot(ctx):
     entry = ctx.state["virtual_machines"][0]
     name = ctx.name("snapshot")
-    result = task.create_snapshot_save_task(ctx.api, entry["torii_port"], entry["uuid"], name)
-    ctx.state.setdefault("tasks", []).append((entry["torii_port"], result["uuid"],
+    result = task.create_snapshot_save_task(ctx.api, entry["torii_address"], entry["uuid"], name)
+    ctx.state.setdefault("tasks", []).append((entry["torii_address"], result["uuid"],
                                               "SnapshotSave"))
     snapshot_uuid = _register_snapshot_cleanup(ctx, result, name)
 
-    wait_for_task(ctx.api, entry["torii_port"], result["uuid"], ctx.config.task_timeout)
+    wait_for_task(ctx.api, entry["torii_address"], result["uuid"], ctx.config.task_timeout)
     check(snapshot_uuid is not None, "uuid of the snapshot not found")
     ctx.state["snapshot"] = snapshot_uuid
     ctx.log(f"snapshot {snapshot_uuid}")
@@ -121,11 +121,11 @@ def change_disk(ctx):
 @suite.test("restore snapshot", requires=("changed",))
 def restore_snapshot(ctx):
     entry = ctx.state["virtual_machines"][0]
-    result = task.create_snapshot_restore_task(ctx.api, entry["torii_port"], entry["uuid"],
+    result = task.create_snapshot_restore_task(ctx.api, entry["torii_address"], entry["uuid"],
                                                ctx.state["snapshot"])
-    ctx.state.setdefault("tasks", []).append((entry["torii_port"], result["uuid"],
+    ctx.state.setdefault("tasks", []).append((entry["torii_address"], result["uuid"],
                                               "SnapshotRestore"))
-    wait_for_task(ctx.api, entry["torii_port"], result["uuid"], ctx.config.task_timeout)
+    wait_for_task(ctx.api, entry["torii_address"], result["uuid"], ctx.config.task_timeout)
     wait_for_vm_state(ctx.api, entry["uuid"], "RUNNING", ctx.config.task_timeout)
 
     ctx.ssh.refresh_sudo()
@@ -148,14 +148,14 @@ def machine_id_kept(ctx):
 def restore_non_snapshot(ctx):
     entry = ctx.state["virtual_machines"][0]
     expect_error(ainari_exceptions.BadRequestException, task.create_snapshot_restore_task,
-                 ctx.api, entry["torii_port"], entry["uuid"], ctx.state["image"])
+                 ctx.api, entry["torii_address"], entry["uuid"], ctx.state["image"])
 
 
 @suite.test("restore of an unknown image is rejected", requires=("virtual_machines",))
 def restore_unknown(ctx):
     entry = ctx.state["virtual_machines"][0]
     expect_error(ainari_exceptions.NotFoundException, task.create_snapshot_restore_task,
-                 ctx.api, entry["torii_port"], entry["uuid"], str(uuid.uuid4()))
+                 ctx.api, entry["torii_address"], entry["uuid"], str(uuid.uuid4()))
 
 
 @suite.test("save snapshot with provided secret", requires=("snapshot",))
@@ -168,13 +168,13 @@ def save_snapshot_with_secret(ctx):
                     lambda: exists(secret.get_secret, ctx.api, secret_uuid))
 
     name = ctx.name("snapshot-own-secret")
-    result = task.create_snapshot_save_task(ctx.api, entry["torii_port"], entry["uuid"], name,
+    result = task.create_snapshot_save_task(ctx.api, entry["torii_address"], entry["uuid"], name,
                                             secret_uuid=secret_uuid)
-    ctx.state.setdefault("tasks", []).append((entry["torii_port"], result["uuid"],
+    ctx.state.setdefault("tasks", []).append((entry["torii_address"], result["uuid"],
                                               "SnapshotSave"))
     snapshot_uuid = _register_snapshot_cleanup(ctx, result, name)
 
-    wait_for_task(ctx.api, entry["torii_port"], result["uuid"], ctx.config.task_timeout)
+    wait_for_task(ctx.api, entry["torii_address"], result["uuid"], ctx.config.task_timeout)
     check(snapshot_uuid is not None, "uuid of the snapshot not found")
     ctx.log(f"snapshot {snapshot_uuid} encrypted with secret {secret_uuid}")
     check_equal(image.get_image(ctx.api, snapshot_uuid)["is_snapshot"], True,
@@ -196,7 +196,7 @@ def snapshot_unknown_secret(ctx):
     entry = ctx.state["virtual_machines"][0]
     name = ctx.name("snapshot-unknown-secret")
     expect_error(ainari_exceptions.NotFoundException, task.create_snapshot_save_task,
-                 ctx.api, entry["torii_port"], entry["uuid"], name,
+                 ctx.api, entry["torii_address"], entry["uuid"], name,
                  secret_uuid=str(uuid.uuid4()))
     check(name not in [item["name"] for item in image.list_images(ctx.api)["images"]],
           "snapshot was created, even though its secret doesn't exist")

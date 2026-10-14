@@ -580,7 +580,7 @@ for new virtual machines.
 
 A virtual machine is reserved on one of the sakura-hosts first. Afterwards the image and the public
 key are installed into it and it is booted by a [task](#tasks) on this host. The host is addressed
-over the `torii_port` of the virtual machine.
+over the `torii_address` of the virtual machine, which is the address of its [proxy](#proxies).
 
 The state of the virtual machine is shown in `vm_state`:
 
@@ -623,22 +623,22 @@ The state of the virtual machine is shown in `vm_state`:
         -k bd9f3a6b-df8f-42cc-803b-21f997feea96 \
         my-vm
 
-    ┌─────────────────┬──────────────────────────────────────┐
-    │ CREATED AT      │ 2026-09-26T20:03:37.596527148Z       │
-    │ CREATED BY      │ asdf                                 │
-    │ DISK SIZE       │ 5                                    │
-    │ IMAGE UUID      │ 0fefb138-6077-489a-930c-afad9c5c54bf │
-    │ INTERNAL IP     │ 192.168.200.2                        │
-    │ MEMORY SIZE     │ 1024                                 │
-    │ NAME            │ my-vm                                │
-    │ NETWORK UUID    │ 1769874d-07e4-4bea-a11f-3ea09caa9ef4 │
-    │ NUMBER OF CORES │ 1                                    │
-    │ TORII PORT      │ 10044                                │
-    │ UPDATED AT      │ 2026-09-26T20:03:37.690766143Z       │
-    │ UPDATED BY      │ asdf                                 │
-    │ UUID            │ 943e56bb-c6e4-4716-a26c-f1fd46a45618 │
-    │ VM STATE        │ CREATED                              │
-    └─────────────────┴──────────────────────────────────────┘
+    ┌─────────────────┬─────────────────────────────────────────────────────────────────────┐
+    │ CREATED AT      │ 2026-09-26T20:03:37.596527148Z                                      │
+    │ CREATED BY      │ asdf                                                                │
+    │ DISK SIZE       │ 5                                                                   │
+    │ IMAGE UUID      │ 0fefb138-6077-489a-930c-afad9c5c54bf                                │
+    │ INTERNAL IP     │ 192.168.200.2                                                       │
+    │ MEMORY SIZE     │ 1024                                                                │
+    │ NAME            │ my-vm                                                               │
+    │ NETWORK UUID    │ 1769874d-07e4-4bea-a11f-3ea09caa9ef4                                │
+    │ NUMBER OF CORES │ 1                                                                   │
+    │ TORII ADDRESS   │ https://943e56bb-c6e4-4716-a26c-f1fd46a45618.ainari.localhost:10042 │
+    │ UPDATED AT      │ 2026-09-26T20:03:37.690766143Z                                      │
+    │ UPDATED BY      │ asdf                                                                │
+    │ UUID            │ 943e56bb-c6e4-4716-a26c-f1fd46a45618                                │
+    │ VM STATE        │ CREATED                                                             │
+    └─────────────────┴─────────────────────────────────────────────────────────────────────┘
     ```
 
     The creation runs in the background; repeat `ainarictl vm get <VIRTUAL_MACHINE_UUID>`, until
@@ -660,7 +660,7 @@ The state of the virtual machine is shown in `vm_state`:
 
     # 2. install image and public key and boot it
     task = virtual_machine.create_virtual_machine(context,
-                                                  reserved["torii_port"],
+                                                  reserved["torii_address"],
                                                   reserved["uuid"],
                                                   image_uuid,
                                                   public_key_uuid)
@@ -690,12 +690,12 @@ The state of the virtual machine is shown in `vm_state`:
     ```bash
     ainarictl vm list
 
-    ┌───────────┬─────────────┬─────────┬─────────────────┬────────────┬──────────────────────────────────────┐
-    │ DISK SIZE │ MEMORY SIZE │  NAME   │ NUMBER OF CORES │ PROXY PORT │                 UUID                 │
-    ├───────────┼─────────────┼─────────┼─────────────────┼────────────┼──────────────────────────────────────┤
-    │ 10        │ 2048        │ vm-1    │ 2               │ 10042      │ 2310f0f6-f62f-439a-80c3-0f6ce9ba3bbd │
-    │ 5         │ 1024        │ my-vm   │ 1               │ 10044      │ 943e56bb-c6e4-4716-a26c-f1fd46a45618 │
-    └───────────┴─────────────┴─────────┴─────────────────┴────────────┴──────────────────────────────────────┘
+    ┌───────────┬─────────────┬───────┬─────────────────┬─────────────────────────────────────────────────────────────────────┬──────────────────────────────────────┐
+    │ DISK SIZE │ MEMORY SIZE │  NAME │ NUMBER OF CORES │                            PROXY ADDRESS                            │                 UUID                 │
+    ├───────────┼─────────────┼───────┼─────────────────┼─────────────────────────────────────────────────────────────────────┼──────────────────────────────────────┤
+    │ 10        │ 2048        │ vm-1  │ 2               │ https://2310f0f6-f62f-439a-80c3-0f6ce9ba3bbd.ainari.localhost:10042 │ 2310f0f6-f62f-439a-80c3-0f6ce9ba3bbd │
+    │ 5         │ 1024        │ my-vm │ 1               │ https://943e56bb-c6e4-4716-a26c-f1fd46a45618.ainari.localhost:10042 │ 943e56bb-c6e4-4716-a26c-f1fd46a45618 │
+    └───────────┴─────────────┴───────┴─────────────────┴─────────────────────────────────────────────────────────────────────┴──────────────────────────────────────┘
     ```
 
     The deletion runs in the background:
@@ -730,7 +730,7 @@ The state of the virtual machine is shown in `vm_state`:
     #     "image_uuid": "0fefb138-6077-489a-930c-afad9c5c54bf",
     #     "network_uuid": "1769874d-07e4-4bea-a11f-3ea09caa9ef4",
     #     "internal_ip": "192.168.200.2",
-    #     "torii_port": 10044,
+    #     "torii_address": "https://943e56bb-c6e4-4716-a26c-f1fd46a45618.ainari.localhost:10042",
     #     "created_at": "2026-09-26T20:03:37.596527148Z",
     #     "created_by": "asdf",
     #     "updated_at": "2026-09-26T20:03:41.705820591Z",
@@ -774,11 +774,12 @@ virtual machine keeps all of its resources.
     ```python
     from ainari_sdk import virtual_machine
 
-    torii_port = virtual_machine.get_virtual_machine(context, virtual_machine_uuid)["torii_port"]
+    vm = virtual_machine.get_virtual_machine(context, virtual_machine_uuid)
+    torii_address = vm["torii_address"]
 
-    task = virtual_machine.stop_virtual_machine(context, torii_port, virtual_machine_uuid)
-    task = virtual_machine.start_virtual_machine(context, torii_port, virtual_machine_uuid)
-    task = virtual_machine.reboot_virtual_machine(context, torii_port, virtual_machine_uuid)
+    task = virtual_machine.stop_virtual_machine(context, torii_address, virtual_machine_uuid)
+    task = virtual_machine.start_virtual_machine(context, torii_address, virtual_machine_uuid)
+    task = virtual_machine.reboot_virtual_machine(context, torii_address, virtual_machine_uuid)
     ```
 
 ### Migrate virtual machine
@@ -790,7 +791,7 @@ virtual machine keeps all of its resources.
 A virtual machine can be moved to another sakura-host, for example to empty a host for its
 maintenance. It is a cold migration: the virtual machine is shut down gracefully, its disk is
 transferred directly to the new host and it is booted there again, if it was running before. It
-keeps its UUID, its internal IP, its `torii_port`, its floating IP and its
+keeps its UUID, its internal IP, its `torii_address`, its floating IP and its
 [network filters](#network-filters).
 
 The migration runs in the background. While the virtual machine is moved, its `vm_state` is
@@ -1069,17 +1070,17 @@ the reason is listed in `MESSAGES`.
 
 === "Python-SDK"
 
-    The sakura-host is selected over the `torii_port` of a virtual machine on this host.
+    The sakura-host is selected over the `torii_address` of a virtual machine on this host.
 
     ```python
     from ainari_sdk import task
 
-    task.list_tasks(context, torii_port)    # {"tasks": [...]}
-    task.get_task(context, torii_port, task_uuid)
-    task.abort_task(context, torii_port, task_uuid)
+    task.list_tasks(context, torii_address)    # {"tasks": [...]}
+    task.get_task(context, torii_address, task_uuid)
+    task.abort_task(context, torii_address, task_uuid)
 
     # wait until the task is done and check its result
-    result = task.wait_for_task_finished(context, torii_port, task_uuid)
+    result = task.wait_for_task_finished(context, torii_address, task_uuid)
     if result["state"] != "Finished":
         print(result["messages"])
     ```
@@ -1136,11 +1137,12 @@ end. Only a `READY` snapshot can be restored.
     ```python
     from ainari_sdk import task
 
-    task.create_snapshot_save_task(context, torii_port, virtual_machine_uuid, "my-snapshot")
+    task.create_snapshot_save_task(context, torii_address, virtual_machine_uuid, "my-snapshot")
     # encrypt the snapshot with an already existing secret instead of a new generated one
-    task.create_snapshot_save_task(context, torii_port, virtual_machine_uuid, "my-snapshot",
+    task.create_snapshot_save_task(context, torii_address, virtual_machine_uuid, "my-snapshot",
                                    secret_uuid=secret_uuid)
-    task.create_snapshot_restore_task(context, torii_port, virtual_machine_uuid, snapshot_image_uuid)
+    task.create_snapshot_restore_task(context, torii_address, virtual_machine_uuid,
+                                      snapshot_image_uuid)
     ```
 
 ## Secrets
@@ -1206,10 +1208,14 @@ Secrets are stored encrypted in omamori.
 
 ## Proxies
 
-Every virtual machine gets a proxy-port on the torii automatically, which forwards to its
-sakura-host (the `torii_port` of the virtual machine). The proxies are created and deleted together
-with the virtual machines, so they can only be listed and read. This is done over hanami, because
-the api of torii is only reachable within the cluster.
+Every virtual machine gets a proxy on the torii automatically, which forwards to its sakura-host.
+The proxy has the UUID of its virtual machine, so its address `https://<vm-uuid>.<domain>:<port>`
+shows, which virtual machine it reaches. It is the `torii_address` of the virtual machine.
+All proxies share one port: torii picks the proxy of a connection by the server name of its
+TLS-connection, without terminating it. So the address stays the same, when the virtual machine
+is moved to another sakura-host, and the clients never see the sakura-host itself. The proxies are
+created and deleted together with the virtual machines, so they can only be listed and read. This
+is done over hanami, because the api of torii is only reachable within the cluster.
 
 === "CLI"
 
@@ -1223,12 +1229,12 @@ the api of torii is only reachable within the cluster.
     ```bash
     ainarictl proxy list
 
-    ┌───────┬───────────────────────┬──────────────────────────────────────┬──────────────────────────────────────┐
-    │ PORT  │    TARGET ADDRESS     │                 UUID                 │         VIRTUAL MACHINE UUID         │
-    ├───────┼───────────────────────┼──────────────────────────────────────┼──────────────────────────────────────┤
-    │ 10042 │ http://sakura:11420   │ fb0e6638-b840-48e3-b474-5c7fed4dded9 │ 2310f0f6-f62f-439a-80c3-0f6ce9ba3bbd │
-    │ 10043 │ http://sakura-2:11420 │ 70871149-dec8-4911-b2cd-4a343f8c4614 │ 070af3fd-1a37-4546-b3e2-035e03b3bd65 │
-    └───────┴───────────────────────┴──────────────────────────────────────┴──────────────────────────────────────┘
+    ┌─────────────────────────────────────────────────────────────────────┬───────────────────────┬──────────────────────────────────────┬──────────────────────────────────────┐
+    │                               ADDRESS                               │     TARGET ADDRESS    │                 UUID                 │         VIRTUAL MACHINE UUID         │
+    ├─────────────────────────────────────────────────────────────────────┼───────────────────────┼──────────────────────────────────────┼──────────────────────────────────────┤
+    │ https://2310f0f6-f62f-439a-80c3-0f6ce9ba3bbd.ainari.localhost:10042 │ https://sakura:9443   │ 2310f0f6-f62f-439a-80c3-0f6ce9ba3bbd │ 2310f0f6-f62f-439a-80c3-0f6ce9ba3bbd │
+    │ https://070af3fd-1a37-4546-b3e2-035e03b3bd65.ainari.localhost:10042 │ https://sakura-2:9443 │ 070af3fd-1a37-4546-b3e2-035e03b3bd65 │ 070af3fd-1a37-4546-b3e2-035e03b3bd65 │
+    └─────────────────────────────────────────────────────────────────────┴───────────────────────┴──────────────────────────────────────┴──────────────────────────────────────┘
     ```
 
 === "Python-SDK"

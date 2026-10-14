@@ -5,12 +5,13 @@ development and testing only. Every one of them is described on its own page, so
 read without the others:
 
 1. [Docker-compose setup](docker_compose_setup.md) (`make up local`): all components as
-   docker-containers on the host, plain http
+   docker-containers on the host, plain http, only the proxies of torii over https
 2. [Kind setup](kind_setup.md) (`make up kind`): the operator on a kubernetes-cluster of one
    node in docker, https
 3. [Vagrant setup](vagrant_setup.md) (`make up vagrant`): the operator on a kubernetes-cluster
    of nine virtual machines with three replicas of the control-components, https
-4. [The CA of the kind- and the vagrant-setup](https_ca.md):
+4. [The CAs of the local setups](https_ca.md): has to be trusted once for each setup, so the
+   browser and the clients accept its certificates
 
 All of them use the same floating ip-addresses (`10.0.0.0/24`), so only one of them can run at a
 time. Every page of a setup also describes, how to run the setup out of a container, which brings
@@ -30,9 +31,10 @@ all required tools, for a test without installing them on the host.
 | Database of the control-components  | sqlite-files in the containers        | mysql-server within the cluster                 | mysql-server on its own virtual machine                 |
 | Replicas of the control-components  | 1                                     | 1                                               | 3, one on each management-machine                       |
 | Placement of the components         | all on the host                       | all on the one node                             | on the virtual machines with their label                |
-| Protocol of the api                 | http                                  | https                                           | https                                                   |
-| Certificates                        | none                                  | own CA, `temporary_files/kind`                  | own CA, `temporary_files/vagrant`                       |
-| Address of the api                  | `http://127.0.0.1:<port>`             | `https://127.0.0.1:<port>`                      | `https://192.168.56.10:<port>`, proxy-ports on `.11`    |
+| Protocol of the api                 | http, the proxies of torii https      | https                                           | https                                                   |
+| Certificates                        | own CA, `temporary_files/local`, only for the proxies | own CA, `temporary_files/kind`  | own CA, `temporary_files/vagrant`                       |
+| Address of the api                  | `http://127.0.0.1:<port>`             | `https://127.0.0.1:<port>`                      | `https://192.168.56.10:<port>`                          |
+| Address of the proxies of torii     | `https://<vm-uuid>.ainari.localhost:10042` | `https://<vm-uuid>.ainari.localhost:10042` | `https://<vm-uuid>.192-168-56-11.sslip.io:10042` |
 | Dashboard                           | has to be deployed manually           | yes, port 11422                                 | yes, port 11422                                         |
 | Network between the gateways        | one docker-bridge (shared link)       | routed pod-network of kind                      | flannel (vxlan) between the virtual machines            |
 | Uplink of the edge-gateway          | `veth-host` on the host               | `veth-kind` on the host                         | `veth-uplink` on the virtual machine `ainari-torii`     |
@@ -40,7 +42,7 @@ all required tools, for a test without installing them on the host.
 | NAT of the virtual machines         | on the host                           | on the host                                     | on the virtual machine `ainari-torii`                   |
 | Virtualization of the sakura-hosts  | kvm of the host                       | kvm of the host                                 | nested kvm within the virtual machines                  |
 | Needs sudo for                      | the whole setup-script                | the veth-pair and the NAT-rules                 | only the route on the host                              |
-| Tools on the host                   | docker compose                        | kind, kubectl, openssl                          | vagrant-libvirt, ansible, openssl                       |
+| Tools on the host                   | docker compose, openssl               | kind, kubectl, openssl                          | vagrant-libvirt, ansible, openssl                       |
 | Host-sockets for the tools-container | docker                               | docker                                          | docker, libvirt                                         |
 | eBPF-support of the host-kernel     | required                              | required                                        | not required                                            |
 | Resources                           | smallest                              | small                                           | about 34 GiB memory, 40 GiB disk                        |

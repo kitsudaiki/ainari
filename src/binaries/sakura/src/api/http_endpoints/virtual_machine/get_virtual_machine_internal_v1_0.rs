@@ -55,7 +55,7 @@ pub async fn get_virtual_machine_internal(
         name: virtual_machine_data.name,
         network_uuid: virtual_machine_data.network_uuid,
         internal_ip: virtual_machine_data.internal_ip,
-        torii_port: 0,
+        torii_address: String::new(),
         created_by: virtual_machine_data.created_by,
         created_at: virtual_machine_data.created_at,
         updated_by: virtual_machine_data.updated_by,

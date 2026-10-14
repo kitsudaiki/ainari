@@ -18,10 +18,13 @@ file_path = "/etc/ainari/torii_db"
 [miko]
 address = "http://miko:11417"
 
-[ports]
-# port-range for the proxies, which make the sakura-hosts reachable from the outside
-min_port = 10042
-max_port = 10053
+[proxy]
+# The proxies make the external api of the sakura-hosts reachable from the outside. Every proxy is
+# reachable as https://<vm-uuid>.<domain>:<port>. All proxies share this port, the proxy of a
+# connection is picked by the server name of its TLS ClientHello. *.localhost resolves to
+# 127.0.0.1 without any DNS-entry.
+domain = "ainari.localhost"
+port = 10042
 
 [network]
 overlay_iface = "veth-gw"

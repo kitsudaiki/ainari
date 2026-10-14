@@ -29,8 +29,7 @@ import (
 // snapshot. Run `sync` inside the virtual machine right before creating the snapshot. With a
 // secretUuid, the snapshot is encrypted with this already existing secret, instead of a new
 // generated secret. An empty secretUuid generates a new secret.
-func CreateSnapshotSaveTask(context AccessContext, toriiPort int, name, virtual_machineUuid, secretUuid string) (map[string]interface{}, error) {
-	address := fmt.Sprintf("%s:%d", context.ToriiBaseAddress, toriiPort)
+func CreateSnapshotSaveTask(context AccessContext, toriiAddress string, name, virtual_machineUuid, secretUuid string) (map[string]interface{}, error) {
 	path := fmt.Sprintf("v1alpha/virtual_machine/%s/snapshot_save", virtual_machineUuid)
 	jsonBody := map[string]interface{}{
 		"name": name,
@@ -38,40 +37,36 @@ func CreateSnapshotSaveTask(context AccessContext, toriiPort int, name, virtual_
 	if secretUuid != "" {
 		jsonBody["secret_uuid"] = secretUuid
 	}
-	return SendPost(context, address, path, jsonBody)
+	return SendPost(context, toriiAddress, path, jsonBody)
 }
 
 // CreateSnapshotRestoreTask resets the root-disk of a virtual machine to an image, which must be a
 // snapshot.
-func CreateSnapshotRestoreTask(context AccessContext, toriiPort int, virtual_machineUuid, imageUuid string) (map[string]interface{}, error) {
-	address := fmt.Sprintf("%s:%d", context.ToriiBaseAddress, toriiPort)
+func CreateSnapshotRestoreTask(context AccessContext, toriiAddress string, virtual_machineUuid, imageUuid string) (map[string]interface{}, error) {
 	path := fmt.Sprintf("v1alpha/virtual_machine/%s/snapshot_restore", virtual_machineUuid)
 	jsonBody := map[string]interface{}{
 		"image_uuid": imageUuid,
 	}
-	return SendPost(context, address, path, jsonBody)
+	return SendPost(context, toriiAddress, path, jsonBody)
 }
 
 // GetTask reads a single task. The tasks are not bound to a virtual machine anymore, but the
-// torii-port still selects the sakura-host, which holds the task.
-func GetTask(context AccessContext, toriiPort int, taskUuid string) (map[string]interface{}, error) {
-	address := fmt.Sprintf("%s:%d", context.ToriiBaseAddress, toriiPort)
+// torii-address of a virtual machine still selects the sakura-host, which holds the task.
+func GetTask(context AccessContext, toriiAddress string, taskUuid string) (map[string]interface{}, error) {
 	path := fmt.Sprintf("v1alpha/task/%s", taskUuid)
 	vars := map[string]interface{}{}
-	return SendGet(context, address, path, vars)
+	return SendGet(context, toriiAddress, path, vars)
 }
 
-// ListTask lists all tasks of the sakura-host behind the given torii-port.
-func ListTask(context AccessContext, toriiPort int) (map[string]interface{}, error) {
-	address := fmt.Sprintf("%s:%d", context.ToriiBaseAddress, toriiPort)
+// ListTask lists all tasks of the sakura-host behind the given torii-address.
+func ListTask(context AccessContext, toriiAddress string) (map[string]interface{}, error) {
 	path := "v1alpha/task"
 	vars := map[string]interface{}{}
-	return SendGet(context, address, path, vars)
+	return SendGet(context, toriiAddress, path, vars)
 }
 
-func AbortTask(context AccessContext, toriiPort int, taskUuid string) (map[string]interface{}, error) {
-	address := fmt.Sprintf("%s:%d", context.ToriiBaseAddress, toriiPort)
+func AbortTask(context AccessContext, toriiAddress string, taskUuid string) (map[string]interface{}, error) {
 	path := fmt.Sprintf("v1alpha/task/%s/abort", taskUuid)
 	vars := map[string]interface{}{}
-	return SendPut(context, address, path, vars)
+	return SendPut(context, toriiAddress, path, vars)
 }

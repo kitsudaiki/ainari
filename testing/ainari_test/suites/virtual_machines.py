@@ -88,11 +88,11 @@ def reserve(ctx):
             "name": name,
             "uuid": result["uuid"],
             "internal_ip": result["internal_ip"],
-            "torii_port": result["torii_port"],
+            "torii_address": result["torii_address"],
             "host": host_uuid,
         })
         ctx.log(f"{name}: {result['uuid']} ({result['internal_ip']}, "
-                f"proxy-port {result['torii_port']}, host {host_uuid})")
+                f"proxy {result['torii_address']}, host {host_uuid})")
 
         # the resources are only allocated on the requested host
         check_equal(hosts.usage_changes(before, hosts.usage_by_host(ctx)),
@@ -106,8 +106,8 @@ def reserve(ctx):
               f"internal ip {entry['internal_ip']} is not within {subnet}")
     check_equal(len({entry["internal_ip"] for entry in reserved}), len(reserved),
                 "number of unique internal ip-addresses")
-    check_equal(len({entry["torii_port"] for entry in reserved}), len(reserved),
-                "number of unique proxy-ports")
+    check_equal(len({entry["torii_address"] for entry in reserved}), len(reserved),
+                "number of unique proxy-addresses")
 
 
 @suite.test("reservation allocates host-resources",
@@ -180,13 +180,13 @@ def unknown_vm_type(ctx):
 def create(ctx):
     for entry in ctx.state["reserved"]:
         result = virtual_machine.create_virtual_machine(ctx.api,
-                                                        entry["torii_port"],
+                                                        entry["torii_address"],
                                                         entry["uuid"],
                                                         ctx.state["image"],
                                                         ctx.state["public_key"])
         entry["create_task"] = result["uuid"]
         ctx.state.setdefault("tasks", []).append(
-            (entry["torii_port"], result["uuid"], "VirtualMachineCreate"))
+            (entry["torii_address"], result["uuid"], "VirtualMachineCreate"))
 
     # the virtual machines are installed and booted in parallel, so they are awaited together
     for entry in ctx.state["reserved"]:
@@ -209,7 +209,7 @@ def get(ctx):
         check_equal(result["network_uuid"], ctx.state["network"], f"network of {what}")
         check_equal(result["image_uuid"], ctx.state["image"], f"image of {what}")
         check_equal(result["internal_ip"], entry["internal_ip"], f"internal ip of {what}")
-        check_equal(result["torii_port"], entry["torii_port"], f"proxy-port of {what}")
+        check_equal(result["torii_address"], entry["torii_address"], f"proxy-address of {what}")
 
 
 @suite.test("list and count virtual machines", requires=("virtual_machines",))
@@ -218,8 +218,8 @@ def list_and_count(ctx):
               for entry in virtual_machine.list_virtual_machines(ctx.api)["virtual_machines"]}
     for entry in ctx.state["virtual_machines"]:
         check_in(entry["uuid"], listed, "virtual machine in list")
-        check_equal(listed[entry["uuid"]]["proxy_port"], entry["torii_port"],
-                    f"proxy-port of {entry['name']} in list")
+        check_equal(listed[entry["uuid"]]["proxy_address"], entry["torii_address"],
+                    f"proxy-address of {entry['name']} in list")
     count = virtual_machine.get_virtual_machine_count(ctx.api)["number_of_items"]
     check(count >= len(ctx.state["virtual_machines"]),
           f"virtual-machine-count is {count}")

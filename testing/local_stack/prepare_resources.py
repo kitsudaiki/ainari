@@ -179,13 +179,13 @@ def reserve_and_create_virtual_machine(context,
         "name": name,
         "uuid": reserved["uuid"],
         "internal_ip": reserved["internal_ip"],
-        "torii_port": reserved["torii_port"],
+        "torii_address": reserved["torii_address"],
     }
     log(f"    {name}: {virtual_machine_data['uuid']} "
-        f"({virtual_machine_data['internal_ip']}, proxy-port {virtual_machine_data['torii_port']})")
+        f"({virtual_machine_data['internal_ip']}, proxy {virtual_machine_data['torii_address']})")
 
     virtual_machine.create_virtual_machine(context,
-                                           virtual_machine_data["torii_port"],
+                                           virtual_machine_data["torii_address"],
                                            virtual_machine_data["uuid"],
                                            image_uuid,
                                            public_key_uuid)

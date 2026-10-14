@@ -21,7 +21,7 @@ from ainari_sdk import common
 from ainari_sdk import proxy
 from ainari_sdk import task
 
-from ainari_test.checks import check_equal, check_in, check_keys
+from ainari_test.checks import check, check_equal, check_in, check_keys
 from ainari_test.framework import Suite
 
 suite = Suite("proxies", "proxies of the torii towards the sakura-hosts",
@@ -35,12 +35,17 @@ def list_proxies(ctx):
     for entry in ctx.state["reserved"]:
         check_in(entry["uuid"], by_vm, f"proxy of {entry['name']}")
         found = by_vm[entry["uuid"]]
-        check_equal(found["port"], entry["torii_port"], f"port of the proxy of {entry['name']}")
+        check_equal(found["address"], entry["torii_address"],
+                    f"address of the proxy of {entry['name']}")
+        # the proxy has the uuid of its virtual machine, so its address names the virtual machine
+        check_equal(found["uuid"], entry["uuid"], f"uuid of the proxy of {entry['name']}")
+        check(f"://{entry['uuid']}." in found["address"],
+              f"address {found['address']} doesn't name {entry['name']}")
         entry["proxy_uuid"] = found["uuid"]
-        ctx.log(f"{entry['name']}: port {found['port']} -> {found['target_address']}")
+        ctx.log(f"{entry['name']}: {found['address']} -> {found['target_address']}")
 
-    ports = [entry["port"] for entry in proxies]
-    check_equal(len(set(ports)), len(ports), "number of unique proxy-ports")
+    addresses = [entry["address"] for entry in proxies]
+    check_equal(len(set(addresses)), len(addresses), "number of unique proxy-addresses")
 
 
 @suite.test("get proxies", requires=("reserved",))
@@ -50,13 +55,13 @@ def get_proxies(ctx):
         result = proxy.get_proxy(ctx.api, entry["proxy_uuid"])
         check_equal(result["virtual_machine_uuid"], entry["uuid"],
                     "virtual machine of the proxy")
-        check_equal(result["port"], entry["torii_port"], "port of the proxy")
+        check_equal(result["address"], entry["torii_address"], "address of the proxy")
 
 
 @suite.test("sakura-hosts are reachable over the proxies", requires=("reserved",))
 def reachable_over_proxy(ctx):
     for entry in ctx.state["reserved"]:
-        address = f"{ctx.api.torii_base_address}:{entry['torii_port']}"
+        address = entry["torii_address"]
         result = common.get_version(ctx.api, address)
         check_keys(result, ["version"], f"version of sakura behind {address}")
         ctx.log(f"{address}: sakura {result['version']}")
@@ -65,6 +70,6 @@ def reachable_over_proxy(ctx):
 @suite.test("tasks are listed over the proxies", requires=("virtual_machines",))
 def tasks_over_proxy(ctx):
     for entry in ctx.state["virtual_machines"]:
-        tasks = task.list_tasks(ctx.api, entry["torii_port"])["tasks"]
+        tasks = task.list_tasks(ctx.api, entry["torii_address"])["tasks"]
         check_in(entry["create_task"], [item["uuid"] for item in tasks],
                  f"create-task of {entry['name']} in the task-list of its host")

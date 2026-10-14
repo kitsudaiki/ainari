@@ -45,9 +45,7 @@
                         <td>{{ virtualMachine.uuid }}</td>
                         <td>{{ virtualMachine.name }}</td>
                         <td class="address-column">
-                            {{ torii_base_address }}:{{
-                                virtualMachine.proxy_port
-                            }}
+                            {{ virtualMachine.proxy_address }}
                         </td>
                         <td class="resource-column">
                             {{ formatResource(virtualMachine.number_of_cores) }}
@@ -219,7 +217,7 @@
         <SnapshotSaveModal
             v-if="showSnapshotSaveModal"
             :virtual_machine_uuid="snapshotVirtualMachineUuid"
-            :torii_port="snapshotToriiPort"
+            :torii_address="snapshotToriiAddress"
             :icons="icons"
             @accept="closeSnapshotModals"
             @cancel="closeSnapshotModals"
@@ -228,7 +226,7 @@
         <SnapshotRestoreModal
             v-if="showSnapshotRestoreModal"
             :virtual_machine_uuid="snapshotVirtualMachineUuid"
-            :torii_port="snapshotToriiPort"
+            :torii_address="snapshotToriiAddress"
             :icons="icons"
             @accept="closeSnapshotModals"
             @cancel="closeSnapshotModals"
@@ -261,7 +259,6 @@ import NoEntries from "@/components/no_entries.vue";
 
 const errorPopupMsg = ref<string>("");
 const virtualMachines = ref<VirtualMachineBasicResp[]>([]);
-const torii_base_address = ref<string | null>("");
 const showCreateModal = ref(false);
 const showInfoModal = ref(false);
 const showDeleteModal = ref(false);
@@ -276,8 +273,8 @@ const isAdmin = getAuthContext().is_admin === "true";
 const showSnapshotSaveModal = ref(false);
 const showSnapshotRestoreModal = ref(false);
 const snapshotVirtualMachineUuid = ref<string | null>(null);
-// the torii-port of the virtual-machine, which is needed to reach its sakura
-const snapshotToriiPort = ref<number>(0);
+// the torii-address of the virtual-machine, which is needed to reach its sakura
+const snapshotToriiAddress = ref<string>("");
 
 // State of each virtual machine, shown as traffic-light in the table. "pending"
 // is only local and shows, that a start-, stop- or reboot-task is not finished yet.
@@ -308,7 +305,7 @@ const vmStates = ref<Record<string, VmState>>({});
 const vmStateValues = ref<Record<string, VirtualMachineState>>({});
 // task of the last start-, stop- or reboot-action of a virtual machine, which
 // is followed until it is finished
-const pendingPowerTasks: Record<string, { toriiPort: number; taskUuid: string }> =
+const pendingPowerTasks: Record<string, { toriiAddress: string; taskUuid: string }> =
     {};
 // migrations, which were started here. A virtual machine is only frozen in the
 // state MIGRATING, after the migration started on its host, so it is shown as
@@ -352,7 +349,6 @@ function formatMemory(mib: number): string {
 
 async function fetchVirtualMachines() {
     try {
-        torii_base_address.value = getAuthContext().torii_base_address;
         virtualMachines.value = await hanami.listVirtualMachines();
     } catch (err) {
         errorPopupMsg.value = handleAxiosError(
@@ -389,7 +385,7 @@ async function fetchVirtualMachineState(uuid: string): Promise<VmState> {
     if (pendingTask) {
         try {
             const task = await sakura.getTask(
-                pendingTask.toriiPort,
+                pendingTask.toriiAddress,
                 uuid,
                 pendingTask.taskUuid,
             );
@@ -559,7 +555,7 @@ function acceptMigrateModal(virtualMachineUuid: string) {
 type PowerAction = "start" | "stop" | "reboot";
 const powerFunctions: Record<
     PowerAction,
-    (toriiPort: number, virtualMachineUuid: string) => Promise<TaskResp>
+    (toriiAddress: string, virtualMachineUuid: string) => Promise<TaskResp>
 > = {
     start: sakura.startVirtualMachine,
     stop: sakura.stopVirtualMachine,
@@ -567,7 +563,7 @@ const powerFunctions: Record<
 };
 
 /**
- * The sakura is only reachable through the torii, so the port of the
+ * The sakura is only reachable through the torii, so the address of the
  * virtual-machine is resolved first. The task runs in the background and is
  * followed by the state-polling, until it is finished.
  */
@@ -579,11 +575,11 @@ async function changePowerState(
     try {
         const resp = await hanami.getVirtualMachine(virtualMachine.uuid);
         const task = await powerFunctions[action](
-            resp.torii_port,
+            resp.torii_address,
             virtualMachine.uuid,
         );
         pendingPowerTasks[virtualMachine.uuid] = {
-            toriiPort: resp.torii_port,
+            toriiAddress: resp.torii_address,
             taskUuid: task.uuid,
         };
         vmStates.value[virtualMachine.uuid] = "pending";
@@ -599,7 +595,7 @@ async function changePowerState(
 // Snapshot modals, which both create a new task on the virtual machine
 //=============================================================================
 /**
- * The sakura is only reachable through the torii, so the port of the
+ * The sakura is only reachable through the torii, so the address of the
  * virtual-machine has to be resolved, before a snapshot modal can be shown.
  */
 async function prepareSnapshotModal(
@@ -608,7 +604,7 @@ async function prepareSnapshotModal(
     openDropdown.value = null;
     try {
         const resp = await hanami.getVirtualMachine(virtualMachine.uuid);
-        snapshotToriiPort.value = resp.torii_port;
+        snapshotToriiAddress.value = resp.torii_address;
     } catch (err) {
         errorPopupMsg.value = handleAxiosError(
             err,
@@ -635,7 +631,7 @@ function closeSnapshotModals() {
     showSnapshotSaveModal.value = false;
     showSnapshotRestoreModal.value = false;
     snapshotVirtualMachineUuid.value = null;
-    snapshotToriiPort.value = 0;
+    snapshotToriiAddress.value = "";
 }
 
 //=============================================================================

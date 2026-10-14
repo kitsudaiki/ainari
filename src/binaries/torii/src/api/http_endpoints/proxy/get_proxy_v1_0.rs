@@ -17,6 +17,7 @@ use actix_web::web::Path;
 use apistos::api_operation;
 use uuid::Uuid;
 
+use crate::core::proxy_handler::proxy_conf;
 use crate::database::proxy_table;
 
 use ainari_api::common_functions::*;
@@ -39,12 +40,14 @@ pub async fn get_proxy(
 ) -> Result<Json<ProxyResp>, ErrorResponse> {
     let proxy_data = proxy_table::get_proxy(&proxy_uuid, &context)
         .map_err(|e| map_db_uuid_get_delete_error("proxy", &proxy_uuid, e, Some(&context)))?;
+    let proxy_conf =
+        proxy_conf().map_err(|e| map_ainari_error_to_api_response(e, Some(&context)))?;
 
     let virtual_machine_uuid = proxy_data.virtual_machine_uuid;
 
     let resp = ProxyResp {
         uuid: *proxy_uuid,
-        port: proxy_data.port as u16,
+        address: proxy_conf.address(&proxy_uuid),
         target_address: proxy_data.target_address,
         virtual_machine_uuid,
         created_by: proxy_data.created_by,

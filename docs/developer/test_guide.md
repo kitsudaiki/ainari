@@ -70,7 +70,7 @@ run was aborted.
 | `resources`        | public key upload/get/list plus an invalid key, image upload/get/list/count incl. file type, size and status, network, secrets |
 | `host_isolation`   | isolate an unused sakura-host, normal virtual machine avoids it, isolated virtual machine binds it to the project, change of a host in use rejected, deleting the last virtual machine releases it, unknown host → 404 |
 | `virtual_machines` | reserve, host-resources allocated, oversized virtual machine rejected, create → `RUNNING`, get/list/count |
-| `proxies`          | list/get proxies, sakura reachable through each proxy-port, tasks listed through the proxy    |
+| `proxies`          | list/get proxies, sakura reachable through each proxy-address, tasks listed through the proxy |
 | `floating_ips`     | create+attach and attach separately, get/list, duplicate/out-of-range rejected, detach and re-attach |
 | `ssh`              | ssh into each virtual machine, checks number of cores, memory, disk-size, internal ip, writable root-filesystem |
 | `networking`       | ping and tcp between the virtual machines, default-route, a detached floating ip stops answering, swapping floating ip-addresses between virtual machines (checked via machine-id) |

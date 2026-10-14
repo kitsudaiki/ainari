@@ -32,7 +32,7 @@ use crate::core::floating_ip::add_floating_ip;
 use crate::core::interface::{configure_interface, register_tap};
 use crate::core::mls_key_exchange::restore_network_keys;
 use crate::core::models::Route;
-use crate::core::proxy_handler::PROXY_HANDLER;
+use crate::core::proxy_handler::{PROXY_HANDLER, start_proxy_listener};
 use crate::core::routing::{add_route, update_route};
 use crate::database::{
     floating_ip_table, network_filter_table, network_interface_table, route_table, tap_table,
@@ -42,7 +42,7 @@ use ainari_api_structs::network_interface_structs::*;
 use ainari_api_structs::route_structs::RouteReq;
 use ainari_common::error::AinariError;
 
-/// Restarts all proxies and re-programs all interfaces, TAP devices, routes, packet filters and
+/// Restores all proxies, starts their listener and re-programs all interfaces, TAP devices, routes, packet filters and
 /// floating IPs, which are persisted in the database, into the datapath.
 ///
 /// # Returns
@@ -54,9 +54,10 @@ use ainari_common::error::AinariError;
 pub async fn restore_gateway_state() -> Result<(), AinariError> {
     {
         let mut proxy_handler = PROXY_HANDLER.write().await;
-        proxy_handler.fill_proxy_handler().await?;
+        proxy_handler.fill_proxy_handler()?;
         log::info!("Restored {} proxy(s)", proxy_handler.proxys.len());
     }
+    start_proxy_listener().await?;
 
     let db_error = |obj_type: &str, e: diesel::result::Error| {
         AinariError::internal(format!(

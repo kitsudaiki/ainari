@@ -34,7 +34,9 @@ var (
 	snapshotSecretUuid string
 )
 
-func getToriiPort(context ainari_sdk.AccessContext, virtual_machineUuid string) int {
+// getToriiAddress returns the address of the proxy, over which the sakura-host of a virtual
+// machine is reachable.
+func getToriiAddress(context ainari_sdk.AccessContext, virtual_machineUuid string) string {
 
 	virtual_machine_data, err := ainari_sdk.GetVirtualMachine(context, virtual_machineUuid)
 	if err != nil {
@@ -42,19 +44,19 @@ func getToriiPort(context ainari_sdk.AccessContext, virtual_machineUuid string) 
 		os.Exit(1)
 	}
 
-	value, ok := virtual_machine_data["torii_port"]
+	value, ok := virtual_machine_data["torii_address"]
 	if !ok {
-		fmt.Println("key 'torii_port' not found in virtual_machine-output")
+		fmt.Println("key 'torii_address' not found in virtual_machine-output")
 		os.Exit(1)
 	}
 
-	toriiPort, ok := value.(float64) // Golang is stupid! Why beomes a 'u16' and 'float64' ?!?!?!
+	toriiAddress, ok := value.(string)
 	if !ok {
-		fmt.Println("toriiPort is not an int")
+		fmt.Println("torii_address is not a string")
 		os.Exit(1)
 	}
 
-	return int(toriiPort)
+	return toriiAddress
 }
 
 var createSnapshotSaveTaskCmd = &cobra.Command{
@@ -76,9 +78,9 @@ new generated secret.`,
 			os.Exit(1)
 		}
 		virtual_machineUuid := args[0]
-		toriiPort := getToriiPort(context, virtual_machineUuid)
+		toriiAddress := getToriiAddress(context, virtual_machineUuid)
 		snapshotName := args[1]
-		content, err := ainari_sdk.CreateSnapshotSaveTask(context, toriiPort, snapshotName, virtual_machineUuid, snapshotSecretUuid)
+		content, err := ainari_sdk.CreateSnapshotSaveTask(context, toriiAddress, snapshotName, virtual_machineUuid, snapshotSecretUuid)
 		if err == nil {
 			ainarictl_common.PrintSingle(content)
 		} else {
@@ -103,8 +105,8 @@ while its root-disk is replaced, and booted again afterwards.`,
 			os.Exit(1)
 		}
 		virtual_machineUuid := args[0]
-		toriiPort := getToriiPort(context, virtual_machineUuid)
-		content, err := ainari_sdk.CreateSnapshotRestoreTask(context, toriiPort, virtual_machineUuid, snapshotImageUuid)
+		toriiAddress := getToriiAddress(context, virtual_machineUuid)
+		content, err := ainari_sdk.CreateSnapshotRestoreTask(context, toriiAddress, virtual_machineUuid, snapshotImageUuid)
 		if err == nil {
 			ainarictl_common.PrintSingle(content)
 		} else {
@@ -127,9 +129,9 @@ var getTaskCmd = &cobra.Command{
 			os.Exit(1)
 		}
 		virtual_machineUuid := args[0]
-		toriiPort := getToriiPort(context, virtual_machineUuid)
+		toriiAddress := getToriiAddress(context, virtual_machineUuid)
 		taskUuid := args[1]
-		content, err := ainari_sdk.GetTask(context, toriiPort, taskUuid)
+		content, err := ainari_sdk.GetTask(context, toriiAddress, taskUuid)
 		if err == nil {
 			ainarictl_common.PrintSingle(content)
 		} else {
@@ -152,8 +154,8 @@ var listTaskCmd = &cobra.Command{
 			os.Exit(1)
 		}
 		virtual_machineUuid := args[0]
-		toriiPort := getToriiPort(context, virtual_machineUuid)
-		content, err := ainari_sdk.ListTask(context, toriiPort)
+		toriiAddress := getToriiAddress(context, virtual_machineUuid)
+		content, err := ainari_sdk.ListTask(context, toriiAddress)
 		if err == nil {
 			ainarictl_common.PrintList(content["tasks"].([]interface{}))
 		} else {
@@ -176,9 +178,9 @@ var abortTaskCmd = &cobra.Command{
 			os.Exit(1)
 		}
 		virtual_machineUuid := args[0]
-		toriiPort := getToriiPort(context, virtual_machineUuid)
+		toriiAddress := getToriiAddress(context, virtual_machineUuid)
 		taskUuid := args[1]
-		content, err := ainari_sdk.AbortTask(context, toriiPort, taskUuid)
+		content, err := ainari_sdk.AbortTask(context, toriiAddress, taskUuid)
 		if err == nil {
 			ainarictl_common.PrintSingle(content)
 		} else {

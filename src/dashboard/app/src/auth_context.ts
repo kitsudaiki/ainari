@@ -26,7 +26,6 @@ import { getConfig } from "./config";
  * @property {string | null} hanami_address - Address for the Hanami service
  * @property {string | null} ryokan_address - Address for the Ryokan service
  * @property {string | null} torii_address - Full address for the Torii service (including port)
- * @property {string | null} torii_base_address - Base address for the Torii service (without port)
  * @property {string | null} omamori_address - Address for the Omamori service
  * @property {string | null} omikuji_address - Address for the Omikuji service, null if it is not deployed
  */
@@ -38,7 +37,6 @@ export interface AuthContext {
     hanami_address: string | null;
     ryokan_address: string | null;
     torii_address: string | null;
-    torii_base_address: string | null;
     omamori_address: string | null;
     omikuji_address: string | null;
 }
@@ -136,7 +134,6 @@ export function getExpireTimesamp(token: string): number | null {
  * This function creates an Axios instance to fetch service endpoints from the API.
  * It extracts admin status and expiration time from the JWT token, then stores
  * all this information in the browser's localStorage under the key "ainari_authContext".
- * The torii_base_address is derived from the torii_address by removing the port number.
  */
 export async function createAuthContext(token: string) {
     const { apiUrl } = getConfig();
@@ -160,27 +157,10 @@ export async function createAuthContext(token: string) {
         hanami_address: endpoint_resp.data.hanami.public_address,
         ryokan_address: endpoint_resp.data.ryokan.public_address,
         torii_address: endpoint_resp.data.torii.public_address,
-        torii_base_address: null, // This will be set below
         omamori_address: endpoint_resp.data.omamori.public_address,
         // omikuji is optional, so a deployment without it has no or an empty endpoint for it
         omikuji_address: endpoint_resp.data.omikuji?.public_address || null,
     };
-
-    // Extract the base address from the Torii address (remove port number)
-    // This is useful for constructing URLs without specifying a port
-    if (authContext.torii_address) {
-        const toriiParts = authContext.torii_address.split(":");
-        if (toriiParts.length > 2) {
-            // Remove the port and any path/query parameters
-            authContext.torii_base_address = toriiParts[0] + ":" + toriiParts[1];
-        } else {
-            // If there's no port, use the full address as the base
-            authContext.torii_base_address = authContext.torii_address;
-        }
-    } else {
-        // Handle the case where torii_address is null
-        authContext.torii_base_address = null;
-    }
 
     // Store the complete auth context in localStorage as a JSON string
     localStorage.setItem("ainari_authContext", JSON.stringify(authContext));
@@ -209,7 +189,6 @@ export function getAuthContext(): AuthContext {
         hanami_address: null,
         ryokan_address: null,
         torii_address: null,
-        torii_base_address: null,
         omamori_address: null,
         omikuji_address: null,
         ...(stored ? JSON.parse(stored) : {}), // Spread the parsed stored values
