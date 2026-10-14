@@ -29,9 +29,9 @@ BOOT_ID = "cat /proc/sys/kernel/random/boot_id"
 
 
 def run_task(ctx, entry: dict, function, task_type: str) -> dict:
-    result = function(ctx.api, entry["torii_port"], entry["uuid"])
-    ctx.state.setdefault("tasks", []).append((entry["torii_port"], result["uuid"], task_type))
-    return wait_for_task(ctx.api, entry["torii_port"], result["uuid"], ctx.config.task_timeout)
+    result = function(ctx.api, entry["torii_address"], entry["uuid"])
+    ctx.state.setdefault("tasks", []).append((entry["torii_address"], result["uuid"], task_type))
+    return wait_for_task(ctx.api, entry["torii_address"], result["uuid"], ctx.config.task_timeout)
 
 
 def expect_new_boot(ctx, entry: dict, old_boot_id: str) -> str:

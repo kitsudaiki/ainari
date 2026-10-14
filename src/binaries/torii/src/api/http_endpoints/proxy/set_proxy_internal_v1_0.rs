@@ -15,10 +15,8 @@
 use actix_web::web::Json;
 use apistos::actix::CreatedJson;
 use apistos::api_operation;
-use uuid::Uuid;
 use validator::Validate;
 
-use crate::config;
 use crate::core::proxy_handler::*;
 use crate::database::proxy_table;
 
@@ -32,8 +30,10 @@ use ainari_api_structs::user_context::UserContext;
     summary = "Register new proxy",
     description = r###"Register a new proxy.
 
-A free port from the configured port-range is selected for it and the proxy is
-added to the running proxy-handler."###,
+The proxy gets the UUID of its virtual_machine, so it is reachable under the address
+`https://<virtual_machine-uuid>.<domain>:<port>` and every virtual_machine has at most one proxy.
+All proxies share one port and the proxy of a connection is picked by the server
+name of its TLS ClientHello, so the TLS-connection reaches the target unchanged."###,
     error_code = 400,
     error_code = 401,
     error_code = 404,
@@ -48,15 +48,23 @@ pub async fn register_proxy_internal(
     body.validate()
         .map_err(|e| ErrorResponse::BadRequest(format!("Invalid input: {e}")))?;
 
-    let proxy_uuid = Uuid::new_v4();
-
-    let free_port =
-        proxy_table::get_free_proxy(config::CONFIG.ports.min_port, config::CONFIG.ports.max_port)?;
+    let proxy_conf =
+        proxy_conf().map_err(|e| map_ainari_error_to_api_response(e, Some(&context)))?;
+    // the proxy has the uuid of its virtual_machine, so the user sees in the address of the
+    // proxy, which virtual_machine it reaches
+    let proxy_uuid = body.virtual_machine_uuid;
+    // proxies are only marked as deleted, so their uuid stays in use
+    let uuid_in_use = proxy_table::proxy_uuid_in_use(&proxy_uuid)
+        .map_err(|e| map_db_list_error("proxys", e, Some(&context)))?;
+    if uuid_in_use {
+        return Err(ErrorResponse::Conflict(format!(
+            "The virtual_machine '{proxy_uuid}' already has a proxy."
+        )));
+    }
 
     // add new proxy to database
     proxy_table::add_new_proxy(
         &proxy_uuid,
-        free_port,
         &body.target_address,
         &body.virtual_machine_uuid,
         &context,
@@ -72,8 +80,7 @@ pub async fn register_proxy_internal(
     // create new proxy and add it to the handler
     let mut proxy_handler = PROXY_HANDLER.write().await;
     proxy_handler
-        .add_proxy(&proxy_uuid, free_port, &body.target_address)
-        .await
+        .add_proxy(&proxy_uuid, &body.target_address)
         .map_err(|e| map_ainari_error_to_api_response(e, Some(&context)))?;
 
     // get new created proxy from database to get additional information
@@ -82,7 +89,7 @@ pub async fn register_proxy_internal(
 
     let resp = ProxyResp {
         uuid: proxy_uuid,
-        port: proxy_data.port as u16,
+        address: proxy_conf.address(&proxy_uuid),
         target_address: proxy_data.target_address,
         virtual_machine_uuid: body.virtual_machine_uuid,
         created_by: proxy_data.created_by,

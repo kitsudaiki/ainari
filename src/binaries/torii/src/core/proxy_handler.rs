@@ -19,7 +19,8 @@ use tokio::sync::RwLock;
 use uuid::Uuid;
 
 use crate::config;
-use crate::core::proxy::Proxy;
+use crate::config::ProxyConf;
+use crate::core::proxy::{Proxy, start_listener};
 use crate::database::proxy_table;
 
 use ainari_api_structs::user_context::UserContext;
@@ -59,47 +60,25 @@ impl ProxyHandler {
     /// # Arguments
     ///
     /// * `uuid` - The unique identifier for the proxy.
-    /// * `port` - The port number the proxy will listen on.
     /// * `target_addr` - The address the proxy will forward traffic to.
     ///
     /// # Returns
     ///
     /// * `Ok(())` if the proxy was added successfully.
     /// * `Err(AinariError::InvalidInput)` if a proxy with the given UUID already exists.
-    /// * `Err(AinariError::InternalError)` if there was an issue converting the address.
-    pub async fn add_proxy(
-        &mut self,
-        uuid: &Uuid,
-        port: u16,
-        target_addr: &str,
-    ) -> Result<(), AinariError> {
+    pub fn add_proxy(&mut self, uuid: &Uuid, target_addr: &str) -> Result<(), AinariError> {
         // Check if a proxy with this UUID already exists
         if self.proxys.contains_key(uuid) {
             let msg = format!("Proxy with uuid '{uuid}' already exist.");
             return Err(AinariError::InvalidInput(msg));
         }
 
-        // Construct the public address string and convert it to a SocketAddr
-        let listen_ip = config::CONFIG.ports.listen_ip(&config::CONFIG.api);
-        let addr_str = format!("{listen_ip}:{port}");
-        let public_addr = match SocketAddr::from_str(&addr_str) {
-            Ok(public_addr) => public_addr,
-            Err(e) => {
-                let msg = format!(
-                    "Failed to convert address '{addr_str}' into a SocketAddr with error: {e}"
-                );
-                return Err(AinariError::internal(msg));
-            }
-        };
-
-        // Create a new proxy and add it to the map
-        let new_proxy = Proxy::new(&public_addr, target_addr).await;
-        self.proxys.insert(*uuid, new_proxy);
+        self.proxys.insert(*uuid, Proxy::new(target_addr));
 
         Ok(())
     }
 
-    /// Removes a proxy from the handler and stops it.
+    /// Removes a proxy from the handler and closes its connections.
     ///
     /// # Arguments
     ///
@@ -109,56 +88,39 @@ impl ProxyHandler {
     ///
     /// * `Ok(())` if the proxy was removed successfully.
     /// * `Err(AinariError::InvalidInput)` if no proxy with the given UUID was found.
-    pub async fn delete_proxy(&mut self, proxy_uuid: &Uuid) -> Result<(), AinariError> {
-        // Check if a proxy with this UUID exists
-        if !self.proxys.contains_key(proxy_uuid) {
+    pub fn delete_proxy(&mut self, proxy_uuid: &Uuid) -> Result<(), AinariError> {
+        // dropping the proxy closes its connections
+        if self.proxys.remove(proxy_uuid).is_none() {
             let msg = format!("Proxy with uuid '{proxy_uuid}' not found.");
             return Err(AinariError::InvalidInput(msg));
-        }
-
-        // Remove the proxy and stop it
-        if let Some(mut proxy) = self.proxys.remove(proxy_uuid) {
-            proxy.stop();
         }
 
         Ok(())
     }
 
-    /// Points a running proxy at another target, while it keeps its port.
+    /// Points a proxy at another target, while it keeps its address.
     ///
-    /// The old listener is stopped and awaited, before the new one is started, because both bind
-    /// the same port and the new listener would fail otherwise. Open connections of the old
-    /// target are closed.
+    /// Open connections to the old target are closed.
     ///
     /// # Arguments
     ///
     /// * `uuid` - The unique identifier of the proxy.
-    /// * `port` - The port number the proxy listens on.
     /// * `target_addr` - The new address the proxy forwards traffic to.
     ///
     /// # Returns
     ///
     /// * `Ok(())` if the proxy forwards to the new target.
     /// * `Err(AinariError::InvalidInput)` if no proxy with the given UUID was found.
-    /// * `Err(AinariError::InternalError)` if the new listener could not be created.
-    pub async fn retarget_proxy(
-        &mut self,
-        uuid: &Uuid,
-        port: u16,
-        target_addr: &str,
-    ) -> Result<(), AinariError> {
-        let Some(mut old_proxy) = self.proxys.remove(uuid) else {
+    pub fn retarget_proxy(&mut self, uuid: &Uuid, target_addr: &str) -> Result<(), AinariError> {
+        let Some(proxy) = self.proxys.get_mut(uuid) else {
             let msg = format!("Proxy with uuid '{uuid}' not found.");
             return Err(AinariError::InvalidInput(msg));
         };
 
-        old_proxy.stop();
-        if let Some(handle) = old_proxy.handle.take() {
-            // the listener ends with the shutdown-signal and releases its port with that
-            let _ = handle.await;
-        }
+        // the old proxy is dropped with that and closes its connections
+        *proxy = Proxy::new(target_addr);
 
-        self.add_proxy(uuid, port, target_addr).await
+        Ok(())
     }
 
     /// Populates the proxy handler with proxies from the database.
@@ -170,7 +132,7 @@ impl ProxyHandler {
     ///
     /// * `Ok(())` if all proxies were loaded successfully.
     /// * `Err(AinariError::InternalError)` if there was an issue accessing the database or parsing proxy data.
-    pub async fn fill_proxy_handler(&mut self) -> Result<(), AinariError> {
+    pub fn fill_proxy_handler(&mut self) -> Result<(), AinariError> {
         // Create a dummy context with admin privileges to read all proxies
         let dummy_context = UserContext {
             token: "".to_string(),
@@ -191,12 +153,49 @@ impl ProxyHandler {
 
         // Add each proxy to the handler
         for proxy in proxys {
-            let uuid = proxy.uuid;
-
-            let port = proxy.port as u16;
-            self.add_proxy(&uuid, port, &proxy.target_address).await?;
+            self.add_proxy(&proxy.uuid, &proxy.target_address)?;
         }
 
         Ok(())
     }
+}
+
+/// Returns the configuration of the proxies.
+///
+/// # Returns
+///
+/// * `Ok(&ProxyConf)` if the gateway has proxies.
+/// * `Err(AinariError::InternalError)` if the config has no `proxy`-section, like the one of a
+///   gateway in front of a sakura-host.
+pub fn proxy_conf() -> Result<&'static ProxyConf, AinariError> {
+    config::CONFIG.proxy.as_ref().ok_or_else(|| {
+        AinariError::internal("This gateway has no proxies, its config has no 'proxy'-section.")
+    })
+}
+
+/// Starts the listener of all proxies, if the gateway has proxies.
+///
+/// # Returns
+///
+/// * `Ok(())` if the listener runs or the gateway has no proxies.
+/// * `Err(AinariError::InternalError)` if the listener could not be started.
+pub async fn start_proxy_listener() -> Result<(), AinariError> {
+    let Some(conf) = config::CONFIG.proxy.as_ref() else {
+        log::info!("No 'proxy'-section in the config, so this gateway has no proxies");
+        return Ok(());
+    };
+
+    let listen_ip = conf.listen_ip(&config::CONFIG.api);
+    let addr_str = format!("{listen_ip}:{}", conf.port);
+    let listen_addr = SocketAddr::from_str(&addr_str).map_err(|e| {
+        AinariError::internal(format!(
+            "Failed to convert address '{addr_str}' into a SocketAddr with error: {e}"
+        ))
+    })?;
+
+    start_listener(conf, listen_addr).await.map_err(|e| {
+        AinariError::internal(format!(
+            "Failed to start the listener of the proxies on '{listen_addr}': {e}"
+        ))
+    })
 }

@@ -82,7 +82,7 @@ import { handleAxiosError } from "@/handleAxiosError";
 
 interface Props {
     virtual_machine_uuid: string | null;
-    torii_port: number;
+    torii_address: string;
     icons: { acceptIcon: string; cancelIcon: string };
 }
 const props = defineProps<Props>();
@@ -120,7 +120,7 @@ async function handleAccept() {
 
     try {
         await sakura.createSnapshotRestoreTask(
-            props.torii_port,
+            props.torii_address,
             props.virtual_machine_uuid,
             { image_uuid: selectedSnapshotUuid.value },
         );

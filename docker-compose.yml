@@ -13,7 +13,7 @@
 #   =====================================================================
 #                     [ torii-public ]  172.30.0.10
 #     floating ip-NAT 10.0.0.x <--> 192.168.100.x (the virtual machines)
-#     proxy-ports 10042-10053 --> the sakura-hosts
+#     proxies on 10042 --> the sakura-hosts, picked by the server name
 #     routes 192.168.100.x --> the torii of the host of that address
 #   =====================================================================
 #                                   |  underlay (eth0, 172.30.0.0/16)
@@ -239,8 +239,9 @@ services:
     command: ["sleep", "infinity"]
     ports:
       - "11419:11419"
-      # proxy-ports, which make the api of the sakura-hosts reachable from the host
-      - "10042-10053:10042-10053"
+      # proxies, which make the api of the sakura-hosts reachable from the host as
+      # https://<vm-uuid>.ainari.localhost:10042
+      - "10042:10042"
     networks:
       ainari-net:
         ipv4_address: 172.30.0.10
@@ -362,6 +363,19 @@ services:
       - ryokan
       - torii-vmm
 
+  # tls-termination of the external api of sakura, which the proxies of torii-public forward the
+  # clients to. It shares the network-namespace of sakura, like the nginx-sidecar in kubernetes.
+  sakura-tls:
+    image: nginx:latest
+    container_name: sakura-tls
+    restart: unless-stopped
+    network_mode: "service:torii-vmm-netns"
+    volumes:
+      - ./testing/local_stack/configs/nginx_sakura_external.conf:/etc/nginx/nginx.conf:ro
+      - ./temporary_files/local/certs:/etc/nginx/certs:ro
+    depends_on:
+      - torii-vmm-netns
+
   # owner of the network-namespace of torii-vmm-2 and sakura-2
   torii-vmm-2-netns:
     # the image is built once by torii-public
@@ -432,6 +446,18 @@ services:
       - hanami
       - ryokan
       - torii-vmm-2
+
+  # tls-termination of the external api of sakura-2, like sakura-tls
+  sakura-2-tls:
+    image: nginx:latest
+    container_name: sakura-2-tls
+    restart: unless-stopped
+    network_mode: "service:torii-vmm-2-netns"
+    volumes:
+      - ./testing/local_stack/configs/nginx_sakura_external.conf:/etc/nginx/nginx.conf:ro
+      - ./temporary_files/local/certs:/etc/nginx/certs:ro
+    depends_on:
+      - torii-vmm-2-netns
 
 networks:
   ainari-net:

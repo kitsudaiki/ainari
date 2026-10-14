@@ -79,9 +79,7 @@
                         <td>{{ virtualMachine.uuid }}</td>
                         <td>{{ virtualMachine.name }}</td>
                         <td>
-                            {{ torii_base_address }}:{{
-                                virtualMachine.proxy_port
-                            }}
+                            {{ virtualMachine.proxy_address }}
                         </td>
                         <td></td>
                     </tr>
@@ -101,7 +99,6 @@
 <script setup lang="ts">
 import { ref, onMounted, reactive } from "vue";
 
-import { getAuthContext } from "@/auth_context";
 import { hanami, miko, omamori, ryokan } from "@/api";
 import type { VirtualMachineBasicResp } from "@/api";
 import GaugeChart from "@/components/gauge_chart.vue";
@@ -109,7 +106,6 @@ import { handleAxiosError } from "@/handleAxiosError";
 import NoEntries from "@/components/no_entries.vue";
 
 const virtualMachines = ref<VirtualMachineBasicResp[]>([]);
-const torii_base_address = ref<string | null>("");
 
 // Error handling
 const errorPopupMsg = ref<string>("");
@@ -128,7 +124,6 @@ const quotaMetrics = reactive({
  */
 async function fetchVirtualMachines() {
     try {
-        torii_base_address.value = getAuthContext().torii_base_address;
         virtualMachines.value = await hanami.listVirtualMachines();
     } catch (err) {
         errorPopupMsg.value = handleAxiosError(

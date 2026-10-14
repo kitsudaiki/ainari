@@ -111,7 +111,7 @@
                     "name",
                     "network_uuid",
                     "number_of_cores",
-                    "torii_port",
+                    "torii_address",
                     "updated_at",
                     "updated_by",
                     "uuid",
@@ -154,10 +154,9 @@
                       "type": "integer",
                       "format": "int32"
                     },
-                    "torii_port": {
-                      "type": "integer",
-                      "format": "uint16",
-                      "minimum": 0.0
+                    "torii_address": {
+                      "description": "Address of the sakura-host of the virtual_machine, which is a proxy of the torii at the edge, so it stays the same, when the virtual_machine is moved to another sakura-host. Empty in the responses of sakura itself.",
+                      "type": "string"
                     },
                     "updated_at": {
                       "type": "string",
@@ -1957,7 +1956,7 @@
           "memory_size",
           "name",
           "number_of_cores",
-          "proxy_port",
+          "proxy_address",
           "uuid"
         ],
         "properties": {
@@ -1978,10 +1977,9 @@
             "type": "integer",
             "format": "int32"
           },
-          "proxy_port": {
-            "type": "integer",
-            "format": "uint16",
-            "minimum": 0.0
+          "proxy_address": {
+            "description": "Address of the sakura-host of the virtual_machine, like `torii_address`",
+            "type": "string"
           },
           "uuid": {
             "type": "string",
@@ -2090,7 +2088,7 @@
           "name",
           "network_uuid",
           "number_of_cores",
-          "torii_port",
+          "torii_address",
           "updated_at",
           "updated_by",
           "uuid",
@@ -2133,10 +2131,9 @@
             "type": "integer",
             "format": "int32"
           },
-          "torii_port": {
-            "type": "integer",
-            "format": "uint16",
-            "minimum": 0.0
+          "torii_address": {
+            "description": "Address of the sakura-host of the virtual_machine, which is a proxy of the torii at the edge, so it stays the same, when the virtual_machine is moved to another sakura-host. Empty in the responses of sakura itself.",
+            "type": "string"
           },
           "updated_at": {
             "type": "string",

@@ -433,7 +433,7 @@ async fn take_over(migration: &Migration, session: &mut Session) {
         );
     }
 
-    // the proxy keeps its port, so the virtual_machine stays reachable under the same port
+    // the proxy keeps its address, so the virtual_machine stays reachable under the same address
     let result =
         match get_endpoints(&config::CONFIG.miko, config::CONFIG.skip_tls_verification).await {
             Ok(endpoints) => {

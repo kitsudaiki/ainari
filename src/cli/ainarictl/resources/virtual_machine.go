@@ -67,11 +67,11 @@ var createVirtualMachineCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		virtual_machineUuid, toriiPort := getVirtualMachineAccess(content)
+		virtual_machineUuid, toriiAddress := getVirtualMachineAccess(content)
 
 		// install image and public-key in the reserved virtual machine and boot it
 		_, err = ainari_sdk.CreateVirtualMachine(context,
-			toriiPort,
+			toriiAddress,
 			virtual_machineUuid,
 			virtual_machineImageUuid,
 			virtual_machinePublicKeyUuid)
@@ -92,9 +92,9 @@ var createVirtualMachineCmd = &cobra.Command{
 	},
 }
 
-// getVirtualMachineAccess reads the uuid and the torii-port of a virtual machine from the output
-// of the reserve-call, which are required to address the sakura-host of the virtual machine.
-func getVirtualMachineAccess(virtual_machine_data map[string]interface{}) (string, int) {
+// getVirtualMachineAccess reads the uuid and the torii-address of a virtual machine from the
+// output of the reserve-call, which are required to address the sakura-host of the virtual machine.
+func getVirtualMachineAccess(virtual_machine_data map[string]interface{}) (string, string) {
 	value, ok := virtual_machine_data["uuid"]
 	if !ok {
 		fmt.Println("key 'uuid' not found in virtual_machine-output")
@@ -106,18 +106,18 @@ func getVirtualMachineAccess(virtual_machine_data map[string]interface{}) (strin
 		os.Exit(1)
 	}
 
-	value, ok = virtual_machine_data["torii_port"]
+	value, ok = virtual_machine_data["torii_address"]
 	if !ok {
-		fmt.Println("key 'torii_port' not found in virtual_machine-output")
+		fmt.Println("key 'torii_address' not found in virtual_machine-output")
 		os.Exit(1)
 	}
-	toriiPort, ok := value.(float64) // Golang is stupid! Why beomes a 'u16' and 'float64' ?!?!?!
+	toriiAddress, ok := value.(string)
 	if !ok {
-		fmt.Println("toriiPort is not an int")
+		fmt.Println("torii_address is not a string")
 		os.Exit(1)
 	}
 
-	return virtual_machineUuid, int(toriiPort)
+	return virtual_machineUuid, toriiAddress
 }
 
 var getVirtualMachineCmd = &cobra.Command{
@@ -184,7 +184,7 @@ var deleteVirtualMachineCmd = &cobra.Command{
 func newVirtualMachinePowerCmd(
 	use string,
 	short string,
-	powerFunc func(ainari_sdk.AccessContext, int, string) (map[string]interface{}, error),
+	powerFunc func(ainari_sdk.AccessContext, string, string) (map[string]interface{}, error),
 ) *cobra.Command {
 	return &cobra.Command{
 		Use:   use + " VIRTUAL_MACHINE_UUID",
@@ -197,8 +197,8 @@ func newVirtualMachinePowerCmd(
 				os.Exit(1)
 			}
 			virtual_machineUuid := args[0]
-			toriiPort := getToriiPort(context, virtual_machineUuid)
-			content, err := powerFunc(context, toriiPort, virtual_machineUuid)
+			toriiAddress := getToriiAddress(context, virtual_machineUuid)
+			content, err := powerFunc(context, toriiAddress, virtual_machineUuid)
 			if err != nil {
 				fmt.Println(err)
 				os.Exit(1)
@@ -229,7 +229,7 @@ var migrateVirtualMachineCmd = &cobra.Command{
 	Long: `Move a virtual machine to another sakura-host. This can only be done by an admin.
 
 The virtual machine is shut down, its disk is transferred to the target host and it is booted
-there again, if it was running before. It keeps its address, its proxy-port and its
+there again, if it was running before. It keeps its address, its proxy-address and its
 packet-filters. The migration runs in the background: the virtual machine is in the state
 MIGRATING, until it is running or stopped on the target host again. If the migration fails, the
 virtual machine is started on its current host again.`,

@@ -35,6 +35,10 @@ const (
 
 	// names of the volumes of a nginx-sidecar
 	tlsCertsVolume = "tls-certs"
+	// volume of the certificate of the external api of the sakura-hosts, see proxyCertificate
+	proxyCertsVolume = "proxy-tls-certs"
+	// name of the certificate of the external api of the sakura-hosts
+	proxyCertName = "sakura-proxy"
 )
 
 // certManagerObject returns an empty object of cert-manager. cert-manager is not imported as a
@@ -108,6 +112,21 @@ func (r *renderer) certificate(name, domain string, services ...string) *unstruc
 
 	cert := certManagerObject("Certificate", name+"-cert")
 	cert.Object["spec"] = spec
+	return cert
+}
+
+// proxyCertificate returns the certificate of the external api of the sakura-hosts, which the
+// clients reach over the proxies of torii. Torii doesn't terminate the TLS-connections, so the
+// clients get this certificate directly. It is only valid for the names of the proxies and
+// contains no name of a sakura-host, so the clients don't learn, which host runs a virtual
+// machine, and the certificate stays valid, when the virtual machine is moved to another host.
+func (r *renderer) proxyCertificate() *unstructured.Unstructured {
+	cert := certManagerObject("Certificate", proxyCertName+"-cert")
+	cert.Object["spec"] = map[string]any{
+		"secretName": tlsSecretName(proxyCertName),
+		"issuerRef":  map[string]any{"name": caIssuerName},
+		"dnsNames":   []any{"*." + r.Spec.Torii.Proxy.Domain},
+	}
 	return cert
 }
 

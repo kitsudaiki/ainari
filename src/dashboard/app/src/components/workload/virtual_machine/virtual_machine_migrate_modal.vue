@@ -26,8 +26,8 @@
                     <strong>{{ virtual_machine?.name }}</strong> to another
                     sakura-host. It is shut down, its disk is transferred to the
                     new host and it is booted there again, if it was running
-                    before. It keeps its address, its proxy-port and its network
-                    filters.
+                    before. It keeps its address, its proxy-address and its
+                    network filters.
                 </p>
                 <br />
                 <p>

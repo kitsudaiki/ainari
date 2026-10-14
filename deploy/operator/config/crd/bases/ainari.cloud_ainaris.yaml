@@ -680,30 +680,41 @@ spec:
                     description: PullPolicy describes a policy for if/when to pull
                       a container image
                     type: string
-                  portRange:
-                    default:
-                      end: 10050
-                      start: 10040
-                    description: proxy-ports of the gateway at the edge
+                  proxy:
+                    default: {}
+                    description: |-
+                      ToriiProxySpec configures the proxies of the gateway at the edge, which make the external api
+                      of the sakura-hosts reachable for the clients.
+
+                      All proxies share one port. Torii doesn't terminate the TLS-connections, but picks the proxy of
+                      a connection by the server name of its TLS ClientHello. Every proxy is reachable as
+                      https://<vm-uuid>.<domain>:<publicPort>, so the address of a virtual machine stays the same,
+                      when it is moved to another sakura-host, and the clients never see the sakura-hosts.
                     properties:
-                      end:
+                      domain:
+                        default: ainari.localhost
+                        description: |-
+                          Domain of the proxies. It needs a wildcard-entry '*.<domain>' in the DNS, which points to
+                          the service of the proxies. '*.localhost' resolves to 127.0.0.1 without any DNS-entry. The
+                          external api of the sakura-hosts gets a certificate, which is only valid for '*.<domain>'.
+                        pattern: ^([a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?\.)*[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?$
+                        type: string
+                      port:
+                        default: 10042
+                        description: port, on which torii listens for all proxies
                         format: int32
                         maximum: 65535
                         minimum: 1
                         type: integer
-                      start:
+                      publicPort:
+                        description: |-
+                          Port of the service, under which the clients reach the proxies. Falls back to port. With
+                          a NodePort-service, the node-port is this port plus global.externalServices.nodePortOffset.
                         format: int32
                         maximum: 65535
                         minimum: 1
                         type: integer
-                    required:
-                    - end
-                    - start
                     type: object
-                    x-kubernetes-validations:
-                    - message: the start of the port-range has to be lower or equal
-                        to its end
-                      rule: self.start <= self.end
                   public:
                     default: {}
                     description: |-
@@ -739,7 +750,7 @@ spec:
                     type: integer
                   serviceType:
                     default: LoadBalancer
-                    description: type of the service, which publishes the proxy-ports
+                    description: type of the service, which publishes the proxies
                       of the gateway at the edge
                     enum:
                     - ClusterIP

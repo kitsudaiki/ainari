@@ -322,7 +322,7 @@ async function handleAccept() {
     const virtualMachine = reservedVirtualMachine.value;
     if (virtualMachine === null) return;
     try {
-        await sakura.createVirtualMachine(virtualMachine.torii_port, {
+        await sakura.createVirtualMachine(virtualMachine.torii_address, {
             vm_uuid: virtualMachine.uuid,
             image_uuid: selectedImageUuid.value,
             public_key_uuid: selectedPublicKeyUuid.value,

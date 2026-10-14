@@ -91,7 +91,7 @@
         <TaskInfoModal
             v-if="showInfoModal"
             :virtual_machine_uuid="props.id"
-            :torii_port="torii_port"
+            :torii_address="torii_address"
             :task="taskToShow"
             :icons="icons"
             @cancel="cancelInfoModal"
@@ -100,7 +100,7 @@
         <TaskAbortModal
             v-if="showAbortModal"
             :virtual_machine_uuid="props.id"
-            :torii_port="torii_port"
+            :torii_address="torii_address"
             :task="taskToAbort"
             :icons="icons"
             @accept="acceptAbortModal"
@@ -137,8 +137,8 @@ const taskToAbort = ref<TaskBasicResp | null>(null);
 const showInfoModal = ref(false);
 const showAbortModal = ref(false);
 
-// the torii-port of the virtual-machine, which is needed to reach its sakura
-const torii_port = ref<number>(0);
+// the torii-address of the virtual-machine, which is needed to reach its sakura
+const torii_address = ref<string>("");
 
 const emit = defineEmits<{
     (e: "change-view", payload: { view: string; id: string | null }): void;
@@ -176,14 +176,14 @@ async function fetchTasks() {
     if (!props.id) return;
 
     try {
-        // the sakura is only reachable through the torii, so the port of the
+        // the sakura is only reachable through the torii, so the address of the
         // virtual-machine has to be resolved first
-        if (torii_port.value === 0) {
+        if (torii_address.value === "") {
             const virtualMachine = await hanami.getVirtualMachine(props.id);
-            torii_port.value = virtualMachine.torii_port;
+            torii_address.value = virtualMachine.torii_address;
         }
 
-        tasks.value = await sakura.listTasks(torii_port.value, props.id);
+        tasks.value = await sakura.listTasks(torii_address.value, props.id);
     } catch (err) {
         errorPopupMsg.value = handleAxiosError(err, "Failed to load tasks");
     }

@@ -19,7 +19,7 @@ import time
 
 
 def create_snapshot_save_task(context: AccessContext,
-                              torii_port: int,
+                              torii_address: str,
                               virtual_machine_uuid: str,
                               name: str,
                               secret_uuid: str = None) -> dict:
@@ -31,7 +31,6 @@ def create_snapshot_save_task(context: AccessContext,
     With `secret_uuid`, the snapshot is encrypted with this already existing secret, instead of a
     new generated secret.
     """
-    address = f"{context.torii_base_address}:{torii_port}"
     path = f"/v1alpha/virtual_machine/{virtual_machine_uuid}/snapshot_save"
     json_body = {
         "name": name,
@@ -39,70 +38,66 @@ def create_snapshot_save_task(context: AccessContext,
     if secret_uuid:
         json_body["secret_uuid"] = secret_uuid
     return ainari_request.send_post_request(context,
-                                            address,
+                                            torii_address,
                                             path,
                                             json_body)
 
 
 def create_snapshot_restore_task(context: AccessContext,
-                                 torii_port: int,
+                                 torii_address: str,
                                  virtual_machine_uuid: str,
                                  image_uuid: str) -> dict:
     """
     Resets the root-disk of a virtual machine to an image, which must be a snapshot.
     """
-    address = f"{context.torii_base_address}:{torii_port}"
     path = f"/v1alpha/virtual_machine/{virtual_machine_uuid}/snapshot_restore"
     json_body = {
         "image_uuid": image_uuid,
     }
     return ainari_request.send_post_request(context,
-                                            address,
+                                            torii_address,
                                             path,
                                             json_body)
 
 
 def get_task(context: AccessContext,
-             torii_port: int,
+             torii_address: str,
              task_uuid: str) -> dict:
     """
-    The tasks are not bound to a virtual machine anymore, but the torii-port still selects the
-    sakura-host, which holds the task.
+    The tasks are not bound to a virtual machine anymore, but the torii-address of a virtual
+    machine still selects the sakura-host, which holds the task.
     """
-    address = f"{context.torii_base_address}:{torii_port}"
     path = f"/v1alpha/task/{task_uuid}"
     return ainari_request.send_get_request(context,
-                                           address,
+                                           torii_address,
                                            path,
                                            "")
 
 
 def list_tasks(context: AccessContext,
-               torii_port: int) -> dict:
+               torii_address: str) -> dict:
     """
-    Lists all tasks of the sakura-host behind the given torii-port.
+    Lists all tasks of the sakura-host behind the given torii-address.
     """
-    address = f"{context.torii_base_address}:{torii_port}"
     path = "/v1alpha/task"
     return ainari_request.send_get_request(context,
-                                           address,
+                                           torii_address,
                                            path,
                                            "")
 
 
 def abort_task(context: AccessContext,
-               torii_port: int,
+               torii_address: str,
                task_uuid: str):
-    address = f"{context.torii_base_address}:{torii_port}"
     path = f"/v1alpha/task/{task_uuid}/abort"
     ainari_request.send_put_request(context,
-                                    address,
+                                    torii_address,
                                     path,
                                     "")
 
 
 def wait_for_task_finished(context: AccessContext,
-                           torii_port: int,
+                           torii_address: str,
                            task_uuid: str,
                            time_interval: float = 1.0) -> dict:
     """
@@ -110,7 +105,7 @@ def wait_for_task_finished(context: AccessContext,
     returns the task, so the caller can check its state and messages.
     """
     while True:
-        result = get_task(context, torii_port, task_uuid)
+        result = get_task(context, torii_address, task_uuid)
         # in case that the task is already done, an unnecessary sleep should be avoided
         if result["state"] in ("Finished", "Aborted", "Error"):
             return result

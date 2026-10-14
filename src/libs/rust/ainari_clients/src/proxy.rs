@@ -176,8 +176,8 @@ pub async fn delete_proxy(
 /**
 Points an existing proxy at another target address.
 
-The proxy keeps its UUID and its port, so the virtual_machine stays reachable under the same
-port, for example after it was migrated to another sakura-host.
+The proxy keeps its UUID and with that its address, so the virtual_machine stays reachable under
+the same address, for example after it was migrated to another sakura-host.
 
 # Arguments
 - `torii_endpoint`: The endpoint configuration for the Torii service

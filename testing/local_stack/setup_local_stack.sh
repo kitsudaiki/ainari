@@ -38,6 +38,17 @@ GATEWAY_CONTAINER="torii-public-netns"
 
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
+# The proxies of torii-public pick the sakura-host by the server name of the TLS-connection and
+# don't terminate tls, so the external api of the sakura-hosts gets a certificate for the names of
+# the proxies. It is signed by a CA, which is created once and kept over all runs, so it only has
+# to be trusted once. Its name-constraints limit it to localhost, like the CA of the kind-setup.
+PROXY_DOMAIN="ainari.localhost"
+CERT_DIR="$PROJECT_DIR/temporary_files/local"
+CA_CERT="$CERT_DIR/ainari-local-ca.crt"
+CA_KEY="$CERT_DIR/ainari-local-ca.key"
+PROXY_CERT="$CERT_DIR/certs/proxy.crt"
+PROXY_KEY="$CERT_DIR/certs/proxy.key"
+
 if [ "$EUID" -ne 0 ]; then
     echo "Please run as root (e.g. sudo ./testing/local_stack/setup_local_stack.sh)"
     exit 1
@@ -102,6 +113,26 @@ if [ -n "$CONFLICTS" ]; then
     echo "or set another range in FLOATING_IP_CIDR of this script and in the config of hanami."
     exit 1
 fi
+
+# ---------------------------------------------------------------------------------------------
+# certificate of the proxies
+# ---------------------------------------------------------------------------------------------
+"$PROJECT_DIR/testing/kind/create_local_ca.sh" "$CA_CERT" "$CA_KEY" "ainari local-setup CA" \
+    "permitted;DNS:localhost"
+
+echo "Creating the certificate of the proxies for *.$PROXY_DOMAIN ..."
+mkdir -p "$(dirname "$PROXY_CERT")"
+(
+    umask 077
+    openssl req -new -newkey ec -pkeyopt ec_paramgen_curve:prime256v1 -nodes \
+        -keyout "$PROXY_KEY" -subj "/CN=*.$PROXY_DOMAIN" 2> /dev/null |
+    openssl x509 -req -CA "$CA_CERT" -CAkey "$CA_KEY" -CAcreateserial -days 365 \
+        -out "$PROXY_CERT" \
+        -extfile <(printf "subjectAltName=DNS:*.%s\nextendedKeyUsage=serverAuth\n" "$PROXY_DOMAIN") \
+        2> /dev/null
+)
+# nginx reads the key as root, but drops its privileges for the workers
+chmod 644 "$PROXY_CERT"
 
 # ---------------------------------------------------------------------------------------------
 # start the stack
@@ -174,6 +205,11 @@ echo "    omamori  http://127.0.0.1:11421"
 echo "    izakaya  http://127.0.0.1:11423"
 echo "    omikuji  http://127.0.0.1:11424"
 echo "    torii    http://127.0.0.1:11419"
+echo ""
+echo "Every virtual machine is reachable over the proxy https://<vm-uuid>.$PROXY_DOMAIN:10042,"
+echo "which hanami returns as 'torii_address'. Its certificate is signed by the CA $CA_CERT"
+echo "It stays the same over all runs, so it only has to be trusted once, see"
+echo "testing/local_stack/Readme.md. Otherwise the clients have to skip the verification."
 echo ""
 echo "The two sakura-hosts (sakura on torii-vmm and sakura-2 on torii-vmm-2) register themselves"
 echo "in hanami, as soon as it is up. The test waits for both of them, before it creates a"

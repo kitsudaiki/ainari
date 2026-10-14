@@ -10,12 +10,6 @@ file_path = "/etc/ainari/torii/torii_db"
 [miko]
 address = {{ quote mikoAddress }}
 
-[ports]
-min_port = {{ .Spec.Torii.PortRange.Start }}
-max_port = {{ .Spec.Torii.PortRange.End }}
-# the api is only reachable over the tls-termination, the proxies from the outside
-listen_ip = "0.0.0.0"
-
 [network]
 # there is no overlay-interface here, the TAP-devices are attached when they are created
 overlay_iface = "none"

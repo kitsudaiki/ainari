@@ -18,9 +18,12 @@ file_path = "/etc/ainari/torii_db"
 [miko]
 address = "http://127.0.0.1:11417"
 
-[ports]
-min_port = 10042
-max_port = 10053
+[proxy]
+# Every proxy is reachable as https://<vm-uuid>.<domain>:<port>. All proxies share this port,
+# the proxy of a connection is picked by the server name of its TLS ClientHello. *.localhost
+# resolves to 127.0.0.1 without any DNS-entry.
+domain = "ainari.localhost"
+port = 10042
 
 [network]
 # there is neither an overlay nor an underlay in the single node setup

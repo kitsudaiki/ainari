@@ -49,7 +49,7 @@ def reserve_virtual_machine(context: AccessContext,
 
 
 def create_virtual_machine(context: AccessContext,
-                           torii_port: int,
+                           torii_address: str,
                            virtual_machine_uuid: str,
                            image_uuid: str,
                            public_key_uuid: str) -> dict:
@@ -57,7 +57,6 @@ def create_virtual_machine(context: AccessContext,
     Creates a task on the sakura-host of a reserved virtual machine, which installs the image and
     the public-key in the virtual machine and boots it.
     """
-    address = f"{context.torii_base_address}:{torii_port}"
     path = f"/v1alpha/virtual_machine/{virtual_machine_uuid}"
     json_body = {
         "vm_uuid": virtual_machine_uuid,
@@ -65,52 +64,49 @@ def create_virtual_machine(context: AccessContext,
         "public_key_uuid": public_key_uuid,
     }
     return ainari_request.send_post_request(context,
-                                            address,
+                                            torii_address,
                                             path,
                                             json_body)
 
 
 def start_virtual_machine(context: AccessContext,
-                          torii_port: int,
+                          torii_address: str,
                           virtual_machine_uuid: str) -> dict:
     """
     Creates a task on the sakura-host of a virtual machine, which boots the stopped virtual
     machine again.
     """
-    address = f"{context.torii_base_address}:{torii_port}"
     path = f"/v1alpha/virtual_machine/{virtual_machine_uuid}/start"
     return ainari_request.send_post_request(context,
-                                            address,
+                                            torii_address,
                                             path,
                                             {})
 
 
 def stop_virtual_machine(context: AccessContext,
-                         torii_port: int,
+                         torii_address: str,
                          virtual_machine_uuid: str) -> dict:
     """
     Creates a task on the sakura-host of a virtual machine, which shuts down the virtual
     machine. It keeps all of its resources, so it can be started again later.
     """
-    address = f"{context.torii_base_address}:{torii_port}"
     path = f"/v1alpha/virtual_machine/{virtual_machine_uuid}/stop"
     return ainari_request.send_post_request(context,
-                                            address,
+                                            torii_address,
                                             path,
                                             {})
 
 
 def reboot_virtual_machine(context: AccessContext,
-                           torii_port: int,
+                           torii_address: str,
                            virtual_machine_uuid: str) -> dict:
     """
     Creates a task on the sakura-host of a virtual machine, which reboots the running virtual
     machine.
     """
-    address = f"{context.torii_base_address}:{torii_port}"
     path = f"/v1alpha/virtual_machine/{virtual_machine_uuid}/reboot"
     return ainari_request.send_post_request(context,
-                                            address,
+                                            torii_address,
                                             path,
                                             {})
 

@@ -15,8 +15,6 @@
 package render
 
 import (
-	"fmt"
-
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -164,20 +162,15 @@ func (r *renderer) toriiDeployment() *appsv1.Deployment {
 	}
 }
 
-// toriiGatewayService returns the service, which publishes the proxy-ports of the gateway at the
-// edge.
+// toriiGatewayService returns the service, which publishes the proxies of the gateway at the
+// edge. All proxies share one port, torii picks the proxy of a connection by its server name.
 func (r *renderer) toriiGatewayService() *corev1.Service {
 	spec := &r.Spec.Torii
 	external := r.Spec.Global.ExternalServices
-	withNodePorts := spec.ServiceType == corev1.ServiceTypeNodePort && external.Enabled
 
-	var servicePorts []corev1.ServicePort
-	for port := spec.PortRange.Start; port <= spec.PortRange.End; port++ {
-		servicePort := servicePort(fmt.Sprintf("p-%d", port), port, port)
-		if withNodePorts {
-			servicePort.NodePort = port + external.NodePortOffset
-		}
-		servicePorts = append(servicePorts, servicePort)
+	proxyPort := servicePort("proxy", spec.Proxy.ServicePort(), spec.Proxy.Port)
+	if spec.ServiceType == corev1.ServiceTypeNodePort && external.Enabled {
+		proxyPort.NodePort = proxyPort.Port + external.NodePortOffset
 	}
 
 	return &corev1.Service{
@@ -185,7 +178,7 @@ func (r *renderer) toriiGatewayService() *corev1.Service {
 		Spec: corev1.ServiceSpec{
 			Type:     spec.ServiceType,
 			Selector: appLabels(toriiPublicApp),
-			Ports:    servicePorts,
+			Ports:    []corev1.ServicePort{proxyPort},
 		},
 	}
 }

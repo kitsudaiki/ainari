@@ -35,13 +35,18 @@ environment-variable `CONFIG_FILE`.
 | --------- | ------ | ---------- | ---------------------------- |
 | `address` | string | _required_ | Address of the Miko service. |
 
-### `ports` Configuration
+### `proxy` Configuration
 
-| Parameter   | Type    | Default         | Description                                                                                                                  |
-| ----------- | ------- | --------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `min_port`  | integer | _required_      | Minimum port number for dynamic port allocation.                                                                             |
-| `max_port`  | integer | _required_      | Maximum port number for dynamic port allocation.                                                                             |
-| `listen_ip` | string  | `api.public_ip` | Address, which the proxies listen on. Allows to keep the api away from the outside, while the proxies are still reachable. |
+The proxies make the external api of the sakura-hosts reachable for the clients. Only the gateway at the edge of the network has them, so the whole section is optional. Without it, the gateway has no proxies.
+
+All proxies share one listener. Torii doesn't terminate the TLS-connections, but picks the proxy of a connection by the server name (SNI) of its TLS ClientHello and forwards the connection unchanged. Every proxy is reachable as `https://<vm-uuid>.<domain>:<public_port>`, so the address stays the same, when the proxy is pointed at another sakura-host. This requires a wildcard-entry `*.<domain>` in the DNS, which points to the gateway, and a certificate for `*.<domain>` on the external api of the sakura-hosts.
+
+| Parameter     | Type    | Default         | Description                                                                                                                  |
+| ------------- | ------- | --------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `domain`      | string  | _required_      | Domain of the proxies, for example `ainari.localhost`. `*.localhost` resolves to `127.0.0.1` without any DNS-entry.         |
+| `port`        | integer | `10042`         | Port of the listener of all proxies.                                                                                         |
+| `public_port` | integer | `port`          | Port, under which the clients reach the listener, if it is published under another one, for example by a load-balancer.      |
+| `listen_ip`   | string  | `api.public_ip` | Address, which the proxies listen on. Allows to keep the api away from the outside, while the proxies are still reachable. |
 
 ### `network` Configuration
 

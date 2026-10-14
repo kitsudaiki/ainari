@@ -15,7 +15,7 @@
 # Cluster of the kind-setup, which is started by testing/kind/setup_kind_stack.sh.
 #
 # It has only one node, like the local docker-compose setup has only one host. The api of the
-# components and the proxy-ports of torii are published as node-ports (port + 20000, see
+# components and the proxies of torii are published as node-ports (port + 20000, see
 # global.externalServices in deploy/operator/config/samples/ainari_v1alpha1_ainari_kind.yaml) and
 # mapped back to their original ports on the host, so the
 # cli, the sdk and the tests reach the kind-setup at the same addresses as the docker-compose one.
@@ -34,16 +34,6 @@ nodes:
   - {containerPort: 31424, hostPort: 11424, listenAddress: "127.0.0.1"}
   # dashboard
   - {containerPort: 31422, hostPort: 11422, listenAddress: "127.0.0.1"}
-  # proxy-ports of torii, which make the api of the sakura-hosts reachable from the host
+  # proxies of torii, which make the api of the sakura-hosts reachable from the host. All proxies
+  # share this port, torii picks the proxy of a connection by its server name.
   - {containerPort: 30042, hostPort: 10042, listenAddress: "127.0.0.1"}
-  - {containerPort: 30043, hostPort: 10043, listenAddress: "127.0.0.1"}
-  - {containerPort: 30044, hostPort: 10044, listenAddress: "127.0.0.1"}
-  - {containerPort: 30045, hostPort: 10045, listenAddress: "127.0.0.1"}
-  - {containerPort: 30046, hostPort: 10046, listenAddress: "127.0.0.1"}
-  - {containerPort: 30047, hostPort: 10047, listenAddress: "127.0.0.1"}
-  - {containerPort: 30048, hostPort: 10048, listenAddress: "127.0.0.1"}
-  - {containerPort: 30049, hostPort: 10049, listenAddress: "127.0.0.1"}
-  - {containerPort: 30050, hostPort: 10050, listenAddress: "127.0.0.1"}
-  - {containerPort: 30051, hostPort: 10051, listenAddress: "127.0.0.1"}
-  - {containerPort: 30052, hostPort: 10052, listenAddress: "127.0.0.1"}
-  - {containerPort: 30053, hostPort: 10053, listenAddress: "127.0.0.1"}

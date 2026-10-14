@@ -3,7 +3,7 @@
 An admin can move a virtual machine to another sakura-host. The migration is a cold migration: the
 virtual machine is shut down on its current host, its disk is transferred directly to the new host
 and it is booted there again, if it was running before. It keeps its UUID, its internal address,
-its MAC-address, its TAP-device, its proxy-port and its packet-filters.
+its MAC-address, its TAP-device, its proxy-address and its packet-filters.
 
 hanami orchestrates the migration in a background-job. The sakura-hosts only provide the single
 steps, which run as tasks of the virtual machine, so they are serialized with all other tasks of
@@ -18,7 +18,7 @@ it, like a start or a snapshot.
 | **sakura** (source) | *Prepares* the virtual machine: shuts it down and freezes it in the state `MIGRATING`. Serves its description and its files to the target and removes its copy at the end. |
 | **sakura** (target) | *Imports* the virtual machine: creates it with the same identity, pulls its seed-image and its root-disk from the source and boots it. |
 | **torii** (hosts) | Get the TAP-device, the routes and the packet-filters of the virtual machine on the new host and forget them on the old host. |
-| **torii** (edge) | Routes the address of the virtual machine to the new host and points the proxy-port of the virtual machine to the new host. |
+| **torii** (edge) | Routes the address of the virtual machine to the new host and points the proxy of the virtual machine to the new host. |
 | **izakaya** | Gets the MLS-grant for the torii of the new host, if the network is encrypted, and its revocation for the old host (see [Key-exchange of the network-encryption](network_crypto_key_exchange.md)). |
 
 ```mermaid
@@ -261,7 +261,7 @@ sequenceDiagram
     H->>DB: host of the VM = target host
     H->>DB: host of the address of the VM = target host
     H->>E: PUT /proxy/{uuid}/internal (external address of the target host)
-    E->>E: restart the proxy on the same port
+    E->>E: point the proxy to the new host, its address stays the same
 
     Note over H,S: clean up the source host
     alt source is the edge or runs another VM of the network

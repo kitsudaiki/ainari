@@ -192,7 +192,7 @@ def read_database(gateway: str) -> dict:
             "floating_ips": "SELECT floating_ip, internal_ip, vni FROM floating_ips",
             "routes": "SELECT uuid, vni, dest_ip, target_iface FROM routes",
             "taps": "SELECT tap_name, vni, vm_ip, vm_mac FROM taps",
-            "proxys": "SELECT uuid, port, target_address FROM proxys",
+            "proxys": "SELECT uuid, target_address FROM proxys",
         }
         tables = {}
         for table, query in queries.items():
@@ -238,7 +238,7 @@ def gateway_state(gateway: str, token: str) -> dict:
         "routes": sorted(json.dumps(route, sort_keys=True) for route in routes),
         "filters": sorted(json.dumps(entry, sort_keys=True) for entry in filters),
         "proxies": sorted(json.dumps({key: proxy[key] for key in
-                                      ("uuid", "port", "target_address")}, sort_keys=True)
+                                      ("uuid", "address", "target_address")}, sort_keys=True)
                           for proxy in proxies),
         "kernel": kernel_state(gateway),
     }

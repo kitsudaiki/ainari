@@ -38,7 +38,7 @@ use ainari_common::enums::DbError;
 The migration is a cold migration, which runs in the background after the request was accepted:
 the virtual_machine is shut down gracefully on its current host, its disk is transferred directly
 to the target host and it is booted there again, if it was running before. It keeps its UUID, its
-address, its proxy-port and its packet-filters. While it is migrated, it can not be started,
+address, its proxy-address and its packet-filters. While it is migrated, it can not be started,
 stopped, deleted or get new packet-filters.
 
 The target host must have enough free resources for the virtual_machine. A virtual_machine on an

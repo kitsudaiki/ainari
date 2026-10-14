@@ -68,7 +68,7 @@ func testSpec() *ainariv1alpha1.AinariSpec {
 			Replicas: 1, Image: "kitsudaiki/torii:develop", Domain: "local-torii",
 			StorageClass: "local-path", StorageSize: resource.MustParse("100Mi"),
 			ServiceType: corev1.ServiceTypeLoadBalancer,
-			PortRange:   ainariv1alpha1.PortRangeSpec{Start: 10040, End: 10050},
+			Proxy:       ainariv1alpha1.ToriiProxySpec{Domain: "ainari.localhost", Port: 10042},
 			Public:      ainariv1alpha1.ToriiPublicSpec{OverlayIface: "veth-gw", UplinkIface: "veth-gw", UplinkNextHop: "10.0.0.1"},
 		},
 		Dashboard: ainariv1alpha1.DashboardSpec{Enabled: true, Replicas: 1, Image: "kitsudaiki/ainari_dashboard:develop", Domain: "local-ainari"},
@@ -195,6 +195,74 @@ func TestRenderTLSRoute(t *testing.T) {
 	}
 	if port := service.Spec.Ports[0]; int64(port.Port) != backend["port"] || port.TargetPort.IntVal != 9443 {
 		t.Errorf("the backend %v doesn't point to the external nginx-sidecar: %+v", backend, port)
+	}
+}
+
+func TestRenderProxies(t *testing.T) {
+	spec := testSpec()
+	spec.Torii.ServiceType = corev1.ServiceTypeNodePort
+	spec.Global.ExternalServices = ainariv1alpha1.ExternalServicesSpec{
+		Enabled: true, Type: ainariv1alpha1.ExternalServiceNodePort, NodePortOffset: 20000,
+	}
+	objects := renderObjects(t, spec)
+
+	// all proxies share one port
+	service := objects["Service/torii-gateway-service"].(*corev1.Service)
+	if len(service.Spec.Ports) != 1 {
+		t.Fatalf("the proxies have more than one port: %+v", service.Spec.Ports)
+	}
+	if port := service.Spec.Ports[0]; port.Port != 10042 || port.TargetPort.IntVal != 10042 || port.NodePort != 30042 {
+		t.Errorf("the proxies are published on the wrong port: %+v", port)
+	}
+	config := objects["ConfigMap/torii-config"].(*corev1.ConfigMap).Data["torii-public.toml"]
+	for _, want := range []string{`domain = "ainari.localhost"`, "port = 10042"} {
+		if !strings.Contains(config, want) {
+			t.Errorf("the config of the gateway at the edge has no '%s':\n%s", want, config)
+		}
+	}
+	proxySection := config[strings.Index(config, "[proxy]"):strings.Index(config, "[network]")]
+	if strings.Contains(proxySection, "public_port =") {
+		t.Errorf("the proxies of the gateway at the edge have a public port of their own:\n%s", config)
+	}
+
+	// the clients get the certificate of the external api of the sakura-hosts over the proxies,
+	// so it must only contain the names of the proxies and not the ones of the sakura-hosts
+	cert := objects["Certificate/sakura-proxy-cert"].(*unstructured.Unstructured).Object
+	dnsNames, _, _ := unstructured.NestedStringSlice(cert, "spec", "dnsNames")
+	if !reflect.DeepEqual(dnsNames, []string{"*.ainari.localhost"}) {
+		t.Errorf("the certificate of the proxies has the wrong names: %v", dnsNames)
+	}
+	if _, found, _ := unstructured.NestedSlice(cert, "spec", "ipAddresses"); found {
+		t.Errorf("the certificate of the proxies has ip-addresses")
+	}
+	pod := objects["StatefulSet/sakura"].(*appsv1.StatefulSet).Spec.Template.Spec
+	secretOf := map[string]string{}
+	for _, volume := range pod.Volumes {
+		if volume.Secret != nil {
+			secretOf[volume.Name] = volume.Secret.SecretName
+		}
+	}
+	for _, container := range pod.Containers {
+		if container.Name != "external-tls-termination" {
+			continue
+		}
+		for _, mount := range container.VolumeMounts {
+			if mount.MountPath == "/etc/nginx/certs" && secretOf[mount.Name] != "sakura-proxy-tls-secret" {
+				t.Errorf("the external api of sakura uses the certificate %s", secretOf[mount.Name])
+			}
+		}
+	}
+
+	// a load-balancer can publish the proxies under another port
+	spec.Torii.Proxy.PublicPort = 443
+	objects = renderObjects(t, spec)
+	service = objects["Service/torii-gateway-service"].(*corev1.Service)
+	if port := service.Spec.Ports[0]; port.Port != 443 || port.TargetPort.IntVal != 10042 {
+		t.Errorf("the proxies are not published on their public port: %+v", port)
+	}
+	config = objects["ConfigMap/torii-config"].(*corev1.ConfigMap).Data["torii-public.toml"]
+	if !strings.Contains(config, "public_port = 443") {
+		t.Errorf("the gateway at the edge doesn't know its public port:\n%s", config)
 	}
 }
 

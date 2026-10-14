@@ -50,7 +50,10 @@ FLOATING_IP_CIDR="10.0.0.0/24"
 TORII_VM_ADDRESS="192.168.56.11"
 MGMT_VM_ADDRESS="192.168.56.10"
 
-# CA, which signs the certificates of all components, see testing/vagrant/create_local_ca.sh
+# CA, which signs the certificates of all components, see testing/vagrant/create_local_ca.sh. It
+# also signs the certificate of the proxies of torii, which are reached under the names below
+# this domain (spec.torii.proxy.domain in testing/vagrant/ainari.yaml).
+PROXY_DOMAIN="192-168-56-11.sslip.io"
 CA_CERT="$WORK_DIR/ainari-vagrant-ca.crt"
 CA_KEY="$WORK_DIR/ainari-vagrant-ca.key"
 
@@ -116,7 +119,7 @@ for image in "${IMAGES[@]}"; do
 done
 
 "$PROJECT_DIR/testing/vagrant/create_local_ca.sh" "$CA_CERT" "$CA_KEY" "ainari vagrant-setup CA" \
-    "permitted;IP:192.168.56.0/255.255.255.0,permitted;DNS:cluster.local"
+    "permitted;IP:192.168.56.0/255.255.255.0,permitted;DNS:cluster.local,permitted;DNS:$PROXY_DOMAIN"
 
 # ---------------------------------------------------------------------------------------------
 # start the virtual machines and deploy ainari

@@ -31,7 +31,12 @@ make down local                           # or sudo ./testing/local_stack/setup_
 - `net.ipv4.ip_forward` stays enabled on the host after `--down`, because docker needs it for its
   own networks as well.
 - The virtual machines only reach the internet over the first default-route of the host.
-- The api is only reachable over plain http.
+- The api is only reachable over plain http. Only the proxies of torii, over which the clients
+  reach the sakura-hosts, are served over https with a certificate for `*.ainari.localhost`. Its
+  CA `temporary_files/local/ainari-local-ca.crt` is created with the first start and kept over
+  all runs, so it only has to be trusted once, see
+  [The CAs of the local setups](../../docs/developer/local_testing/https_ca.md).
+- `openssl` has to be installed on the host for the CA and the certificate.
 
 ## setup_single_node_uplink.sh
 
