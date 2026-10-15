@@ -16,22 +16,24 @@ limitations under the License.
 */
 
 :root {
-    --color-background: #1d1f22;
-    --color-bar: #16181b; /* dark bars, like topbar and section-headers */
-    --color-tile: #2a2c30;
-    --color-higlight-field: #3a3d42;
+    --color-background: #090d12;
+    --color-bar: #0c1117; /* dark bars, like topbar and section-headers */
+    --color-tile: #161d26;
+    --color-higlight-field: #1c2430;
 
-    --color-shadow: #0000008c;
-    --color-text: #f2f2f2;
-    --color-text-light: #9a9ea3;
-    --color-text-dark: #1b1c1f; /* text on light surfaces */
+    --color-shadow: #000000a6;
+    --color-text: #e6e9ee;
+    --color-text-light: #7f8a99;
+    --color-text-dark: #0c1117; /* text on light surfaces */
     /* The highlight-color is the only value, which has to be changed to change the
     accent of the whole dashboard. All other highlight-values are derived from it. */
     --color-highlight: #fa9835;
 
     --color-highlight-glow: rgb(from var(--color-highlight) r g b / 0.45);
-    --color-highlight-tint: rgb(from var(--color-highlight) r g b / 0.35);
+    --color-highlight-tint: rgb(from var(--color-highlight) r g b / 0.16);
+    --color-highlight-faint: rgb(from var(--color-highlight) r g b / 0.07);
     --color-highlight-light: oklch(from var(--color-highlight) calc(l + 0.06) c h);
+    --color-highlight-dark: oklch(from var(--color-highlight) calc(l - 0.08) c h);
     /* Text on top of the highlight-color: white for dark and black for light
     highlight-colors. The lightness "l" of oklch is between 0 and 1. Below the
     threshold of 0.7 the clamp results in 1 (white), above it in 0 (black). */
@@ -40,52 +42,164 @@ limitations under the License.
     );
     --color-selected: #e2e3e5; /* light surface of selected menu-entries */
 
-    --color-border: rgba(255, 255, 255, 0.6);
-    --color-border-soft: rgba(255, 255, 255, 0.14);
+    --color-border: rgba(255, 255, 255, 0.24);
+    --color-border-soft: rgba(255, 255, 255, 0.08);
 
     /* usage-levels of resources */
-    --color-usage-ok: #4caf50;
-    --color-usage-warning: #e6b800;
-    --color-usage-critical: #e53935;
+    --color-usage-ok: #3ccf7a;
+    --color-usage-warning: #f0c419;
+    --color-usage-critical: #f0443a;
 
     /* errors use the same red as the critical usage-level */
     --color-error: var(--color-usage-critical);
-    --color-error-tint: rgb(from var(--color-error) r g b / 0.18);
+    --color-error-tint: rgb(from var(--color-error) r g b / 0.16);
 
-    /* frosted glass for panels, which lie above the background */
-    --glass-bg: rgba(38, 41, 46, 0.55);
-    --glass-bg-strong: rgba(22, 24, 27, 0.72);
-    --glass-blur: blur(14px) saturate(140%);
+    /* translucent panels, which lie above the background */
+    --glass-bg: rgba(15, 20, 27, 0.84);
+    --glass-bg-strong: rgba(9, 13, 18, 0.94);
+    --glass-blur: blur(12px) saturate(130%);
     --glass-sheen: linear-gradient(
-        135deg,
-        rgba(255, 255, 255, 0.09) 0%,
-        rgba(255, 255, 255, 0.02) 35%,
-        rgba(255, 255, 255, 0) 60%
+        160deg,
+        rgba(255, 255, 255, 0.045) 0%,
+        rgba(255, 255, 255, 0) 40%
     );
-    --glass-edge: inset 0 1px 0 rgba(255, 255, 255, 0.18);
+    --glass-edge: inset 0 1px 0 rgba(255, 255, 255, 0.06);
 
-    /* honeycomb-lines, like in the background-pattern, used as texture in the bars.
-    One tile contains a full hexagon (side-length 11) plus the line to its right
-    neighbours, so the tiles fit seamlessly together. */
-    --hex-pattern: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='33' height='19.053' viewBox='0 0 33 19.053'%3E%3Cpath d='M0 9.526 L5.5 0 H16.5 L22 9.526 L16.5 19.053 H5.5 Z M22 9.526 H33' fill='none' stroke='rgba(255,255,255,0.13)' stroke-width='1'/%3E%3C/svg%3E")
-        0 0 / 33px 19.053px repeat;
+    /*=================================================
+    Chamfered corners
+
+    Panels are cut at the top-right and bottom-left corner. "--chamfer" is the shape of a
+    panel. Its frame is a normal border, because borders are always drawn on whole pixels,
+    while thin shapes of a clip-path can vanish on panels with a fractional height. The
+    clip-path cuts the border away at the corners, so "--frame-diagonals" draws the lines
+    along the two cuts instead.
+    =================================================*/
+    --cut: 1rem;
+    --cut-sm: 0.5rem;
+    --chamfer: polygon(
+        0 0,
+        calc(100% - var(--cut)) 0,
+        100% var(--cut),
+        100% 100%,
+        var(--cut) 100%,
+        0 calc(100% - var(--cut))
+    );
+    /* Same shape for the frame, but 1px larger on every side, otherwise the border of a panel
+    with a fractional size can be rounded to a pixel outside of the shape and is cut away.
+    The diagonal cuts are moved 0.5px to the outside, so the 1px wide lines along them are
+    not cut away either. */
+    --chamfer-frame: polygon(
+        -1px -1px,
+        calc(100% - var(--cut) - 0.65px) -1.35px,
+        calc(100% + 1.35px) calc(var(--cut) + 0.65px),
+        calc(100% + 1px) calc(100% + 1px),
+        calc(var(--cut) + 0.65px) calc(100% + 1.35px),
+        -1.35px calc(100% - var(--cut) - 0.65px)
+    );
+    /* lines along the two cuts, 1px wide like the border, mostly on the inner side of the
+    cut. The gradients run to the top-right, so in the top-right corner the inner side is
+    below 50% and in the bottom-left corner above 50%. */
+    --frame-diagonal-color: rgba(255, 255, 255, 0.18);
+    --frame-diagonals:
+        linear-gradient(
+                to top right,
+                transparent calc(50% - 0.75px),
+                var(--frame-diagonal-color) calc(50% - 0.75px),
+                var(--frame-diagonal-color) calc(50% + 0.25px),
+                transparent calc(50% + 0.25px)
+            )
+            right top / var(--cut) var(--cut) no-repeat,
+        linear-gradient(
+                to top right,
+                transparent calc(50% - 0.25px),
+                var(--frame-diagonal-color) calc(50% - 0.25px),
+                var(--frame-diagonal-color) calc(50% + 0.75px),
+                transparent calc(50% + 0.75px)
+            )
+            left bottom / var(--cut) var(--cut) no-repeat;
+
+    /* small elements, like buttons, are only cut at the top-right corner */
+    --chamfer-sm: polygon(
+        0 0,
+        calc(100% - var(--cut-sm)) 0,
+        100% var(--cut-sm),
+        100% 100%,
+        0 100%
+    );
+    /* small elements cut at both corners, like the panels */
+    --chamfer-sm-both: polygon(
+        0 0,
+        calc(100% - var(--cut-sm)) 0,
+        100% var(--cut-sm),
+        100% 100%,
+        var(--cut-sm) 100%,
+        0 calc(100% - var(--cut-sm))
+    );
+    /* color of the corner-notch, see below */
+    --notch-color: var(--color-border);
+    /* frame of the panels: a bit brighter in the top-left and bottom-right corner */
+    --frame-gradient: linear-gradient(
+        135deg,
+        rgba(255, 255, 255, 0.24) 0%,
+        rgba(255, 255, 255, 0.14) 30%,
+        rgba(255, 255, 255, 0.14) 70%,
+        rgba(255, 255, 255, 0.24) 100%
+    );
+
+    /* fine grid of a HUD, which lies on the background. The bigger grid emphasizes every
+    fourth line of the small one. */
+    --hud-grid:
+        linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px) 0 0 /
+            6rem 6rem,
+        linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px)
+            0 0 / 6rem 6rem,
+        linear-gradient(rgba(255, 255, 255, 0.018) 1px, transparent 1px) 0 0 /
+            1.5rem 1.5rem,
+        linear-gradient(90deg, rgba(255, 255, 255, 0.018) 1px, transparent 1px)
+            0 0 / 1.5rem 1.5rem;
+
+    /* thin line in the highlight-color, which fades out to the right */
+    --glow-line: linear-gradient(
+        90deg,
+        var(--color-highlight) 0%,
+        rgb(from var(--color-highlight) r g b / 0.35) 35%,
+        transparent 85%
+    );
 
     --text-font-family: "Barlow", "Helvetica Neue", Helvetica, Arial, sans-serif;
     /* narrower variant for titles, menus, tabs and table-headers */
     --title-font-family:
         "Barlow Semi Condensed", "Barlow", "Helvetica Neue", Helvetica, Arial,
         sans-serif;
+    /* ids, addresses and other technical values */
+    --mono-font-family:
+        "JetBrains Mono", "DejaVu Sans Mono", ui-monospace, "SFMono-Regular",
+        Menlo, Consolas, monospace;
     --text-font-size: 1rem;
 
-    --box-shadow: 0 0.3rem 0.6rem var(--color-shadow);
-    --box-shadow-footer: 0 -0.3rem 0.6rem var(--color-shadow);
-    --box-shadow-header: 0 0.3rem 0.6rem var(--color-shadow);
-    --box-shadow-sidebar: 0.25rem 0 0.6rem var(--color-shadow);
+    --box-shadow: 0 0.3rem 0.8rem var(--color-shadow);
+    --box-shadow-footer: 0 -0.3rem 0.8rem var(--color-shadow);
+    --box-shadow-header: 0 0.3rem 0.8rem var(--color-shadow);
+    --box-shadow-sidebar: 0.25rem 0 0.8rem var(--color-shadow);
 }
 
 /*=================================================
 Generic objects
 =================================================*/
+
+/* Bordered elements are not clipped, because the border would be cut away at the diagonal.
+Instead the corner is filled by a small triangle in the color of the border. It is declared
+for every element instead of :root, so the var() is resolved with the "--notch-color" of the
+element itself, which allows to change the color, for example on hover. */
+*,
+::file-selector-button {
+    --corner-notch: linear-gradient(
+            225deg,
+            var(--notch-color) 50%,
+            transparent 50%
+        )
+        top right / 0.5rem 0.5rem no-repeat;
+}
 
 * {
     margin: 0;
@@ -94,11 +208,16 @@ Generic objects
     border: 0;
     box-sizing: border-box;
     scrollbar-width: thin;
-    scrollbar-color: var(--color-text-light) transparent;
+    scrollbar-color: rgba(255, 255, 255, 0.16) transparent;
+}
+
+*:hover {
+    scrollbar-color: rgb(from var(--color-highlight) r g b / 0.5) transparent;
 }
 
 body {
     background-color: var(--color-background);
+    color: var(--color-text);
     width: 100%;
     height: 100%;
     font-family: var(--text-font-family);
@@ -107,10 +226,16 @@ body {
     overflow-x: hidden;
     line-height: 1.5;
     letter-spacing: 0.01em;
+    -webkit-font-smoothing: antialiased;
 
     /* scalse entire page */
     /*transform: scale(1.4);
     transform-origin: 0 0; */
+}
+
+::selection {
+    background: rgb(from var(--color-highlight) r g b / 0.35);
+    color: var(--color-text);
 }
 
 /* form-elements don't inherit the font of the page by default */
@@ -122,7 +247,7 @@ textarea {
 }
 
 a {
-    color: var(--color-text);
+    color: var(--color-highlight);
 }
 
 button {
@@ -130,44 +255,64 @@ button {
 }
 
 button:hover {
-    filter: brightness(85%);
+    filter: brightness(115%);
 }
 
 button:active {
-    filter: brightness(70%);
+    filter: brightness(85%);
+}
+
+/* keyboard-focus is shown by an outline in the highlight-color */
+button:focus-visible,
+[tabindex]:focus-visible {
+    outline: 1px solid var(--color-highlight);
+    outline-offset: 2px;
 }
 
 h1 {
+    font-family: var(--title-font-family);
     font-size: 2rem;
-    font-weight: 600;
+    font-weight: 500;
+    letter-spacing: 0.04em;
     color: var(--color-text);
 }
 
 h2 {
-    font-weight: 600;
+    font-family: var(--title-font-family);
+    font-weight: 500;
+    letter-spacing: 0.04em;
     color: var(--color-text);
 }
 
-input[type="text"] {
+/*=================================================
+Input-fields: dark filled fields with an underline, which lights up on focus
+=================================================*/
+
+input[type="text"],
+input[type="number"],
+input[type="password"] {
     border: 0;
     outline: 0;
-    background: transparent;
+    background: rgba(255, 255, 255, 0.03);
     color: var(--color-text);
-    border-bottom: 1px solid var(--color-text-light);
-    padding: 8px;
+    border-bottom: 1px solid var(--color-border);
+    padding: 0.55rem 0.75rem;
     width: 100%;
     font-size: var(--text-font-size);
+    transition:
+        border-color 150ms,
+        background-color 150ms,
+        box-shadow 150ms;
+}
+
+input[type="text"]:hover,
+input[type="number"]:hover,
+input[type="password"]:hover {
+    background: rgba(255, 255, 255, 0.05);
 }
 
 input[type="number"] {
-    border: 0;
-    outline: 0;
-    background: transparent;
-    color: var(--color-text);
-    border-bottom: 1px solid var(--color-text-light);
-    padding: 8px;
-    width: 100%;
-    font-size: var(--text-font-size);
+    font-variant-numeric: tabular-nums;
 
     /* Remove default number input styling */
     -moz-appearance: textfield;
@@ -184,66 +329,113 @@ input[type="number"]::-webkit-outer-spin-button {
 input[type="checkbox"] {
     color: var(--color-text);
     padding: 8px;
-}
-
-input[type="password"] {
-    border: 0;
-    outline: 0;
-    background: transparent;
-    color: var(--color-text);
-    border-bottom: 1px solid var(--color-text-light);
-    padding: 8px;
-    width: 100%;
+    accent-color: var(--color-highlight);
 }
 
 input[type="file"] {
     border: 0;
     outline: 0;
     background: transparent;
-    color: invert(var(--color-text));
-    padding: 8px;
+    color: var(--color-text-light);
+    padding: 8px 0;
     width: 100%;
 }
 
 /*button for file-selector*/
 input::file-selector-button {
-    width: 10rem;
-    height: 2rem;
+    height: 2.2rem;
+    padding: 0 1.2rem;
+    margin-right: 1rem;
     margin-bottom: 0.5rem;
     border: 1px solid var(--color-border);
     background: var(--color-tile);
     color: var(--color-text);
+    font-family: var(--title-font-family);
+    letter-spacing: 0.04em;
     cursor: pointer;
+    background: var(--corner-notch), var(--color-tile);
+}
+
+input::file-selector-button:hover {
+    --notch-color: var(--color-highlight);
+    border-color: var(--color-highlight);
+    background: var(--corner-notch), var(--color-highlight-tint);
 }
 
 textarea {
-    background: transparent;
+    background: rgba(255, 255, 255, 0.03);
     color: var(--color-text);
-    border: 1px solid var(--color-text-light);
-    padding: 8px;
+    border: 1px solid var(--color-border-soft);
+    border-bottom-color: var(--color-border);
+    padding: 0.55rem 0.75rem;
     width: 100%;
+    transition:
+        border-color 150ms,
+        box-shadow 150ms;
 }
 
+/* labels are small captions above the fields */
 label {
     display: inline-block;
     width: 100%;
     text-align: left;
-    font-size: 0.9rem;
-    margin-bottom: 0.5rem;
+    font-size: 0.85rem;
+    letter-spacing: 0.02em;
+    color: var(--color-text-light);
+    margin-bottom: 0.4rem;
 }
 
 select {
     margin-bottom: 0.5rem;
 }
 
+/* the focused field gets a tinted background and a glowing underline */
 input[type="text"]:focus,
 input[type="number"]:focus,
-input[type="password"]:focus,
+input[type="password"]:focus {
+    border-color: var(--color-highlight);
+    background: var(--color-highlight-faint);
+    box-shadow:
+        0 1px 0 0 var(--color-highlight),
+        0 0.6rem 0.8rem -0.6rem var(--color-highlight-glow);
+}
+
 textarea:focus {
     border-color: var(--color-highlight);
+    box-shadow: 0 0 0.8rem -0.2rem var(--color-highlight-glow);
 }
 
 input::placeholder,
 textarea::placeholder {
     color: var(--color-text-light);
+    opacity: 0.8;
+}
+
+/* panels fade in, when a view is loaded */
+@keyframes panel-in {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+/* line, which is drawn from left to right */
+@keyframes line-in {
+    from {
+        transform: scaleX(0);
+    }
+    to {
+        transform: scaleX(1);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0s !important;
+        transition-duration: 0s !important;
+    }
 }

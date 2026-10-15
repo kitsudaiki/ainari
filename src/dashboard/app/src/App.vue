@@ -32,6 +32,7 @@
         <template v-else>
             <Topbar
                 :username="username"
+                :projectId="projectId"
                 @logout="handleLogout"
                 @switch-project="showProjectSwitch = true"
                 @change-passphrase="showPassphraseChange = true"
@@ -118,6 +119,7 @@ import {
     getAuthContext,
     getExpireTimesamp,
     getIsAdminFromJwt,
+    getProjectIdFromJwt,
 } from "@/auth_context";
 
 // Import all CSS styles for the application
@@ -139,6 +141,10 @@ const currentId = ref<string | null>(null);
 const isLoggedIn = ref<boolean>(!!localStorage.getItem("ainari_authContext"));
 const username = ref<string | null>(localStorage.getItem("username"));
 const isAdmin = ref<boolean>(getAuthContext().is_admin === "true");
+// project, for which the user is logged in, shown in the topbar
+const projectId = ref<string | null>(
+    getProjectIdFromJwt(getAuthContext().token),
+);
 const tokenExpireError = ref<string>("");
 const showProjectSwitch = ref<boolean>(false);
 const showPassphraseChange = ref<boolean>(false);
@@ -194,6 +200,7 @@ function handleLoginSuccess(
     isLoggedIn.value = true;
     username.value = user;
     isAdmin.value = is_admin === "true";
+    projectId.value = getProjectIdFromJwt(newToken);
     tokenExpireError.value = "";
 
     // Start watcher to check if the token is expired. To avoid conflicts
@@ -214,6 +221,7 @@ function handleLoginSuccess(
 function handleProjectSwitch(newToken: string) {
     showProjectSwitch.value = false;
     isAdmin.value = getIsAdminFromJwt(newToken) === "true";
+    projectId.value = getProjectIdFromJwt(newToken);
 
     // the new token has its own expiration-time
     const expire_timestamp = getExpireTimesamp(newToken);
@@ -299,16 +307,23 @@ onUnmounted(() => {
 }
 
 .background {
-    /* very light gradient from the top-left to the bottom-right corner */
-    background: linear-gradient(
-        to bottom right,
-        #24272a 0%,
-        var(--color-background) 100%
-    );
+    /* night-sky: a cool shimmer at the top and the glow of a fox-fire at the bottom-right,
+    which is the only warm light of the page */
+    background:
+        radial-gradient(
+            ellipse 70% 55% at 100% 100%,
+            rgb(from var(--color-highlight) r g b / 0.1) 0%,
+            transparent 70%
+        ),
+        radial-gradient(
+            ellipse 60% 50% at 20% 0%,
+            rgba(90, 130, 180, 0.08) 0%,
+            transparent 70%
+        ),
+        var(--color-background);
     /* background-picture
     background: url("./src/assets/background.jpg") no-repeat
         center center fixed; */
-    background-size: cover;
     position: fixed;
     inset: 0;
     z-index: -2;
@@ -318,12 +333,32 @@ onUnmounted(() => {
     height: 100vh; /* THIS is the important part */
 }
 
+/* the HUD-grid fades out to the top-left, so it seems to lie on the floor below the glow */
+.background::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: var(--hud-grid);
+    mask-image: radial-gradient(
+        ellipse 90% 90% at 100% 100%,
+        #000 0%,
+        transparent 100%
+    );
+}
+
 .overlay {
     position: fixed;
     inset: 0;
     /* blur-effect
     backdrop-filter: blur(20px);
     background-color: rgba(59, 63, 66, 0.5); */
+    /* vignette, which darkens the edges of the screen */
+    background: radial-gradient(
+        ellipse at center,
+        transparent 50%,
+        rgba(0, 0, 0, 0.5) 100%
+    );
+    pointer-events: none;
     z-index: -1;
 }
 
@@ -335,7 +370,7 @@ onUnmounted(() => {
 
 .content {
     flex: 1;
-    margin: 1rem;
+    padding: 1rem 1.5rem 1rem 1rem;
     overflow-y: auto;
 }
 

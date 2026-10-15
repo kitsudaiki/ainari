@@ -28,12 +28,19 @@ usage: green up to 75%, yellow up to 90% and red above.
         :aria-label="label"
         :title="`${label} (${percentage}%)`"
     >
-        <div
-            class="usage-bar-fill"
-            :class="level"
-            :style="{ width: percentage + '%' }"
-        ></div>
-        <span class="usage-bar-text">{{ label }}</span>
+        <div class="usage-bar-text">
+            <span>{{ label }}</span>
+            <span class="usage-bar-percentage" :class="level"
+                >{{ percentage }}%</span
+            >
+        </div>
+        <div class="usage-bar-track">
+            <div
+                class="usage-bar-fill"
+                :class="level"
+                :style="{ width: percentage + '%' }"
+            ></div>
+        </div>
     </div>
 </template>
 
@@ -73,46 +80,58 @@ const label = computed(() => {
 </script>
 
 <style scoped>
+/* slim meter with the values above it, so the text never lies on top of the bar */
 .usage-bar {
-    position: relative;
+    --usage-color: var(--color-usage-ok);
+
     width: 100%;
     min-width: 8rem;
-    height: 1.25rem;
-    border-radius: 0.25rem;
-    overflow: hidden;
-    background-color: var(--color-higlight-field);
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.usage-bar-text {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.5rem;
+    font-family: var(--title-font-family);
+    font-size: 0.8rem;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+    white-space: nowrap;
+    color: var(--color-text-light);
+}
+
+/* the track is split into 20 segments by the mask, the fill is cut by the same mask */
+.usage-bar-track {
+    height: 0.45rem;
+    background: rgba(255, 255, 255, 0.08);
+    mask-image: repeating-linear-gradient(
+        90deg,
+        #000 0 calc(5% - 2px),
+        transparent calc(5% - 2px) 5%
+    );
 }
 
 .usage-bar-fill {
     height: 100%;
-    transition:
-        width 0.3s ease,
-        background-color 0.3s ease;
+    background-color: var(--usage-color);
+    transition: width 0.3s ease;
 }
 
-.usage-bar-fill.ok {
-    background-color: var(--color-usage-ok);
+.usage-bar-fill.warning,
+.usage-bar-percentage.warning {
+    --usage-color: var(--color-usage-warning);
 }
 
-.usage-bar-fill.warning {
-    background-color: var(--color-usage-warning);
+.usage-bar-fill.critical,
+.usage-bar-percentage.critical {
+    --usage-color: var(--color-usage-critical);
 }
 
-.usage-bar-fill.critical {
-    background-color: var(--color-usage-critical);
-}
-
-/* the shadow keeps the text readable on the empty and on the filled part of the bar */
-.usage-bar-text {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.75rem;
-    font-weight: bold;
-    white-space: nowrap;
-    color: var(--color-text);
-    text-shadow: 0 0 0.2rem #000000;
+.usage-bar-percentage {
+    color: var(--usage-color);
 }
 </style>
