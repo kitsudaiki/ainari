@@ -15,48 +15,63 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-/* segmented bar, where the selected segment is filled with the highlight-color */
+/* segmented bar, where the selected segment lights up from below */
 .tab {
     overflow: hidden;
     display: flex;
-    background-color: rgba(58, 61, 66, 0.6);
-    backdrop-filter: var(--glass-blur);
-    -webkit-backdrop-filter: var(--glass-blur);
-    border: 1px solid var(--color-border-soft);
-    box-shadow: var(--box-shadow-header);
-    margin-top: 0.5rem;
+    background: rgba(0, 0, 0, 0.3);
+    border-bottom: 1px solid var(--color-border);
+    clip-path: var(--chamfer-sm);
+    margin-top: 0.75rem;
 }
 
 .tab button {
+    position: relative;
     flex: 1;
-    background-color: inherit;
+    background: transparent;
     border: none;
     border-right: 1px solid var(--color-border-soft);
     outline: none;
     cursor: pointer;
-    padding: 0.6rem 1rem;
-    transition: background-color 0.2s;
+    padding: 0.65rem 1rem;
+    transition:
+        background-color 0.2s,
+        color 0.2s;
     font-family: var(--title-font-family);
     font-weight: 500;
-    color: var(--color-text);
-    font-size: 1rem;
+    color: var(--color-text-light);
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
 }
 
 .tab button:last-child {
     border-right: none;
 }
 
-/* Change background color of buttons on hover */
 .tab button:hover {
-    background-color: rgba(255, 255, 255, 0.08);
+    background-color: rgba(255, 255, 255, 0.04);
+    color: var(--color-text);
+    filter: none;
 }
 
-/* Create an active/current tablink class */
+/* the active segment has a glowing bar at the bottom and a tint, which rises from it */
 .tab button.active {
     background: linear-gradient(
-        180deg,
-        var(--color-highlight-light) 0%,
-        var(--color-highlight) 100%
+        0deg,
+        rgb(from var(--color-highlight) r g b / 0.22) 0%,
+        transparent 100%
     );
-    color: var(--color-on-highlight);
+    color: var(--color-text);
+}
+
+.tab button.active::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 2px;
+    background: var(--color-highlight);
+    box-shadow: 0 0 0.8rem var(--color-highlight);
 }

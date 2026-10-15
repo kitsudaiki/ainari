@@ -203,9 +203,17 @@ onMounted(() => {
 </script>
 
 <style scoped>
+/* the gauges share the width of the page, as many in a row as fit */
 .usage_overview {
-    display: flex;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(14.5rem, 1fr));
+    gap: 0 1.25rem;
+    margin: 0 1rem;
+}
+
+.usage_overview .gauge-chart-card {
+    width: auto;
+    margin: 1rem 0 0.5rem 0;
 }
 /* Columns 2 through n-1 share remaining space equally */
 th:not(:first-child):not(:last-child),

@@ -33,8 +33,7 @@
                             <span
                                 class="caret"
                                 :class="{ open: isOpen(menu.name) }"
-                                >▾</span
-                            >
+                            ></span>
                         </button>
 
                         <div
@@ -74,11 +73,29 @@
                 </template>
             </div>
         </nav>
+
+        <!-- project of the login, a click on it opens the project-switch -->
+        <div v-if="projectId" class="sidebar-project">
+            <button
+                class="project-chip"
+                :title="`Project ${projectId}, click to switch the project`"
+                @click="emit('switch-project')"
+            >
+                <span class="project-chip-caption">Project</span>
+                <span class="project-chip-value">{{ projectId }}</span>
+            </button>
+        </div>
+
+        <footer class="sidebar-footer">
+            <span>Ainari</span>
+            <span class="sidebar-version">v{{ version }}</span>
+        </footer>
     </aside>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, watch, nextTick, onMounted, computed } from "vue";
+import { version } from "../../package.json";
 
 // icon is the class of a primeicons-icon, like "pi-home"
 type MenuItem = { view: string; label: string; icon: string };
@@ -87,15 +104,19 @@ type Menu = { name: string; label: string; icon: string; items?: MenuItem[] };
 interface Props {
     activeView?: string;
     isAdmin?: boolean;
+    /** project, for which the user is logged in */
+    projectId?: string | null;
 }
 
 const props = withDefaults(defineProps<Props>(), {
     activeView: "Overview",
     isAdmin: false,
+    projectId: null,
 });
 
 const emit = defineEmits<{
     (e: "change-view", view: string, id: string): void;
+    (e: "switch-project"): void;
 }>();
 
 const visibleMenus = computed(() =>
@@ -313,124 +334,256 @@ watch(
 
 <style scoped>
 aside {
-    height: 100vh;
-    width: 14rem;
-    padding: 1rem 0.75rem;
-    background: var(--glass-sheen), rgba(22, 24, 27, 0.45);
+    height: 100%;
+    width: 15rem;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 1.25rem 0 0 0;
+    background: rgba(9, 13, 18, 0.86);
     backdrop-filter: var(--glass-blur);
     -webkit-backdrop-filter: var(--glass-blur);
     border-right: 1px solid var(--color-border-soft);
-    box-shadow: var(--box-shadow-sidebar);
+    overflow-y: auto;
 }
 
 aside .sidebar {
+    flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 0.15rem;
+    padding: 0 0.75rem;
 }
 
-/* every entry is a framed tile, like the buttons of a game-menu */
+/* top-level entries are flat rows, which light up on hover */
 aside .sidebar button.sidebar-btn {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    gap: 0.6rem;
     position: relative;
-    height: 3rem;
-    padding: 0 1rem;
-    background: var(--glass-sheen), rgba(42, 44, 48, 0.6);
-    border: 1px solid var(--color-border);
-    box-shadow:
-        var(--glass-edge),
-        var(--box-shadow);
+    height: 2.75rem;
+    padding: 0 0.8rem 0 0.9rem;
+    background: transparent;
+    clip-path: var(--chamfer-sm);
     cursor: pointer;
     width: 100%;
     text-align: left;
     font: inherit;
     font-family: var(--title-font-family);
     font-weight: 500;
-    font-size: 1.05rem;
-    letter-spacing: 0.02em;
-    color: var(--color-text);
+    font-size: 0.92rem;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--color-text-light);
     transition:
         background-color 150ms,
-        color 150ms,
-        border-color 150ms;
+        color 150ms;
+}
+
+aside .sidebar button.sidebar-btn:hover {
+    background-color: rgba(255, 255, 255, 0.04);
+    color: var(--color-text);
+    filter: none;
 }
 
 /* icon and text of an entry */
 .entry-label {
+    flex: 1;
     display: flex;
     align-items: center;
-    gap: 0.75rem;
+    gap: 0.8rem;
 }
 
 .entry-label .pi {
     width: 1.2rem;
     text-align: center;
-    font-size: 1.1rem;
+    font-size: 1rem;
+    transition: color 150ms;
 }
 
-aside .sidebar button.sidebar_dropdown_entry .pi {
-    font-size: 0.95rem;
-}
-
+/* caret: a small chevron, which points down when the section is open */
 .caret {
+    width: 0.4rem;
+    height: 0.4rem;
+    border-right: 1.5px solid currentColor;
+    border-bottom: 1.5px solid currentColor;
+    transform: translateY(-25%) rotate(45deg);
     transition: transform 180ms ease;
+    opacity: 0.7;
 }
 .caret.open {
-    transform: rotate(180deg);
+    transform: translateY(15%) rotate(-135deg);
 }
 
+/* open section: the text and the icon light up */
+aside .sidebar button.dropdown-toggle.active {
+    color: var(--color-text);
+}
+
+aside .sidebar button.dropdown-toggle.active .pi {
+    color: var(--color-highlight);
+}
+
+/* selected top-level entry: tinted row with a glowing bar on the left */
+aside .sidebar button.sidebar-btn.active:not(.dropdown-toggle) {
+    background: linear-gradient(
+        90deg,
+        rgb(from var(--color-highlight) r g b / 0.2) 0%,
+        rgb(from var(--color-highlight) r g b / 0.03) 100%
+    );
+    color: var(--color-text);
+    box-shadow: inset 2px 0 0 var(--color-highlight);
+}
+
+aside .sidebar button.sidebar-btn.active:not(.dropdown-toggle) .pi {
+    color: var(--color-highlight);
+}
+
+/* sub-entries hang on a vertical line, like the branches of a tree */
 .sidebar_drop_content {
     display: flex;
     flex-direction: column;
-    gap: 0.3rem;
-    padding-left: 0.75rem;
+    margin-left: 1.5rem;
+    border-left: 1px solid var(--color-border-soft);
     overflow: hidden;
     transition: max-height 0.35s ease;
     max-height: 0;
 }
 
-/* first sub-entry gets a bit space to its parent */
 .sidebar_drop_content > :first-child {
-    margin-top: 0.3rem;
+    margin-top: 0.2rem;
 }
 
-/* selected entry becomes a light tile with dark text and an accent-bar */
-aside .sidebar button.active {
-    background: var(--color-selected);
-    color: var(--color-text-dark);
-    box-shadow: inset 0.3rem 0 0 var(--color-highlight);
+.sidebar_drop_content > :last-child {
+    margin-bottom: 0.4rem;
 }
 
-/* sub-entries are smaller and without frame */
 aside .sidebar button.sidebar_dropdown_entry {
     justify-content: flex-start;
-    height: 2.7rem;
+    height: 2.3rem;
     /* without this, the flex-container shrinks the entries to their text, while it is
     collapsed, and the opened height is then measured with these shrunk entries */
     flex-shrink: 0;
-    font-size: 0.95rem;
-    background: rgba(42, 44, 48, 0.4);
-    border-color: var(--color-border-soft);
-    box-shadow: none;
-    color: var(--color-text);
+    padding-left: 1.1rem;
+    font-family: var(--text-font-family);
+    font-size: 0.92rem;
+    font-weight: 400;
+    text-transform: none;
+    letter-spacing: 0.01em;
+    clip-path: none;
 }
 
-/* selected sub-entry is filled with the highlight-color */
+/* branch from the line of the tree to the entry */
+aside .sidebar button.sidebar_dropdown_entry::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 50%;
+    width: 0.55rem;
+    height: 1px;
+    background: var(--color-border);
+}
+
+aside .sidebar button.sidebar_dropdown_entry .pi {
+    font-size: 0.85rem;
+}
+
+/* selected sub-entry: the branch and the line beside it glow in the highlight-color */
 aside .sidebar button.sidebar_dropdown_entry.active {
-    background: var(--color-highlight);
-    border-color: var(--color-border);
-    color: var(--color-on-highlight);
+    background: linear-gradient(
+        90deg,
+        rgb(from var(--color-highlight) r g b / 0.18) 0%,
+        transparent 100%
+    );
+    color: var(--color-text);
+    box-shadow: inset 2px 0 0 var(--color-highlight);
 }
 
-aside .sidebar button.sidebar-btn:hover {
-    border-color: var(--color-text);
-    filter: brightness(115%);
+aside .sidebar button.sidebar_dropdown_entry.active::before {
+    background: var(--color-highlight);
+    box-shadow: 0 0 0.4rem var(--color-highlight);
+}
+
+aside .sidebar button.sidebar_dropdown_entry.active .pi {
+    color: var(--color-highlight);
 }
 
 .sidebar-btn:focus,
 .sidebar_dropdown_entry:focus {
     outline: none;
+}
+
+.sidebar-btn:focus-visible {
+    outline: 1px solid var(--color-highlight);
+    outline-offset: -1px;
+}
+
+.sidebar-project {
+    padding: 0 0.75rem 0.75rem 0.75rem;
+}
+
+.project-chip {
+    display: flex;
+    align-items: stretch;
+    width: 100%;
+    height: 2.2rem;
+    --notch-color: var(--color-border);
+    background: var(--corner-notch), rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--color-border-soft);
+    cursor: pointer;
+    font-family: var(--title-font-family);
+    text-align: left;
+    transition:
+        border-color 150ms,
+        background-color 150ms;
+}
+
+.project-chip:hover {
+    --notch-color: var(--color-highlight);
+    border-color: var(--color-highlight);
+    background: var(--corner-notch), var(--color-highlight-faint);
+    filter: none;
+}
+
+.project-chip-caption {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    padding: 0 0.6rem;
+    background: rgba(255, 255, 255, 0.05);
+    border-right: 1px solid var(--color-border-soft);
+    color: var(--color-text-light);
+    font-size: 0.8rem;
+    letter-spacing: 0.08em;
+}
+
+/* long project-ids are cut, the full id is shown in the title of the button */
+.project-chip-value {
+    flex: 1;
+    min-width: 0;
+    align-self: center;
+    padding: 0 1rem 0 0.7rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--color-text);
+    font-size: 0.95rem;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+}
+
+.sidebar-footer {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.8rem 1.6rem;
+    border-top: 1px solid var(--color-border-soft);
+    font-family: var(--title-font-family);
+    font-size: 0.8rem;
+    letter-spacing: 0.06em;
+    color: var(--color-text-light);
+}
+
+.sidebar-version {
+    font-variant-numeric: tabular-nums;
 }
 </style>

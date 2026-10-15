@@ -15,22 +15,39 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+/* section-header between the panels: a short accent-bar, the title and a line */
 .divider {
     display: flex;
     align-items: center;
     color: var(--color-text-light);
-    margin: 1rem;
+    margin: 1.5rem 1rem 0.5rem 1rem;
 }
 
-.divider::before,
+.divider::before {
+    content: "";
+    width: 1.5rem;
+    height: 2px;
+    background: var(--color-highlight);
+    box-shadow: 0 0 0.5rem var(--color-highlight-glow);
+}
+
 .divider::after {
     content: "";
     flex: 1;
     height: 1px;
-    background: var(--color-text-light);
+    background: linear-gradient(
+        90deg,
+        var(--color-border) 0%,
+        var(--color-border-soft) 70%
+    );
 }
 
 .divider span {
-    padding: 0 1rem;
+    padding: 0 0.9rem;
     white-space: nowrap;
+    font-family: var(--title-font-family);
+    font-size: 0.8rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.22em;
 }

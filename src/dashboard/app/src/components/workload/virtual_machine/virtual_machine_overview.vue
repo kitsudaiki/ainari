@@ -702,15 +702,17 @@ td:not(:first-child):not(.state-column):not(.resource-column):not(.address-colum
 
 .state-light {
     flex-shrink: 0;
-    width: 0.9rem;
-    height: 0.9rem;
-    border-radius: 50%;
+    /* small diamond, like the markers of the section-headers */
+    width: 0.55rem;
+    height: 0.55rem;
+    margin: 0 0.15rem;
+    transform: rotate(45deg);
     background-color: var(--color-text-light);
 }
 
 .state-running {
-    background-color: #66bb6a;
-    box-shadow: 0 0 0.4rem #66bb6a;
+    background-color: var(--color-usage-ok);
+    box-shadow: 0 0 0.5rem var(--color-usage-ok);
 }
 
 .state-reserved,
@@ -718,12 +720,12 @@ td:not(:first-child):not(.state-column):not(.resource-column):not(.address-colum
 .state-restoring,
 .state-migrating,
 .state-pending {
-    background-color: #ffca28;
-    box-shadow: 0 0 0.4rem #ffca28;
+    background-color: var(--color-usage-warning);
+    box-shadow: 0 0 0.5rem var(--color-usage-warning);
 }
 
 .state-error {
-    background-color: #ff4d4d;
-    box-shadow: 0 0 0.4rem #ff4d4d;
+    background-color: var(--color-usage-critical);
+    box-shadow: 0 0 0.5rem var(--color-usage-critical);
 }
 </style>
