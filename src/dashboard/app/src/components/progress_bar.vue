@@ -65,14 +65,20 @@ const clampedPercentage = computed(() =>
     position: relative;
     width: 100%;
     height: 1.5rem;
-    border-radius: 0.25rem;
+    border: 1px solid var(--color-border-soft);
     overflow: hidden;
-    background-color: var(--color-higlight-field);
+    background-color: rgba(255, 255, 255, 0.04);
 }
 
 .progress-bar-fill {
     height: 100%;
     background-color: var(--color-highlight);
+    /* the fill is split into small segments with gaps, like a charging-bar */
+    mask-image: repeating-linear-gradient(
+        90deg,
+        #000 0 6px,
+        transparent 6px 8px
+    );
     transition: width 0.2s ease;
 }
 
@@ -103,6 +109,7 @@ const clampedPercentage = computed(() =>
 .progress-bar-text {
     position: absolute;
     inset: 0;
+    z-index: 1;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -112,4 +119,5 @@ const clampedPercentage = computed(() =>
     color: var(--color-text);
     text-shadow: 0 0 0.2rem #000000;
 }
+
 </style>

@@ -15,7 +15,7 @@
 -->
 
 <template>
-    <div class="gauge-chart">
+    <div class="gauge-chart" :class="{ critical: percentage > 90 }">
         <svg :width="size" :height="size" :viewBox="`0 0 ${size} ${size}`">
             <!-- Background arc -->
             <circle
@@ -37,21 +37,30 @@
                 :cy="center"
                 :r="radius"
                 fill="none"
-                :stroke-width="stroke + 2"
+                :stroke-width="stroke"
                 :stroke-dasharray="dashArray"
                 :stroke-dashoffset="progressOffset"
                 :transform="rotation"
             />
 
-            <!-- Center label -->
+            <!-- Center label: the value and below it the maximum -->
             <text
                 class="gauge-label"
                 :x="center"
-                :y="center"
+                :y="center - 4"
                 text-anchor="middle"
                 dominant-baseline="middle"
             >
-                {{ props.value }} / {{ props.max }}
+                {{ props.value }}
+            </text>
+            <text
+                class="gauge-sublabel"
+                :x="center"
+                :y="center + 28"
+                text-anchor="middle"
+                dominant-baseline="middle"
+            >
+                / {{ props.max }}
             </text>
         </svg>
     </div>
@@ -68,14 +77,13 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-    size: 200,
-    stroke: 14,
+    size: 190,
+    stroke: 6,
 });
 
 const center = props.size / 2;
 
-const maxStroke = props.stroke + 2;
-const radius = (props.size - maxStroke) / 2;
+const radius = (props.size - props.stroke) / 2 - 1;
 
 const circumference = 2 * Math.PI * radius;
 
@@ -93,34 +101,54 @@ const backgroundOffset = circumference * (1 - gaugePortion);
 const progressOffset = computed(() => {
     return circumference * (1 - gaugePortion * (percentage.value / 100));
 });
+
 </script>
 
 <style scoped>
 .gauge-chart {
+    --gauge-color: var(--color-highlight);
+    --gauge-glow: var(--color-highlight-glow);
+
     background: transparent;
-    padding-top: 2rem;
+    padding-top: 1.4rem;
 
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 0.5rem;
-    font-family: var(--text-font-family);
+    font-family: var(--title-font-family);
     color: var(--color-text);
 }
 
+/* a nearly exhausted quota is shown in red */
+.gauge-chart.critical {
+    --gauge-color: var(--color-usage-critical);
+    --gauge-glow: rgb(from var(--color-usage-critical) r g b / 0.45);
+}
+
 .gauge-bg {
-    stroke: rgba(255, 255, 255, 0.08);
+    stroke: rgba(255, 255, 255, 0.07);
 }
 
 .gauge-progress {
-    stroke: var(--color-highlight);
+    stroke: var(--gauge-color);
+    filter: drop-shadow(0 0 0.35rem var(--gauge-glow));
     transition: stroke-dashoffset 1s ease-in-out; /* fill-animation of 1 second lenght*/
 }
 
 .gauge-label {
     fill: var(--color-text);
-    font-family: var(--text-font-family);
-    font-size: 2rem;
-    font-weight: 600;
+    font-family: var(--title-font-family);
+    font-size: 3rem;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+}
+
+.gauge-sublabel {
+    fill: var(--color-text-light);
+    font-family: var(--title-font-family);
+    font-size: 1rem;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.05em;
 }
 </style>

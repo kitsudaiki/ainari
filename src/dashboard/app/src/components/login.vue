@@ -16,6 +16,11 @@
 
 <template>
     <div class="login-overlay">
+        <div class="login-brand">
+            <img :src="logo" class="login-logo" alt="" />
+            <div class="login-wordmark">Ainari</div>
+        </div>
+
         <div class="modal login-modal">
             <!-- Modal topbar -->
             <div class="modal-topbar">
@@ -90,6 +95,8 @@ import {
     getExpireTimesamp,
 } from "@/auth_context";
 import { getConfig } from "@/config";
+
+const logo = new URL("../assets/ainari_logo_mini_transparent.png", import.meta.url).href;
 
 // Define custom events that this component can emit
 const emit = defineEmits<{
@@ -194,19 +201,52 @@ async function login() {
 .login-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.55);
-    backdrop-filter: blur(8px);
+    background: radial-gradient(
+        ellipse 60% 50% at 50% 30%,
+        rgb(from var(--color-highlight) r g b / 0.08) 0%,
+        transparent 70%
+    );
     display: flex;
+    flex-direction: column;
     justify-content: center;
     align-items: center;
+    gap: 2rem;
+    padding-bottom: 5rem;
+}
+
+/* logo with the glow of a fox-fire and the name below it */
+.login-brand {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.9rem;
+    animation: panel-in 600ms ease-out backwards;
+}
+
+.login-logo {
+    height: 4.5rem;
+    width: auto;
+    filter: drop-shadow(0 0 1.2rem var(--color-highlight-glow));
+}
+
+.login-wordmark {
+    font-family: var(--title-font-family);
+    font-size: 1.6rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    /* the letter-spacing is also added after the last letter, so it is compensated by the
+    padding on the left, to keep the word centered */
+    letter-spacing: 0.6em;
+    padding-left: 0.6em;
+    color: var(--color-text);
 }
 
 .login-modal {
-    width: 22rem;
-    margin-bottom: 5rem;
+    width: 24rem;
+    animation: panel-in 400ms ease-out 150ms backwards;
 }
 
 .login-field-spacing {
-    margin-top: 1rem;
+    margin-top: 0.5rem;
 }
 </style>

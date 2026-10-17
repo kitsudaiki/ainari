@@ -16,9 +16,22 @@
 
 <template>
     <header class="topbar">
-        <img :src="logo" class="topbar-logo" alt="Ainari" />
+        <!-- slanted tab above the sidebar, which carries the brand -->
+        <div class="brand">
+            <img :src="logo" class="topbar-logo" alt="" />
+            <span class="brand-name">Ainari</span>
+        </div>
+
+        <div class="topbar-spacer"></div>
+
+        <div class="clock" title="Current local time">
+            <span class="clock-date">{{ clockDate }}</span>
+            <span class="clock-time">{{ clockTime }}</span>
+            <span class="clock-zone">{{ clockZone }}</span>
+        </div>
 
         <div class="profile-menu" @click.stop="toggleDropdown">
+            <span class="profile-name">{{ username }}</span>
             <div class="avatar">
                 {{ avatarLetter }}
             </div>
@@ -43,6 +56,26 @@ const emit = defineEmits<{
 }>();
 const open = ref(false);
 const props = defineProps<{ username: string | null }>();
+
+// current local time, which is updated every second
+const now = ref(new Date());
+var clockInterval: number | undefined;
+const pad = (value: number) => String(value).padStart(2, "0");
+const clockDate = computed(
+    () =>
+        `${now.value.getFullYear()}-${pad(now.value.getMonth() + 1)}-${pad(now.value.getDate())}`,
+);
+const clockTime = computed(
+    () =>
+        `${pad(now.value.getHours())}:${pad(now.value.getMinutes())}:${pad(now.value.getSeconds())}`,
+);
+// short name of the local time-zone, like "CEST", which also follows the daylight saving time
+const clockZone = computed(
+    () =>
+        new Intl.DateTimeFormat(undefined, { timeZoneName: "short" })
+            .formatToParts(now.value)
+            .find((part) => part.type === "timeZoneName")?.value ?? "",
+);
 
 const avatarLetter = computed(() => {
     return props.username ? props.username.charAt(0).toUpperCase() : "";
@@ -81,10 +114,12 @@ function handleClickOutside(event: MouseEvent) {
 
 onMounted(() => {
     document.addEventListener("click", handleClickOutside);
+    clockInterval = window.setInterval(() => (now.value = new Date()), 1000);
 });
 
 onBeforeUnmount(() => {
     document.removeEventListener("click", handleClickOutside);
+    clearInterval(clockInterval);
 });
 
 // hash string to HSL color
@@ -103,42 +138,90 @@ function stringToHslColor(str: string): string {
 <style scoped>
 .topbar {
     color: var(--color-text);
-    background:
-        linear-gradient(
-            90deg,
-            rgba(22, 24, 27, 0.85) 30%,
-            rgba(22, 24, 27, 0.35) 100%
-        ),
-        var(--hex-pattern),
-        rgba(22, 24, 27, 0.4);
+    background: linear-gradient(
+        180deg,
+        rgba(12, 17, 23, 0.96) 0%,
+        rgba(9, 13, 18, 0.9) 100%
+    );
     backdrop-filter: var(--glass-blur);
     -webkit-backdrop-filter: var(--glass-blur);
-    border-bottom: 1px solid var(--color-border);
+    border-bottom: 1px solid var(--color-border-soft);
     box-shadow: var(--box-shadow-header);
     /* The topbar is its own stacking-context, so the z-index of the avatar-dropdown only counts
     within it. It has to be above all elements of the page (add-buttons, table-dropdowns, ...),
     but below the modals (1000) and the error-popups (9999). */
     z-index: 100;
 
-    height: 4.2rem;
+    height: 3.6rem;
     width: 100%;
-    left: 0rem;
-    top: 0rem;
-    min-height: 150;
-
-    font-size: 1.2rem;
+    flex-shrink: 0;
 
     display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 1rem;
+    align-items: stretch;
+    gap: 1.25rem;
+    padding-right: 1rem;
     position: relative;
 }
 
+/* The tab has the width of the sidebar and a line at its right edge, which continues the
+border of the sidebar. */
+.brand {
+    position: relative;
+    width: 15rem;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    padding: 0 1.1rem;
+    border-right: 1px solid var(--color-border-soft);
+}
+
 .topbar-logo {
-    height: 2.8rem;
+    height: 2.2rem;
     width: auto;
     user-select: none;
+    filter: drop-shadow(0 0 0.5rem var(--color-highlight-glow));
+}
+
+/* wordmark: wide letter-spacing, like the name on the hull of a ship */
+.brand-name {
+    font-family: var(--title-font-family);
+    font-size: 1.25rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.42em;
+    color: var(--color-text);
+}
+
+.topbar-spacer {
+    flex: 1;
+}
+
+.clock {
+    align-self: center;
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    font-family: var(--title-font-family);
+    font-variant-numeric: tabular-nums;
+    color: var(--color-text-light);
+}
+
+.clock-date {
+    font-size: 0.85rem;
+}
+
+.clock-time {
+    font-size: 1.15rem;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    color: var(--color-text);
+}
+
+.clock-zone {
+    font-size: 0.75rem;
+    color: var(--color-highlight);
+    letter-spacing: 0.1em;
 }
 
 .profile-menu {
@@ -146,56 +229,72 @@ function stringToHslColor(str: string): string {
     cursor: pointer;
     display: flex;
     align-items: center;
+    gap: 0.75rem;
+    padding-left: 1.25rem;
+    border-left: 1px solid var(--color-border-soft);
+}
+
+.profile-name {
+    font-family: var(--title-font-family);
+    font-size: 1rem;
+    color: var(--color-text);
+    letter-spacing: 0.03em;
 }
 
 .avatar {
-    width: 36px;
-    height: 36px;
-    /* border-radius: 50%; */
-    /* border: 2px solid white; */
-    background-color: var(--color-selected);
-    color: var(--color-text-dark);
-    border: 1px solid var(--color-border);
-    box-shadow: inset 0 -0.2rem 0 var(--color-highlight);
+    width: 2.1rem;
+    height: 2.1rem;
+    background: linear-gradient(
+        180deg,
+        var(--color-highlight) 0%,
+        var(--color-highlight-dark) 100%
+    );
+    color: var(--color-on-highlight);
+    clip-path: var(--chamfer-sm-both);
 
     display: flex;
     align-items: center;
     justify-content: center;
 
-    font-size: 24px;
+    font-family: var(--title-font-family);
+    font-size: 1.15rem;
+    font-weight: 600;
     line-height: 1;
-    /* Centers the capital letter in the light area above the accent-bar:
-    0.1em, because the capitals of Barlow (cap-height 0.7em, ascent 1.0em,
-    descent 0.2em) sit 0.05em below the middle of the text-box, and 0.2rem for the
-    accent-bar at the bottom. Padding shifts the flex-center by half its size. */
-    padding-bottom: calc(0.1em + 0.2rem);
     user-select: none;
+    transition: filter 150ms;
+}
+
+.profile-menu:hover .avatar {
+    filter: brightness(115%);
 }
 
 .topbar-dropdown {
     position: absolute;
-    top: 100%;
+    top: calc(100% + 0.45rem);
     right: 0;
 
-    background: var(--glass-sheen), var(--glass-bg-strong);
+    background: var(--glass-sheen), rgba(12, 17, 23, 0.97);
     backdrop-filter: var(--glass-blur);
     -webkit-backdrop-filter: var(--glass-blur);
     box-shadow: var(--box-shadow-header);
     border: 1px solid var(--color-border);
+    border-top: 2px solid var(--color-highlight);
 
-    padding: 0.25rem;
+    padding: 0.3rem;
     display: flex;
     flex-direction: column;
-    min-width: 120px;
+    min-width: 12rem;
     z-index: 10;
 }
 
 .topbar-dropdown button {
     background: none;
-    padding: 0.5rem;
+    padding: 0.45rem 0.7rem;
     text-align: left;
     cursor: pointer;
     width: 100%;
+    font-size: 0.95rem;
+    white-space: nowrap;
 }
 
 .topbar-dropdown button:hover {

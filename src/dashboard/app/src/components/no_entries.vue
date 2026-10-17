@@ -49,15 +49,22 @@ defineProps<{
     background: none;
 }
 
+/* empty slot: dashed frame with faint diagonal stripes */
 .overview-table.no-entries tbody td,
 .overview-table.no-entries tbody tr:hover td {
-    background: none;
-    border: none;
-    box-shadow: none;
-    color: var(--color-text);
-    font-family: inherit;
-    font-size: 1rem;
-    font-weight: normal;
+    background: repeating-linear-gradient(
+        -45deg,
+        rgba(255, 255, 255, 0.025) 0 2px,
+        transparent 2px 8px
+    );
+    border: 1px dashed var(--color-border-soft);
+    box-shadow: inset 2px 0 0 var(--color-border-soft);
+    color: var(--color-text-light);
+    font-family: var(--title-font-family);
+    font-size: 0.85rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
     /* the only cell is the last one as well, which is aligned to the right for the actions */
     text-align: left;
     width: auto;

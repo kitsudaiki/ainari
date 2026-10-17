@@ -49,7 +49,9 @@ user in the upper right corner. */
     top: 5rem;
     right: 1rem;
 
+    --notch-color: var(--color-error);
     background:
+        var(--corner-notch),
         var(--glass-sheen),
         linear-gradient(90deg, var(--color-error-tint) 0%, transparent 200%),
         var(--glass-bg-strong);
@@ -122,7 +124,10 @@ textarea.invalid_input {
     accent-color: var(--color-highlight);
     margin-top: 1rem;
     color: var(--color-text);
+    font-family: var(--text-font-family);
     font-size: 0.9rem;
+    text-transform: none;
+    letter-spacing: 0.01em;
 
     display: flex;
     align-items: center;

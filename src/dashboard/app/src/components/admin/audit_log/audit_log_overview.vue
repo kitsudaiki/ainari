@@ -164,4 +164,19 @@ onBeforeUnmount(() => {
     text-overflow: ellipsis;
     white-space: nowrap;
 }
+
+/* The first column of the overview-tables is made wide for UUIDs, but here it only holds
+the timestamp, so it shrinks to its content. The freed space goes to the user and the
+project. */
+.overview-table th:nth-child(1),
+.overview-table td:nth-child(1) {
+    width: 1%;
+}
+
+.overview-table th:nth-child(4),
+.overview-table td:nth-child(4),
+.overview-table th:nth-child(5),
+.overview-table td:nth-child(5) {
+    width: 20%;
+}
 </style>

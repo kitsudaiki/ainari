@@ -35,14 +35,16 @@ limitations under the License.
     position: absolute;
     top: 100%;
     right: 0; /* align dropdown menu to the right of the button */
-    background: var(--glass-sheen), var(--glass-bg-strong);
+    margin-top: 0.3rem;
+    background: var(--glass-sheen), rgba(12, 17, 23, 0.97);
     backdrop-filter: var(--glass-blur);
     -webkit-backdrop-filter: var(--glass-blur);
     border: 1px solid var(--color-border);
-    padding: 0.25rem;
+    border-top: 2px solid var(--color-highlight);
+    padding: 0.3rem;
     box-shadow: var(--box-shadow-header);
     z-index: 10;
-    min-width: 10rem;
+    min-width: 11rem;
 }
 
 .table-dropdown-menu button {
@@ -53,8 +55,10 @@ limitations under the License.
     background: none;
     cursor: pointer;
     text-align: left;
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     font-family: var(--text-font-family);
+    color: var(--color-text);
+    white-space: nowrap;
 }
 
 .table-dropdown-menu button:hover {
@@ -71,13 +75,14 @@ limitations under the License.
     font-size: 0.9rem;
     font-family: var(--text-font-family);
     color: var(--color-text);
-    background-color: var(--color-bar);
+    background-color: rgba(255, 255, 255, 0.03);
     border: 1px solid var(--color-border-soft);
+    border-bottom-color: var(--color-border);
     padding: 0.4rem 2rem 0.4rem 0.6rem; /* add space for arrow */
     appearance: none; /* remove default arrow */
     -webkit-appearance: none;
     -moz-appearance: none;
-    background-image: url("data:image/svg+xml;utf8,<svg fill='%23b0b4b8' height='20' viewBox='0 0 24 24' width='20' xmlns='http://www.w3.org/2000/svg'><path d='M7 10l5 5 5-5z'/></svg>");
+    background-image: url("data:image/svg+xml;utf8,<svg fill='%23fa9835' height='20' viewBox='0 0 24 24' width='20' xmlns='http://www.w3.org/2000/svg'><path d='M7 10l5 5 5-5z'/></svg>");
     background-repeat: no-repeat;
     background-position: right 0.6rem center;
     background-size: 1rem;
@@ -90,10 +95,11 @@ limitations under the License.
 .select-dropdown:focus {
     outline: none;
     border-color: var(--color-highlight);
+    box-shadow: 0 0.6rem 0.8rem -0.6rem var(--color-highlight-glow);
 }
 
 .select-dropdown option {
     padding: 0.25rem 0.5rem;
     cursor: pointer;
-    background: var(--color-bar);
+    background: #0c1117;
 }
