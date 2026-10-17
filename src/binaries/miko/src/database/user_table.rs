@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use argon2::Argon2;
-use argon2::password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString};
+use argon2::password_hash::{PasswordHasher, PasswordVerifier, phc::PasswordHash};
 use chrono::{DateTime, Utc};
 use diesel::prelude::*;
 use diesel::result::DatabaseErrorKind;
@@ -241,10 +241,9 @@ const ARGON2_HASH_PREFIX: &str = "$argon2";
 fn hash_new_passphrase(passphrase: &Secret) -> (String, String) {
     let mut salt_bytes = [0u8; 16];
     rand::rng().fill(&mut salt_bytes);
-    let salt = SaltString::encode_b64(&salt_bytes).expect("16 bytes are a valid salt-length");
 
     let pw_hash = Argon2::default()
-        .hash_password(passphrase.reveal().as_bytes(), &salt)
+        .hash_password_with_salt(passphrase.reveal().as_bytes(), &salt_bytes)
         .expect("argon2 with default parameters can not fail for a valid salt")
         .to_string();
 
