@@ -14,7 +14,8 @@ project-ID, or a project, to which you are not assigned, is rejected with an `Un
 
 ## Switch project
 
-**Switch Project** in the menu behind the avatar in the upper right corner lists all projects, to
+The current project is shown in the lower left corner of the navigation. A click on it, or
+**Switch Project** in the menu behind the avatar in the upper right corner, lists all projects, to
 which you are assigned, together with your role in each of them. Select a project in the table and
 accept, to continue within this project without a new login. All pages show the resources of the
 selected project afterwards.
@@ -27,7 +28,9 @@ the project, and a list of the virtual machines.
 ![Overview](img/overview.jpg)
 
 On the left side is the navigation to all other pages. The entries under **Admin** are only shown
-for admins.
+for admins. Below the navigation are the current project and the version of Ainari. The bar at the
+top shows the local time and your user, whose menu behind the avatar provides **Switch Project**,
+**Change Passphrase** and **Logout**.
 
 ## Workflow: create a virtual machine
 
