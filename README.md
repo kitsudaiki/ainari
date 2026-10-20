@@ -20,7 +20,7 @@ Scorecard](https://img.shields.io/ossf-scorecard/github.com/kitsudaiki/ainari?br
 
 ## **IMPORTANT**: This project is still a prototype and NOT ready for any productive usage
 
-Ainari is a secure and easy to use, deploy and develop IaaS stack to manage virtual machines. 
+Ainari is a secure and easy to use, deploy and develop IaaS stack to manage virtual machines.
 See more in the [About-section](https://docs.ainari.cloud/home/about/) of the documentation.
 
 <!-- ## Supported Environment

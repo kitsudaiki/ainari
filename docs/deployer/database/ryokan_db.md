@@ -48,8 +48,9 @@ virtual machine. Existing images got `READY` with the migration, because they ar
 | `IN_USE`     | reserved, not set at the moment                                                           |
 
 An uploaded image is only registered, after its file was completely uploaded to ryokan. Like a
-snapshot, which is created by sakura, it goes through `ENCRYPTING` → `UPLOADING` → `READY`. If the encryption or the storing of an uploaded image fails, the image is
-deleted again together with its secret.
+snapshot, which is created by sakura, it goes through `ENCRYPTING` → `UPLOADING` → `READY`. If the
+encryption or the storing of an uploaded image fails, the image is deleted again together with its
+secret.
 
 | field         | type         | is primary | constraints                    |
 | ------------- | ------------ | ---------- | ------------------------------ |

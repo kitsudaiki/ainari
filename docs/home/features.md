@@ -76,7 +76,7 @@ instead.
 
 **Status: <span style="color:#4caf50">implemented</span> (since v0.21.0)**
 
-An automatic summary of all packages with versions used within the Nix-based docker-images, 
+An automatic summary of all packages with versions used within the Nix-based docker-images,
 to keep track of CVEs and which versions are affected by them.
 
 ### Encrypted tenant networks
@@ -153,10 +153,10 @@ be started.
 
 **Status: <span style="color:#e53935">planned</span>**
 
-A prepared mini-VM is deployed within the tenant network with a wireguard endpoint. 
+A prepared mini-VM is deployed within the tenant network with a wireguard endpoint.
 So a user can connect over the wireguard tunnel to this VM and access all VMs within the
 tenant network over it. In combination with the tenant network encryption this makes it
-possible to secure the whole traffic even when the wiregard-VM and the target-VM are on 
+possible to secure the whole traffic even when the wiregard-VM and the target-VM are on
 different compute-hosts.
 
 ### Encrypted volumes
@@ -268,12 +268,12 @@ itself. So there is no high traffic through the control plane.
 
 **Status: <span style="color:#4caf50">Current state</span>**
 
-Monorepos can become quite fast very big, but they have the advantage to be easier to handle. Other 
+Monorepos can become quite fast very big, but they have the advantage to be easier to handle. Other
 IaaS-projects, like Openstack and IronCore, have each component and library in a different git repo.
-Implementing new features over multiple components and repositories can easily become very frustrating. 
+Implementing new features over multiple components and repositories can easily become very frustrating.
 You have multiple merge requests to approve, higher risks of conflicts and so on. Even this project was
 at one point in time split over 40 repositories. Dependency updates were a total time consuming pain.
-A Monorepo makes implementing new features and updating dependencies much easier. It is also easy to 
+A Monorepo makes implementing new features and updating dependencies much easier. It is also easy to
 identify which versions of the different components belong together. Based on my experiences I made,
 a Monorepo makes much more sense for this project, even it contains microservices.
 

@@ -8,11 +8,10 @@
   <img src="img/ainari_logo.jpg" alt="Ainari logo" width="500" height="500" />
 </p>
 
-Ainari is a secure and easy to use, deploy and develop IaaS stack to manage virtual machines. 
+Ainari is a secure and easy to use, deploy and develop IaaS stack to manage virtual machines.
 See more in the [About-section](/home/about/) of the documentation.
 
 ## **IMPORTANT**: This project is still a prototype and NOT ready for any productive usage
-
 
 ## Summary important links
 

@@ -83,9 +83,9 @@ are not used, so `overlay_iface` and `underlay_iface` can be set to `"none"`.
 
 The uplink can be any interface, also a physical NIC: set `network.uplink_iface` to the NIC and
 `network.uplink_next_hop` to the router behind it. The floating IPs then have to be unused addresses
-of that network. For local development `testing/local_stack/setup_single_node_uplink.sh` creates a veth pair
-`uplink0` (10.0.0.254/24) towards a network namespace `torii-outside` (10.0.0.1/24), from which the
-floating IPs are reachable (`sudo ip netns exec torii-outside ssh ubuntu@10.0.0.2`).
+of that network. For local development `testing/local_stack/setup_single_node_uplink.sh` creates a
+veth pair `uplink0` (10.0.0.254/24) towards a network namespace `torii-outside` (10.0.0.1/24), from
+which the floating IPs are reachable (`sudo ip netns exec torii-outside ssh ubuntu@10.0.0.2`).
 
 ## Tenants
 
