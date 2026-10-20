@@ -3,6 +3,7 @@ name = "ainari_common"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
+license.workspace = true
 
 [features]
 # connection-handling of the services, which support a sqlite- and a mysql-database. It links the

@@ -21,13 +21,14 @@ Sakura is the compute hosts of this IaaS stack. It manage the cloud hypervisor V
 
 ### Hanami
 
-Hanami manage the Sakura-hosts. Whenever a new virtual machine is requested by the user, this request goes
-against Hanami, which selects the Sakura-host of the new model and configures the Torii for the
-new connection. Also the handling of networks, floating ips and network filters is done by Hanami.
+Hanami manage the Sakura-hosts. Whenever a new virtual machine is requested by the user, this
+request goes against Hanami, which selects the Sakura-host of the new model and configures the Torii
+for the new connection. Also the handling of networks, floating ips and network filters is done by
+Hanami.
 
 ### Torii
 
-Torii is the gateway-component, is configured by hanami and handles 2 differen pathways:
+Torii is the gateway-component, is configured by hanami and handles 2 different pathways:
 
 1. It is basically only a layer-3-proxy. Torii creates a port for each virtual machine and the user
    can directly interact with the Sakura compute host, which holds the VM. Torii doesn't terminate
@@ -60,8 +61,8 @@ Omikuji is the central point to collect error- and audit-log entries from all co
 
 ### Izakaya
 
-Izakaya provide the key-exchange mechanis to provide keys to the hosts for the IPsec encryption. It uses
-the MLS (Messaging Layer Security) for the exchange.
+Izakaya provide the key-exchange mechanism to provide keys to the hosts for the IPsec encryption. It
+uses the MLS (Messaging Layer Security) for the exchange.
 
 ### Omamori
 

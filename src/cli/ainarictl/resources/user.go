@@ -21,8 +21,8 @@
 package ainari_resources
 
 import (
-	"fmt"
 	ainarictl_common "ainarictl/common"
+	"fmt"
 	"os"
 	"strings"
 	"syscall"
@@ -251,7 +251,7 @@ func Init_User_Commands(rootCmd *cobra.Command) {
 	createUserCmd.Flags().StringVarP(&userName, "name", "n", "", "User name (mandatory)")
 	createUserCmd.Flags().StringVarP(&passphrase, "passphrase", "p", "", passphraseFlagText)
 	createUserCmd.Flags().BoolVar(&isAdmin, "is_admin", false, "Set user as admin (default: false)")
-	createUserCmd.MarkFlagRequired("name")
+	cobra.CheckErr(createUserCmd.MarkFlagRequired("name"))
 
 	userCmd.AddCommand(getUserCmd)
 

@@ -21,8 +21,8 @@
 package ainari_resources
 
 import (
-	"fmt"
 	ainarictl_common "ainarictl/common"
+	"fmt"
 	"os"
 
 	ainari_sdk "github.com/kitsudaiki/ainari"
@@ -35,8 +35,6 @@ var (
 	virtual_machineNetworkUuid   string
 	virtual_machineImageUuid     string
 	virtual_machinePublicKeyUuid string
-	snapshotName               string
-	virtual_machineMode          string
 	virtual_machineIsolatedHost  bool
 	virtual_machineHostUuid      string
 	virtual_machineTargetHost    string
@@ -285,11 +283,11 @@ func Init_VirtualMachine_Commands(rootCmd *cobra.Command) {
 	createVirtualMachineCmd.Flags().StringVarP(&virtual_machinePublicKeyUuid, "public_key", "k", "", "UUID of the public-key, which is deployed in the virtual machine (mandatory)")
 	createVirtualMachineCmd.Flags().BoolVar(&virtual_machineIsolatedHost, "isolated_host", false, "Place the virtual machine only on a host, which is isolated for the project")
 	createVirtualMachineCmd.Flags().StringVar(&virtual_machineHostUuid, "host", "", "UUID of the sakura-host, which runs the virtual machine (admin only, fails without enough free resources on it)")
-	createVirtualMachineCmd.MarkFlagRequired("vm_type")
-	createVirtualMachineCmd.MarkFlagRequired("disk")
-	createVirtualMachineCmd.MarkFlagRequired("network")
-	createVirtualMachineCmd.MarkFlagRequired("image")
-	createVirtualMachineCmd.MarkFlagRequired("public_key")
+	cobra.CheckErr(createVirtualMachineCmd.MarkFlagRequired("vm_type"))
+	cobra.CheckErr(createVirtualMachineCmd.MarkFlagRequired("disk"))
+	cobra.CheckErr(createVirtualMachineCmd.MarkFlagRequired("network"))
+	cobra.CheckErr(createVirtualMachineCmd.MarkFlagRequired("image"))
+	cobra.CheckErr(createVirtualMachineCmd.MarkFlagRequired("public_key"))
 
 	virtual_machineCmd.AddCommand(getVirtualMachineCmd)
 
@@ -307,5 +305,5 @@ func Init_VirtualMachine_Commands(rootCmd *cobra.Command) {
 
 	virtual_machineCmd.AddCommand(migrateVirtualMachineCmd)
 	migrateVirtualMachineCmd.Flags().StringVarP(&virtual_machineTargetHost, "target", "t", "", "UUID of the sakura-host, which runs the virtual machine afterwards (mandatory)")
-	migrateVirtualMachineCmd.MarkFlagRequired("target")
+	cobra.CheckErr(migrateVirtualMachineCmd.MarkFlagRequired("target"))
 }

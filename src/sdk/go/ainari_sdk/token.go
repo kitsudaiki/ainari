@@ -33,7 +33,7 @@ import (
 // RequestContext authenticates at the backend and returns the context for all further requests.
 // The token is scoped to the project with the ID projectId. If projectId is empty, the
 // default-project of the user is used.
-func RequestContext(address, user, passphrase, projectId string, skipTlsVerification bool) (AccessContext, error){
+func RequestContext(address, user, passphrase, projectId string, skipTlsVerification bool) (AccessContext, error) {
 	var context AccessContext
 
 	path := "v1alpha/token"

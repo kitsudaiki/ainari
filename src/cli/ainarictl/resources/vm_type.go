@@ -21,8 +21,8 @@
 package ainari_resources
 
 import (
-	"fmt"
 	ainarictl_common "ainarictl/common"
+	"fmt"
 	"os"
 
 	ainari_sdk "github.com/kitsudaiki/ainari"
@@ -163,8 +163,8 @@ func Init_VmType_Commands(rootCmd *cobra.Command) {
 	vmTypeCmd.AddCommand(createVmTypeCmd)
 	createVmTypeCmd.Flags().Int32VarP(&vmTypeNumberOfCores, "cores", "c", 0, "Number of cpu-cores of the vm-type (mandatory)")
 	createVmTypeCmd.Flags().Int64VarP(&vmTypeAmountOfMemory, "memory", "m", 0, "Amount of memory in MiB of the vm-type (mandatory)")
-	createVmTypeCmd.MarkFlagRequired("cores")
-	createVmTypeCmd.MarkFlagRequired("memory")
+	cobra.CheckErr(createVmTypeCmd.MarkFlagRequired("cores"))
+	cobra.CheckErr(createVmTypeCmd.MarkFlagRequired("memory"))
 
 	vmTypeCmd.AddCommand(updateVmTypeCmd)
 	updateVmTypeCmd.Flags().StringVarP(&vmTypeName, "name", "n", "", "New name of the vm-type")

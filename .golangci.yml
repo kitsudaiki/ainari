@@ -1,0 +1,19 @@
+# Config of golangci-lint for the go-code of the sdk, the cli and the kubernetes-operator. It is
+# found by golangci-lint in the parent directories of the modules.
+#
+# Run it within the directory of a module with:
+#   golangci-lint run ./...
+#
+# Fix the formatting with:
+#   golangci-lint fmt ./...
+
+version: "2"
+
+formatters:
+  enable:
+    - gofmt
+
+issues:
+  # show all findings in the CI and not only the first ones
+  max-issues-per-linter: 0
+  max-same-issues: 0

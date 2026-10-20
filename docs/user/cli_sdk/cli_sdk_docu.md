@@ -406,9 +406,10 @@ of `qemu-img` (e.g. `qcow2` or `iso`), a file without known format is `raw`.
 
 The `image_status` shows the state of the file of the image. An uploaded image appears, after its
 file was completely uploaded. While ryokan encrypts it, it is `ENCRYPTING`, while ryokan stores the
-encrypted file in the onsen, it is `UPLOADING` and afterwards `READY`. Only a `READY` image can be used to create a virtual machine or to restore a snapshot, other
-images are rejected with a conflict. If the encryption or the storing fails, the image is removed
-again. `IN_USE` is reserved and not set at the moment.
+encrypted file in the onsen, it is `UPLOADING` and afterwards `READY`. Only a `READY` image can be
+used to create a virtual machine or to restore a snapshot, other images are rejected with a
+conflict. If the encryption or the storing fails, the image is removed again. `IN_USE` is reserved
+and not set at the moment.
 
 === "CLI"
 

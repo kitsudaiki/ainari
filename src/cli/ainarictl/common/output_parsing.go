@@ -25,9 +25,9 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"sort"
 	"strconv"
 	"strings"
-	"sort"
 
 	"github.com/olekukonko/tablewriter"
 	"github.com/olekukonko/tablewriter/tw"
@@ -59,7 +59,7 @@ func PrintSingle(input map[string]interface{}) {
 		header_names = append(header_names, key)
 	}
 	sort.Strings(header_names)
-	
+
 	table := tablewriter.NewWriter(os.Stdout)
 
 	// fill body of table
@@ -74,14 +74,14 @@ func PrintSingle(input map[string]interface{}) {
 		} else {
 			lineData = append(lineData, val)
 		}
-		table.Append(lineData)
+		exitOnTableError(table.Append(lineData))
 	}
 
 	table.Configure(func(config *tablewriter.Config) {
-		config.Row.Formatting.Alignment = tw.AlignLeft
+		config.Row.Alignment.Global = tw.AlignLeft
 	})
 	// table.EnableBorder(false)
-	table.Render()
+	exitOnTableError(table.Render())
 }
 
 func PrintList(input []interface{}) {
@@ -118,13 +118,13 @@ func PrintList(input []interface{}) {
 				lineData = append(lineData, formatValue(val))
 			}
 		}
-		table.Append(lineData)
+		exitOnTableError(table.Append(lineData))
 	}
 
 	table.Configure(func(config *tablewriter.Config) {
-		config.Row.Formatting.Alignment = tw.AlignLeft
+		config.Row.Alignment.Global = tw.AlignLeft
 	})
-	table.Render()
+	exitOnTableError(table.Render())
 }
 
 func PrintValueList(data []interface{}, offset int) {
@@ -151,11 +151,19 @@ func PrintValueList(data []interface{}, offset int) {
 		for _, val := range line.([]interface{}) {
 			lineData = append(lineData, fmt.Sprintf("%f", val))
 		}
-		table.Append(lineData)
+		exitOnTableError(table.Append(lineData))
 	}
 
 	table.Configure(func(config *tablewriter.Config) {
-		config.Row.Formatting.Alignment = tw.AlignLeft
+		config.Row.Alignment.Global = tw.AlignLeft
 	})
-	table.Render()
+	exitOnTableError(table.Render())
+}
+
+// exitOnTableError stops the CLI, if the table could not be filled or written to stdout
+func exitOnTableError(err error) {
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
 }

@@ -49,7 +49,7 @@ gitGraph
 
 ### `vx.y.z`
 
-- contains all realeases of a specific minor version
+- contains all releases of a specific minor version
 - for example: `v0.3.x` and contains versions `v0.3.0`, `v0.3.1` and so on
 
 ### `fix/...`

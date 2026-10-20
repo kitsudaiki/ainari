@@ -1,0 +1,45 @@
+# Config of cargo-deny for the license-check of the rust-dependencies. Only licenses, which are
+# compatible with the Apache-2.0 license of this project, are allowed.
+#
+# Run it with:
+#   cargo deny --all-features check licenses
+
+[graph]
+# torii-ebpf is built for this target by the build-script of torii
+targets = [
+    "x86_64-unknown-linux-gnu",
+    "aarch64-unknown-linux-gnu",
+    "bpfel-unknown-none",
+]
+
+[licenses]
+# permissive licenses, which can be combined with Apache-2.0 without restrictions
+allow = [
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "MIT",
+    "MIT-0",
+    "BSD-1-Clause",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Zlib",
+    "0BSD",
+    "BSL-1.0",
+    "CC0-1.0",
+    "Unlicense",
+    "Unicode-3.0",
+]
+confidence-threshold = 0.93
+# the allow-list is the general list of compatible licenses and not every one is used at the moment
+unused-allowed-license = "allow"
+# every exception has to be checked by hand, so a new crate with a weak-copyleft license is not
+# accepted by accident
+exceptions = [
+    # MPL-2.0 is a file-based weak copyleft, which is compatible with Apache-2.0, as long as the
+    # files of the crates itself are not modified (category B of the ASF). Used by openmls for
+    # the key-exchange of izakaya and torii.
+    { allow = ["MPL-2.0"], crate = "hpke-rs" },
+    { allow = ["MPL-2.0"], crate = "hpke-rs-crypto" },
+    { allow = ["MPL-2.0"], crate = "hpke-rs-rust-crypto" },
+]

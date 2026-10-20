@@ -28,8 +28,8 @@ library, which can be included in Python scripts. To reuse the remaining infrast
 project and give it a real productive purpose, Ainari was moved into the direction of an IaaS
 project. Instead of managing neural networks, virtual machines are now managed and datasets were
 replaced by disk-images. Big parts were already compatible with the new direction and required no or
-only a bit of modification work for the new core function. Version 
-[v0.11.1](https://github.com/kitsudaiki/ainari/tree/v0.11.1) is the last version with the old 
+only a bit of modification work for the new core function. Version
+[v0.11.1](https://github.com/kitsudaiki/ainari/tree/v0.11.1) is the last version with the old
 neural network core.
 
 Until I started to push the project into this new direction, everything in the project, except some

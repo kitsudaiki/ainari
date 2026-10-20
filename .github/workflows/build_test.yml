@@ -161,9 +161,90 @@ jobs:
           git ls-files -z | xargs -0 detect-secrets-hook --baseline .secrets.baseline
 
 
+  spell-check-docs:
+    name: "Spell-check docs"
+    runs-on: ubuntu-24.04
+    env:
+      FORCE_COLOR: 1
+    steps:
+      -
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      -
+        name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3 python3-pip python3-venv
+      -
+        name: Run check
+        run: |
+          python3 -m venv codespell_env
+          source codespell_env/bin/activate
+          pip3 install codespell
+          # the skipped files and ignored words are defined in .codespellrc
+          codespell docs README.md
+
+
+  markdown-lint-docs:
+    name: "Lint markdown of docs"
+    runs-on: ubuntu-24.04
+    steps:
+      -
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      -
+        name: Run check
+        run: |
+          # same image as in 'make lint-docs', the rules and checked files are defined in
+          # .markdownlint-cli2.yaml
+          make lint-docs
+
+
+  license-check:
+    name: "Check licenses of rust-dependencies"
+    runs-on: ubuntu-24.04
+    steps:
+      -
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      -
+        name: Run cargo-deny
+        # v2.1.1
+        uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25
+        with:
+          # the allowed licenses are defined in deny.toml
+          command: check licenses
+          arguments: --all-features
+
+
+  golangci-lint:
+    name: "golangci-lint ${{ matrix.module }}"
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        module:
+          - src/sdk/go/ainari_sdk
+          - src/cli/ainarictl
+          - deploy/operator
+    steps:
+      -
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      -
+        name: Install Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
+        with:
+          go-version-file: ${{ matrix.module }}/go.mod
+          cache-dependency-path: ${{ matrix.module }}/go.sum
+      -
+        name: Run golangci-lint
+        # v9.3.0
+        uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a
+        with:
+          version: v2.15.0
+          working-directory: ${{ matrix.module }}
+
+
   build_python_package:
     name: "Build SDK python-package"
-    needs: [ clippy-check, rustfmt-check, flake8-check, check-for-executables, commit-lint, detect-sectets ]
+    needs: [ clippy-check, rustfmt-check, flake8-check, check-for-executables, commit-lint, detect-sectets, spell-check-docs, markdown-lint-docs, license-check, golangci-lint ]
     runs-on: ubuntu-24.04
     env:
       FORCE_COLOR: 1
@@ -213,7 +294,7 @@ jobs:
 
   build_ainari_debug:
     name: "Compile ainari (debug)"
-    needs: [ clippy-check, rustfmt-check, flake8-check, check-for-executables, commit-lint, detect-sectets ]
+    needs: [ clippy-check, rustfmt-check, flake8-check, check-for-executables, commit-lint, detect-sectets, spell-check-docs, markdown-lint-docs, license-check, golangci-lint ]
     runs-on: ubuntu-24.04
     env:
       FORCE_COLOR: 1
@@ -279,7 +360,7 @@ jobs:
 
   build_ainarictl:
     name: "Compile CLI"
-    needs: [ clippy-check, rustfmt-check, flake8-check, check-for-executables, commit-lint, detect-sectets ]
+    needs: [ clippy-check, rustfmt-check, flake8-check, check-for-executables, commit-lint, detect-sectets, spell-check-docs, markdown-lint-docs, license-check, golangci-lint ]
     runs-on: ubuntu-24.04
     env:
       FORCE_COLOR: 1
@@ -292,9 +373,9 @@ jobs:
       -
         name: Install Go
         run: |
-          wget -c https://go.dev/dl/go1.25.0.linux-amd64.tar.gz
-          sudo tar -C /usr/local/ -xzf go1.25.0.linux-amd64.tar.gz
-          rm go1.25.0.linux-amd64.tar.gz
+          wget -c https://go.dev/dl/go1.26.10.linux-amd64.tar.gz
+          sudo tar -C /usr/local/ -xzf go1.26.10.linux-amd64.tar.gz
+          rm go1.26.10.linux-amd64.tar.gz
           echo "/usr/local/go/bin" >> "${GITHUB_PATH}"
       -
         name: Checkout repository
@@ -329,7 +410,7 @@ jobs:
 
   cargo_tests:
     name: "Cargo Test"
-    needs: [ clippy-check, rustfmt-check, flake8-check, check-for-executables, commit-lint, detect-sectets ]
+    needs: [ clippy-check, rustfmt-check, flake8-check, check-for-executables, commit-lint, detect-sectets, spell-check-docs, markdown-lint-docs, license-check, golangci-lint ]
     runs-on: ubuntu-24.04
     services:
       # database for the second test-run of the components, which also support mysql
@@ -432,7 +513,7 @@ jobs:
 
   operator_tests:
     name: "Go Test Operator"
-    needs: [ clippy-check, rustfmt-check, flake8-check, check-for-executables, commit-lint, detect-sectets ]
+    needs: [ clippy-check, rustfmt-check, flake8-check, check-for-executables, commit-lint, detect-sectets, spell-check-docs, markdown-lint-docs, license-check, golangci-lint ]
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd

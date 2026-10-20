@@ -8,11 +8,10 @@
   <img src="img/ainari_logo.jpg" alt="Ainari logo" width="500" height="500" />
 </p>
 
-Ainari is a secure and easy to use, deploy and develop IaaS stack to manage virtual machines. 
+Ainari is a secure and easy to use, deploy and develop IaaS stack to manage virtual machines.
 See more in the [About-section](/home/about/) of the documentation.
 
 ## **IMPORTANT**: This project is still a prototype and NOT ready for any productive usage
-
 
 ## Summary important links
 
@@ -38,7 +37,7 @@ See more in the [About-section](/home/about/) of the documentation.
 
     [:octicons-arrow-right-24: Installation-Guide](/deployer/installation/kubernetes_installation/)
 
-    [:octicons-arrow-right-24: Dashboard documenation](/user/dashboard/dashboard/)
+    [:octicons-arrow-right-24: Dashboard documentation](/user/dashboard/dashboard/)
 
     [:octicons-arrow-right-24: SDK and CLI documentation](/user/cli_sdk/cli_sdk_docu/)
 

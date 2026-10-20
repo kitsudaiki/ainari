@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- added to CI:
+    - spell-checker
+    - markdown-linter
+    - license check
+    - go-linter
+
+### Changed
+
+- updated dashboard-styling
+- synced go-versions used in the repo to version 1.26.10
+
+### Fixed
+
+- fixed all findings of the new CI-checks
+
 ## v0.22.0
 
 ### BREAKING-CHANGES
