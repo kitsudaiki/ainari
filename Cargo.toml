@@ -44,6 +44,7 @@ resolver = "2"
 version = "0.22.0"
 edition = "2024"
 rust-version = "1.85.1"
+license = "Apache-2.0"
 
 [workspace.dependencies]
 aya = { version = "0.14.0", default-features = false }

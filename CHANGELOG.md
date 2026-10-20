@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - added to CI:
     - spell-checker
     - markdown-linter
+    - license check
 
 ### Changed
 

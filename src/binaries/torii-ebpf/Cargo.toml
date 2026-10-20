@@ -3,6 +3,7 @@ name = "torii-ebpf"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
+license.workspace = true
 
 [dependencies]
 torii_common = { path = "../../libs/rust/torii_common" }

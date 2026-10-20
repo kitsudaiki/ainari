@@ -198,9 +198,25 @@ jobs:
           make lint-docs
 
 
+  license-check:
+    name: "Check licenses of rust-dependencies"
+    runs-on: ubuntu-24.04
+    steps:
+      -
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      -
+        name: Run cargo-deny
+        # v2.1.1
+        uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25
+        with:
+          # the allowed licenses are defined in deny.toml
+          command: check licenses
+          arguments: --all-features
+
+
   build_python_package:
     name: "Build SDK python-package"
-    needs: [ clippy-check, rustfmt-check, flake8-check, check-for-executables, commit-lint, detect-sectets, spell-check-docs, markdown-lint-docs ]
+    needs: [ clippy-check, rustfmt-check, flake8-check, check-for-executables, commit-lint, detect-sectets, spell-check-docs, markdown-lint-docs, license-check ]
     runs-on: ubuntu-24.04
     env:
       FORCE_COLOR: 1
@@ -250,7 +266,7 @@ jobs:
 
   build_ainari_debug:
     name: "Compile ainari (debug)"
-    needs: [ clippy-check, rustfmt-check, flake8-check, check-for-executables, commit-lint, detect-sectets, spell-check-docs, markdown-lint-docs ]
+    needs: [ clippy-check, rustfmt-check, flake8-check, check-for-executables, commit-lint, detect-sectets, spell-check-docs, markdown-lint-docs, license-check ]
     runs-on: ubuntu-24.04
     env:
       FORCE_COLOR: 1
@@ -316,7 +332,7 @@ jobs:
 
   build_ainarictl:
     name: "Compile CLI"
-    needs: [ clippy-check, rustfmt-check, flake8-check, check-for-executables, commit-lint, detect-sectets, spell-check-docs, markdown-lint-docs ]
+    needs: [ clippy-check, rustfmt-check, flake8-check, check-for-executables, commit-lint, detect-sectets, spell-check-docs, markdown-lint-docs, license-check ]
     runs-on: ubuntu-24.04
     env:
       FORCE_COLOR: 1
@@ -366,7 +382,7 @@ jobs:
 
   cargo_tests:
     name: "Cargo Test"
-    needs: [ clippy-check, rustfmt-check, flake8-check, check-for-executables, commit-lint, detect-sectets, spell-check-docs, markdown-lint-docs ]
+    needs: [ clippy-check, rustfmt-check, flake8-check, check-for-executables, commit-lint, detect-sectets, spell-check-docs, markdown-lint-docs, license-check ]
     runs-on: ubuntu-24.04
     services:
       # database for the second test-run of the components, which also support mysql
@@ -469,7 +485,7 @@ jobs:
 
   operator_tests:
     name: "Go Test Operator"
-    needs: [ clippy-check, rustfmt-check, flake8-check, check-for-executables, commit-lint, detect-sectets, spell-check-docs, markdown-lint-docs ]
+    needs: [ clippy-check, rustfmt-check, flake8-check, check-for-executables, commit-lint, detect-sectets, spell-check-docs, markdown-lint-docs, license-check ]
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
