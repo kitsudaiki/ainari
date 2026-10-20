@@ -1,0 +1,13 @@
+# Config of codespell for the spell-check of the documentation.
+#
+# Run it with:
+#   pip3 install codespell && codespell docs README.md
+
+[codespell]
+# images, diagrams and backups contain no prose, CHANGELOG.md and license.md are symlinks to the
+# files in the root of the repository and the changelog is a historical record, which is not
+# changed afterwards
+skip = *.jpg,*.drawio,*.bkp,*.json,*.css,*.js,*/home/CHANGELOG.md,*/home/license.md
+# iif:    keyword of 'ip rule' for the incoming interface
+# proxys: name of the proxy-endpoints and -table
+ignore-words-list = iif,proxys

@@ -161,9 +161,32 @@ jobs:
           git ls-files -z | xargs -0 detect-secrets-hook --baseline .secrets.baseline
 
 
+  spell-check-docs:
+    name: "Spell-check docs"
+    runs-on: ubuntu-24.04
+    env:
+      FORCE_COLOR: 1
+    steps:
+      -
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      -
+        name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3 python3-pip python3-venv
+      -
+        name: Run check
+        run: |
+          python3 -m venv codespell_env
+          source codespell_env/bin/activate
+          pip3 install codespell
+          # the skipped files and ignored words are defined in .codespellrc
+          codespell docs README.md
+
+
   build_python_package:
     name: "Build SDK python-package"
-    needs: [ clippy-check, rustfmt-check, flake8-check, check-for-executables, commit-lint, detect-sectets ]
+    needs: [ clippy-check, rustfmt-check, flake8-check, check-for-executables, commit-lint, detect-sectets, spell-check-docs ]
     runs-on: ubuntu-24.04
     env:
       FORCE_COLOR: 1
@@ -213,7 +236,7 @@ jobs:
 
   build_ainari_debug:
     name: "Compile ainari (debug)"
-    needs: [ clippy-check, rustfmt-check, flake8-check, check-for-executables, commit-lint, detect-sectets ]
+    needs: [ clippy-check, rustfmt-check, flake8-check, check-for-executables, commit-lint, detect-sectets, spell-check-docs ]
     runs-on: ubuntu-24.04
     env:
       FORCE_COLOR: 1
@@ -279,7 +302,7 @@ jobs:
 
   build_ainarictl:
     name: "Compile CLI"
-    needs: [ clippy-check, rustfmt-check, flake8-check, check-for-executables, commit-lint, detect-sectets ]
+    needs: [ clippy-check, rustfmt-check, flake8-check, check-for-executables, commit-lint, detect-sectets, spell-check-docs ]
     runs-on: ubuntu-24.04
     env:
       FORCE_COLOR: 1
@@ -329,7 +352,7 @@ jobs:
 
   cargo_tests:
     name: "Cargo Test"
-    needs: [ clippy-check, rustfmt-check, flake8-check, check-for-executables, commit-lint, detect-sectets ]
+    needs: [ clippy-check, rustfmt-check, flake8-check, check-for-executables, commit-lint, detect-sectets, spell-check-docs ]
     runs-on: ubuntu-24.04
     services:
       # database for the second test-run of the components, which also support mysql
@@ -432,7 +455,7 @@ jobs:
 
   operator_tests:
     name: "Go Test Operator"
-    needs: [ clippy-check, rustfmt-check, flake8-check, check-for-executables, commit-lint, detect-sectets ]
+    needs: [ clippy-check, rustfmt-check, flake8-check, check-for-executables, commit-lint, detect-sectets, spell-check-docs ]
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd

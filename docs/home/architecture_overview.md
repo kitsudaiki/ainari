@@ -27,7 +27,7 @@ new connection. Also the handling of networks, floating ips and network filters 
 
 ### Torii
 
-Torii is the gateway-component, is configured by hanami and handles 2 differen pathways:
+Torii is the gateway-component, is configured by hanami and handles 2 different pathways:
 
 1. It is basically only a layer-3-proxy. Torii creates a port for each virtual machine and the user
    can directly interact with the Sakura compute host, which holds the VM. Torii doesn't terminate
@@ -60,7 +60,7 @@ Omikuji is the central point to collect error- and audit-log entries from all co
 
 ### Izakaya
 
-Izakaya provide the key-exchange mechanis to provide keys to the hosts for the IPsec encryption. It uses
+Izakaya provide the key-exchange mechanism to provide keys to the hosts for the IPsec encryption. It uses
 the MLS (Messaging Layer Security) for the exchange.
 
 ### Omamori

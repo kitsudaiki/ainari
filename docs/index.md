@@ -38,7 +38,7 @@ See more in the [About-section](/home/about/) of the documentation.
 
     [:octicons-arrow-right-24: Installation-Guide](/deployer/installation/kubernetes_installation/)
 
-    [:octicons-arrow-right-24: Dashboard documenation](/user/dashboard/dashboard/)
+    [:octicons-arrow-right-24: Dashboard documentation](/user/dashboard/dashboard/)
 
     [:octicons-arrow-right-24: SDK and CLI documentation](/user/cli_sdk/cli_sdk_docu/)
 

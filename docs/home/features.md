@@ -62,7 +62,7 @@ qemu it has a minimal code base and is written in Rust.
 Network rules can be set, to limit incoming and outgoing network traffic to specific ports and
 ip-address ranges.
 
-### Reproducable builds
+### Reproducible builds
 
 **Status: <span style="color:#4caf50">implemented</span> (since v0.21.0)**
 
@@ -244,7 +244,7 @@ passwords, is handled by the operator.
 **Status: <span style="color:#4caf50">implemented</span> (since v0.22.0)**
 
 The whole stack can be packed as offline installation package using [Zarf](https://zarf.dev/). So it
-can be deployed on a kubernetes in an air-gaped environment, where not internet access is avaiable.
+can be deployed on a kubernetes in an air-gaped environment, where not internet access is available.
 
 ### Easy local development
 
@@ -273,7 +273,7 @@ IaaS-projects, like Openstack and IronCore, have each component and library in a
 Implementing new features over multiple components and repositories can easily become very frustrating. 
 You have multiple merge requests to approve, higher risks of conflicts and so on. Even this project was
 at one point in time split over 40 repositories. Dependency updates were a total time consuming pain.
-A Monorepo makes implementing new features and updating dependecies much easier. It is also easy to 
+A Monorepo makes implementing new features and updating dependencies much easier. It is also easy to 
 identify which versions of the different components belong together. Based on my experiences I made,
 a Monorepo makes much more sense for this project, even it contains microservices.
 
