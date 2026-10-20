@@ -75,7 +75,7 @@ func TestUploadFile(t *testing.T) {
 		if !bytes.Equal(uploaded, content) {
 			t.Errorf("uploaded file differs from the original")
 		}
-		w.Write([]byte(`{"uuid": "abc"}`))
+		_, _ = w.Write([]byte(`{"uuid": "abc"}`))
 	}))
 	defer server.Close()
 

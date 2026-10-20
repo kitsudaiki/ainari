@@ -21,8 +21,8 @@
 package ainari_resources
 
 import (
-	"fmt"
 	ainarictl_common "ainarictl/common"
+	"fmt"
 	"os"
 
 	ainari_sdk "github.com/kitsudaiki/ainari"
@@ -68,7 +68,7 @@ Run 'sync' inside the virtual_machine right before creating the snapshot.
 
 With '-s SECRET_UUID', the snapshot is encrypted with this already existing secret, instead of a
 new generated secret.`,
-	Args:  cobra.ExactArgs(2),
+	Args: cobra.ExactArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
 		context, err := Login()
 		if err != nil {
@@ -95,7 +95,7 @@ var createSnapshotRestoreTaskCmd = &cobra.Command{
 
 Only images, which are marked as snapshot, can be restored. The virtual_machine is shut down,
 while its root-disk is replaced, and booted again afterwards.`,
-	Args:  cobra.ExactArgs(1),
+	Args: cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		context, err := Login()
 		if err != nil {
@@ -208,7 +208,7 @@ func Init_Task_Commands(rootCmd *cobra.Command) {
 
 	createTaskCmd.AddCommand(createSnapshotRestoreTaskCmd)
 	createSnapshotRestoreTaskCmd.Flags().StringVarP(&snapshotImageUuid, "image_uuid", "i", "", "UUID of the image, which must be a snapshot (mandatory)")
-	createSnapshotRestoreTaskCmd.MarkFlagRequired("image_uuid")
+	cobra.CheckErr(createSnapshotRestoreTaskCmd.MarkFlagRequired("image_uuid"))
 
 	taskCmd.AddCommand(getTaskCmd)
 

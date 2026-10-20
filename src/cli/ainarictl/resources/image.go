@@ -21,8 +21,8 @@
 package ainari_resources
 
 import (
-	"fmt"
 	ainarictl_common "ainarictl/common"
+	"fmt"
 	"os"
 
 	ainari_sdk "github.com/kitsudaiki/ainari"
@@ -162,7 +162,7 @@ func Init_Image_Commands(rootCmd *cobra.Command) {
 
 	createImageCmd.AddCommand(createDiskImageCmd)
 	createDiskImageCmd.Flags().StringVarP(&inputFilePath, "input", "i", "", "Path to the disk-image-file (mandatory)")
-	createDiskImageCmd.MarkFlagRequired("input")
+	cobra.CheckErr(createDiskImageCmd.MarkFlagRequired("input"))
 	createDiskImageCmd.Flags().StringVarP(&imageSecretUuid, "secret", "s", "", "UUID of an existing secret to encrypt the image with, instead of a new generated secret (optional)")
 
 	imageCmd.AddCommand(getImageCmd)

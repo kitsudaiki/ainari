@@ -20,12 +20,8 @@
 
 package ainari_sdk
 
-import (
-	"fmt"
-)
-
 func GetVersion(context AccessContext, address string) (map[string]interface{}, error) {
-	path := fmt.Sprintf("v1alpha/version")
+	path := "v1alpha/version"
 	vars := map[string]interface{}{}
 	return SendGet(context, address, path, vars)
 }

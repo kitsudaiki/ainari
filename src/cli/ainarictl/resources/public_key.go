@@ -21,8 +21,8 @@
 package ainari_resources
 
 import (
-	"fmt"
 	ainarictl_common "ainarictl/common"
+	"fmt"
 	"os"
 	"strings"
 
@@ -139,7 +139,7 @@ func Init_PublicKey_Commands(rootCmd *cobra.Command) {
 
 	publicKeyCmd.AddCommand(uploadPublicKeyCmd)
 	uploadPublicKeyCmd.Flags().StringVarP(&publicKeyPath, "key", "k", "", "Path to the local file with the ssh-public-key to upload (mandatory)")
-	uploadPublicKeyCmd.MarkFlagRequired("key")
+	cobra.CheckErr(uploadPublicKeyCmd.MarkFlagRequired("key"))
 
 	publicKeyCmd.AddCommand(getPublicKeyCmd)
 

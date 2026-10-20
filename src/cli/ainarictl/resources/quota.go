@@ -21,8 +21,8 @@
 package ainari_resources
 
 import (
-	"fmt"
 	ainarictl_common "ainarictl/common"
+	"fmt"
 	"os"
 
 	ainari_sdk "github.com/kitsudaiki/ainari"
@@ -31,11 +31,11 @@ import (
 )
 
 var (
-    maxVirtualMachine int
-    maxImage          int
-    maxSecret         int
-    maxNetwork        int
-    maxFloatingIp     int
+	maxVirtualMachine int
+	maxImage          int
+	maxSecret         int
+	maxNetwork        int
+	maxFloatingIp     int
 )
 
 var setQuotaCmd = &cobra.Command{

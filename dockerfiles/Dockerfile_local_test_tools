@@ -31,7 +31,7 @@ ARG DEBIAN_FRONTEND=noninteractive
 # versions of the tools, the same as the ones of the Makefile and the setup-scripts
 ARG KIND_VERSION=v0.30.0
 ARG KUBECTL_VERSION=v1.34.12
-ARG GO_VERSION=1.26.8
+ARG GO_VERSION=1.26.10
 ARG ANSIBLE_CORE_VERSION=2.20.9
 ARG VAGRANT_LIBVIRT_VERSION=0.12.2
 

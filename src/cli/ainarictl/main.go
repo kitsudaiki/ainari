@@ -21,9 +21,9 @@
 package main
 
 import (
-	"fmt"
 	ainarictl_common "ainarictl/common"
 	ainari_resources "ainarictl/resources"
+	"fmt"
 	"os"
 
 	"github.com/spf13/cobra"

@@ -21,8 +21,8 @@
 package ainari_resources
 
 import (
-	"fmt"
 	ainarictl_common "ainarictl/common"
+	"fmt"
 	"os"
 
 	ainari_sdk "github.com/kitsudaiki/ainari"
@@ -156,7 +156,6 @@ var deleteSecretCmd = &cobra.Command{
 	},
 }
 
-
 var getSecretCountCmd = &cobra.Command{
 	Use:   "count",
 	Short: "Get the number of secrets of the project.",
@@ -186,7 +185,7 @@ func Init_Secret_Commands(rootCmd *cobra.Command) {
 
 	secretCmd.AddCommand(createSecretCmd)
 	createSecretCmd.Flags().StringVarP(&secretPayload, "payload", "p", "", "Secret-payload to upload (mandatory)")
-	createSecretCmd.MarkFlagRequired("payload")
+	cobra.CheckErr(createSecretCmd.MarkFlagRequired("payload"))
 
 	secretCmd.AddCommand(generateSecretCmd)
 

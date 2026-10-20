@@ -21,8 +21,8 @@
 package ainari_resources
 
 import (
-	"fmt"
 	ainarictl_common "ainarictl/common"
+	"fmt"
 	"os"
 
 	ainari_sdk "github.com/kitsudaiki/ainari"
@@ -203,7 +203,7 @@ func Init_Project_Commands(rootCmd *cobra.Command) {
 
 	projectCmd.AddCommand(createProjectCmd)
 	createProjectCmd.Flags().StringVarP(&projectName, "name", "n", "", "Project name (mandatory)")
-	createProjectCmd.MarkFlagRequired("name")
+	cobra.CheckErr(createProjectCmd.MarkFlagRequired("name"))
 
 	projectCmd.AddCommand(getProjectCmd)
 

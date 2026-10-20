@@ -21,8 +21,8 @@
 package ainari_resources
 
 import (
-	"fmt"
 	ainarictl_common "ainarictl/common"
+	"fmt"
 	"os"
 
 	ainari_sdk "github.com/kitsudaiki/ainari"
@@ -172,7 +172,7 @@ func Init_FloatingIp_Commands(rootCmd *cobra.Command) {
 	floatingIpCmd.AddCommand(addFloatingIpCmd)
 	addFloatingIpCmd.Flags().StringVarP(&floatingIpName, "name", "n", "", "Name of the floating IP (mandatory)")
 	addFloatingIpCmd.Flags().StringVarP(&floatingIpVirtualMachineUuid, "virtual_machine", "v", "", "UUID of the virtual machine, which the new floating IP is attached to (optional)")
-	addFloatingIpCmd.MarkFlagRequired("name")
+	cobra.CheckErr(addFloatingIpCmd.MarkFlagRequired("name"))
 
 	floatingIpCmd.AddCommand(attachFloatingIpCmd)
 

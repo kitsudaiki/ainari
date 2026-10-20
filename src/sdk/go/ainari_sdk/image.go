@@ -40,7 +40,7 @@ func CreateDiskImage(context AccessContext, imageName, filePath, secretUuid stri
 	return UploadFile(context, path, fields, filePath, progress)
 }
 
-func GetImage(context AccessContext, imageUuid string,) (map[string]interface{}, error) {
+func GetImage(context AccessContext, imageUuid string) (map[string]interface{}, error) {
 	path := fmt.Sprintf("v1alpha/image/%s", imageUuid)
 	vars := map[string]interface{}{}
 	return SendGet(context, context.RyokanAddress, path, vars)
@@ -52,7 +52,7 @@ func ListImage(context AccessContext) (map[string]interface{}, error) {
 	return SendGet(context, context.RyokanAddress, path, vars)
 }
 
-func DeleteImage(context AccessContext, imageUuid string,) (map[string]interface{}, error) {
+func DeleteImage(context AccessContext, imageUuid string) (map[string]interface{}, error) {
 	path := fmt.Sprintf("v1alpha/image/%s", imageUuid)
 	vars := map[string]interface{}{}
 	return SendDelete(context, context.RyokanAddress, path, vars)

@@ -21,8 +21,8 @@
 package ainari_resources
 
 import (
-	"fmt"
 	ainarictl_common "ainarictl/common"
+	"fmt"
 	"os"
 
 	ainari_sdk "github.com/kitsudaiki/ainari"
@@ -126,7 +126,7 @@ func Init_Network_Commands(rootCmd *cobra.Command) {
 	networkCmd.AddCommand(createNetworkCmd)
 	createNetworkCmd.Flags().StringVarP(&networkSubnet, "subnet", "s", "", "Subnet of the network in CIDR-notation (mandatory)")
 	createNetworkCmd.Flags().BoolVar(&networkDisableEncryption, "disable-encryption", false, "Don't encrypt the traffic between the virtual machines of the network on different hosts")
-	createNetworkCmd.MarkFlagRequired("subnet")
+	cobra.CheckErr(createNetworkCmd.MarkFlagRequired("subnet"))
 
 	networkCmd.AddCommand(getNetworkCmd)
 

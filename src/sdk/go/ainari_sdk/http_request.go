@@ -23,18 +23,17 @@
 package ainari_sdk
 
 import (
+	"bytes"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"net/http"
-	"strings"
-	"bytes"
 	"io"
-	"os"
 	"mime/multipart"
+	"net/http"
+	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 )
 
 // secureClient and insecureClient have their own transports, so the TLS-settings of the SDK
@@ -144,10 +143,10 @@ func sendAuthRequest(address, path string, body string, skipTlsVerification bool
 	if err != nil {
 		return outputMap, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// read data from response and convert into string
-	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return outputMap, err
 	}
@@ -192,7 +191,7 @@ func sendGenericRequest(address, token, requestType, path string, jsonBody *map[
 
 	// add token to header
 	var bearer_token = fmt.Sprintf("Bearer %s", token)
-	req.Header.Set("Authorization",  bearer_token)
+	req.Header.Set("Authorization", bearer_token)
 	req.Header.Set("Content-Type", "application/json")
 
 	// run request
@@ -200,10 +199,10 @@ func sendGenericRequest(address, token, requestType, path string, jsonBody *map[
 	if err != nil {
 		return outputMap, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// read data from response and convert into string
-	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return outputMap, err
 	}
@@ -256,7 +255,7 @@ func UploadFile(context AccessContext, path string, fields map[string]string, fi
 	if err != nil {
 		return outputMap, fmt.Errorf("failed to open file %s: %v", filePath, err)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 	fileInfo, err := file.Stat()
 	if err != nil {
 		return outputMap, fmt.Errorf("failed to get size of file %s: %v", filePath, err)
@@ -295,7 +294,7 @@ func UploadFile(context AccessContext, path string, fields map[string]string, fi
 	tail := bytes.Clone(form.Bytes())
 
 	totalSize := int64(len(head)) + fileInfo.Size() + int64(len(tail))
-	var body io.Reader = io.MultiReader(bytes.NewReader(head), file, bytes.NewReader(tail))
+	body := io.MultiReader(bytes.NewReader(head), file, bytes.NewReader(tail))
 	if progress != nil {
 		body = &progressReader{reader: body, total: totalSize, progress: progress}
 	}
@@ -309,7 +308,7 @@ func UploadFile(context AccessContext, path string, fields map[string]string, fi
 	req.ContentLength = totalSize
 
 	var bearer_token = fmt.Sprintf("Bearer %s", context.token)
-	req.Header.Set("Authorization",  bearer_token)
+	req.Header.Set("Authorization", bearer_token)
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 
 	// Send the request
@@ -317,10 +316,10 @@ func UploadFile(context AccessContext, path string, fields map[string]string, fi
 	if err != nil {
 		return outputMap, fmt.Errorf("request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Read and print the response (optional!)
-	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return outputMap, err
 	}
