@@ -623,15 +623,41 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
       -
+        name: Checkout cleanup-script
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          sparse-checkout: .github/scripts
+      -
+        name: Remember digests of the previous image
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          # the image, which is currently behind the tag, becomes untagged by the push below
+          ./.github/scripts/dockerhub_digests.sh list ${{ matrix.builds.regitry }} ${{ env.BRANCH_NAME }} \
+            > /tmp/old_digests
+          cat /tmp/old_digests
+      -
         name: Create manifest list and push
         working-directory: /tmp/digests
         run: |
           docker buildx imagetools create -t ${{ matrix.builds.regitry }}:${{ env.BRANCH_NAME }} \
-            $(printf '${{ matrix.builds.regitry }}@sha256:%s ' *)          
+            $(printf '${{ matrix.builds.regitry }}@sha256:%s ' *)
       -
         name: Inspect image
         run: |
           docker buildx imagetools inspect ${{ matrix.builds.regitry }}:${{ env.BRANCH_NAME }}
+      -
+        name: Delete untagged previous image
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          ./.github/scripts/dockerhub_digests.sh list ${{ matrix.builds.regitry }} ${{ env.BRANCH_NAME }} \
+            > /tmp/new_digests
+          # digests, which are also part of the new image (identical rebuild), must be kept
+          ./.github/scripts/dockerhub_digests.sh delete ${{ matrix.builds.regitry }} \
+            $(grep -vxF -f /tmp/new_digests /tmp/old_digests || true)
 
 
 
@@ -931,8 +957,29 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
       -
+        name: Remember digests of the previous image
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          # the image, which is currently behind the tag, becomes untagged by the push below
+          ./${GITHUB_REPOSITORY#*/}/.github/scripts/dockerhub_digests.sh list \
+            ${{ env.REGISTRY_DOCS_IMAGE }} ${{ env.BRANCH_NAME }} > /tmp/old_digests
+          cat /tmp/old_digests
+      -
         name: Push image
         run: docker push ${{ env.REGISTRY_DOCS_IMAGE }}:${{ env.BRANCH_NAME }}
+      -
+        name: Delete untagged previous image
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          ./${GITHUB_REPOSITORY#*/}/.github/scripts/dockerhub_digests.sh list \
+            ${{ env.REGISTRY_DOCS_IMAGE }} ${{ env.BRANCH_NAME }} > /tmp/new_digests
+          # digests, which are also part of the new image (identical rebuild), must be kept
+          ./${GITHUB_REPOSITORY#*/}/.github/scripts/dockerhub_digests.sh delete ${{ env.REGISTRY_DOCS_IMAGE }} \
+            $(grep -vxF -f /tmp/new_digests /tmp/old_digests || true)
 
 
 
