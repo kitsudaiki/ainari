@@ -36,21 +36,19 @@ DOCKERFILES="dockerfiles/${BASE}_based"
 # the images of the components are built on this image, which Dockerfile_services uses by default
 docker build -f "$DOCKERFILES/Dockerfile_build_base" -t "kitsudaiki/ainari_build_base_$BASE:0.5.0" .
 
-for target in hanami miko omamori onsen ryokan sakura; do
+# the same list is used for building and saving, so 'docker save' never references an image, which
+# was not built by this script
+SERVICES="hanami izakaya miko omamori omikuji onsen ryokan sakura"
+IMAGES=()
+
+for target in $SERVICES; do
     docker build -f "$DOCKERFILES/Dockerfile_services" --target "$target" \
         -t "kitsudaiki/$target:local_test" .
+    IMAGES+=("kitsudaiki/$target:local_test")
 done
 docker build -f "$DOCKERFILES/Dockerfile_torii" -t kitsudaiki/torii:local_test .
 docker build -f "$DOCKERFILES/Dockerfile_dashboard" -t kitsudaiki/ainari_dashboard:local_test .
+IMAGES+=(kitsudaiki/torii:local_test kitsudaiki/ainari_dashboard:local_test)
 
 mkdir -p temporary_files
-docker save -o temporary_files/ainari_docker_files.tar \
-    kitsudaiki/hanami:local_test \
-    kitsudaiki/miko:local_test \
-    kitsudaiki/omamori:local_test \
-    kitsudaiki/onsen:local_test \
-    kitsudaiki/ryokan:local_test \
-    kitsudaiki/sakura:local_test \
-    kitsudaiki/torii:local_test \
-    kitsudaiki/izakaya:local_test \
-    kitsudaiki/ainari_dashboard:local_test
+docker save -o temporary_files/ainari_docker_files.tar "${IMAGES[@]}"

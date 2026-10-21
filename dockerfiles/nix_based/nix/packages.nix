@@ -99,9 +99,14 @@ let
         rev = "v${finalAttrs.version}";
         hash = "sha256-fPTGf8bAITDA8QwllWbbGXA7tJ6p/SxRDfcBQVRvCTI=";
       };
+      # The Cargo.lock of 53.0 has rustls 0.23.41, which has the vulnerability
+      # GHSA-2mjx-qc3c-rqvc, so rustls is updated to 0.23.46 (and rustls-webpki to 0.103.16,
+      # which it requires). 54.0 already has a fixed rustls, but removes the autodetection of the
+      # disk-images and changes options of the live-migration.
+      patches = (old.patches or [ ]) ++ [ ./patches/cloud-hypervisor-rustls.patch ];
       cargoDeps = pkgs.rustPlatform.fetchCargoVendor {
-        inherit (finalAttrs) pname version src;
-        hash = "sha256-+RbW/9ap/69MyODUk/bHBlH6ZuqYYIyKaarYSMQ2G7w=";
+        inherit (finalAttrs) pname version src patches;
+        hash = "sha256-NvTP6XgI2HFA9sBZYtcsUwg14V6WTSp/W0Fq8Y4UD10=";
       };
       # since 53.0 openssl is also needed for the build and not only for the tests
       buildInputs = old.buildInputs ++ [ pkgs.openssl ];
@@ -111,15 +116,22 @@ let
   );
 
   # toolchain of the kubernetes-operator, nixos-26.05 has only 1.26.8, but 1.26.9 fixes the
-  # vulnerabilities GO-2026-6603, GO-2026-6610, GO-2026-6611, GO-2026-6612 and GO-2026-6617 of the
-  # standard-library. deploy/operator/go.mod requires 1.26.9 and the build doesn't download it.
+  # vulnerabilities GO-2026-6603, GO-2026-6610, GO-2026-6611, GO-2026-6612 and GO-2026-6617 and
+  # 1.26.10 fixes CVE-2026-111943 of the standard-library. deploy/operator/go.mod requires 1.26.10
+  # and the build doesn't download it.
   go = pkgs.go_1_26.overrideAttrs (finalAttrs: _: {
-    version = "1.26.9";
+    version = "1.26.10";
     src = pkgs.fetchurl {
       url = "https://go.dev/dl/go${finalAttrs.version}.src.tar.gz";
-      hash = "sha256-lzXX3Ntls10/pXfwQGRzfAO4nPGitx5uaf4vPG+f1Mo=";
+      hash = "sha256-/WPog7ovK/ypPBZGsx6+9j4rHk0rMXyXidl2po2B828=";
     };
   });
+
+  # setcap of the image of sakura. libcap also builds the go-tool captree, which nobody needs, but
+  # brings the standard-library of the go of nixpkgs (1.26.8) with all its vulnerabilities into the
+  # image. Only this package is rebuilt without go, the library 'libcap.lib', which all the other
+  # packages are linked against, stays the one of nixpkgs.
+  libcap = pkgs.libcap.override { withGo = false; };
 
   # firmware, which boots the virtual machines of cloud-hypervisor
   cloudHypervisorFirmware = "${pkgs.OVMF-cloud-hypervisor.fd}/FV/${
@@ -305,7 +317,7 @@ in
         # cloud-localds builds the cloud-init seed-image
         pkgs.cloud-utils
         # setcap is only used while building the image
-        pkgs.libcap
+        libcap
         cloud-hypervisor
         (pkgs.runCommand "cloud-hypervisor-firmware" { } ''
           mkdir -p $out/etc/cloud-hypervisor

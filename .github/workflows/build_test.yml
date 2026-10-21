@@ -291,73 +291,6 @@ jobs:
           retention-days: 1
 
 
-
-  build_ainari_debug:
-    name: "Compile ainari (debug)"
-    needs: [ clippy-check, rustfmt-check, flake8-check, check-for-executables, commit-lint, detect-sectets, spell-check-docs, markdown-lint-docs, license-check, golangci-lint ]
-    runs-on: ubuntu-24.04
-    env:
-      FORCE_COLOR: 1
-    steps:
-      -
-        name: Install dependencies for SDK
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y protobuf-compiler gcc ssh curl zstd pkg-config libssl-dev libsqlite3-dev libmariadb-dev
-          sudo curl https://sh.rustup.rs -sSf | sh -s -- -y
-      -
-        name: Install Rust Nightly
-        run: |
-          # the build-script of torii compiles the eBPF-programs of the datapath with the
-          # nightly-toolchain and requires rust-src for "-Z build-std=core"
-          rustup toolchain install nightly --profile minimal --component rust-src
-      -
-        name: Install bpf-linker
-        run: |
-          # linker, which is used to link the eBPF-programs of the datapath
-          curl -sSfLO https://github.com/aya-rs/bpf-linker/releases/latest/download/bpf-linker-x86_64-unknown-linux-musl.tar.zst
-          mkdir -p "${HOME}/.local/bin"
-          tar -xpf bpf-linker-x86_64-unknown-linux-musl.tar.zst -C "${HOME}/.local/bin"
-          rm bpf-linker-x86_64-unknown-linux-musl.tar.zst
-          echo "${HOME}/.local/bin" >> "${GITHUB_PATH}"
-      -
-        name: Checkout repository
-        run: |
-          # use manually clone, because with the "actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd" action the name of the
-          # branch can not be read by the git commands, which is necessary for the build-script
-          git clone https://github.com/kitsudaiki/${GITHUB_REPOSITORY#*/}.git
-          cd ${GITHUB_REPOSITORY#*/}
-          git checkout ${GITHUB_REF#refs/heads/}
-          git submodule init
-          git submodule update --recursive
-      -
-        name: Compile ainari
-        run: |
-          cd ${GITHUB_REPOSITORY#*/}
-          cargo build
-      -
-        name: Copy files
-        run: |
-          mkdir -p /tmp/ainari_debug_build_result/ainari/
-          cd ${GITHUB_REPOSITORY#*/}
-          cp ./target/debug/sakura /tmp/ainari_debug_build_result/ainari/
-          cp ./target/debug/miko /tmp/ainari_debug_build_result/ainari/
-          cp ./target/debug/ryokan /tmp/ainari_debug_build_result/ainari/
-          cp ./target/debug/hanami /tmp/ainari_debug_build_result/ainari/
-          cp ./target/debug/torii /tmp/ainari_debug_build_result/ainari/
-          cp ./target/debug/omamori /tmp/ainari_debug_build_result/ainari/
-          cp ./target/debug/omikuji /tmp/ainari_debug_build_result/ainari/
-          cp ./target/debug/onsen /tmp/ainari_debug_build_result/ainari/
-      -
-        name: Create artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
-        with:
-          name: ainari_debug_build_result
-          path: /tmp/ainari_debug_build_result
-          retention-days: 1
-
-
-
   build_ainarictl:
     name: "Compile CLI"
     needs: [ clippy-check, rustfmt-check, flake8-check, check-for-executables, commit-lint, detect-sectets, spell-check-docs, markdown-lint-docs, license-check, golangci-lint ]
@@ -535,7 +468,7 @@ jobs:
   docker_build:
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/develop' || github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') }}
     name: "Build"
-    needs: [ cargo_tests, operator_tests, build_ainari_debug, build_ainarictl, build_python_package ]
+    needs: [ cargo_tests, operator_tests, build_ainarictl, build_python_package ]
     strategy:
       fail-fast: false
       matrix:        
