@@ -648,16 +648,22 @@ jobs:
         run: |
           docker buildx imagetools inspect ${{ matrix.builds.regitry }}:${{ env.BRANCH_NAME }}
       -
-        name: Delete untagged previous image
+        name: Delete untagged images
         env:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
         run: |
           ./.github/scripts/dockerhub_digests.sh list ${{ matrix.builds.regitry }} ${{ env.BRANCH_NAME }} \
             > /tmp/new_digests
+          # because of the attestations, every build-job pushed a manifest-list with the image and its
+          # attestation. The manifest-list of the tag references only their children, so the
+          # manifest-lists of the build-jobs are left behind untagged.
+          printf 'sha256:%s\n' $(ls /tmp/digests) > /tmp/obsolete_digests
+          # the image, which was behind the tag before
+          cat /tmp/old_digests >> /tmp/obsolete_digests
           # digests, which are also part of the new image (identical rebuild), must be kept
           ./.github/scripts/dockerhub_digests.sh delete ${{ matrix.builds.regitry }} \
-            $(grep -vxF -f /tmp/new_digests /tmp/old_digests || true)
+            $(grep -vxF -f /tmp/new_digests /tmp/obsolete_digests || true)
 
 
 
