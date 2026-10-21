@@ -118,9 +118,14 @@ def download_logs(repository, run_id):
 
 def collect_candidates(zip_file, repositories, candidates):
     """Add the digests of all log-files, which belong to exactly one repository."""
-    repo_patterns = {
-        repo: re.compile(r"(?<![\w.-])" + re.escape(repo) + r"(?![\w.-]|/)") for repo in repositories
-    }
+    # the namespace is equal to the DOCKERHUB_USERNAME-secret, so GitHub masks it with "***" in
+    # the logs
+    repo_patterns = {}
+    for repo in repositories:
+        namespace, name = repo.split("/", 1)
+        repo_patterns[repo] = re.compile(
+            r"(?<![\w.-])(?:" + re.escape(namespace) + r"|\*\*\*)/" + re.escape(name) + r"(?![\w.-]|/)"
+        )
     for name in zip_file.namelist():
         if not name.endswith(".txt"):
             continue
