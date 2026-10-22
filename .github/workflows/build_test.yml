@@ -664,6 +664,17 @@ jobs:
           # digests, which are also part of the new image (identical rebuild), must be kept
           ./.github/scripts/dockerhub_digests.sh delete ${{ matrix.builds.regitry }} \
             $(grep -vxF -f /tmp/new_digests /tmp/obsolete_digests || true)
+      -
+        name: Docker Scout
+        # v1.27.0
+        uses: docker/scout-action@a4119c5a8c5076236a54e4ce99531f7e4dd2ef84
+        with:
+          # prints the vulnerabilities of the pushed image in the log and the job-summary
+          command: cves
+          image: registry://${{ matrix.builds.regitry }}:${{ env.BRANCH_NAME }}
+          only-severities: critical,high
+          # only report the vulnerabilities, without failing the pipeline
+          exit-code: false
 
 
 
