@@ -30,34 +30,6 @@ at runtime matches the one of the build.
 Unlike the nix-based image, the packages of apt and the version of rust are not pinned, but the
 latest ones at the time, when the image was built.
 
-## Tags
-
-| Tag | Content |
-| --- | --- |
-| `<VERSION>` | version of the base-image, for example `0.5.0`, always the same as the one of `ainari_build_base_nix` |
-
-There is no `develop`-tag. The version, which is used, is set by the `BUILD_BASE_IMAGE` build-arg
-of `Dockerfile_services`. All images are multi-arch for `linux/amd64` and `linux/arm64`.
-
-## Usage
-
-```dockerfile
-FROM kitsudaiki/ainari_build_base_debian:0.5.0 AS builder
-
-WORKDIR /app
-COPY . .
-RUN /root/.cargo/bin/cargo build --release
-```
-
-The toolchain can also be checked directly:
-
-```bash
-docker run --rm kitsudaiki/ainari_build_base_debian:0.5.0 /root/.cargo/bin/rustc -vV
-```
-
-The local setups don't need this image from Docker Hub, they build it locally with the tag, which
-`Dockerfile_services` uses by default.
-
 ## Build
 
 The image is built and pushed manually together with the nix-based base-image with

@@ -11,20 +11,11 @@ and easy to use, deploy and develop IaaS stack to manage virtual machines. It is
 [zensical](https://zensical.org) and is the same content as <https://docs.ainari.cloud>, so it can
 also be read offline or within an isolated network.
 
-## Tags
-
-| Tag | Content |
-| --- | --- |
-| `develop` | documentation of the latest state of the `develop`-branch |
-| `<VERSION>` | documentation of a release, without the leading `v`, for example `0.21.0` |
-
 ## Usage
 
 ```bash
 docker run -d --name ainari-docs -p 8000:8000 kitsudaiki/ainari_docs:develop
 ```
-
-The documentation is then available on <http://localhost:8000>.
 
 ## Image
 

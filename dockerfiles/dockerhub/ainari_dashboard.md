@@ -10,43 +10,6 @@ The dashboard is the web-interface of [Ainari](https://github.com/kitsudaiki/ain
 easy to use, deploy and develop IaaS stack to manage virtual machines. It is a Vue-app, which is
 served by nginx. The browser talks directly to the APIs of the components.
 
-## Tags
-
-| Tag | Content |
-| --- | --- |
-| `develop` | latest state of the `develop`-branch |
-| `<VERSION>` | a release, without the leading `v`, for example `0.21.0` |
-
-All images are multi-arch for `linux/amd64` and `linux/arm64`.
-
-## Usage
-
-The dashboard loads its config at startup from `/config.json` of its own web-server, so the file
-has to be mounted to `/usr/share/nginx/html/config.json`:
-
-```json
-{
-    "apiUrl": "https://miko.example.com"
-}
-```
-
-| Option | Description |
-| --- | --- |
-| `apiUrl` | public address of Miko. The browser talks to it directly, so it has to be reachable from the machine of the user. |
-
-```bash
-docker run -d --name ainari-dashboard -p 8080:80 \
-    -v $(pwd)/dashboard_config.json:/usr/share/nginx/html/config.json:ro \
-    kitsudaiki/ainari_dashboard:develop
-```
-
-The dashboard is then available on <http://localhost:8080>. The web-server listens on port `80`.
-
-See the [dashboard-documentation](https://docs.ainari.cloud/user/dashboard/dashboard/) and the
-[config-documentation](https://docs.ainari.cloud/deployer/config/dashboard_config/). In the
-kubernetes-deployment the config is created by the
-[kubernetes-operator](https://hub.docker.com/r/kitsudaiki/ainari_operator).
-
 ## Image
 
 The image is built `FROM scratch` with [nix](https://nixos.org): it contains only nginx, its

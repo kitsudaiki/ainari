@@ -18,34 +18,6 @@ openssl, sqlite and MariaDB. All of them are pinned by the `flake.lock` of the f
 on this image uses exactly the same toolchain. The images of the components don't have to download
 the toolchain again, which makes their builds much faster.
 
-## Tags
-
-| Tag | Content |
-| --- | --- |
-| `<VERSION>` | version of the base-image, for example `0.5.0`, which is increased with every change of its Dockerfile or of the flake |
-
-There is no `develop`-tag. The version, which is used, is set by the `BUILD_BASE_IMAGE` build-arg
-of `Dockerfile_services`. All images are multi-arch for `linux/amd64` and `linux/arm64`.
-
-## Usage
-
-```dockerfile
-FROM kitsudaiki/ainari_build_base_nix:0.5.0 AS builder
-
-COPY dockerfiles/nix_based/nix /nix-flake
-RUN nix develop path:/nix-flake#services --command cargo build --release
-```
-
-The toolchain can also be checked directly:
-
-```bash
-docker run --rm kitsudaiki/ainari_build_base_nix:0.5.0 \
-    nix develop path:/nix-flake#services --command rustc -vV
-```
-
-If the flake of the repository differs from the one within the image, the missing packages are
-downloaded while building, so an outdated base-image only makes the build slower.
-
 ## Build
 
 The image is built and pushed manually with

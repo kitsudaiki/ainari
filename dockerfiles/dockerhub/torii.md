@@ -21,53 +21,6 @@ which owns the TAP-devices of the virtual machines of that host.
 It is one component of [Ainari](https://github.com/kitsudaiki/ainari), a secure and easy to use,
 deploy and develop IaaS stack to manage virtual machines.
 
-## Tags
-
-| Tag | Content |
-| --- | --- |
-| `develop` | latest state of the `develop`-branch |
-| `<VERSION>` | a release, without the leading `v`, for example `0.21.0` |
-
-All images are multi-arch for `linux/amd64` and `linux/arm64`.
-
-## Usage
-
-The component reads its config from `/etc/ainari/torii.toml`, which can be changed with the
-environment-variable `CONFIG_FILE`. See the
-[config-documentation](https://docs.ainari.cloud/deployer/config/torii_config/) and the example-configs
-for the [public gateway](https://github.com/kitsudaiki/ainari/blob/develop/example_configs/ainari/torii_public.toml)
-and the [gateway in front of a host](https://github.com/kitsudaiki/ainari/blob/develop/example_configs/ainari/torii.toml).
-
-| Environment-variable | Description |
-| --- | --- |
-| `CONFIG_FILE` | path of the config-file (default `/etc/ainari/torii.toml`) |
-| `INTERNAL_API_KEY` | shared key for the internal communication between the components |
-| `WAIT_FOR_IFACE` | optional: interface of the uplink, on which the gateway waits before it starts |
-| `UPLINK_NEXT_HOP` | optional: address of the next hop of the uplink, which is resolved before the start |
-| `RUST_LOG` | log-level, for example `info` or `debug` |
-
-| Port | Description |
-| --- | --- |
-| `11419` | public REST-API |
-| `10419` | internal API of the components |
-| `10042-10053` | proxy-ports towards the Sakura-hosts (range of the config) |
-
-```bash
-docker run -d --name torii --privileged \
-    --device /dev/net/tun \
-    -v $(pwd)/torii.toml:/etc/ainari/torii.toml:ro \
-    -v /sys/kernel/debug:/sys/kernel/debug:ro \
-    -e INTERNAL_API_KEY=... \
-    kitsudaiki/torii:develop
-```
-
-The container has to be privileged, because it attaches eBPF-programs to its interfaces, and the
-kernel of the host needs eBPF-support. Checksum-offloading is disabled on `eth0` at start.
-
-The usual way to run the whole stack is the
-[kubernetes-operator](https://hub.docker.com/r/kitsudaiki/ainari_operator), which deploys and
-configures all components.
-
 ## Image
 
 The image is built `FROM scratch` with [nix](https://nixos.org): it contains only the pinned

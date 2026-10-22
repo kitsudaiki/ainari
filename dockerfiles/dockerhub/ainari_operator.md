@@ -12,27 +12,6 @@ kubernetes. It deploys all components of a single custom-resource of the kind `A
 all keys and passwords itself and keeps the stack in the state of the resource. All components run
 with the pre-built images of [docker-hub](https://hub.docker.com/u/kitsudaiki).
 
-## Tags
-
-| Tag | Content |
-| --- | --- |
-| `develop` | latest state of the `develop`-branch |
-| `<VERSION>` | a release, without the leading `v`, for example `0.21.0` |
-
-All images are multi-arch for `linux/amd64` and `linux/arm64`.
-
-## Usage
-
-The operator is not started by hand, but installed with the manifests of
-[`deploy/operator`](https://github.com/kitsudaiki/ainari/tree/develop/deploy/operator) of the
-repository. The cluster additionally needs cert-manager and an implementation of the gateway-api
-with support of `TLSRoute` in the mode `Passthrough`, for example Envoy Gateway.
-
-The complete steps, the requirements of the nodes and all options of the `Ainari`-resource are
-described in the [installation-guide](https://docs.ainari.cloud/deployer/installation/kubernetes_installation/).
-For clusters without access to the internet, see the
-[offline-installation](https://docs.ainari.cloud/deployer/installation/offline_installation/).
-
 ## Image
 
 The image is built `FROM scratch` with [nix](https://nixos.org): it contains only the statically

@@ -13,46 +13,6 @@ also handles networks, floating IPs and network-filters.
 It is one component of [Ainari](https://github.com/kitsudaiki/ainari), a secure and easy to use,
 deploy and develop IaaS stack to manage virtual machines.
 
-## Tags
-
-| Tag | Content |
-| --- | --- |
-| `develop` | latest state of the `develop`-branch |
-| `<VERSION>` | a release, without the leading `v`, for example `0.21.0` |
-
-All images are multi-arch for `linux/amd64` and `linux/arm64`.
-
-## Usage
-
-The component reads its config from `/etc/ainari/hanami.toml`, which can be changed with the
-environment-variable `CONFIG_FILE`. See the [config-documentation](https://docs.ainari.cloud/deployer/config/hanami_config/) and the
-[example-config](https://github.com/kitsudaiki/ainari/blob/develop/example_configs/ainari/hanami.toml).
-
-| Environment-variable | Description |
-| --- | --- |
-| `CONFIG_FILE` | path of the config-file (default `/etc/ainari/hanami.toml`) |
-| `INTERNAL_API_KEY` | shared key for the internal communication between the components |
-| `SAKURA_REGISTRATION_KEY` | key, with which the Sakura-hosts register themselves |
-| `MLS_GRANT_SIGNING_KEY` | signs the membership-grants of the MLS-groups of Izakaya |
-| `AINARI_MYSQL_PASSWORD` | password of the database-user, if `database_type` is `"mysql"` |
-| `RUST_LOG` | log-level, for example `info` or `debug` |
-
-| Port | Description |
-| --- | --- |
-| `11418` | public REST-API |
-| `10418` | internal API of the components |
-
-```bash
-docker run -d --name hanami \
-    -v $(pwd)/hanami.toml:/etc/ainari/hanami.toml:ro \
-    -e INTERNAL_API_KEY=... \
-    kitsudaiki/hanami:develop
-```
-
-The usual way to run the whole stack is the
-[kubernetes-operator](https://hub.docker.com/r/kitsudaiki/ainari_operator), which deploys and
-configures all components.
-
 ## Image
 
 The image is built `FROM scratch` with [nix](https://nixos.org): it contains only the pinned
