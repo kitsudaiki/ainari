@@ -1,0 +1,33 @@
+name: Docker Scout badging sequence
+description: Publishes badges with the number of vulnerabilities per severity of the Docker-images
+inputs:
+  sarif_dir:
+    description: Directory with the SARIF-files of Docker Scout, named '<component>.sarif.json'
+    required: true
+  github_token:
+    description: The token to use to publish the changes
+    required: true
+  branch_name:
+    description: Name of the branch to publish
+    required: true
+runs:
+  using: composite
+  steps:
+    -
+      name: Generate json with badges-information
+      run: |
+        python3 ${{ github.action_path }}/generate_scout_badges.py ${{ inputs.sarif_dir }}
+      shell: bash
+    -
+      name: Push json-files to badges-repo
+      # v4.0.0
+      uses: peaceiris/actions-gh-pages@4f9cc6602d3f66b9c108549d475ec49e8ef4d45e
+      with:
+        personal_token: ${{ inputs.github_token }}
+        external_repository: kitsudaiki/Ainari-badges
+        publish_branch: ${{ inputs.branch_name }}
+        publish_dir: ./badges
+        # the badges of images, which were not scanned in this run, are kept
+        keep_files: true
+        user_name: "github-actions[bot]"
+        user_email: "github-actions[bot]@users.noreply.github.com"

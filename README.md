@@ -23,15 +23,6 @@ Scorecard](https://img.shields.io/ossf-scorecard/github.com/kitsudaiki/ainari?br
 Ainari is a secure and easy to use, deploy and develop IaaS stack to manage virtual machines.
 See more in the [About-section](https://docs.ainari.cloud/home/about/) of the documentation.
 
-<!-- ## Supported Environment
-
-| Python-SDK                                  | Deployment                                          |
-| ------------------------------------------- | --------------------------------------------------- |
-| [![python-3_10][img_python-3_10]][workflow] | [![kubernetes-1_30][img_kubernetes-1_30]][workflow] |
-| [![python-3_11][img_python-3_11]][workflow] | [![kubernetes-1_31][img_kubernetes-1_31]][workflow] |
-| [![python-3_12][img_python-3_12]][workflow] | [![kubernetes-1_32][img_kubernetes-1_32]][workflow] |
-|                                             | [![kubernetes-1_33][img_kubernetes-1_33]][workflow] |
--->
 ## Project
 
 - [About](https://docs.ainari.cloud/home/about/)
@@ -70,6 +61,25 @@ on `develop`-branch and for each tag.
 
 - [client and SDK](https://files.ainari.cloud/)
 
+## Docker-Images
+
+Vulnerabilities of the images of the `develop`-branch, scanned by
+[Docker Scout](https://docs.docker.com/scout/) in the CI-pipeline.
+
+| Image                                                                    | Vulnerabilities                                                                                                                                                                                                |
+| ------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [hanami](https://hub.docker.com/r/kitsudaiki/hanami)                     | [![critical][scout_hanami_c]][workflow] [![high][scout_hanami_h]][workflow] [![medium][scout_hanami_m]][workflow] [![low][scout_hanami_l]][workflow] [![unspecified][scout_hanami_u]][workflow]                |
+| [miko](https://hub.docker.com/r/kitsudaiki/miko)                         | [![critical][scout_miko_c]][workflow] [![high][scout_miko_h]][workflow] [![medium][scout_miko_m]][workflow] [![low][scout_miko_l]][workflow] [![unspecified][scout_miko_u]][workflow]                          |
+| [ryokan](https://hub.docker.com/r/kitsudaiki/ryokan)                     | [![critical][scout_ryokan_c]][workflow] [![high][scout_ryokan_h]][workflow] [![medium][scout_ryokan_m]][workflow] [![low][scout_ryokan_l]][workflow] [![unspecified][scout_ryokan_u]][workflow]                |
+| [izakaya](https://hub.docker.com/r/kitsudaiki/izakaya)                   | [![critical][scout_izakaya_c]][workflow] [![high][scout_izakaya_h]][workflow] [![medium][scout_izakaya_m]][workflow] [![low][scout_izakaya_l]][workflow] [![unspecified][scout_izakaya_u]][workflow]           |
+| [sakura](https://hub.docker.com/r/kitsudaiki/sakura)                     | [![critical][scout_sakura_c]][workflow] [![high][scout_sakura_h]][workflow] [![medium][scout_sakura_m]][workflow] [![low][scout_sakura_l]][workflow] [![unspecified][scout_sakura_u]][workflow]                |
+| [torii](https://hub.docker.com/r/kitsudaiki/torii)                       | [![critical][scout_torii_c]][workflow] [![high][scout_torii_h]][workflow] [![medium][scout_torii_m]][workflow] [![low][scout_torii_l]][workflow] [![unspecified][scout_torii_u]][workflow]                     |
+| [omamori](https://hub.docker.com/r/kitsudaiki/omamori)                   | [![critical][scout_omamori_c]][workflow] [![high][scout_omamori_h]][workflow] [![medium][scout_omamori_m]][workflow] [![low][scout_omamori_l]][workflow] [![unspecified][scout_omamori_u]][workflow]           |
+| [omikuji](https://hub.docker.com/r/kitsudaiki/omikuji)                   | [![critical][scout_omikuji_c]][workflow] [![high][scout_omikuji_h]][workflow] [![medium][scout_omikuji_m]][workflow] [![low][scout_omikuji_l]][workflow] [![unspecified][scout_omikuji_u]][workflow]           |
+| [onsen](https://hub.docker.com/r/kitsudaiki/onsen)                       | [![critical][scout_onsen_c]][workflow] [![high][scout_onsen_h]][workflow] [![medium][scout_onsen_m]][workflow] [![low][scout_onsen_l]][workflow] [![unspecified][scout_onsen_u]][workflow]                     |
+| [ainari_dashboard](https://hub.docker.com/r/kitsudaiki/ainari_dashboard) | [![critical][scout_dashboard_c]][workflow] [![high][scout_dashboard_h]][workflow] [![medium][scout_dashboard_m]][workflow] [![low][scout_dashboard_l]][workflow] [![unspecified][scout_dashboard_u]][workflow] |
+| [ainari_operator](https://hub.docker.com/r/kitsudaiki/ainari_operator)   | [![critical][scout_operator_c]][workflow] [![high][scout_operator_h]][workflow] [![medium][scout_operator_m]][workflow] [![low][scout_operator_l]][workflow] [![unspecified][scout_operator_u]][workflow]      |
+
 ## Author
 
 Tobias Anker
@@ -81,11 +91,59 @@ eMail: <tobias.anker@kitsunemimi.moe>
 The complete project is under
 [Apache 2 license](https://github.com/kitsudaiki/ainari/blob/develop/LICENSE).
 
-<!-- [img_kubernetes-1_30]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/kubernetes_version/kubernetes-1_30/shields.json&style=flat-square
-[img_kubernetes-1_31]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/kubernetes_version/kubernetes-1_31/shields.json&style=flat-square
-[img_kubernetes-1_32]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/kubernetes_version/kubernetes-1_32/shields.json&style=flat-square
-[img_kubernetes-1_33]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/kubernetes_version/kubernetes-1_33/shields.json&style=flat-square
-[img_python-3_10]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/python_version/python-3_10/shields.json&style=flat-square
-[img_python-3_11]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/python_version/python-3_11/shields.json&style=flat-square
-[img_python-3_12]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/python_version/python-3_12/shields.json&style=flat-square
-[workflow]: https://github.com/kitsudaiki/ainari/actions/workflows/build_test.yml -->
+[scout_hanami_c]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/docker_scout/hanami/critical/shields.json&style=flat-square
+[scout_hanami_h]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/docker_scout/hanami/high/shields.json&style=flat-square
+[scout_hanami_m]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/docker_scout/hanami/medium/shields.json&style=flat-square
+[scout_hanami_l]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/docker_scout/hanami/low/shields.json&style=flat-square
+[scout_hanami_u]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/docker_scout/hanami/unspecified/shields.json&style=flat-square
+[scout_miko_c]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/docker_scout/miko/critical/shields.json&style=flat-square
+[scout_miko_h]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/docker_scout/miko/high/shields.json&style=flat-square
+[scout_miko_m]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/docker_scout/miko/medium/shields.json&style=flat-square
+[scout_miko_l]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/docker_scout/miko/low/shields.json&style=flat-square
+[scout_miko_u]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/docker_scout/miko/unspecified/shields.json&style=flat-square
+[scout_ryokan_c]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/docker_scout/ryokan/critical/shields.json&style=flat-square
+[scout_ryokan_h]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/docker_scout/ryokan/high/shields.json&style=flat-square
+[scout_ryokan_m]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/docker_scout/ryokan/medium/shields.json&style=flat-square
+[scout_ryokan_l]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/docker_scout/ryokan/low/shields.json&style=flat-square
+[scout_ryokan_u]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/docker_scout/ryokan/unspecified/shields.json&style=flat-square
+[scout_izakaya_c]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/docker_scout/izakaya/critical/shields.json&style=flat-square
+[scout_izakaya_h]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/docker_scout/izakaya/high/shields.json&style=flat-square
+[scout_izakaya_m]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/docker_scout/izakaya/medium/shields.json&style=flat-square
+[scout_izakaya_l]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/docker_scout/izakaya/low/shields.json&style=flat-square
+[scout_izakaya_u]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/docker_scout/izakaya/unspecified/shields.json&style=flat-square
+[scout_sakura_c]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/docker_scout/sakura/critical/shields.json&style=flat-square
+[scout_sakura_h]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/docker_scout/sakura/high/shields.json&style=flat-square
+[scout_sakura_m]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/docker_scout/sakura/medium/shields.json&style=flat-square
+[scout_sakura_l]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/docker_scout/sakura/low/shields.json&style=flat-square
+[scout_sakura_u]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/docker_scout/sakura/unspecified/shields.json&style=flat-square
+[scout_torii_c]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/docker_scout/torii/critical/shields.json&style=flat-square
+[scout_torii_h]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/docker_scout/torii/high/shields.json&style=flat-square
+[scout_torii_m]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/docker_scout/torii/medium/shields.json&style=flat-square
+[scout_torii_l]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/docker_scout/torii/low/shields.json&style=flat-square
+[scout_torii_u]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/docker_scout/torii/unspecified/shields.json&style=flat-square
+[scout_omamori_c]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/docker_scout/omamori/critical/shields.json&style=flat-square
+[scout_omamori_h]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/docker_scout/omamori/high/shields.json&style=flat-square
+[scout_omamori_m]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/docker_scout/omamori/medium/shields.json&style=flat-square
+[scout_omamori_l]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/docker_scout/omamori/low/shields.json&style=flat-square
+[scout_omamori_u]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/docker_scout/omamori/unspecified/shields.json&style=flat-square
+[scout_omikuji_c]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/docker_scout/omikuji/critical/shields.json&style=flat-square
+[scout_omikuji_h]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/docker_scout/omikuji/high/shields.json&style=flat-square
+[scout_omikuji_m]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/docker_scout/omikuji/medium/shields.json&style=flat-square
+[scout_omikuji_l]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/docker_scout/omikuji/low/shields.json&style=flat-square
+[scout_omikuji_u]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/docker_scout/omikuji/unspecified/shields.json&style=flat-square
+[scout_onsen_c]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/docker_scout/onsen/critical/shields.json&style=flat-square
+[scout_onsen_h]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/docker_scout/onsen/high/shields.json&style=flat-square
+[scout_onsen_m]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/docker_scout/onsen/medium/shields.json&style=flat-square
+[scout_onsen_l]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/docker_scout/onsen/low/shields.json&style=flat-square
+[scout_onsen_u]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/docker_scout/onsen/unspecified/shields.json&style=flat-square
+[scout_dashboard_c]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/docker_scout/dashboard/critical/shields.json&style=flat-square
+[scout_dashboard_h]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/docker_scout/dashboard/high/shields.json&style=flat-square
+[scout_dashboard_m]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/docker_scout/dashboard/medium/shields.json&style=flat-square
+[scout_dashboard_l]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/docker_scout/dashboard/low/shields.json&style=flat-square
+[scout_dashboard_u]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/docker_scout/dashboard/unspecified/shields.json&style=flat-square
+[scout_operator_c]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/docker_scout/operator/critical/shields.json&style=flat-square
+[scout_operator_h]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/docker_scout/operator/high/shields.json&style=flat-square
+[scout_operator_m]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/docker_scout/operator/medium/shields.json&style=flat-square
+[scout_operator_l]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/docker_scout/operator/low/shields.json&style=flat-square
+[scout_operator_u]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/docker_scout/operator/unspecified/shields.json&style=flat-square
+[workflow]: https://github.com/kitsudaiki/ainari/actions/workflows/build_test.yml
