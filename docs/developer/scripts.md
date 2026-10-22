@@ -7,6 +7,7 @@ All scripts are started from the root of the repository.
 | Script | Purpose |
 | --- | --- |
 | [`build_ainari_base.sh`](#build_ainari_basesh) | builds and pushes the nix- and debian-based base-images for amd64 and arm64 |
+| [`build_component_image.sh`](#build_component_imagesh) | builds and pushes the image of a single component for amd64 and arm64, like the CI |
 | [`build_docker_images.sh`](#build_docker_imagessh) | builds all images with the tag `local_test` and saves them in a tar-file |
 | [`collect-api-specs.sh`](#collect-api-specssh) | downloads the openapi-specs of the running components into the docs |
 | [`create_zarf_package.sh`](#create_zarf_packagesh) | creates the offline-installation of the whole stack with zarf |
@@ -53,6 +54,46 @@ all steps of the manual build:
 - The registration of QEMU needs a privileged container and is lost with a reboot of the host.
 - The nix-based build of the other platform takes some minutes, because the packages, which are not
   in the binary cache of nix, are compiled with the emulation.
+
+## build_component_image.sh
+
+### Purpose
+
+Builds the image of a single component out of the nix-based Dockerfiles of `dockerfiles/nix_based`
+for `linux/amd64` and `linux/arm64` and pushes it as one image for both platforms to Docker Hub,
+like the jobs `docker_build` and `docker_merge` of `.github/workflows/build_test.yml`. This allows
+to update the image of a component manually without the CI. The component selects the Dockerfile,
+the target and the repository on Docker Hub in the same way like the matrix of the CI:
+
+| Component | Dockerfile | Image |
+| --- | --- | --- |
+| `hanami`, `miko`, `ryokan`, `izakaya`, `sakura`, `omamori`, `omikuji`, `onsen` | `Dockerfile_services` with the target and `BINARIES` of the component | `kitsudaiki/<COMPONENT>` |
+| `torii` | `Dockerfile_torii` | `kitsudaiki/torii` |
+| `dashboard` | `Dockerfile_dashboard` | `kitsudaiki/ainari_dashboard` |
+| `operator` | `Dockerfile_operator` | `kitsudaiki/ainari_operator` |
+
+QEMU and the buildx-builder `multi-builder` are set up in the same way like by
+[`build_ainari_base.sh`](#build_ainari_basesh).
+
+### Usage
+
+```bash
+./scripts/build_component_image.sh <COMPONENT> [TAG]
+./scripts/build_component_image.sh miko               # tag is the name of the current branch
+./scripts/build_component_image.sh operator 0.22.0
+```
+
+Without a tag, the name of the current git-branch is used, with `/` replaced by `-`, like in the
+CI. In detached HEAD state the tag has to be given.
+
+### Limitations
+
+- The images are always pushed and an existing tag on Docker Hub is overwritten without asking.
+- The image is built out of the working tree, including uncommitted changes, and not out of a
+  fresh clone like in the CI.
+- The platform, which is not the one of the host, is built with the emulation of QEMU, which is
+  much slower than the native runners of the CI, especially for the rust-components.
+- The registration of QEMU needs a privileged container and is lost with a reboot of the host.
 
 ## build_docker_images.sh
 
