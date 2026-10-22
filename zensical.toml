@@ -52,6 +52,8 @@ nav = [
       "deployer/config/ryokan_config.md",
       "deployer/config/torii_config.md",
       "deployer/config/omamori_config.md",
+      "deployer/config/izakaya_config.md",
+      "deployer/config/omikuji_config.md",
       "deployer/config/onsen_config.md",
       "deployer/config/dashboard_config.md",
       "deployer/config/token_key.md",
