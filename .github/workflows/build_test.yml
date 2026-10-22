@@ -672,9 +672,46 @@ jobs:
           # prints the vulnerabilities of the pushed image in the log and the job-summary
           command: cves
           image: registry://${{ matrix.builds.regitry }}:${{ env.BRANCH_NAME }}
-          only-severities: critical,high
+          # used by the job 'scout_badges' to count the vulnerabilities for the badges of the README
+          sarif-file: ${{ github.workspace }}/${{ matrix.builds.component }}.sarif.json
           # only report the vulnerabilities, without failing the pipeline
           exit-code: false
+      -
+        name: Upload Docker Scout result
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: scout-${{ matrix.builds.component }}
+          path: ${{ github.workspace }}/${{ matrix.builds.component }}.sarif.json
+          if-no-files-found: error
+          retention-days: 1
+
+
+
+  scout_badges:
+    # also publish the badges of the successful images, when the merge of other images failed
+    if: ${{ !cancelled() && needs.docker_merge.result != 'skipped' && github.event_name == 'push' && github.ref == 'refs/heads/develop' }}
+    name: "Publish Docker Scout badges"
+    needs: [ docker_merge ]
+    runs-on: ubuntu-24.04
+    steps:
+      -
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      -
+        name: Download Docker Scout results
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16
+        with:
+          path: /tmp/scout
+          pattern: scout-*
+          merge-multiple: true
+      -
+        name: Publish Docker Scout badges
+        # all badges are pushed by a single job, because parallel pushes of the matrix-jobs into the
+        # same branch of the badges-repo would conflict with each other
+        uses: ./.github/actions/scout_badge
+        with:
+          sarif_dir: /tmp/scout
+          github_token: ${{ secrets.BADGES_PUSH_TOKEN }}
+          branch_name: ${{ github.ref_name }}
 
 
 
