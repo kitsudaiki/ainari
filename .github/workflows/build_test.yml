@@ -672,7 +672,7 @@ jobs:
           # prints the vulnerabilities of the pushed image in the log and the job-summary
           command: cves
           image: registry://${{ matrix.builds.regitry }}:${{ env.BRANCH_NAME }}
-          # used by the job 'scout_badges' to count the vulnerabilities for the badges of the README
+          # used by the job 'security_badges' to count the vulnerabilities for the badges of the README
           sarif-file: ${{ github.workspace }}/${{ matrix.builds.component }}.sarif.json
           # only report the vulnerabilities, without failing the pipeline
           exit-code: false
@@ -687,10 +687,10 @@ jobs:
 
 
 
-  scout_badges:
+  security_badges:
     # also publish the badges of the successful images, when the merge of other images failed
     if: ${{ !cancelled() && needs.docker_merge.result != 'skipped' && github.event_name == 'push' && github.ref == 'refs/heads/develop' }}
-    name: "Publish Docker Scout badges"
+    name: "Publish security badges"
     needs: [ docker_merge ]
     runs-on: ubuntu-24.04
     steps:
@@ -704,10 +704,10 @@ jobs:
           pattern: scout-*
           merge-multiple: true
       -
-        name: Publish Docker Scout badges
+        name: Publish badges of Docker Scout and OpenSSF Scorecard
         # all badges are pushed by a single job, because parallel pushes of the matrix-jobs into the
         # same branch of the badges-repo would conflict with each other
-        uses: ./.github/actions/scout_badge
+        uses: ./.github/actions/security_badges
         with:
           sarif_dir: /tmp/scout
           github_token: ${{ secrets.BADGES_PUSH_TOKEN }}
