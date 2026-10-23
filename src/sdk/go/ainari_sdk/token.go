@@ -22,7 +22,6 @@ package ainari_sdk
 
 import (
 	"net/url"
-	"strings"
 	//b64 "encoding/base64"
 )
 
@@ -80,16 +79,7 @@ func RequestContext(address, user, passphrase, projectId string, skipTlsVerifica
 	context.OmamoriAddress = omamoriAddr["public_address"].(string)
 	context.OmikujiAddress, _ = omikujiAddr["public_address"].(string)
 	context.ToriiAddress = toriiAddr["public_address"].(string)
-	context.ToriiBaseAddress = toriiAddr["public_address"].(string)
 	context.skipTlsVerification = skipTlsVerification
-
-	// prepare the torii-base-address for the virtual_machine-access
-	parts := strings.Split(context.ToriiAddress, ":")
-	if len(parts) >= 2 {
-		context.ToriiBaseAddress = parts[0] + ":" + parts[1]
-	} else {
-		context.ToriiBaseAddress = context.ToriiAddress
-	}
 
 	return context, nil
 }

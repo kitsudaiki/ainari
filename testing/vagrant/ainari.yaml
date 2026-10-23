@@ -116,14 +116,15 @@ spec:
 
   torii:
     image: ainari/torii:local
-    # The proxy-ports are published by the servicelb of k3s on every node. The clients connect to
-    # the host of this public address with the proxy-port of a virtual machine. The api of torii
-    # itself is only reachable within the cluster.
+    # The proxies are published by the servicelb of k3s on every node. The api of torii itself is
+    # only reachable within the cluster.
     publicAddress: https://192.168.56.11:11419
     serviceType: LoadBalancer
-    portRange:
-      start: 10042
-      end: 10053
+    # Every virtual machine is reachable as https://<vm-uuid>.192-168-56-11.sslip.io:10042.
+    # The public DNS of sslip.io resolves this name and every name below it to 192.168.56.11.
+    proxy:
+      domain: 192-168-56-11.sslip.io
+      port: 10042
     public:
       # the veth-pair towards the virtual machine ainari-torii is moved into the pod by the
       # service ainari-uplink, which the playbook installs there

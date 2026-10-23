@@ -70,7 +70,10 @@ pub struct VirtualMachineResp {
     pub image_uuid: Uuid,
     pub network_uuid: Uuid,
     pub internal_ip: Ipv4Addr,
-    pub torii_port: u16,
+    /// Address of the sakura-host of the virtual_machine, which is a proxy of the torii at the
+    /// edge, so it stays the same, when the virtual_machine is moved to another sakura-host.
+    /// Empty in the responses of sakura itself.
+    pub torii_address: String,
     pub created_at: DateTime<Utc>,
     pub created_by: String,
     pub updated_at: DateTime<Utc>,
@@ -81,7 +84,8 @@ pub struct VirtualMachineResp {
 pub struct VirtualMachineBasicResp {
     pub uuid: Uuid,
     pub name: String,
-    pub proxy_port: u16,
+    /// Address of the sakura-host of the virtual_machine, like `torii_address`
+    pub proxy_address: String,
     pub number_of_cores: i32,
     /// memory of the virtual_machine; in bytes from sakura, in MiB from hanami
     pub memory_size: i64,

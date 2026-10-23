@@ -18,8 +18,6 @@ use uuid::Uuid;
 
 use crate::database::db_handle;
 
-use ainari_api::common_functions::*;
-use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::user_context::UserContext;
 use ainari_common::enums;
 use ainari_common::objects::*;
@@ -28,7 +26,6 @@ use ainari_common::objects::*;
 table! {
     proxys (uuid) {
         uuid -> Varchar,
-        port -> Integer,
         target_address -> Varchar,
         virtual_machine_uuid -> Varchar,
         owner_id -> Varchar,
@@ -47,8 +44,7 @@ table! {
 /// Contains all fields necessary to store and retrieve proxy server information from the database.
 ///
 /// # Fields
-/// * `uuid` - Unique identifier for the proxy
-/// * `port` - Network port the proxy is listening on
+/// * `uuid` - Unique identifier for the proxy, which is part of its address as well
 /// * `target_address` - Address the proxy forwards traffic to
 /// * `virtual_machine_uuid` - UUID of the virtual_machine this proxy is associated with
 /// * `owner_id` - User ID of the proxy owner
@@ -65,7 +61,6 @@ table! {
 pub struct ProxyEntry {
     #[diesel(serialize_as = DbUuid, deserialize_as = DbUuid)]
     pub uuid: Uuid,
-    pub port: i32,
     pub target_address: String,
     #[diesel(serialize_as = DbUuid, deserialize_as = DbUuid)]
     pub virtual_machine_uuid: Uuid,
@@ -87,7 +82,6 @@ pub struct ProxyEntry {
 ///
 /// # Arguments
 /// * `proxy_uuid` - Unique identifier for the new proxy
-/// * `port` - Network port the proxy will listen on
 /// * `target_address` - Address the proxy will forward traffic to
 /// * `virtual_machine_uuid` - UUID of the virtual_machine this proxy is associated with
 /// * `context` - User context containing ownership and project information
@@ -96,7 +90,6 @@ pub struct ProxyEntry {
 /// * `QueryResult<usize>` indicating the number of rows affected
 pub fn add_new_proxy(
     proxy_uuid: &Uuid,
-    port: u16,
     target_address: &str,
     virtual_machine_uuid: &Uuid,
     context: &UserContext,
@@ -109,7 +102,6 @@ pub fn add_new_proxy(
     // Create a new ProxyEntry with the provided parameters and current timestamps
     let proxy = ProxyEntry {
         uuid: *proxy_uuid,
-        port: port.into(),
         target_address: target_address.to_owned(),
         virtual_machine_uuid: *virtual_machine_uuid,
         owner_id: context.user_id.clone(),
@@ -176,54 +168,21 @@ pub fn get_proxy(proxy_uuid: &Uuid, context: &UserContext) -> Result<ProxyEntry,
     }
 }
 
-/// Finds an available port within the specified range that is not currently in use by a proxy.
+/// Checks, if a proxy with the UUID exists, also if it is already marked as deleted.
 ///
 /// # Arguments
-/// * `min_port` - Minimum port number to consider
-/// * `max_port` - Maximum port number to consider
+/// * `proxy_uuid` - UUID of the proxy
 ///
 /// # Returns
-/// * `Result<u16, ErrorResponse>` containing the available port if found, or an error if no ports are available
-pub fn get_free_proxy(min_port: u16, max_port: u16) -> Result<u16, ErrorResponse> {
-    // Get all active proxies sorted by port
-    let proxys = list_all_proxys_sorted().map_err(|e| map_db_list_error("proxys", e, None))?;
-
-    let mut prev_port = min_port;
-
-    // Iterate over the port-sorted list to find a free port
-    // between the previous port and the current proxy's port
-    for proxy in proxys {
-        if proxy.port as u16 > prev_port {
-            return Ok(prev_port);
-        }
-
-        prev_port = proxy.port as u16 + 1;
-    }
-
-    // If we've checked all proxies and found a port within the range
-    if prev_port < max_port {
-        return Ok(prev_port);
-    }
-
-    Err(ErrorResponse::Conflict(
-        "Maximum number of proxies reached.".to_string(),
-    ))
-}
-
-/// Lists all proxy entries from the database sorted by port number.
-///
-/// # Returns
-/// * `QueryResult<Vec<ProxyEntry>>` containing all active proxies sorted by port
-fn list_all_proxys_sorted() -> QueryResult<Vec<ProxyEntry>> {
+/// * `QueryResult<bool>` true, if the UUID can't be used for a new proxy
+pub fn proxy_uuid_in_use(proxy_uuid: &Uuid) -> QueryResult<bool> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::proxys::dsl::*;
 
-    // Query for active proxies ordered by port in ascending order
-    let query = proxys
-        .filter(status.eq("ACTIVE"))
-        .into_boxed()
-        .order(port.asc());
-    query.select(ProxyEntry::as_select()).load(&mut *conn)
+    diesel::select(diesel::dsl::exists(
+        proxys.filter(uuid.eq(proxy_uuid.to_string())),
+    ))
+    .get_result(&mut *conn)
 }
 
 /// Lists all proxy entries from the database that the user has access to.
@@ -358,7 +317,6 @@ mod tests {
 
         let proxy = ProxyEntry {
             uuid: proxy_uuid1,
-            port: 42,
             target_address: target_address1.clone(),
             virtual_machine_uuid: virtual_machine_uuid1,
             owner_id: owner_id.clone(),
@@ -378,7 +336,6 @@ mod tests {
         match get_proxy(&proxy_uuid1, &context) {
             Ok(retrieved_proxy) => {
                 assert_eq!(retrieved_proxy.uuid, proxy.uuid);
-                assert_eq!(retrieved_proxy.port, proxy.port);
                 assert_eq!(retrieved_proxy.target_address, proxy.target_address);
                 assert_eq!(
                     retrieved_proxy.virtual_machine_uuid,
@@ -396,6 +353,31 @@ mod tests {
         };
 
         hard_delete_proxy(&proxy_uuid1);
+    }
+
+    #[test]
+    #[serial]
+    fn test_proxy_uuid_in_use() {
+        let proxy_uuid = Uuid::new_v4();
+        let member = UserContext {
+            token: "".to_string(),
+            user_id: "test-user".to_string(),
+            project_id: "test-project".to_string(),
+            is_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
+        };
+
+        hard_delete_proxy(&proxy_uuid);
+        assert!(!proxy_uuid_in_use(&proxy_uuid).unwrap());
+
+        add_new_proxy(&proxy_uuid, "10.0.0.1:443", &proxy_uuid, &member).unwrap();
+        assert!(proxy_uuid_in_use(&proxy_uuid).unwrap());
+
+        // a deleted proxy keeps its uuid in the database
+        assert!(delete_proxy(&proxy_uuid, &member).is_ok());
+        assert!(proxy_uuid_in_use(&proxy_uuid).unwrap());
+
+        hard_delete_proxy(&proxy_uuid);
     }
 
     #[test]
@@ -419,13 +401,13 @@ mod tests {
         };
 
         hard_delete_proxy(&proxy_uuid);
-        add_new_proxy(&proxy_uuid, 42, "10.0.0.1:443", &Uuid::new_v4(), &member).unwrap();
+        add_new_proxy(&proxy_uuid, "10.0.0.1:443", &Uuid::new_v4(), &member).unwrap();
 
-        // the port stays, only the target changes
+        // the proxy stays, only the target changes
         let updated = update_proxy_target(&proxy_uuid, "10.0.0.2:443", &member)
             .unwrap_or_else(|_| panic!("update of proxy failed"));
         assert_eq!(updated.target_address, "10.0.0.2:443");
-        assert_eq!(updated.port, 42);
+        assert_eq!(updated.uuid, proxy_uuid);
 
         assert!(matches!(
             update_proxy_target(&proxy_uuid, "10.0.0.3:443", &observer),
@@ -465,7 +447,6 @@ mod tests {
 
         let proxy1 = ProxyEntry {
             uuid: proxy_uuid1,
-            port: 42,
             target_address: target_address1.clone(),
             virtual_machine_uuid: virtual_machine_uuid1,
             owner_id: owner_id.clone(),
@@ -481,7 +462,6 @@ mod tests {
 
         let proxy2 = ProxyEntry {
             uuid: proxy_uuid2,
-            port: 43,
             target_address: target_address1.clone(),
             virtual_machine_uuid: virtual_machine_uuid1,
             owner_id: owner_id.clone(),
@@ -525,7 +505,6 @@ mod tests {
 
         let proxy = ProxyEntry {
             uuid: proxy_uuid1,
-            port: 42,
             target_address: target_address1.clone(),
             virtual_machine_uuid: virtual_machine_uuid1,
             owner_id: owner_id.clone(),
@@ -558,7 +537,6 @@ mod tests {
 
         let proxy1 = ProxyEntry {
             uuid: proxy_uuid1,
-            port: 42,
             target_address: target_address1.clone(),
             virtual_machine_uuid: virtual_machine_uuid1,
             owner_id: "test-user-42".to_string(),
@@ -574,7 +552,6 @@ mod tests {
 
         let proxy2 = ProxyEntry {
             uuid: proxy_uuid2,
-            port: 43,
             target_address: target_address1.clone(),
             virtual_machine_uuid: virtual_machine_uuid1,
             owner_id: "test-user-43".to_string(),
@@ -590,7 +567,6 @@ mod tests {
 
         let proxy3 = ProxyEntry {
             uuid: proxy_uuid3,
-            port: 44,
             target_address: target_address1.clone(),
             virtual_machine_uuid: virtual_machine_uuid1,
             owner_id: "test-user-44".to_string(),
@@ -686,86 +662,6 @@ mod tests {
         if delete_proxy(&proxy_uuid3, &context).is_ok() {
             assert_eq!(true, false);
         };
-
-        hard_delete_proxy(&proxy_uuid1);
-        hard_delete_proxy(&proxy_uuid2);
-        hard_delete_proxy(&proxy_uuid3);
-    }
-
-    #[test]
-    #[serial]
-    fn test_get_free_proxy() {
-        let proxy_uuid1 = Uuid::new_v4();
-        let proxy_uuid2 = Uuid::new_v4();
-        let proxy_uuid3 = Uuid::new_v4();
-        let target_address1: String = "127.0.0.1:443".to_string();
-        let virtual_machine_uuid1 = Uuid::new_v4();
-
-        let proxy1 = ProxyEntry {
-            uuid: proxy_uuid1,
-            port: 42,
-            target_address: target_address1.clone(),
-            virtual_machine_uuid: virtual_machine_uuid1,
-            owner_id: "test-user-42".to_string(),
-            project_id: "test_permissions_1".to_string(),
-            status: "ACTIVE".to_string(),
-            created_at: Utc::now(),
-            created_by: "admin".to_string(),
-            updated_at: Utc::now(),
-            updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
-        };
-
-        let proxy2 = ProxyEntry {
-            uuid: proxy_uuid2,
-            port: 43,
-            target_address: target_address1.clone(),
-            virtual_machine_uuid: virtual_machine_uuid1,
-            owner_id: "test-user-43".to_string(),
-            project_id: "test_permissions_1".to_string(),
-            status: "ACTIVE".to_string(),
-            created_at: Utc::now(),
-            created_by: "admin".to_string(),
-            updated_at: Utc::now(),
-            updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
-        };
-
-        let proxy3 = ProxyEntry {
-            uuid: proxy_uuid3,
-            port: 44,
-            target_address: target_address1.clone(),
-            virtual_machine_uuid: virtual_machine_uuid1,
-            owner_id: "test-user-44".to_string(),
-            project_id: "test_permissions_2".to_string(),
-            status: "ACTIVE".to_string(),
-            created_at: Utc::now(),
-            created_by: "admin".to_string(),
-            updated_at: Utc::now(),
-            updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
-        };
-
-        hard_delete_proxy(&proxy_uuid1);
-        hard_delete_proxy(&proxy_uuid2);
-        hard_delete_proxy(&proxy_uuid3);
-
-        assert_eq!(get_free_proxy(42, 45).unwrap(), 42);
-
-        add_proxy(proxy1).unwrap();
-
-        assert_eq!(get_free_proxy(42, 45).unwrap(), 43);
-
-        add_proxy(proxy3).unwrap();
-
-        assert_eq!(get_free_proxy(42, 45).unwrap(), 43);
-
-        add_proxy(proxy2).unwrap();
-
-        assert!(get_free_proxy(42, 45).is_err());
 
         hard_delete_proxy(&proxy_uuid1);
         hard_delete_proxy(&proxy_uuid2);

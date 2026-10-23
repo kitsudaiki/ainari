@@ -50,6 +50,8 @@ spec:
     kvmGid: ###ZARF_VAR_KVM_GID###
   torii:
     image: kitsudaiki/torii:###ZARF_CONST_AINARI_VERSION###
+    proxy:
+      domain: "###ZARF_VAR_PROXY_DOMAIN###"
     public:
       overlayIface: "###ZARF_VAR_UPLINK_IFACE###"
       uplinkIface: "###ZARF_VAR_UPLINK_IFACE###"

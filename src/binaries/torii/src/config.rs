@@ -18,6 +18,7 @@ use std::env;
 use std::fs;
 use std::net::Ipv4Addr;
 use std::process;
+use uuid::Uuid;
 
 use ainari_api_structs::mls_structs::{VerifyingKey, parse_verifying_key};
 use ainari_common::config as ainari_config;
@@ -27,7 +28,7 @@ use ainari_common::secret::Secret;
 ///
 /// This struct holds all configuration parameters required by the application.
 /// It includes general settings, API configuration, database settings,
-/// Miko endpoint configuration, and port range definitions.
+/// Miko endpoint configuration, and the configuration of the proxies.
 #[derive(Debug, Deserialize)]
 pub struct Config {
     // general values
@@ -51,8 +52,10 @@ pub struct Config {
     pub database: ainari_config::Database,
     /// Configuration for Miko endpoint
     pub miko: ainari_config::MikoEndpoint,
-    /// Port range configuration
-    pub ports: Ports,
+    /// Proxies, which make the external api of the sakura-hosts reachable. Only the gateway at
+    /// the edge of the network has them.
+    #[serde(default)]
+    pub proxy: Option<ProxyConf>,
     /// Network interfaces the eBPF datapath is attached to
     #[serde(default)]
     pub network: Network,
@@ -80,6 +83,9 @@ impl Config {
     /// `Ok(())` if the config is consistent, otherwise the reason why not
     pub fn validate(&self) -> Result<(), String> {
         self.network.validate()?;
+        if let Some(proxy) = &self.proxy {
+            proxy.validate()?;
+        }
 
         // the single node setup is the edge of the network as well, so it requires an uplink
         if self.development.single_node && self.network.uplink().is_none() {
@@ -97,24 +103,58 @@ fn default_insecure_clients() -> bool {
     false
 }
 
-/// Port range configuration
+/// Configuration of the proxies
 ///
-/// Defines the minimum and maximum ports that the application can use.
+/// All proxies share one listener. Torii doesn't terminate the TLS-connections, but picks the
+/// proxy of a connection by the server name (SNI) of its TLS ClientHello, which is
+/// `<proxy-uuid>.<domain>`. A proxy has the UUID of its virtual machine, so the user sees in the
+/// address, which virtual machine it reaches. The address of a proxy stays the same, when it is
+/// pointed at another sakura-host, and the clients never see the address of the sakura-host.
 #[derive(Debug, Deserialize)]
-pub struct Ports {
-    /// Minimum port number
-    pub min_port: u16,
-    /// Maximum port number
-    pub max_port: u16,
-    /// Address, which the proxies listen on. Falls back to the public address of the api, so
+pub struct ProxyConf {
+    /// Domain of the proxies. It needs a wildcard-entry in the DNS, which points to this gateway.
+    pub domain: String,
+    /// Port of the listener of the proxies
+    #[serde(default = "default_proxy_port")]
+    pub port: u16,
+    /// Port, under which the clients reach the listener, if it is published under another port,
+    /// for example by a load-balancer. Falls back to `port`.
+    #[serde(default)]
+    pub public_port: Option<u16>,
+    /// Address, which the listener binds to. Falls back to the public address of the api, so
     /// the api can be kept away from the outside, for example behind a tls-termination, while
     /// the proxies are still reachable.
     #[serde(default)]
     pub listen_ip: Option<String>,
 }
 
-impl Ports {
-    /// Returns the address, which the proxies listen on
+impl ProxyConf {
+    /// Checks that the domain can carry the names of the proxies
+    ///
+    /// # Returns
+    /// `Ok(())` if the section is consistent, otherwise the reason why not
+    pub fn validate(&self) -> Result<(), String> {
+        let domain = self.domain();
+        let valid_label = |label: &str| {
+            !label.is_empty()
+                && label.len() <= 63
+                && label.chars().all(|c| c.is_ascii_alphanumeric() || c == '-')
+        };
+        if domain.is_empty() || !domain.split('.').all(valid_label) {
+            return Err(format!(
+                "'proxy.domain' '{}' is not a valid domain",
+                self.domain
+            ));
+        }
+        Ok(())
+    }
+
+    /// Returns the domain without surrounding dots, as it is matched against the server names
+    fn domain(&self) -> &str {
+        self.domain.trim_matches('.')
+    }
+
+    /// Returns the address, which the listener binds to
     ///
     /// # Arguments
     /// * `api` - Api configuration, whose public address is the fallback
@@ -124,6 +164,41 @@ impl Ports {
     pub fn listen_ip<'a>(&'a self, api: &'a ainari_config::Api) -> &'a str {
         self.listen_ip.as_deref().unwrap_or(&api.public_ip)
     }
+
+    /// Returns the address, under which the clients reach a proxy
+    ///
+    /// # Arguments
+    /// * `proxy_uuid` - UUID of the proxy
+    ///
+    /// # Returns
+    /// The url of the proxy, like `https://<proxy-uuid>.<domain>:<port>`, where the UUID of the
+    /// proxy is the one of its virtual machine
+    pub fn address(&self, proxy_uuid: &Uuid) -> String {
+        let port = self.public_port.unwrap_or(self.port);
+        format!("https://{proxy_uuid}.{}:{port}", self.domain())
+    }
+
+    /// Returns the proxy, which a server name belongs to
+    ///
+    /// # Arguments
+    /// * `server_name` - Server name (SNI) of a TLS ClientHello
+    ///
+    /// # Returns
+    /// The UUID of the proxy, or `None` if the name is not the one of a proxy of this domain
+    pub fn proxy_of_server_name(&self, server_name: &str) -> Option<Uuid> {
+        let server_name = server_name.trim_end_matches('.').to_ascii_lowercase();
+        let label = server_name
+            .strip_suffix(&self.domain().to_ascii_lowercase())?
+            .strip_suffix('.')?;
+        // only the hyphenated form is handed out, so no other form of the same UUID matches
+        let uuid = Uuid::try_parse(label).ok()?;
+        (uuid.hyphenated().to_string() == label).then_some(uuid)
+    }
+}
+
+/// Default value for the port of the proxies
+fn default_proxy_port() -> u16 {
+    10042
 }
 
 /// Network interface configuration
@@ -369,7 +444,75 @@ mod tests {
             config.network.uplink(),
             Some(("veth-gw", Ipv4Addr::new(10, 0, 0, 1)))
         );
+        assert!(config.proxy.is_some());
         assert!(config.validate().is_ok());
+    }
+
+    fn proxy_conf(domain: &str) -> ProxyConf {
+        ProxyConf {
+            domain: domain.to_owned(),
+            port: 10042,
+            public_port: None,
+            listen_ip: None,
+        }
+    }
+
+    #[test]
+    fn the_address_of_a_proxy_contains_its_uuid() {
+        let uuid = Uuid::new_v4();
+        let mut conf = proxy_conf("ainari.localhost");
+        assert_eq!(
+            conf.address(&uuid),
+            format!("https://{uuid}.ainari.localhost:10042")
+        );
+
+        conf.public_port = Some(443);
+        assert_eq!(
+            conf.address(&uuid),
+            format!("https://{uuid}.ainari.localhost:443")
+        );
+    }
+
+    #[test]
+    fn the_server_name_names_the_proxy() {
+        let uuid = Uuid::new_v4();
+        let conf = proxy_conf(".Ainari.Localhost.");
+        assert!(conf.validate().is_ok());
+
+        assert_eq!(
+            conf.proxy_of_server_name(&format!("{uuid}.ainari.localhost")),
+            Some(uuid)
+        );
+        // names are case-insensitive and may be fully qualified
+        let upper = format!("{uuid}.AINARI.localhost.").to_uppercase();
+        assert_eq!(conf.proxy_of_server_name(&upper), Some(uuid));
+
+        assert_eq!(conf.proxy_of_server_name("ainari.localhost"), None);
+        assert_eq!(
+            conf.proxy_of_server_name(&format!("{uuid}.other.localhost")),
+            None
+        );
+        assert_eq!(
+            conf.proxy_of_server_name(&format!("x.{uuid}.ainari.localhost")),
+            None
+        );
+        assert_eq!(
+            conf.proxy_of_server_name(&format!("{uuid}xainari.localhost")),
+            None
+        );
+        let simple = uuid.simple().to_string();
+        assert_eq!(
+            conf.proxy_of_server_name(&format!("{simple}.ainari.localhost")),
+            None
+        );
+    }
+
+    #[test]
+    fn the_proxy_domain_has_to_be_valid() {
+        assert!(proxy_conf("").validate().is_err());
+        assert!(proxy_conf("ainari..localhost").validate().is_err());
+        assert!(proxy_conf("ainari_x.localhost").validate().is_err());
+        assert!(proxy_conf("192-168-56-11.sslip.io").validate().is_ok());
     }
 
     #[test]

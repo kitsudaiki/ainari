@@ -321,8 +321,8 @@ func TestValidation(t *testing.T) {
 		"external mysql without host": func(spec map[string]any) {
 			spec["mysql"] = map[string]any{"deploy": false}
 		},
-		"inverted port-range": func(spec map[string]any) {
-			spec["torii"] = map[string]any{"portRange": map[string]any{"start": 2000, "end": 1000}}
+		"invalid proxy-domain": func(spec map[string]any) {
+			spec["torii"] = map[string]any{"proxy": map[string]any{"domain": "*.ainari.localhost"}}
 		},
 		"external mysql without credentials": func(spec map[string]any) {
 			spec["mysql"] = map[string]any{"deploy": false, "host": "mysql.example"}

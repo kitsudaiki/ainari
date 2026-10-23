@@ -79,14 +79,15 @@ spec:
 
   torii:
     image: ainari/torii:local
-    # The api of torii is only reachable within the cluster, but the clients take the host of
-    # this address to reach the proxy-ports of the virtual machines.
+    # The api of torii is only reachable within the cluster.
     publicAddress: https://127.0.0.1:11419
     serviceType: NodePort
-    # has to match the extraPortMappings in testing/kind/cluster.yaml
-    portRange:
-      start: 10042
-      end: 10053
+    # Every virtual machine is reachable as https://<vm-uuid>.ainari.localhost:10042, which
+    # resolves to 127.0.0.1 without any DNS-entry. The port has to match the extraPortMappings in
+    # testing/kind/cluster.yaml.
+    proxy:
+      domain: ainari.localhost
+      port: 10042
     public:
       # the veth-pair towards the host is moved into the pod by testing/kind/setup_kind_stack.sh
       waitForIface: veth-gw

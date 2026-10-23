@@ -97,7 +97,7 @@ import { handleAxiosError } from "@/handleAxiosError";
 
 interface Props {
     virtual_machine_uuid: string | null;
-    torii_port: number;
+    torii_address: string;
     task: TaskBasicResp | null;
     icons: { acceptIcon: string; cancelIcon: string };
 }
@@ -123,7 +123,7 @@ async function fetchInfo() {
 
     try {
         info.value = await sakura.getTask(
-            props.torii_port,
+            props.torii_address,
             props.virtual_machine_uuid,
             props.task.uuid,
         );

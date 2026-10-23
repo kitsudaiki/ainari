@@ -87,8 +87,8 @@ pub async fn get_virtual_machine(
     .await
     .map_err(|e| map_ainari_error_to_api_response(e, Some(&context)))?;
 
-    // set port in response
-    virtual_machine_resp.torii_port = proxy_resp.port;
+    // set the address of the proxy in the response
+    virtual_machine_resp.torii_address = proxy_resp.address;
 
     // sakura provides the memory in bytes, but the api of hanami uses MiB
     virtual_machine_resp.memory_size /= 1024 * 1024;

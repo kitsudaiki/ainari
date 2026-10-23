@@ -155,7 +155,7 @@ the **Secret**-dropdown of **Save snapshot**.
 **Migrate** opens a dialog, which lists the sakura-hosts with their free cores, memory and disk.
 Hosts without enough free resources for the virtual machine can't be selected. After the target
 host is selected, the virtual machine is shut down, moved to the new host and booted there again,
-if it was running before. It keeps its address, its proxy-port and its network filter. The
+if it was running before. It keeps its address, its proxy-address and its network filter. The
 migration runs in the background, while the state of the virtual machine is `MIGRATING`. Afterwards
 **Show tasks** shows the tasks of the new host.
 

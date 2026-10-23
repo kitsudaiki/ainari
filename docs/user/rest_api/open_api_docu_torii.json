@@ -82,7 +82,7 @@
           "proxy"
         ],
         "summary": "Register new proxy",
-        "description": "Register a new proxy.\\\n\\\nA free port from the configured port-range is selected for it and the proxy is\\\nadded to the running proxy-handler.",
+        "description": "Register a new proxy.\\\n\\\nThe proxy gets the UUID of its virtual_machine, so it is reachable under the address\\\n`https://<virtual_machine-uuid>.<domain>:<port>` and every virtual_machine has at most one proxy.\\\nAll proxies share one port and the proxy of a connection is picked by the server\\\nname of its TLS ClientHello, so the TLS-connection reaches the target unchanged.",
         "requestBody": {
           "content": {
             "application/json": {
@@ -102,9 +102,9 @@
                   "title": "ProxyResp",
                   "type": "object",
                   "required": [
+                    "address",
                     "created_at",
                     "created_by",
-                    "port",
                     "target_address",
                     "updated_at",
                     "updated_by",
@@ -112,17 +112,16 @@
                     "virtual_machine_uuid"
                   ],
                   "properties": {
+                    "address": {
+                      "description": "Address, under which the clients reach the target over the proxy, like `https://<vm-uuid>.<domain>:<port>`",
+                      "type": "string"
+                    },
                     "created_at": {
                       "type": "string",
                       "format": "date-time"
                     },
                     "created_by": {
                       "type": "string"
-                    },
-                    "port": {
-                      "type": "integer",
-                      "format": "uint16",
-                      "minimum": 0.0
                     },
                     "target_address": {
                       "type": "string"
@@ -261,7 +260,7 @@
           "proxy"
         ],
         "summary": "Update proxy",
-        "description": "Point a proxy at another target address.\\\n\\\nThe proxy keeps its UUID and its port, so its virtual_machine stays reachable under the same\\\nport, for example after it was migrated to another sakura-host. Open connections over the proxy\\\nare closed.",
+        "description": "Point a proxy at another target address.\\\n\\\nThe proxy keeps its UUID and with that its address, so its virtual_machine stays reachable\\\nunder the same address, for example after it was migrated to another sakura-host. Open connections over the proxy\\\nare closed.",
         "parameters": [
           {
             "name": "proxy_uuid",
@@ -1639,16 +1638,15 @@
       "ProxyBasicResp": {
         "type": "object",
         "required": [
-          "port",
+          "address",
           "target_address",
           "uuid",
           "virtual_machine_uuid"
         ],
         "properties": {
-          "port": {
-            "type": "integer",
-            "format": "uint16",
-            "minimum": 0.0
+          "address": {
+            "description": "Address, under which the clients reach the target over the proxy",
+            "type": "string"
           },
           "target_address": {
             "type": "string"
@@ -1701,9 +1699,9 @@
         "title": "ProxyResp",
         "type": "object",
         "required": [
+          "address",
           "created_at",
           "created_by",
-          "port",
           "target_address",
           "updated_at",
           "updated_by",
@@ -1711,17 +1709,16 @@
           "virtual_machine_uuid"
         ],
         "properties": {
+          "address": {
+            "description": "Address, under which the clients reach the target over the proxy, like `https://<vm-uuid>.<domain>:<port>`",
+            "type": "string"
+          },
           "created_at": {
             "type": "string",
             "format": "date-time"
           },
           "created_by": {
             "type": "string"
-          },
-          "port": {
-            "type": "integer",
-            "format": "uint16",
-            "minimum": 0.0
           },
           "target_address": {
             "type": "string"
@@ -1745,7 +1742,7 @@
       },
       "ProxyUpdateReq": {
         "title": "ProxyUpdateReq",
-        "description": "Points an existing proxy at another target, while it keeps its port, for example after its virtual_machine was migrated to another sakura-host",
+        "description": "Points an existing proxy at another target, while it keeps its address, for example after its virtual_machine was migrated to another sakura-host",
         "type": "object",
         "required": [
           "target_address"

@@ -215,7 +215,8 @@ export interface VirtualMachineCreateReq {
 export interface VirtualMachineBasicResp {
     uuid: string;
     name: string;
-    proxy_port: number;
+    /** address of the proxy, over which the sakura of the virtual-machine is reachable */
+    proxy_address: string;
     number_of_cores: number;
     /** memory in MiB */
     memory_size: number;
@@ -246,7 +247,29 @@ export interface VirtualMachineResp {
     image_uuid: string;
     network_uuid: string;
     internal_ip: string;
-    torii_port: number;
+    /**
+     * Address of the proxy, over which the sakura of the virtual-machine is
+     * reachable, like `https://<vm-uuid>.<domain>:<port>`. It stays the same,
+     * when the virtual-machine is moved to another sakura-host.
+     */
+    torii_address: string;
+    created_at: string;
+    created_by: string;
+    updated_at: string;
+    updated_by: string;
+}
+
+/** Mirror of `proxy_structs::ProxyBasicResp`. */
+export interface ProxyBasicResp {
+    uuid: string;
+    /** address, under which the clients reach the target over the proxy */
+    address: string;
+    target_address: string;
+    virtual_machine_uuid: string;
+}
+
+/** Mirror of `proxy_structs::ProxyResp`. */
+export interface ProxyResp extends ProxyBasicResp {
     created_at: string;
     created_by: string;
     updated_at: string;

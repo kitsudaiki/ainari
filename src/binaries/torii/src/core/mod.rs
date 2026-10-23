@@ -23,4 +23,5 @@ pub mod proxy;
 pub mod proxy_handler;
 pub mod restore;
 pub mod routing;
+pub mod sni;
 pub mod utils;

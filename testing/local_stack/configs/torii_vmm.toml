@@ -22,10 +22,6 @@ file_path = "/etc/ainari/torii_db"
 [miko]
 address = "http://miko:11417"
 
-[ports]
-min_port = 10042
-max_port = 10053
-
 [network]
 # there is no overlay-interface here, the TAP-devices are attached when they are created
 overlay_iface = "none"

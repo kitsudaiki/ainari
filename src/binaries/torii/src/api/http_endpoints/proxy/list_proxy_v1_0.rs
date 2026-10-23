@@ -15,6 +15,7 @@
 use actix_web::web::Json;
 use apistos::api_operation;
 
+use crate::core::proxy_handler::proxy_conf;
 use crate::database::proxy_table;
 
 use ainari_api::common_functions::*;
@@ -34,13 +35,19 @@ pub async fn list_proxy(context: UserContext) -> Result<Json<ProxyListResp>, Err
         .map_err(|e| map_db_list_error("proxys", e, Some(&context)))?;
 
     let mut resp = ProxyListResp { proxys: Vec::new() };
+    // a gateway without proxies has no config of them, but still answers with an empty list
+    if proxys.is_empty() {
+        return Ok(Json(resp));
+    }
+    let proxy_conf =
+        proxy_conf().map_err(|e| map_ainari_error_to_api_response(e, Some(&context)))?;
 
     for proxy in proxys {
         let uuid = proxy.uuid;
         let virtual_machine_uuid = proxy.virtual_machine_uuid;
         let obj = ProxyBasicResp {
             uuid,
-            port: proxy.port as u16,
+            address: proxy_conf.address(&uuid),
             target_address: proxy.target_address,
             virtual_machine_uuid,
         };

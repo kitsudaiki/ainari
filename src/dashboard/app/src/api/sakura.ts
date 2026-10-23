@@ -14,9 +14,9 @@
 
 // Endpoints of the sakura, mirroring `src/binaries/sakura/src/api/routes/v1alpha.rs`.
 //
-// The sakura is never addressed directly, but always through the torii, which opens
-// one port per virtual-machine. Every function here therefore takes the torii-port
-// of the virtual-machine it belongs to.
+// The sakura is never addressed directly, but always through the torii, which has
+// one proxy per virtual-machine. Every function here therefore takes the
+// torii-address of the virtual-machine it belongs to.
 
 import { sakuraClient } from "./client";
 import type {
@@ -62,14 +62,14 @@ function taskPath(virtualMachineUuid: string, taskUuid: string): string {
 
 /**
  * `GET /v1alpha/task?resource_uuid=...` - all tasks of the virtual-machine. The sakura behind
- * the torii-port holds the tasks of all virtual-machines of its host, so they are filtered by
+ * the torii-address holds the tasks of all virtual-machines of its host, so they are filtered by
  * the uuid of the virtual-machine.
  */
 export async function listTasks(
-    toriiPort: number,
+    toriiAddress: string,
     virtualMachineUuid: string,
 ): Promise<TaskBasicResp[]> {
-    const resp = await sakuraClient(toriiPort).get(taskListPath(virtualMachineUuid), {
+    const resp = await sakuraClient(toriiAddress).get(taskListPath(virtualMachineUuid), {
         params: { resource_uuid: virtualMachineUuid },
     });
     return resp.data.tasks;
@@ -77,11 +77,11 @@ export async function listTasks(
 
 /** `GET /v1alpha/task/{task_uuid}` */
 export async function getTask(
-    toriiPort: number,
+    toriiAddress: string,
     virtualMachineUuid: string,
     taskUuid: string,
 ): Promise<TaskResp> {
-    const resp = await sakuraClient(toriiPort).get(
+    const resp = await sakuraClient(toriiAddress).get(
         taskPath(virtualMachineUuid, taskUuid),
     );
     return resp.data;
@@ -89,11 +89,11 @@ export async function getTask(
 
 /** `PUT /v1alpha/task/{task_uuid}/abort` */
 export async function abortTask(
-    toriiPort: number,
+    toriiAddress: string,
     virtualMachineUuid: string,
     taskUuid: string,
 ): Promise<TaskResp> {
-    const resp = await sakuraClient(toriiPort).put(
+    const resp = await sakuraClient(toriiAddress).put(
         `${taskPath(virtualMachineUuid, taskUuid)}/abort`,
         {},
     );
@@ -112,10 +112,10 @@ export async function abortTask(
  * on the hanami, see `hanami.reserveVirtualMachine`.
  */
 export async function createVirtualMachine(
-    toriiPort: number,
+    toriiAddress: string,
     body: VirtualMachineCreateTaskReq,
 ): Promise<TaskResp> {
-    const resp = await sakuraClient(toriiPort).post(
+    const resp = await sakuraClient(toriiAddress).post(
         `/v1alpha/virtual_machine/${body.vm_uuid}`,
         body,
     );
@@ -124,11 +124,11 @@ export async function createVirtualMachine(
 
 /** `POST /v1alpha/virtual_machine/{virtual_machine_uuid}/snapshot_save` */
 export async function createSnapshotSaveTask(
-    toriiPort: number,
+    toriiAddress: string,
     virtualMachineUuid: string,
     body: TaskSnapshotSaveReq,
 ): Promise<TaskResp> {
-    const resp = await sakuraClient(toriiPort).post(
+    const resp = await sakuraClient(toriiAddress).post(
         `/v1alpha/virtual_machine/${virtualMachineUuid}/snapshot_save`,
         body,
     );
@@ -137,11 +137,11 @@ export async function createSnapshotSaveTask(
 
 /** `POST /v1alpha/virtual_machine/{virtual_machine_uuid}/snapshot_restore` */
 export async function createSnapshotRestoreTask(
-    toriiPort: number,
+    toriiAddress: string,
     virtualMachineUuid: string,
     body: TaskSnapshotRestoreReq,
 ): Promise<TaskResp> {
-    const resp = await sakuraClient(toriiPort).post(
+    const resp = await sakuraClient(toriiAddress).post(
         `/v1alpha/virtual_machine/${virtualMachineUuid}/snapshot_restore`,
         body,
     );
@@ -154,10 +154,10 @@ export async function createSnapshotRestoreTask(
  * Creates the task, which boots a stopped virtual-machine again.
  */
 export async function startVirtualMachine(
-    toriiPort: number,
+    toriiAddress: string,
     virtualMachineUuid: string,
 ): Promise<TaskResp> {
-    const resp = await sakuraClient(toriiPort).post(
+    const resp = await sakuraClient(toriiAddress).post(
         `/v1alpha/virtual_machine/${virtualMachineUuid}/start`,
         {},
     );
@@ -171,10 +171,10 @@ export async function startVirtualMachine(
  * resources, so it can be started again later.
  */
 export async function stopVirtualMachine(
-    toriiPort: number,
+    toriiAddress: string,
     virtualMachineUuid: string,
 ): Promise<TaskResp> {
-    const resp = await sakuraClient(toriiPort).post(
+    const resp = await sakuraClient(toriiAddress).post(
         `/v1alpha/virtual_machine/${virtualMachineUuid}/stop`,
         {},
     );
@@ -187,10 +187,10 @@ export async function stopVirtualMachine(
  * Creates the task, which reboots a running virtual-machine.
  */
 export async function rebootVirtualMachine(
-    toriiPort: number,
+    toriiAddress: string,
     virtualMachineUuid: string,
 ): Promise<TaskResp> {
-    const resp = await sakuraClient(toriiPort).post(
+    const resp = await sakuraClient(toriiAddress).post(
         `/v1alpha/virtual_machine/${virtualMachineUuid}/reboot`,
         {},
     );

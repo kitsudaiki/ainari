@@ -23,7 +23,6 @@ class AccessContext:
     ryokan_adress: str
     omamori_address: str
     torii_address: str
-    torii_base_address: str
     verify_connection: bool = True
     # omikuji is optional, so it is empty, if it is not deployed
     omikuji_address: str = ""

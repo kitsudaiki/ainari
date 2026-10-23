@@ -46,7 +46,6 @@ pub async fn delete_proxy_internal(
     let mut proxy_handle = PROXY_HANDLER.write().await;
     proxy_handle
         .delete_proxy(&proxy_uuid)
-        .await
         .map_err(|e| map_ainari_error_to_api_response(e, Some(&context)))?;
 
     Ok(NoContent)

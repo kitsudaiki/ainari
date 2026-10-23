@@ -15,11 +15,11 @@ cert-manager. The dashboard is always part of this setup.
 
 ```mermaid
 flowchart TB
-    host["host<br/>10.0.0.1 on veth-kind<br/>api on 127.0.0.1:11416-11422, proxy-ports 10042-10053"]
+    host["host<br/>10.0.0.1 on veth-kind<br/>api on 127.0.0.1:11416-11422, proxies on 10042"]
 
     subgraph node["kind-node ainari-control-plane (docker-container, mtu 1600)"]
         subgraph pods["pod-network 10.244.0.0/16"]
-            public["pod torii-public<br/>torii + tls-sidecar<br/>floating ip-NAT, proxy-ports"]
+            public["pod torii-public<br/>torii + tls-sidecar<br/>floating ip-NAT, proxies"]
             control["pods miko, omamori, izakaya, ryokan, onsen, hanami, dashboard<br/>each with a tls-sidecar<br/>pod mysql-0 with the databases"]
             subgraph s0["pod sakura-0"]
                 vmm0["torii<br/>TAP-devices"]
@@ -140,14 +140,15 @@ The api is reachable on the host at:
 | dashboard | `https://127.0.0.1:11422` |
 
 The api of torii is only reachable within the cluster. The virtual machines and their sakura-hosts
-are reached over the proxy-ports of torii (`127.0.0.1:<proxy-port>`), and the proxies can be listed
-over hanami (`GET /v1alpha/proxy`).
+are reached over the proxies of torii (`https://<vm-uuid>.ainari.localhost:10042`, the
+`torii_address` of a virtual machine), and the proxies can be listed over hanami
+(`GET /v1alpha/proxy`). `*.localhost` resolves to `127.0.0.1` without any DNS-entry.
 
 The admin-user is `asdf` with the passphrase `asdfasdf`.
 
 Build the cli in `src/cli/ainarictl` with `go build .` and point it at miko. Without the CA of the
 setup in the trust-store of the system (see
-[The CA of the kind- and the vagrant-setup](https_ca.md)), the cli has to skip the verification of
+[The CAs of the local setups](https_ca.md)), the cli has to skip the verification of
 the certificates:
 
 ```bash
@@ -246,12 +247,12 @@ new container, started with the same command.
 - **Certificates:** all certificates are signed by the CA `temporary_files/kind/ainari-kind-ca.crt`.
   Without it in the trust-stores, the clients have to skip the verification and the dashboard
   can't log in. How to trust it is described in
-  [The CA of the kind- and the vagrant-setup](https_ca.md).
+  [The CAs of the local setups](https_ca.md).
 - **What the setup-script does as root:** it creates the veth-pair `veth-kind` / `veth-gw`, gives
   the host side `10.0.0.1/24`, moves the gateway side over the network-namespace of the node into
   the one of the pod `torii-public`, enables `net.ipv4.ip_forward` and adds a MASQUERADE-rule for
   `10.0.0.0/24`.
-- **Ports:** the api and the proxy-ports are published as node-ports (port + 20000, see
+- **Ports:** the api and the port of the proxies are published as node-ports (port + 20000, see
   `global.externalServices` in the `Ainari`-resource) and mapped back to their original ports on
   `127.0.0.1` by the `extraPortMappings` of `testing/kind/cluster.yaml`.
 - **kvm:** the kind-node creates its own `/dev/kvm`, so sakura gets the kvm-group of the node, not

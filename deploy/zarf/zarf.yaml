@@ -61,6 +61,10 @@ variables:
     description: address of the router behind the uplink of 'torii-public'
     prompt: true
     pattern: "^[0-9.]+$"
+  - name: PROXY_DOMAIN
+    description: domain of the proxies of 'torii-public', every virtual machine is reachable as https://<vm-uuid>.<domain>:10042, so '*.<domain>' has to resolve to the service 'torii-gateway-service'
+    prompt: true
+    pattern: "^([a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?\\.)*[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?$"
   - name: KVM_GID
     description: id of the group of /dev/kvm on the sakura-nodes (output of 'stat -c %g /dev/kvm')
     default: "993"

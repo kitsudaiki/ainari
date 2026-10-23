@@ -50,7 +50,7 @@ pub async fn list_virtual_machine_internal(
         let obj = VirtualMachineBasicResp {
             uuid: virtual_machine.uuid,
             name: virtual_machine.name,
-            proxy_port: 0,
+            proxy_address: String::new(),
             number_of_cores: virtual_machine.number_of_cores,
             memory_size: virtual_machine.memory_size,
             disk_size: virtual_machine.disk_size,

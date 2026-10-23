@@ -48,7 +48,7 @@ use ainari_common::enums::DbError;
 /// Reserves a new virtual_machine on one of the sakura-hosts
 ///
 /// The virtual_machine is only reserved here: it gets a host, an address with a TAP-device on the
-/// gateways and a proxy-port, but no image and no public-key yet. It is created and booted by the
+/// gateways and a proxy, but no image and no public-key yet. It is created and booted by the
 /// create-endpoint of the sakura-host afterwards.
 ///
 /// # Arguments
@@ -308,8 +308,8 @@ fn allocate_on_any_host(
 /// Prepares everything, which the new virtual_machine requires on the selected sakura-host
 ///
 /// This reserves the address of the virtual_machine, prepares its network on the gateways, creates
-/// the entry of the virtual_machine on the sakura-host and makes it reachable by a proxy-port of
-/// the torii.
+/// the entry of the virtual_machine on the sakura-host and makes it reachable by a proxy of the
+/// torii.
 ///
 /// # Arguments
 /// * `selected_host` - Sakura-host, which runs the new virtual_machine
@@ -389,7 +389,7 @@ async fn prepare_selected_host(
         })?;
 
     // send request to torii to create a proxy. It forwards to the external api of the sakura-host,
-    // so the clients can't reach its internal endpoints over the proxy-port.
+    // so the clients can't reach its internal endpoints over the proxy.
     let proxy_resp = proxy_clients::create_proxy(
         &endpoints.torii,
         &context.token,
@@ -401,8 +401,8 @@ async fn prepare_selected_host(
     .await
     .map_err(|e| map_ainari_error_to_api_response(e, Some(context)))?;
 
-    // the proxy-port is the port, where the virtual_machine and its sakura-host are reachable
-    virtual_machine_resp.torii_port = proxy_resp.port;
+    // the address of the proxy, where the virtual_machine and its sakura-host are reachable
+    virtual_machine_resp.torii_address = proxy_resp.address;
 
     // sakura provides the memory in bytes, but the api of hanami uses MiB
     virtual_machine_resp.memory_size /= 1024 * 1024;
