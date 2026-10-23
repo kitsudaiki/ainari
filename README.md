@@ -61,10 +61,19 @@ on `develop`-branch and for each tag.
 
 - [client and SDK](https://files.ainari.cloud/)
 
-## Docker-Images
+## Vulnerability-scan
 
 Vulnerabilities of the images of the `develop`-branch, scanned by
-[Docker Scout](https://docs.docker.com/scout/) in the CI-pipeline.
+[Docker Scout](https://docs.docker.com/scout/) in the CI-pipeline, and of the rust-crates,
+checked by the [OpenSSF Scorecard](https://scorecard.dev/viewer/?uri=github.com/kitsudaiki/ainari).
+
+### OpenSSF Scorecard
+
+| Source                                                                        | Vulnerabilities                                                                                   |
+| ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| [rust-crates](https://scorecard.dev/viewer/?uri=github.com/kitsudaiki/ainari) | [![score][scorecard_vuln_score]][scorecard] [![vulnerabilities][scorecard_vuln_count]][scorecard] |
+
+### Docker-images
 
 | Image                                                                    | Vulnerabilities                                                                                                                                                                                                |
 | ------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -147,3 +156,6 @@ The complete project is under
 [scout_operator_l]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/docker_scout/operator/low/shields.json&style=flat-square
 [scout_operator_u]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/docker_scout/operator/unspecified/shields.json&style=flat-square
 [workflow]: https://github.com/kitsudaiki/ainari/actions/workflows/build_test.yml
+[scorecard_vuln_score]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/scorecard/vulnerabilities/score/shields.json&style=flat-square
+[scorecard_vuln_count]: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/kitsudaiki/ainari-badges/develop/scorecard/vulnerabilities/count/shields.json&style=flat-square
+[scorecard]: https://scorecard.dev/viewer/?uri=github.com/kitsudaiki/ainari
