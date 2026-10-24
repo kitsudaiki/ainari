@@ -22,6 +22,7 @@ pub mod database;
 pub mod enums;
 pub mod error;
 pub mod functions;
+pub mod kdf;
 pub mod logger;
 pub mod objects;
 pub mod secret;

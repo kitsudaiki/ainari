@@ -417,14 +417,17 @@ name = "ainari_common"
 version = "0.22.0"
 dependencies = [
  "apistos-schemars",
+ "argon2",
  "base64 0.23.1",
  "chrono",
  "diesel",
  "diesel_migrations",
  "env_logger",
  "hex",
+ "hkdf 0.13.0",
  "log",
  "percent-encoding",
+ "rand 0.10.3",
  "serde",
  "serde_json",
  "sha2 0.11.1",
@@ -651,6 +654,7 @@ dependencies = [
  "blake2",
  "cpufeatures 0.3.1",
  "password-hash",
+ "zeroize",
 ]
 
 [[package]]
