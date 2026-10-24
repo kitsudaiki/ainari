@@ -13,7 +13,10 @@
 // limitations under the License.
 
 use data::data_service_server::{DataService, DataServiceServer};
-use data::{DataChunk, DataResponse, DeleteRequest, DownloadRequest};
+use data::{
+    DataChunk, DataResponse, DeleteDirectoryRequest, DeleteRequest, DownloadRequest,
+    FileInfoRequest, FileInfoResponse, ListDirectoryRequest, ListDirectoryResponse,
+};
 use tonic::{Code, Request, Response, Status, transport::Server};
 
 use async_stream::try_stream;
@@ -25,6 +28,7 @@ use tokio::io::AsyncReadExt;
 use tokio::io::AsyncWriteExt;
 
 use crate::config;
+use crate::file_operations;
 
 use ainari_common::constants::CHUNK_SIZE;
 use ainari_common::functions::is_safe_subpath;
@@ -257,6 +261,68 @@ impl DataService for OnsenServer {
         Ok(Response::new(DataResponse {
             status: format!("Deleted file: {:?}", target_path),
         }))
+    }
+
+    /// Lists the direct entries of a directory within the storage-location.
+    ///
+    /// # Arguments
+    ///
+    /// * `request` - A tonic Request containing a ListDirectoryRequest.
+    ///
+    /// # Returns
+    ///
+    /// * `Result<Response<ListDirectoryResponse>, Status>` - The entries sorted by name, or
+    ///   `NOT_FOUND`, if the directory doesn't exist.
+    async fn list_directory(
+        &self,
+        request: Request<ListDirectoryRequest>,
+    ) -> Result<Response<ListDirectoryResponse>, Status> {
+        let req = request.into_inner();
+        let root = Path::new(&config::CONFIG.storage.location);
+        let entries = file_operations::list_directory(root, &req.remote_dir_path).await?;
+        Ok(Response::new(ListDirectoryResponse { entries }))
+    }
+
+    /// Deletes a directory with all of its content within the storage-location.
+    ///
+    /// # Arguments
+    ///
+    /// * `request` - A tonic Request containing a DeleteDirectoryRequest.
+    ///
+    /// # Returns
+    ///
+    /// * `Result<Response<DataResponse>, Status>` - The response containing the status message
+    ///   or an error status.
+    async fn delete_directory(
+        &self,
+        request: Request<DeleteDirectoryRequest>,
+    ) -> Result<Response<DataResponse>, Status> {
+        let req = request.into_inner();
+        let root = Path::new(&config::CONFIG.storage.location);
+        file_operations::delete_directory(root, &req.remote_dir_path).await?;
+        Ok(Response::new(DataResponse {
+            status: format!("Deleted directory: {:?}", req.remote_dir_path),
+        }))
+    }
+
+    /// Returns size and sha256-checksum of a file within the storage-location.
+    ///
+    /// # Arguments
+    ///
+    /// * `request` - A tonic Request containing a FileInfoRequest.
+    ///
+    /// # Returns
+    ///
+    /// * `Result<Response<FileInfoResponse>, Status>` - The info of the file, or `NOT_FOUND`, if
+    ///   the file doesn't exist.
+    async fn get_file_info(
+        &self,
+        request: Request<FileInfoRequest>,
+    ) -> Result<Response<FileInfoResponse>, Status> {
+        let req = request.into_inner();
+        let root = Path::new(&config::CONFIG.storage.location);
+        let info = file_operations::get_file_info(root, &req.remote_file_path).await?;
+        Ok(Response::new(info))
     }
 }
 

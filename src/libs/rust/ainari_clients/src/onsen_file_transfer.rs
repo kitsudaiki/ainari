@@ -14,10 +14,16 @@
 
 use ainari_common::error::AinariError;
 use data::DataChunk;
+use data::DeleteDirectoryRequest;
 use data::DeleteRequest;
+use data::DirectoryEntry;
 use data::DownloadRequest;
+use data::FileInfoRequest;
+use data::FileInfoResponse;
+use data::ListDirectoryRequest;
 use data::data_service_client::DataServiceClient;
-use tonic::Request;
+use tonic::transport::Channel;
+use tonic::{Code, Request, Status};
 // use std::fs;
 
 use async_stream::stream;
@@ -209,4 +215,129 @@ pub async fn delete_file(
     println!("Server response: {:?}", response.into_inner().status);
 
     Ok(())
+}
+
+/// Opens a grpc-connection to an onsen.
+async fn connect(onsen_address: &str) -> Result<DataServiceClient<Channel>, AinariError> {
+    DataServiceClient::connect(onsen_address.to_owned())
+        .await
+        .map_err(|e| {
+            AinariError::internal(format!(
+                "Failed to open grpc-connection to onsen with error: {e}"
+            ))
+        })
+}
+
+/// Converts the status of a failed grpc-request into an error, so `NOT_FOUND` and
+/// `INVALID_ARGUMENT` of the onsen can be handled by the caller.
+fn status_to_error(action: &str, status: Status) -> AinariError {
+    let msg = format!("Failed to {action} on onsen: {}", status.message());
+    match status.code() {
+        Code::NotFound => AinariError::NotFound(msg),
+        Code::InvalidArgument => AinariError::InvalidInput(msg),
+        _ => AinariError::internal(msg),
+    }
+}
+
+/// Lists the direct entries of a directory on a remote server using gRPC.
+///
+/// # Arguments
+///
+/// * `onsen_address` - The address of the remote server.
+/// * `remote_dir_path` - The path of the directory on the remote server.
+///
+/// # Returns
+///
+/// * `Result<Vec<DirectoryEntry>, AinariError>` - The entries sorted by name, `NotFound`, if the
+///   directory doesn't exist, otherwise an AinariError.
+pub async fn list_directory(
+    onsen_address: &str,
+    remote_dir_path: &str,
+) -> Result<Vec<DirectoryEntry>, AinariError> {
+    let req = ListDirectoryRequest {
+        remote_dir_path: remote_dir_path.to_owned(),
+    };
+    let response = connect(onsen_address)
+        .await?
+        .list_directory(Request::new(req))
+        .await
+        .map_err(|e| status_to_error("list directory", e))?;
+
+    Ok(response.into_inner().entries)
+}
+
+/// Deletes a directory with all of its content from a remote server using gRPC.
+///
+/// Deleting a not existing directory is no error.
+///
+/// # Arguments
+///
+/// * `onsen_address` - The address of the remote server.
+/// * `remote_dir_path` - The path of the directory on the remote server to be deleted.
+///
+/// # Returns
+///
+/// * `Result<(), AinariError>` - Ok if the deletion is successful, otherwise an AinariError.
+pub async fn delete_directory(
+    onsen_address: &str,
+    remote_dir_path: &str,
+) -> Result<(), AinariError> {
+    let req = DeleteDirectoryRequest {
+        remote_dir_path: remote_dir_path.to_owned(),
+    };
+    connect(onsen_address)
+        .await?
+        .delete_directory(Request::new(req))
+        .await
+        .map_err(|e| status_to_error("delete directory", e))?;
+
+    Ok(())
+}
+
+/// Requests size and sha256-checksum of a file on a remote server using gRPC.
+///
+/// # Arguments
+///
+/// * `onsen_address` - The address of the remote server.
+/// * `remote_file_path` - The path of the file on the remote server.
+///
+/// # Returns
+///
+/// * `Result<FileInfoResponse, AinariError>` - Size and hex-encoded sha256 of the file,
+///   `NotFound`, if the file doesn't exist, otherwise an AinariError.
+pub async fn get_file_info(
+    onsen_address: &str,
+    remote_file_path: &str,
+) -> Result<FileInfoResponse, AinariError> {
+    let req = FileInfoRequest {
+        remote_file_path: remote_file_path.to_owned(),
+    };
+    let response = connect(onsen_address)
+        .await?
+        .get_file_info(Request::new(req))
+        .await
+        .map_err(|e| status_to_error("get file-info", e))?;
+
+    Ok(response.into_inner())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_status_to_error() {
+        assert!(matches!(
+            status_to_error("test", Status::not_found("missing")),
+            AinariError::NotFound(_)
+        ));
+        assert!(matches!(
+            status_to_error("test", Status::invalid_argument("invalid")),
+            AinariError::InvalidInput(_)
+        ));
+        assert!(matches!(
+            status_to_error("test", Status::internal("broken")),
+            AinariError::InternalError(_)
+        ));
+    }
 }
