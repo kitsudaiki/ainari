@@ -1,5 +1,7 @@
-name: Docker Scout badging sequence
-description: Publishes badges with the number of vulnerabilities per severity of the Docker-images
+name: Security badging sequence
+description: |
+  Publishes badges with the number of vulnerabilities per severity of the Docker-images and with
+  the result of the vulnerability-check of the OpenSSF Scorecard
 inputs:
   sarif_dir:
     description: Directory with the SARIF-files of Docker Scout, named '<component>.sarif.json'
@@ -14,14 +16,20 @@ runs:
   using: composite
   steps:
     -
-      name: Generate json with badges-information
+      name: Generate json with badges-information of Docker Scout
       run: |
         python3 ${{ github.action_path }}/generate_scout_badges.py ${{ inputs.sarif_dir }}
       shell: bash
     -
+      name: Generate json with badges-information of OpenSSF Scorecard
+      run: |
+        python3 ${{ github.action_path }}/generate_scorecard_badges.py \
+          github.com/${{ github.repository }}
+      shell: bash
+    -
       name: Push json-files to badges-repo
       # v4.0.0
-      uses: peaceiris/actions-gh-pages@4f9cc6602d3f66b9c108549d475ec49e8ef4d45e
+      uses: peaceiris/actions-gh-pages@84c30a85c19949d7eee79c4ff27748b70285e453 # v4.1.0
       with:
         personal_token: ${{ inputs.github_token }}
         external_repository: kitsudaiki/Ainari-badges
