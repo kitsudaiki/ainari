@@ -48,7 +48,6 @@ futures = "0.3"
 bytes = "1"
 uuid = { version = "1.23.1", features = ["serde", "fast-rng", "v4"] }
 byteorder = "1.5"
-bincode = { version = "2.0", features = ["serde"] }
 bytemuck = "1.25"
 # hypervisor
 cloud-hypervisor-client = "0.6.0"

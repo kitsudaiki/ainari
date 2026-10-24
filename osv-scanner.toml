@@ -1,0 +1,35 @@
+# Config of osv-scanner, which is also used by the OpenSSF Scorecard for the vulnerability-check.
+# Only advisories, which can not be fixed at the moment, because the fix depends on new releases
+# of upstream crates, are listed here. Every entry has an expiry date, so it has to be checked
+# again by hand from time to time.
+#
+# Run it with:
+#   osv-scanner scan source -r .
+
+# h2 0.3.27 is required by actix-http 3.19.0 (latest version) and there is no patched 0.3.x
+# release. The http2-feature of actix-web can not be disabled, because it is enabled by the
+# default-features, which are used by apistos.
+[[IgnoredVulns]]
+id = "RUSTSEC-2026-0258"
+ignoreUntil = 2027-04-24
+reason = "h2 0.3 pulled in by actix-http 3.19.0, no patched 0.3.x release available"
+
+# libcrux-kem 0.0.9 is only listed in the Cargo.lock because of weak optional features of
+# hpke-rs 0.7, but it is never compiled. The fix requires hpke-rs 0.8, which is not supported by
+# openmls_rust_crypto 0.6 (latest version).
+[[IgnoredVulns]]
+id = "RUSTSEC-2026-0330"
+ignoreUntil = 2027-04-24
+reason = "libcrux-kem is not compiled, only in Cargo.lock via optional deps of hpke-rs 0.7 (openmls_rust_crypto 0.6)"
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2026-0331"
+ignoreUntil = 2027-04-24
+reason = "libcrux-kem is not compiled, only in Cargo.lock via optional deps of hpke-rs 0.7 (openmls_rust_crypto 0.6)"
+
+# proc-macro-error2 is only used at build-time by hax-lib-macros, which is pulled in by
+# libcrux-sha3 of hpke-rs 0.7 via openmls_rust_crypto 0.6 (latest version).
+[[IgnoredVulns]]
+id = "RUSTSEC-2026-0173"
+ignoreUntil = 2027-04-24
+reason = "unmaintained build-time proc-macro via hpke-rs 0.7 (openmls_rust_crypto 0.6), no alternative upstream yet"
