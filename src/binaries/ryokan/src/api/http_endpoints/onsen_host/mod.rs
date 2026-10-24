@@ -16,3 +16,4 @@ pub mod delete_host_admin_v1_0;
 pub mod get_host_admin_v1_0;
 pub mod list_host_admin_v1_0;
 pub mod register_host_internal_v1_0;
+pub mod set_backup_target_admin_v1_0;

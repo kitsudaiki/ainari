@@ -67,6 +67,10 @@ pub fn v1alpha_routes() -> Scope {
                     resource("/{host_uuid}/admin")
                         .route(get().to(get_host_admin_v1_0::get_host_admin))
                         .route(delete().to(delete_host_admin_v1_0::delete_host_admin)),
+                )
+                .service(
+                    resource("/{host_uuid}/backup_target/admin")
+                        .route(put().to(set_backup_target_admin_v1_0::set_backup_target_admin)),
                 ),
         )
         .service(scope("/project").service(

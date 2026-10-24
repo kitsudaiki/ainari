@@ -13,12 +13,15 @@
 // limitations under the License.
 
 use chrono::{DateTime, Utc};
+use diesel::dsl::count_star;
 use diesel::prelude::*;
 use uuid::Uuid;
 
 use crate::database::db_handle;
+use crate::database::image_table;
 
 use ainari_api_structs::user_context::UserContext;
+use ainari_common::database::DbConnection;
 use ainari_common::enums;
 use ainari_common::objects::*;
 
@@ -29,6 +32,7 @@ table! {
         name -> Varchar,
         address -> Varchar,
         status -> Varchar,
+        is_backup_target -> Bool,
         created_at -> Varchar,
         created_by -> Varchar,
         updated_at -> Varchar,
@@ -54,6 +58,8 @@ pub struct HostEntry {
     pub address: String,
     /// Current status of the host (ACTIVE, DELETED, etc.)
     pub status: String,
+    /// True, if the host only stores backups and never normal images or snapshots
+    pub is_backup_target: bool,
     /// Timestamp when the host was created
     #[diesel(serialize_as = DbDateTime, deserialize_as = DbDateTime)]
     pub created_at: DateTime<Utc>,
@@ -102,6 +108,7 @@ pub fn add_new_host(
         name: host_name.to_owned(),
         address: host_address.to_owned(),
         status: "ACTIVE".to_string(),
+        is_backup_target: false,
         created_at: Utc::now(),
         created_by: context.user_id.clone(),
         updated_at: Utc::now(),
@@ -226,6 +233,97 @@ pub fn list_hosts(_: &UserContext) -> QueryResult<Vec<HostEntry>> {
     query.select(HostEntry::as_select()).load(&mut *conn)
 }
 
+/// Marks an onsen-host as backup-target or removes the mark (admin function).
+///
+/// A host can only be marked, while no image or snapshot is stored on it. The check and the
+/// update run in one transaction, so no image can be added to the host in between. Removing the
+/// mark is always possible here, the check for remaining backups on the host is done by the
+/// caller over the onsen.
+///
+/// # Arguments
+///
+/// * `host_uuid` - The UUID of the host
+/// * `backup_target` - True to mark the host as backup-target, false to remove the mark
+/// * `context` - The user context containing the ID of the user performing the change
+///
+/// # Returns
+///
+/// * `Ok(true)` if the host was updated
+/// * `Ok(false)` if the host can not be marked, because images are stored on it
+/// * `Err(enums::DbError)` if the host doesn't exist or the update failed
+pub fn set_backup_target(
+    host_uuid: &Uuid,
+    backup_target: bool,
+    context: &UserContext,
+) -> Result<bool, enums::DbError> {
+    // observers without admin-privileges are only allowed to read
+    if context.is_read_only() {
+        return Err(enums::DbError::PermissionDenied);
+    }
+
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+    use self::hosts::dsl::*;
+
+    let host_uuid = host_uuid.to_string();
+
+    let result = conn.transaction::<_, diesel::result::Error, _>(|conn| {
+        let host_address = hosts
+            .filter(uuid.eq(&host_uuid).and(status.eq("ACTIVE")))
+            .select(address)
+            .first::<String>(conn)?;
+
+        if backup_target && image_table::count_images_on_onsen(conn, &host_address)? > 0 {
+            return Ok(false);
+        }
+
+        diesel::update(hosts.filter(uuid.eq(&host_uuid)))
+            .set((
+                is_backup_target.eq(backup_target),
+                updated_at.eq(Utc::now().to_rfc3339()),
+                updated_by.eq(context.user_id.clone()),
+            ))
+            .execute(conn)?;
+        Ok(true)
+    });
+
+    match result {
+        Ok(changed) => Ok(changed),
+        Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
+        Err(e) => {
+            log::error!("Database-error: {e:?}");
+            Err(enums::DbError::InternalError)
+        }
+    }
+}
+
+/// Checks, if an onsen-address belongs to an active backup-target.
+///
+/// It takes the already locked connection, so it can be used within the transaction of another
+/// table.
+///
+/// # Arguments
+///
+/// * `conn` - The locked database-connection
+/// * `onsen_address` - Address of the onsen-host
+///
+/// # Returns
+///
+/// * `QueryResult<bool>` - True, if an active host with this address is a backup-target
+pub fn is_backup_target_address(conn: &mut DbConnection, onsen_address: &str) -> QueryResult<bool> {
+    use self::hosts::dsl::*;
+
+    hosts
+        .filter(
+            address
+                .eq(onsen_address)
+                .and(status.eq("ACTIVE"))
+                .and(is_backup_target.eq(true)),
+        )
+        .select(count_star())
+        .first::<i64>(conn)
+        .map(|count| count > 0)
+}
+
 /// Deletes a host from the database (admin function).
 ///
 /// This function marks a host as DELETED by updating its status and setting
@@ -328,6 +426,7 @@ mod tests {
             name: "Alice".to_string(),
             address: "http://127.0.0.1:11420".to_string(),
             status: "ACTIVE".to_string(),
+            is_backup_target: false,
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
@@ -378,6 +477,7 @@ mod tests {
             name: "Alice".to_string(),
             address: "http://127.0.0.1:11420".to_string(),
             status: "ACTIVE".to_string(),
+            is_backup_target: false,
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
@@ -391,6 +491,7 @@ mod tests {
             name: "Bob".to_string(),
             address: "http://127.0.0.1:11420".to_string(),
             status: "DELETED".to_string(),
+            is_backup_target: false,
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
@@ -430,6 +531,7 @@ mod tests {
             name: "Alice".to_string(),
             address: "http://127.0.0.1:11420".to_string(),
             status: "ACTIVE".to_string(),
+            is_backup_target: false,
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
@@ -458,6 +560,7 @@ mod tests {
             name: "Alice".to_string(),
             address: "http://127.0.0.1:11420".to_string(),
             status: "ACTIVE".to_string(),
+            is_backup_target: false,
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
@@ -471,6 +574,7 @@ mod tests {
             name: "Bob".to_string(),
             address: "http://127.0.0.1:11420".to_string(),
             status: "ACTIVE".to_string(),
+            is_backup_target: false,
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
@@ -484,6 +588,7 @@ mod tests {
             name: "Poi".to_string(),
             address: "http://127.0.0.1:11420".to_string(),
             status: "ACTIVE".to_string(),
+            is_backup_target: false,
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
@@ -531,5 +636,169 @@ mod tests {
         hard_delete_host(&uuid1);
         hard_delete_host(&uuid2);
         hard_delete_host(&uuid3);
+    }
+
+    fn admin_context() -> UserContext {
+        UserContext {
+            token: "".to_string(),
+            user_id: "test-admin".to_string(),
+            project_id: "test-project".to_string(),
+            is_admin: true.to_string(),
+            project_role: ProjectRole::Member.to_string(),
+        }
+    }
+
+    /// Adds an active host with a unique address, which is not a backup-target.
+    fn add_test_host() -> HostEntry {
+        let host = HostEntry {
+            uuid: Uuid::new_v4(),
+            name: "onsen".to_string(),
+            address: format!("http://{}:50051", Uuid::new_v4()),
+            status: "ACTIVE".to_string(),
+            is_backup_target: false,
+            created_at: Utc::now(),
+            created_by: "admin".to_string(),
+            updated_at: Utc::now(),
+            updated_by: "admin".to_string(),
+            deleted_at: None,
+            deleted_by: None,
+        };
+        add_host(host.clone()).unwrap();
+        host
+    }
+
+    fn is_marked(host_uuid: &Uuid) -> bool {
+        match get_host(host_uuid, &admin_context()) {
+            Ok(host) => host.is_backup_target,
+            Err(_) => panic!("host not found"),
+        }
+    }
+
+    fn add_test_image(onsen_address: &str) -> QueryResult<Uuid> {
+        let image_uuid = Uuid::new_v4();
+        image_table::add_new_image(
+            &image_uuid,
+            "image",
+            onsen_address,
+            &format!("images/{image_uuid}"),
+            "qcow2",
+            4096,
+            &Uuid::new_v4(),
+            false,
+            &ainari_api_structs::image_structs::ImageStatus::Ready,
+            &admin_context(),
+        )
+        .map(|_| image_uuid)
+    }
+
+    fn hard_delete_images_on(address: &str) {
+        use crate::database::image_table::images::dsl::*;
+        let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+        let _ = diesel::delete(images.filter(onsen_address.eq(address))).execute(&mut *conn);
+    }
+
+    #[test]
+    #[serial]
+    fn test_set_backup_target() {
+        let context = admin_context();
+        let host = add_test_host();
+
+        // mark and unmark an empty host
+        assert!(matches!(
+            set_backup_target(&host.uuid, true, &context),
+            Ok(true)
+        ));
+        assert!(is_marked(&host.uuid));
+        assert!(
+            list_hosts(&context)
+                .unwrap()
+                .iter()
+                .any(|h| h.uuid == host.uuid && h.is_backup_target)
+        );
+        assert!(matches!(
+            set_backup_target(&host.uuid, false, &context),
+            Ok(true)
+        ));
+        assert!(!is_marked(&host.uuid));
+
+        // unknown or deleted host
+        assert!(matches!(
+            set_backup_target(&Uuid::new_v4(), true, &context),
+            Err(enums::DbError::NotFound)
+        ));
+
+        // observers are not allowed to change the host
+        let observer = UserContext {
+            is_admin: false.to_string(),
+            project_role: ProjectRole::Observer.to_string(),
+            ..context.clone()
+        };
+        assert!(matches!(
+            set_backup_target(&host.uuid, true, &observer),
+            Err(enums::DbError::PermissionDenied)
+        ));
+
+        hard_delete_host(&host.uuid);
+    }
+
+    #[test]
+    #[serial]
+    fn test_set_backup_target_with_images() {
+        let context = admin_context();
+        let host = add_test_host();
+        let image_uuid = add_test_image(&host.address).unwrap();
+
+        // a host with an image can not become a backup-target
+        assert!(matches!(
+            set_backup_target(&host.uuid, true, &context),
+            Ok(false)
+        ));
+        assert!(!is_marked(&host.uuid));
+
+        // after the image was deleted, it can
+        assert!(image_table::delete_image(&image_uuid, &context).is_ok());
+        assert!(matches!(
+            set_backup_target(&host.uuid, true, &context),
+            Ok(true)
+        ));
+
+        hard_delete_images_on(&host.address);
+        hard_delete_host(&host.uuid);
+    }
+
+    #[test]
+    #[serial]
+    fn test_no_images_on_backup_target() {
+        let context = admin_context();
+        let host = add_test_host();
+        assert!(matches!(
+            set_backup_target(&host.uuid, true, &context),
+            Ok(true)
+        ));
+
+        {
+            let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+            assert!(is_backup_target_address(&mut conn, &host.address).unwrap());
+            assert!(!is_backup_target_address(&mut conn, "http://unknown:50051").unwrap());
+        }
+
+        // adding an image on a backup-target is a hard error, even if the host was selected
+        // before it was marked
+        assert!(add_test_image(&host.address).is_err());
+        let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+        assert_eq!(
+            image_table::count_images_on_onsen(&mut conn, &host.address).unwrap(),
+            0
+        );
+        drop(conn);
+
+        // a deleted host is no backup-target anymore
+        assert!(delete_host_admin(&host.uuid, &context).is_ok());
+        let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+        assert!(!is_backup_target_address(&mut conn, &host.address).unwrap());
+        drop(conn);
+
+        hard_delete_images_on(&host.address);
+        hard_delete_host(&host.uuid);
     }
 }

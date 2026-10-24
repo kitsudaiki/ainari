@@ -60,6 +60,13 @@ pub struct HostIsolationUpdateReq {
     pub is_host_isolated: bool,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
+pub struct HostBackupTargetUpdateReq {
+    /// mark the onsen-host as backup-target, so it only stores backups and never normal images
+    /// or snapshots
+    pub is_backup_target: bool,
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Default)]
 pub struct UuidList {
     pub list: Vec<Uuid>,
@@ -70,6 +77,8 @@ pub struct HostResp {
     pub uuid: Uuid,
     pub name: String,
     pub host_address: String,
+    /// true, if the onsen-host only stores backups and never normal images or snapshots
+    pub is_backup_target: bool,
     pub created_at: DateTime<Utc>,
     pub created_by: String,
     pub updated_at: DateTime<Utc>,
@@ -97,6 +106,8 @@ pub struct HostBasicResp {
     pub uuid: Uuid,
     pub name: String,
     pub host_address: String,
+    /// true, if the onsen-host only stores backups and never normal images or snapshots
+    pub is_backup_target: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]

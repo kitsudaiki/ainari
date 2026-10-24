@@ -12,18 +12,25 @@ below are the ones of the SQLite-database; the MySQL-database uses `INT` for `IN
 
 Onsen-hosts, which registered themselves at ryokan and store the image-files.
 
-| field      | type         | is primary | constraints |
-| ---------- | ------------ | ---------- | ----------- |
-| uuid       | VARCHAR(40)  | x          |             |
-| name       | VARCHAR(256) |            |             |
-| address    | VARCHAR(256) |            |             |
-| status     | VARCHAR(8)   |            |             |
-| created_at | VARCHAR(64)  |            |             |
-| created_by | VARCHAR(256) |            |             |
-| updated_at | VARCHAR(64)  |            |             |
-| updated_by | VARCHAR(256) |            |             |
-| deleted_at | VARCHAR(64)  |            |             |
-| deleted_by | VARCHAR(256) |            |             |
+`is_backup_target` marks a host, which an admin reserved for backups. Such a host never stores
+normal images or snapshots: it is skipped by the host-selection for new images and adding an image
+on it is rejected. A host can only be marked, while no image is stored on it, and only be unmarked,
+while its directory `backups/` is empty. In the SQLite-database the column is at the end of the
+table, because SQLite can only append new columns.
+
+| field            | type         | is primary | constraints                    |
+| ---------------- | ------------ | ---------- | ------------------------------ |
+| uuid             | VARCHAR(40)  | x          |                                |
+| name             | VARCHAR(256) |            |                                |
+| address          | VARCHAR(256) |            |                                |
+| status           | VARCHAR(8)   |            |                                |
+| is_backup_target | BOOLEAN      |            | `NOT NULL DEFAULT FALSE`       |
+| created_at       | VARCHAR(64)  |            |                                |
+| created_by       | VARCHAR(256) |            |                                |
+| updated_at       | VARCHAR(64)  |            |                                |
+| updated_by       | VARCHAR(256) |            |                                |
+| deleted_at       | VARCHAR(64)  |            |                                |
+| deleted_by       | VARCHAR(256) |            |                                |
 
 ## images
 

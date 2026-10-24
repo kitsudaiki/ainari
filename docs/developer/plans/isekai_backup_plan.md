@@ -17,7 +17,7 @@ ainari-deployment for disaster-recovery.
 | Identities           | **Without `force`**: UUIDs and internal IPs are kept when free, otherwise new UUIDs are generated and all references are rewritten through a mapping-table. Floating IPs are always newly allocated from the pool of the target. **With `force`**: existing resources with the same UUID are overwritten, so the restored state keeps the original UUIDs. |
 | Prune                | With the additional flag `prune`, resources which exist in the target project, but not in the backup, are deleted, so the project is reset exactly to the state of the backup. Default `false`.                                                                                                                                                          |
 | Project-lock         | The project is locked in miko for the whole backup and the whole restore, so the disks and the metadata of a backup are consistent and a restore can't be disturbed. All write-requests of users to the project are rejected in all components, read-requests stay allowed. The running VMs are not affected.                                              |
-| Disk-data            | Re-uses the existing snapshot-functions of sakura (`save_ch_virtual_machine` / `restore_ch_virtual_machine`) and the task-queue of the VM, so a backup can't overtake other tasks of the same VM.                                                                                                                                                          |
+| Disk-data            | Reuses the existing snapshot-functions of sakura (`save_ch_virtual_machine` / `restore_ch_virtual_machine`) and the task-queue of the VM, so a backup can't overtake other tasks of the same VM.                                                                                                                                                          |
 
 ## 2. Scope of a backup
 
@@ -73,34 +73,36 @@ Location on the backup-onsen: `<storage.location>/backups/<backup_uuid>/`
 ### 4.1 ryokan – backup-targets
 
 - `host_table`: new column `is_backup_target BOOL NOT NULL DEFAULT false` (diesel-migration).
-- New admin-endpoint `PUT /v1alpha/onsen_host/{host_uuid}/backup_target/admin` with
-  `{ "enabled": bool }`
-  - `enabled=true` is rejected with `409`, if any image or snapshot exists on the host.
-  - `enabled=false` is rejected with `409`, if backups still exist on the host (directory
-    `backups/` on the host isn't empty, checked with `ListDirectory`, so ryokan doesn't depend
-    on isekai).
-- The host-selection of `init_image_internal` / `create_image` ignores backup-targets. Selecting
-  a backup-host for normal images is a hard error, not only a filter.
+- New admin-endpoint `PUT /v1alpha/host/{host_uuid}/backup_target/admin` with
+  `{ "is_backup_target": bool }` (like `isolation/admin` of hanami)
+    - `true` is rejected with `409`, if any image or snapshot exists on the host. The check and
+      the update run in one transaction.
+    - `false` is rejected with `409`, if backups still exist on the host (directory
+      `backups/` on the host isn't empty, checked with `ListDirectory`, so ryokan doesn't depend
+      on isekai).
+- The host-selection of `init_image_internal` / `create_image` ignores backup-targets. Adding an
+  image on a backup-host is a hard error, not only a filter: `add_image` checks it in the same
+  transaction, so a host, which was marked after it was selected, still gets no image.
 - `list_host_admin` / `get_host_admin` show the flag.
 - `images`-table: the bool `is_snapshot` becomes the enum-column `image_kind`
   (`IMAGE` | `SNAPSHOT` | `BACKUP_DISK`), with a migration of the existing rows.
   `BACKUP_DISK` images:
-  - are placed on a backup-target under `backups/<backup_uuid>/disks/<vm_uuid>.enc`,
-  - are hidden in `list_image` / `get_image` and don't count to the image-quota,
-  - can only be created and deleted over internal endpoints from isekai.
+    - are placed on a backup-target under `backups/<backup_uuid>/disks/<vm_uuid>.enc`,
+    - are hidden in `list_image` / `get_image` and don't count to the image-quota,
+    - can only be created and deleted over internal endpoints from isekai.
 - New internal endpoints for isekai (ryokan is the only component, which talks with the onsen, so
   isekai doesn't need a wireguard-tunnel):
-  - `GET  /v1alpha/backup_target/internal` – list of the backup-targets with free space
-  - `PUT  /v1alpha/backup_target/{host_uuid}/file/internal` – writes a metadata-file into the bundle
-  - `GET  /v1alpha/backup_target/{host_uuid}/file/internal` – reads a metadata-file from the bundle
-  - `POST /v1alpha/backup_target/{host_uuid}/copy/internal` – copies a file between onsens
-    (image → bundle on backup, bundle → normal onsen on restore). Ryokan streams it chunk by chunk
-    from the source to the target, without storing it.
-  - `GET  /v1alpha/backup_target/{host_uuid}/scan/internal` – lists the bundles in `backups/`
-    (for the import of foreign bundles)
-  - `DELETE /v1alpha/backup_target/{host_uuid}/backup/{backup_uuid}/internal`
-  - `GET  /v1alpha/project/{project_id}/export/internal` and
-    `POST /v1alpha/project/{project_id}/import/internal` (metadata of the images)
+    - `GET  /v1alpha/backup_target/internal` – list of the backup-targets with free space
+    - `PUT  /v1alpha/backup_target/{host_uuid}/file/internal` – writes a metadata-file into the bundle
+    - `GET  /v1alpha/backup_target/{host_uuid}/file/internal` – reads a metadata-file from the bundle
+    - `POST /v1alpha/backup_target/{host_uuid}/copy/internal` – copies a file between onsens
+      (image → bundle on backup, bundle → normal onsen on restore). Ryokan streams it chunk by chunk
+      from the source to the target, without storing it.
+    - `GET  /v1alpha/backup_target/{host_uuid}/scan/internal` – lists the bundles in `backups/`
+      (for the import of foreign bundles)
+    - `DELETE /v1alpha/backup_target/{host_uuid}/backup/{backup_uuid}/internal`
+    - `GET  /v1alpha/project/{project_id}/export/internal` and
+      `POST /v1alpha/project/{project_id}/import/internal` (metadata of the images)
 
 ### 4.2 onsen – gRPC (`onsen_upload.proto`)
 
@@ -116,7 +118,7 @@ Location on the backup-onsen: `<storage.location>/backups/<backup_uuid>/`
   (`TaskBackupSaveReq { backup_uuid, secret_uuid }`). It does the same as `snapshot_save_task`,
   but registers the image in ryokan as `BACKUP_DISK` on the backup-target instead of a normal
   snapshot. The task-variant `CloudHypervisorVirtualMachineSnapshot` gets a field
-  `kind: SnapshotKind` instead of a new task, so `save_ch_virtual_machine` is re-used unchanged.
+  `kind: SnapshotKind` instead of a new task, so `save_ch_virtual_machine` is reused unchanged.
   Option `stop_vm`: the VM is shut down before the snapshot and started again afterwards
   (application-consistent instead of only crash-consistent).
 - `GET /v1alpha/virtual_machine/{uuid}/export/internal` – config of the VM for `sakura.json`.
@@ -134,17 +136,17 @@ Location on the backup-onsen: `<storage.location>/backups/<backup_uuid>/`
   mappings are never touched.
 - `get_endpoints` gets the address of isekai (`EndpointsResp.isekai`).
 - **Project-lock**:
-  - `project_table`: new nullable columns `locked_by_job` (UUID of the backup- or restore-job),
-    `lock_reason` (`BACKUP` | `RESTORE`) and `locked_at`.
-  - `POST   /v1alpha/project/{project_id}/lock/internal` `{ job_uuid, reason }` – sets the lock.
-    Rejected with `409`, if the project is already locked, so two backups/restores of the same
-    project can't run at the same time.
-  - `DELETE /v1alpha/project/{project_id}/lock/internal` `{ job_uuid }` – removes the lock, only
-    with the same job-UUID.
-  - `DELETE /v1alpha/project/{project_id}/lock/admin` – manual unlock by a global admin, e.g.
-    after a failed restore.
-  - `validate_token` returns the lock-state of the project in the `UserContext`
-    (`project_locked: bool`).
+    - `project_table`: new nullable columns `locked_by_job` (UUID of the backup- or restore-job),
+      `lock_reason` (`BACKUP` | `RESTORE`) and `locked_at`.
+    - `POST   /v1alpha/project/{project_id}/lock/internal` `{ job_uuid, reason }` – sets the lock.
+      Rejected with `409`, if the project is already locked, so two backups/restores of the same
+      project can't run at the same time.
+    - `DELETE /v1alpha/project/{project_id}/lock/internal` `{ job_uuid }` – removes the lock, only
+      with the same job-UUID.
+    - `DELETE /v1alpha/project/{project_id}/lock/admin` – manual unlock by a global admin, e.g.
+      after a failed restore.
+    - `validate_token` returns the lock-state of the project in the `UserContext`
+      (`project_locked: bool`).
 - `ainari_api` (auth-middleware, shared by all services): requests with a method other than
   `GET` to a locked project are rejected with `423 Locked`. Requests with the internal API-key
   (from isekai and between the components during the restore) are not blocked. This way the
@@ -168,7 +170,7 @@ Location on the backup-onsen: `<storage.location>/backups/<backup_uuid>/`
   network-filters, floating-ips (+ the VM they are attached to).
 - `POST /v1alpha/project/{project_id}/import/internal` – networks, vm-types, network-filters. The
   VMs are not created here, but by the normal reserve-flow (see 5.2), so the scheduling of the
-  sakura-host and the configuration of torii are re-used.
+  sakura-host and the configuration of torii are reused.
 - Floating-ips are allocated again from the pool of the target and attached to the restored VM.
   The old address is only a preference.
 - Torii-state is not restored explicitly. It results from the restored networks/VMs, like after
@@ -186,7 +188,7 @@ Location on the backup-onsen: `<storage.location>/backups/<backup_uuid>/`
   used for the metadata-files.
 - `ainari_common`: generic key-derivation in `kdf.rs` (Argon2id from a passphrase into a
   master-key, HKDF into single keys by label), with zeroize of the keys after usage. It knows
-  nothing about backups, so it can be re-used in other contexts. The backup-specific labels
+  nothing about backups, so it can be reused in other contexts. The backup-specific labels
   (`ainari-backup-v1 metadata-key`, …) are defined in isekai (`core/keys.rs`).
 
 ## 5. Isekai
@@ -309,7 +311,7 @@ the VM, which belong to the project. Because only one disk is copied, this lock 
         the old one with `force`, then create it over the existing creation-path of hanami with
         the restored snapshot as boot-image and the original UUID/IP/MAC (new optional fields in
         the reserve-request, internal only).
-      - `force` and the VM exists with the same config: re-use the existing
+      - `force` and the VM exists with the same config: reuse the existing
         `snapshot_restore_task` of sakura, which replaces the root-disk.
    6. hanami: network-filters, floating-ips
    7. Start the VMs according to their saved power-state or `start_vms`.
@@ -419,7 +421,7 @@ Each phase is **exactly one commit**, which can be reviewed on its own. Rules fo
 | --- | ------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | B1  | `feat(onsen): add rpcs for directory-listing and file-info`   | `ListDirectory`, `DeleteDirectory`, `GetFileInfo` (size + sha256) in `onsen_upload.proto`, server-side with `is_safe_subpath`, client-functions in `onsen_file_transfer.rs`. |
 | B2  | `feat(ryokan): add backup-target flag to onsen-hosts`         | Column `is_backup_target` + migration, shown in `list_host_admin` / `get_host_admin`. No behaviour-change yet.                                                                 |
-| B3  | `feat(ryokan): add admin-endpoint to mark backup-targets`     | `PUT /onsen_host/{uuid}/backup_target/admin`: `409` if images exist on the host (enable), or if `backups/` on the host isn't empty (disable, checked with `ListDirectory`).    |
+| B3  | `feat(ryokan): add admin-endpoint to mark backup-targets`     | `PUT /host/{uuid}/backup_target/admin`: `409` if images exist on the host (enable), or if `backups/` on the host isn't empty (disable, checked with `ListDirectory`).    |
 | B4  | `feat(ryokan): exclude backup-targets from image-placement`   | Host-selection of `init_image_internal` / `create_image` skips backup-targets, a backup-target as target is a hard error. Tests.                                              |
 | B5  | `refactor(ryokan): replace is_snapshot by image_kind`         | Enum-column `image_kind` (`IMAGE`, `SNAPSHOT`) + migration of the existing rows. The API keeps `is_snapshot` (derived) and gets `image_kind`, so SDK/CLI/dashboard don't break. Sakura checks `image_kind`. |
 | B6  | `feat(ryokan): add image-kind BACKUP_DISK`                    | New kind; placed only on backup-targets under `backups/<backup_uuid>/disks/<vm_uuid>.enc`; hidden in `list_image`/`get_image`; not counted in the quota; create/delete only internal. Sakura accepts it for restore. |
