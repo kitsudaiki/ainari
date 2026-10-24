@@ -182,7 +182,8 @@ Location on the backup-onsen: `<storage.location>/backups/<backup_uuid>/`
   compiler.
 - `ainari_clients`: `backup.rs` (isekai), plus client-functions for the new internal endpoints of
   every component.
-- `ainari_files`: `encrypt_bytes`/`decrypt_bytes` for the metadata-files.
+- `ainari_common`: generic `encrypt_bytes`/`decrypt_bytes` in `encryption.rs` (AES-256-GCM),
+  used for the metadata-files.
 - `ainari_common`: generic key-derivation in `kdf.rs` (Argon2id from a passphrase into a
   master-key, HKDF into single keys by label), with zeroize of the keys after usage. It knows
   nothing about backups, so it can be re-used in other contexts. The backup-specific labels
@@ -410,7 +411,7 @@ Each phase is **exactly one commit**, which can be reviewed on its own. Rules fo
 | #   | Commit                                                       | Content                                                                                                                                      |
 | --- | ------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------- |
 | A1  | `feat(ainari_common): add key-derivation from passphrases`   | `kdf.rs`: generic Argon2id with configurable and limited parameters + HKDF by label, random salt, zeroize. Unit-tests with test-vectors. |
-| A2  | `feat(ainari_files): add encryption of in-memory data`       | `encrypt_bytes` / `decrypt_bytes` (AES-256-GCM, random nonce) for the metadata-files. Unit-tests incl. manipulated ciphertext.               |
+| A2  | `feat(ainari_common): add encryption of in-memory data`      | `encryption.rs`: `encrypt_bytes` / `decrypt_bytes` (AES-256-GCM, random nonce, optional associated data, same layout like the encrypted files). Isekai binds each metadata-file to its file-name over the associated data. Unit-tests incl. manipulated ciphertext. |
 
 ### Block B – onsen and ryokan: backup-targets
 
