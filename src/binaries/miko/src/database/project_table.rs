@@ -20,7 +20,7 @@ use uuid::Uuid;
 use crate::database::db_handle;
 use crate::database::quota_table;
 
-use ainari_api_structs::project_structs::ProjectLock;
+use ainari_api_structs::project_structs::{MikoQuotaExport, ProjectLock};
 use ainari_api_structs::user_context::UserContext;
 use ainari_common::enums;
 use ainari_common::objects::*;
@@ -93,6 +93,39 @@ pub fn add_new_project(
     project_name: &str,
     context: &UserContext,
 ) -> QueryResult<usize> {
+    add_new_project_with_quota(project_id, project_name, &DEFAULT_QUOTA, context)
+}
+
+/// Default quota of a new project, which is created over the api.
+const DEFAULT_QUOTA: MikoQuotaExport = MikoQuotaExport {
+    max_virtual_machine: 10,
+    max_image: 10,
+    max_secret: 10,
+    max_network: 10,
+    max_floating_ip: 10,
+};
+
+/// Adds a new project together with the given quota to the database.
+///
+/// Like `add_new_project`, but the quota is given, for example from a backup, which is restored.
+///
+/// # Arguments
+///
+/// * `project_id` - The unique identifier for the project
+/// * `project_name` - The name of the project
+/// * `quota` - The limits of the quota of the new project
+/// * `context` - The user context containing authentication information
+///
+/// # Returns
+///
+/// * `Ok(usize)` with the number of rows affected if successful
+/// * An error if the operation fails (permission denied, duplicate ID, or database error)
+pub fn add_new_project_with_quota(
+    project_id: &String,
+    project_name: &str,
+    quota: &MikoQuotaExport,
+    context: &UserContext,
+) -> QueryResult<usize> {
     // observers without admin-privileges are only allowed to read
     if context.is_read_only() {
         return Err(enums::permission_denied_error());
@@ -115,7 +148,15 @@ pub fn add_new_project(
     };
 
     // the quota limits the resources of the project, so each project gets its own one
-    quota_table::add_new_quota(project_id, 10, 10, 10, 10, 10, context)?;
+    quota_table::add_new_quota(
+        project_id,
+        quota.max_virtual_machine,
+        quota.max_image,
+        quota.max_secret,
+        quota.max_network,
+        quota.max_floating_ip,
+        context,
+    )?;
 
     let project = ProjectEntry {
         id: project_id.clone(),
@@ -255,6 +296,49 @@ pub fn list_projects(context: &UserContext) -> QueryResult<Vec<ProjectEntry>> {
         .filter(status.eq("ACTIVE"))
         .select(ProjectEntry::as_select())
         .load(&mut *conn)
+}
+
+/// Changes the name of an active project.
+///
+/// # Arguments
+///
+/// * `project_id` - The ID of the project
+/// * `project_name` - The new name of the project
+/// * `context` - The user context containing authentication information
+///
+/// # Returns
+///
+/// * `Ok(())` if the name was changed
+/// * `DbError::NotFound` if the project doesn't exist
+/// * `DbError::PermissionDenied` if the user is only allowed to read
+/// * `DbError::InternalError` if a database error occurs
+pub fn set_project_name(
+    project_id: &String,
+    project_name: &str,
+    context: &UserContext,
+) -> Result<(), enums::DbError> {
+    // observers without admin-privileges are only allowed to read
+    if context.is_read_only() {
+        return Err(enums::DbError::PermissionDenied);
+    }
+
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+    use self::projects::dsl::*;
+    match diesel::update(projects.filter(id.eq(project_id).and(status.eq("ACTIVE"))))
+        .set((
+            name.eq(project_name),
+            updated_at.eq(Utc::now().to_rfc3339()),
+            updated_by.eq(context.user_id.clone()),
+        ))
+        .execute(&mut *conn)
+    {
+        Ok(0) => Err(enums::DbError::NotFound),
+        Ok(_) => Ok(()),
+        Err(e) => {
+            log::error!("Database-error: {e:?}");
+            Err(enums::DbError::InternalError)
+        }
+    }
 }
 
 /// Prefix of the default-projects, which are created together with each user.

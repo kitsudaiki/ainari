@@ -140,3 +140,51 @@ pub struct ProjectLockResp {
     /// lock of the project, None if the project is not locked
     pub lock: Option<ProjectLock>,
 }
+
+/// Quota of a project, like it is stored in a backup.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, ApiComponent, Validate)]
+pub struct MikoQuotaExport {
+    #[validate(range(min = 0))]
+    pub max_virtual_machine: i32,
+    #[validate(range(min = 0))]
+    pub max_image: i32,
+    #[validate(range(min = 0))]
+    pub max_secret: i32,
+    #[validate(range(min = 0))]
+    pub max_network: i32,
+    #[validate(range(min = 0))]
+    pub max_floating_ip: i32,
+}
+
+/// Project with its quota, like it is exported from miko into a backup. Users and their
+/// assignments to the project are not part of it.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, ApiComponent, Validate)]
+pub struct MikoProjectExport {
+    /// ID of the project at the time of the backup
+    pub id: String,
+    #[validate(length(min = 4, max = 127))]
+    pub name: String,
+    #[validate(nested)]
+    pub quota: MikoQuotaExport,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
+pub struct MikoProjectImportReq {
+    /// project from the backup. Its ID is ignored, the project is imported under the ID of the
+    /// path, so a backup can also be restored into another project.
+    #[validate(nested)]
+    pub project: MikoProjectExport,
+    /// overwrite name and quota of an already existing project
+    #[serde(default)]
+    pub force: bool,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
+pub struct MikoProjectImportResp {
+    pub project_id: String,
+    /// true, if the project didn't exist before and was created by the import
+    pub created: bool,
+    /// true, if the quota of the backup was applied. The quota of an existing project is only
+    /// overwritten for an admin, so a user can't raise the quota of the own project with a backup.
+    pub quota_imported: bool,
+}

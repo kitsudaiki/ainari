@@ -81,6 +81,14 @@ pub fn v1alpha_routes() -> Scope {
                     post().to(remove_user_from_project_admin_v1_0::remove_user_from_project_admin),
                 ))
                 .service(
+                    resource("/{project_id}/export/internal")
+                        .route(get().to(export_project_internal_v1_0::export_project_internal)),
+                )
+                .service(
+                    resource("/{project_id}/import/internal")
+                        .route(post().to(import_project_internal_v1_0::import_project_internal)),
+                )
+                .service(
                     resource("/{project_id}/lock/internal")
                         .route(post().to(lock_project_internal_v1_0::lock_project_internal))
                         .route(delete().to(unlock_project_internal_v1_0::unlock_project_internal)),

@@ -198,6 +198,13 @@ onsen about the bundles, so isekai doesn't need a wireguard-tunnel):
 - `POST /v1alpha/project/{project_id}/import/internal` – creates the project with its quota, or
   updates name and quota of an existing project with the same ID with `force`. Users and
   mappings are never touched.
+    - The project is imported under the ID of the path, not the one in the backup, so a backup
+      can also be restored into another project (`target_project_id`).
+    - Creating a project is only allowed for a global admin (like `create_project_admin`), and
+      IDs with the prefix `default-` are rejected.
+    - With `force` the quota is only overwritten for a global admin. The bundle is only protected
+      by the passphrase of the user, so otherwise a project-admin could raise the quota of the own
+      project with a manipulated backup. The response shows it with `quota_imported`.
 - `get_endpoints` gets the address of isekai (`EndpointsResp.isekai`).
 - **Project-lock**:
     - `project_table`: new nullable columns `locked_by_job` (UUID of the backup- or restore-job),
@@ -262,10 +269,10 @@ onsen about the bundles, so isekai doesn't need a wireguard-tunnel):
 
 ### 4.7 shared libraries
 
-- `ainari_api_structs`: new `backup_structs.rs` with requests/responses of isekai and the
-  export-/import-structs of every component (`MikoProjectExport`, `OmamoriProjectExport`, …).
-  Isekai only uses these typed structs, so the reference-rewriting (`id_map`) is checked by the
-  compiler.
+- `ainari_api_structs`: new `backup_structs.rs` with the requests/responses of the backups. The
+  export-/import-structs of the components are placed in the file of the resource, which they
+  belong to (e.g. `MikoProjectExport` in `project_structs.rs`). Isekai only uses these typed
+  structs, so the reference-rewriting (`id_map`) is checked by the compiler.
 - `ainari_clients`: `backup.rs` (isekai), plus client-functions for the new internal endpoints of
   every component.
 - `ainari_common`: generic `encrypt_bytes`/`decrypt_bytes` in `encryption.rs` (AES-256-GCM),
@@ -538,7 +545,7 @@ Each phase is **exactly one commit**, which can be reviewed on its own. Rules fo
 
 | #   | Commit                                                           | Content                                                                                                                        |
 | --- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| D1  | `feat(miko): add internal export and import of projects`         | Project + quota, `force` overwrites name/quota. No users/mappings.                                                             |
+| D1  | `feat(miko): add internal export and import of projects`         | Project + quota, `force` overwrites name and (only for admins) quota. No users/mappings.                                       |
 | D2  | `feat(omamori): add owner-type backup for secrets`               | `owned_by = "backup"`, not deletable by users, like the internal secrets of images.                                           |
 | D3  | `feat(omamori): add internal export of project-secrets`          | Payloads wrapped with `wrap_key`, public-keys; test that no plain payload is in the response and that `wrap_key` isn't logged. |
 | D4  | `feat(omamori): add internal import of project-secrets`          | Unwrap → re-encrypt with `simple_crypto`; `force`; `id_map`. Round-trip-test with D3.                                          |

@@ -137,3 +137,81 @@ pub async fn unlock_project(
 
     handle_response(response, "project", project_id).await
 }
+
+/// Exports a project together with its quota from miko for a backup.
+///
+/// # Arguments
+///
+/// * `miko_endpoint` - The endpoint of miko, whose internal address is used
+/// * `token` - The authentication token for the API request
+/// * `internal_api_key` - The internal API key for authentication
+/// * `project_id` - The ID of the project to export
+/// * `insecure_client` - Whether to use an insecure (non-TLS) client
+///
+/// # Returns
+///
+/// A `Result` containing the project with its quota, or an `AinariError`.
+pub async fn export_project(
+    miko_endpoint: &ainari_config::Endpoint,
+    token: &String,
+    internal_api_key: &Secret,
+    project_id: &str,
+    insecure_client: bool,
+) -> Result<MikoProjectExport, AinariError> {
+    let address = miko_endpoint.internal_address.clone();
+    let client = prepare_client(&address, insecure_client);
+    let url = format!("{address}/v1alpha/project/{project_id}/export/internal");
+
+    let response = client
+        .get(url)
+        .insert_header(("Authorization", format!("Bearer {}", token)))
+        .insert_header(("X-Internal-API-Key", internal_api_key.reveal()))
+        .send()
+        .await;
+
+    handle_response(response, "project", project_id).await
+}
+
+/// Imports a project together with its quota from a backup into miko.
+///
+/// # Arguments
+///
+/// * `miko_endpoint` - The endpoint of miko, whose internal address is used
+/// * `token` - The authentication token for the API request
+/// * `internal_api_key` - The internal API key for authentication
+/// * `project_id` - The ID, under which the project is imported
+/// * `project` - The project from the backup
+/// * `force` - Overwrite an existing project
+/// * `insecure_client` - Whether to use an insecure (non-TLS) client
+///
+/// # Returns
+///
+/// A `Result` containing the result of the import, or an `AinariError`. An existing project
+/// without `force` is rejected with `Conflict`.
+pub async fn import_project(
+    miko_endpoint: &ainari_config::Endpoint,
+    token: &String,
+    internal_api_key: &Secret,
+    project_id: &str,
+    project: &MikoProjectExport,
+    force: bool,
+    insecure_client: bool,
+) -> Result<MikoProjectImportResp, AinariError> {
+    let address = miko_endpoint.internal_address.clone();
+    let client = prepare_client(&address, insecure_client);
+    let url = format!("{address}/v1alpha/project/{project_id}/import/internal");
+
+    let body = MikoProjectImportReq {
+        project: project.clone(),
+        force,
+    };
+
+    let response = client
+        .post(url)
+        .insert_header(("Authorization", format!("Bearer {}", token)))
+        .insert_header(("X-Internal-API-Key", internal_api_key.reveal()))
+        .send_json(&body)
+        .await;
+
+    handle_response(response, "project", project_id).await
+}
