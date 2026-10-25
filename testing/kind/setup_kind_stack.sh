@@ -84,6 +84,7 @@ IMAGES=(
     ainari/omamori:local
     ainari/izakaya:local
     ainari/omikuji:local
+    ainari/isekai:local
     ainari/ryokan:local
     ainari/onsen:local
     ainari/hanami:local
@@ -139,6 +140,15 @@ cd "$PROJECT_DIR"
 # ---------------------------------------------------------------------------------------------
 cluster_exists() {
     "$KIND" get clusters 2> /dev/null | grep -qx "$CLUSTER_NAME"
+}
+
+# The ports of a kind-cluster are only published, when it is created, so a cluster, which misses
+# a port of the config, like the one of a new component, has to be created again.
+cluster_has_all_ports() {
+    local port
+    for port in $(sed -n 's/.*containerPort: \([0-9]*\).*/\1/p' "$CLUSTER_CONFIG"); do
+        docker port "$NODE" "$port/tcp" > /dev/null 2>&1 || return 1
+    done
 }
 
 # A cluster, which was initialized with zarf, has the namespace 'zarf'
@@ -241,6 +251,11 @@ fi
 # which zarf can't take over. So the cluster is created again, if the mode changes.
 if cluster_exists && [ "$USE_ZARF" != "$(cluster_has_zarf && echo true || echo false)" ]; then
     echo "The kind-cluster $CLUSTER_NAME was set up in the other mode, so it is created again ..."
+    "$KIND" delete cluster --name "$CLUSTER_NAME"
+fi
+
+if cluster_exists && ! cluster_has_all_ports; then
+    echo "The kind-cluster $CLUSTER_NAME misses ports of $CLUSTER_CONFIG, so it is created again ..."
     "$KIND" delete cluster --name "$CLUSTER_NAME"
 fi
 
@@ -415,6 +430,13 @@ if ! "${KUBECTL[@]}" wait ainari/ainari --for=condition=Ready --timeout=900s; th
     exit 1
 fi
 
+# ---------------------------------------------------------------------------------------------
+# mark the onsen of the backups as backup-target, so isekai stores the backups there
+# ---------------------------------------------------------------------------------------------
+echo "Marking the onsen of the backups as backup-target ..."
+"$PROJECT_DIR/testing/local_stack/mark_backup_targets.sh" \
+    "https://127.0.0.1:11417" "https://127.0.0.1:11416" "$CA_CERT" || true
+
 echo ""
 echo "The stack is up. The api is reachable over https at:"
 echo "    miko     https://127.0.0.1:11417"
@@ -422,6 +444,7 @@ echo "    hanami   https://127.0.0.1:11418"
 echo "    ryokan   https://127.0.0.1:11416"
 echo "    omamori  https://127.0.0.1:11421"
 echo "    omikuji  https://127.0.0.1:11424"
+echo "    isekai   https://127.0.0.1:11425"
 echo ""
 echo "The dashboard is reachable at https://127.0.0.1:11422."
 echo ""

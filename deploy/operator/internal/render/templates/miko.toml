@@ -34,6 +34,10 @@ internal_address = {{ quote (internalAddress "omamori") }}
 [endpoints.omikuji]
 public_address = {{ quote (publicAddress "omikuji") }}
 internal_address = {{ quote (internalAddress "omikuji") }}
+
+[endpoints.isekai]
+public_address = {{ quote (publicAddress "isekai") }}
+internal_address = {{ quote (internalAddress "isekai") }}
 {{- if .Spec.Hanami.Network.MLSEncryption }}
 
 # only the other components talk to izakaya, it has no external api

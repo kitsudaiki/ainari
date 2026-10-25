@@ -60,6 +60,14 @@ func testSpec() *ainariv1alpha1.AinariSpec {
 		Ryokan:  ainariv1alpha1.RyokanSpec{Replicas: 1, Image: "kitsudaiki/ryokan:develop", Domain: "local-ryokan"},
 		Omamori: ainariv1alpha1.OmamoriSpec{Replicas: 1, Image: "kitsudaiki/omamori:develop", Domain: "local-omamori"},
 		Omikuji: ainariv1alpha1.OmikujiSpec{Replicas: 1, Image: "kitsudaiki/omikuji:develop", Domain: "local-omikuji"},
+		Isekai: ainariv1alpha1.IsekaiSpec{
+			Replicas: 1, Image: "kitsudaiki/isekai:develop", Domain: "local-isekai",
+			Processing: ainariv1alpha1.IsekaiProcessingSpec{NumberOfWorkers: 4, MaxParallelSnapshots: 2},
+			KDF:        ainariv1alpha1.IsekaiKDFSpec{MemoryKiB: 65536, Iterations: 3, Parallelism: 4},
+			BackupStorage: ainariv1alpha1.BackupStorageSpec{
+				Replicas: 1, StorageClass: "local-path", StorageSize: resource.MustParse("10Gi"),
+			},
+		},
 		Izakaya: ainariv1alpha1.IzakayaSpec{Replicas: 1, Image: "kitsudaiki/izakaya:develop", Domain: "local-izakaya", KeyRotationInterval: 3600, MemberTimeout: 120},
 		Onsen: ainariv1alpha1.OnsenSpec{
 			Replicas: 1, Image: "kitsudaiki/onsen:develop", StorageClass: "local-path", StorageSize: resource.MustParse("1Gi"),
@@ -121,6 +129,8 @@ func TestRenderDefaultStack(t *testing.T) {
 	for _, key := range []string{
 		"Deployment/miko", "Deployment/hanami", "Deployment/omamori", "Deployment/izakaya",
 		"Deployment/omikuji", "TLSRoute/omikuji-route",
+		"Deployment/isekai", "TLSRoute/isekai-route", "StatefulSet/onsen-backup",
+		"Secret/wg-onsen-backup-secret",
 		"Deployment/torii-public", "Deployment/dashboard",
 		"StatefulSet/mysql", "StatefulSet/ryokan", "StatefulSet/onsen", "StatefulSet/sakura",
 		"Issuer/ainari-ca-issuer", "Certificate/miko-cert", "TLSRoute/miko-route",
@@ -271,14 +281,15 @@ func TestRenderWireGuardMesh(t *testing.T) {
 	spec.Onsen.Replicas = 3
 	spec.Ryokan.Replicas = 2
 	spec.Sakura.Replicas = 4
+	spec.Isekai.BackupStorage.Replicas = 2
 	objects := renderObjects(t, spec)
 
 	// every pod gets its own address and lists the pods of the other side as peers
 	addresses := map[string]string{}
 	peersOf := map[string][]string{}
-	for _, component := range []string{"onsen", "ryokan", "sakura"} {
+	for _, component := range []string{"onsen", "ryokan", "sakura", "onsen-backup"} {
 		data := objects["Secret/wg-"+component+"-secret"].(*corev1.Secret).Data
-		replicas := map[string]int{"onsen": 3, "ryokan": 2, "sakura": 4}[component]
+		replicas := map[string]int{"onsen": 3, "ryokan": 2, "sakura": 4, "onsen-backup": 2}[component]
 		if len(data) != 2*replicas {
 			t.Fatalf("the secret of %s has %d keys instead of %d", component, len(data), 2*replicas)
 		}
@@ -312,9 +323,9 @@ func TestRenderWireGuardMesh(t *testing.T) {
 		seen[address] = pod
 	}
 
-	// onsen is connected with all others, ryokan and sakura only with onsen
+	// both onsen are connected with all others, ryokan and sakura only with both onsen
 	for pod, peers := range peersOf {
-		wantedPeers := 3
+		wantedPeers := 3 + 2
 		if strings.HasPrefix(pod, "onsen") {
 			wantedPeers = 2 + 4
 		}
@@ -330,7 +341,7 @@ func TestRenderWireGuardMesh(t *testing.T) {
 			if fields[1] != addresses[name]+"/32" {
 				t.Errorf("the peer %s of %s has the address %s instead of %s", name, pod, fields[1], addresses[name])
 			}
-			component := strings.Split(name, "-")[0]
+			component := name[:strings.LastIndex(name, "-")]
 			if want := fmt.Sprintf("%s.%s.test.svc.cluster.local:51820", name, component); fields[2] != want {
 				t.Errorf("the peer %s of %s has the endpoint %s instead of %s", name, pod, fields[2], want)
 			}
@@ -338,7 +349,7 @@ func TestRenderWireGuardMesh(t *testing.T) {
 	}
 
 	// every pod of the tunnel runs the sidecar, which keeps its peers in sync
-	for _, name := range []string{"onsen", "ryokan", "sakura"} {
+	for _, name := range []string{"onsen", "ryokan", "sakura", "onsen-backup"} {
 		template := objects["StatefulSet/"+name].(*appsv1.StatefulSet).Spec.Template
 		if !hasContainer(template.Spec.Containers, "wireguard-sync") {
 			t.Errorf("%s has no sidecar wireguard-sync", name)
@@ -434,5 +445,60 @@ func TestRenderOmikuji(t *testing.T) {
 		if !strings.Contains(config, wanted) {
 			t.Errorf("'%s' is missing in the config of omikuji:\n%s", wanted, config)
 		}
+	}
+}
+
+func TestRenderIsekai(t *testing.T) {
+	spec := testSpec()
+	spec.Global.WireGuard.Enabled = false
+	objects := renderObjects(t, spec)
+
+	// miko hands out the address of isekai to the clients and the other components
+	mikoConfig := objects["ConfigMap/miko-config"].(*corev1.ConfigMap).Data["miko.toml"]
+	if !strings.Contains(mikoConfig, "[endpoints.isekai]") ||
+		!strings.Contains(mikoConfig, `internal_address = "https://isekai-tls-service.test.svc.cluster.local:8443"`) {
+		t.Errorf("the endpoint of isekai is missing in the config of miko:\n%s", mikoConfig)
+	}
+
+	// isekai stores its jobs in its own database and uses the internal endpoints of miko
+	config := objects["ConfigMap/isekai-config"].(*corev1.ConfigMap).Data["isekai.toml"]
+	for _, wanted := range []string{
+		`database_type = "mysql"`, "internal_port = 10425", "[mysql]",
+		`internal_address = "https://miko-tls-service.test.svc.cluster.local:8443"`,
+		"number_of_workers = 4", "max_parallel_snapshots = 2",
+		"memory_kib = 65536", "iterations = 3", "parallelism = 4",
+	} {
+		if !strings.Contains(config, wanted) {
+			t.Errorf("'%s' is missing in the config of isekai:\n%s", wanted, config)
+		}
+	}
+	if _, ok := objects["Service/isekai-external"]; !ok {
+		t.Errorf("isekai has no external api")
+	}
+
+	// the backups are stored by their own onsen with its own volume and address
+	backups := objects["StatefulSet/onsen-backup"].(*appsv1.StatefulSet)
+	if *backups.Spec.Replicas != 1 || backups.Spec.ServiceName != "onsen-backup" {
+		t.Errorf("the onsen of the backups has %d replicas and the service %s",
+			*backups.Spec.Replicas, backups.Spec.ServiceName)
+	}
+	size := backups.Spec.VolumeClaimTemplates[0].Spec.Resources.Requests[corev1.ResourceStorage]
+	if size.String() != "10Gi" {
+		t.Errorf("the volume of the backups has the size %s instead of 10Gi", size.String())
+	}
+	if volume := backups.Spec.Template.Spec.Volumes[0]; volume.ConfigMap.Name != "onsen-backup-config" {
+		t.Errorf("the onsen of the backups uses the config %s", volume.ConfigMap.Name)
+	}
+	label := backups.Spec.Template.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchExpressions[0].Key
+	if label != "onsen-backup-node" {
+		t.Errorf("the onsen of the backups runs on the nodes with the label %s", label)
+	}
+	backupConfig := objects["ConfigMap/onsen-backup-config"].(*corev1.ConfigMap).Data["onsen.toml"]
+	if !strings.Contains(backupConfig, `address = "http://@HOSTNAME@.onsen-backup.test.svc.cluster.local:50051"`) {
+		t.Errorf("the onsen of the backups has the wrong address:\n%s", backupConfig)
+	}
+	onsenConfig := objects["ConfigMap/onsen-config"].(*corev1.ConfigMap).Data["onsen.toml"]
+	if !strings.Contains(onsenConfig, `address = "http://@HOSTNAME@.onsen.test.svc.cluster.local:50051"`) {
+		t.Errorf("onsen has the wrong address:\n%s", onsenConfig)
 	}
 }

@@ -109,7 +109,7 @@ if [ "$LOCAL" == true ]; then
     fi
     # The package refers to the names of docker-hub, so the local images get these names as well.
     # Zarf takes them from the local docker-daemon, because they don't exist on docker-hub.
-    for component in miko hanami ryokan omamori omikuji izakaya onsen sakura torii; do
+    for component in miko hanami ryokan omamori omikuji izakaya isekai onsen sakura torii; do
         docker tag "ainari/$component:local" "kitsudaiki/$component:local"
     done
     docker tag ainari/dashboard:local kitsudaiki/ainari_dashboard:local

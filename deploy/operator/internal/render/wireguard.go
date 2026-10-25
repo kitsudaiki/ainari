@@ -29,6 +29,8 @@ import (
 // The connections of ryokan and sakura to onsen run through a wireguard-tunnel. Every pod of
 // onsen, ryokan and sakura has its own key and address and every onsen is a peer of every ryokan
 // and every sakura, so ryokan and sakura reach every onsen and every onsen reaches every ryokan.
+// The onsen of the backups is connected like onsen, because sakura uploads the root-disks of the
+// backups into it and ryokan copies the images into and out of it.
 //
 // The component creates the interface at its start from '/etc/wireguard/wg0.conf', which only
 // contains the interface itself. The peers are added by the sidecar 'wireguard-sync', which
@@ -67,13 +69,13 @@ func (r *renderer) wireGuardEndpoint(member ainariv1alpha1.WireGuardMember) stri
 	return fmt.Sprintf("%s.%s.%s.svc.cluster.local:%d", member.PodName(), member.Component, r.Namespace, wireGuardPort)
 }
 
-// wireGuardConnected checks, if the pods of two components are peers of each other. Onsen is
-// connected with all other components, which are not connected with each other.
+// wireGuardConnected checks, if the pods of two components are peers of each other. Both onsen
+// are connected with all other components, which are not connected with each other.
 func wireGuardConnected(a, b string) bool {
-	return (a == "onsen") != (b == "onsen")
+	return ainariv1alpha1.IsOnsen(a) != ainariv1alpha1.IsOnsen(b)
 }
 
-// wireGuard returns the secrets with the wireguard-configs of onsen, ryokan and sakura and the
+// wireGuard returns the secrets with the wireguard-configs of both onsen, ryokan and sakura and the
 // script of the sidecar, which keeps the peers in sync.
 func (r *renderer) wireGuard() ([]client.Object, error) {
 	if !r.Spec.Global.WireGuard.Enabled {

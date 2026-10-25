@@ -66,8 +66,8 @@ These secrets are never overwritten, so no key or password, which data depends o
 
 An external mysql-server (`mysql.deploy: false`) already has its users, so its passwords are
 given with `mysql.credentialsSecret`, the name of a secret with the keys `miko_password`,
-`hanami_password`, `ryokan_password`, `omamori_password`, `izakaya_password` and
-`omikuji_password`.
+`hanami_password`, `ryokan_password`, `omamori_password`, `izakaya_password`,
+`omikuji_password` and `isekai_password`.
 
 The passphrase of the generated admin:
 
@@ -80,14 +80,35 @@ kubectl get secret -n ainari miko-admin -o jsonpath='{.data.passphrase}' | base6
 The connections of ryokan and sakura to onsen run through wireguard, if `global.wireguard` is
 enabled. The operator creates the keys and configs itself.
 
-- every pod of onsen, ryokan and sakura has its own key and address within `10.10.0.0/16`
-- every onsen is a peer of every ryokan and every sakura, so all of them reach every onsen and
-  every onsen reaches every ryokan, also with several replicas of each of them
+- every pod of onsen, `onsen-backup`, ryokan and sakura has its own key and address within
+  `10.10.0.0/16`
+- every onsen, also the one of the backups, is a peer of every ryokan and every sakura, so all of
+  them reach every onsen and every onsen reaches every ryokan, also with several replicas of each
+  of them
 - the peers are reached over the names of their pods, like
   `onsen-1.onsen.<namespace>.svc.cluster.local`, so onsen, ryokan and sakura run as statefulsets
 - every pod has the sidecar `wireguard-sync`, which keeps the peers of its interface in sync with
   the secret `wg-<component>-secret`, so a change of the number of replicas reaches the running
   pods without a restart
+
+## Backups
+
+Isekai backs up and restores virtual machines and whole projects. It runs with at most one
+replica, because it processes its jobs itself. The backups are stored by the statefulset
+`onsen-backup` (`isekai.backupStorage`), which uses the image of onsen and has its own volumes.
+Its pods register themselves at ryokan like every onsen, but ryokan only uses an onsen-host for
+backups, after an admin marked it as backup-target, and a marked host never gets normal images
+or snapshots. So the pods of `onsen-backup` have to be marked once after their first start, while
+they store nothing yet:
+
+```bash
+# the uuid of the onsen-host, whose name is the name of the pod, like 'onsen-backup-0'
+curl -H "Authorization: Bearer $TOKEN" https://<ryokan>/v1alpha/host/admin
+curl -X PUT -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+    -d '{"is_backup_target": true}' https://<ryokan>/v1alpha/host/<uuid>/backup_target/admin
+```
+
+The kind- and the vagrant-setup do this already.
 
 ## Development
 

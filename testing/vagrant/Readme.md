@@ -8,7 +8,8 @@ Starts the setup of `testing/vagrant`: nine virtual machines with nested virtual
 kubernetes-cluster (k3s), on which ansible installs the operator of `deploy/operator`, which deploys
 the stack of the `Ainari`-resource [ainari.yaml](ainari.yaml). Miko, hanami, ryokan, omamori,
 izakaya and omikuji run with one replica on each of the three management-machines and share the
-mysql-server on the machine `ainari-mysql`. The nix-based images, the same as the ones of the CI,
+mysql-server on the machine `ainari-mysql`. Isekai runs once and stores the backups on
+`onsen-backup`, which runs on one of the onsen-machines. The nix-based images, the same as the ones of the CI,
 are built with [build_local_images.sh](build_local_images.sh) on the host and copied into the
 virtual machines.
 The host reaches the floating ip-addresses over a route towards the virtual machine `ainari-torii`.

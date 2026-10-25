@@ -200,8 +200,10 @@ def mark_backup_target(context) -> dict:
         raise RuntimeError("at least 2 onsen-hosts are required, one for the images and one as "
                            "backup-target")
 
-    # the preferred host first, the others as fallback
-    hosts.sort(key=lambda host_data: host_data["host_address"] != BACKUP_ONSEN_ADDRESS)
+    # The onsen of the backups first, the others as fallback. In kubernetes it is named after its
+    # pod, like onsen-backup-0.
+    hosts.sort(key=lambda host_data: host_data["host_address"] != BACKUP_ONSEN_ADDRESS
+               and not host_data["name"].startswith("onsen-backup-"))
     for host_data in hosts:
         try:
             return host.set_onsen_host_backup_target(context, host_data["uuid"], True)

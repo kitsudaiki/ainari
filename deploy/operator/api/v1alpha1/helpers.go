@@ -38,6 +38,7 @@ func (d *MySQLDatabasesSpec) ByComponent() []ComponentDatabase {
 		{"omamori", &d.Omamori},
 		{"izakaya", &d.Izakaya},
 		{"omikuji", &d.Omikuji},
+		{"isekai", &d.Isekai},
 	}
 
 	databases := make([]ComponentDatabase, 0, len(specs))
@@ -73,8 +74,15 @@ func (m WireGuardMember) PodName() string {
 }
 
 // WireGuardComponents are the components, whose pods take part in the wireguard-tunnel, in a
-// fixed order.
-var WireGuardComponents = []string{"onsen", "ryokan", "sakura"}
+// fixed order. The order defines the addresses of the pods within the tunnel, so new components
+// are only appended.
+var WireGuardComponents = []string{"onsen", "ryokan", "sakura", "onsen-backup"}
+
+// IsOnsen checks, if a component stores files, which ryokan and sakura reach over the tunnel:
+// onsen itself and the onsen of the backups.
+func IsOnsen(component string) bool {
+	return component == "onsen" || component == "onsen-backup"
+}
 
 // WireGuardMembers returns all pods, which take part in the wireguard-tunnel, or nothing, if it
 // is disabled.
@@ -83,9 +91,10 @@ func (s *AinariSpec) WireGuardMembers() []WireGuardMember {
 		return nil
 	}
 	replicas := map[string]int32{
-		"onsen":  s.Onsen.Replicas,
-		"ryokan": s.Ryokan.Replicas,
-		"sakura": s.Sakura.Replicas,
+		"onsen":        s.Onsen.Replicas,
+		"ryokan":       s.Ryokan.Replicas,
+		"sakura":       s.Sakura.Replicas,
+		"onsen-backup": s.Isekai.BackupStorage.Replicas,
 	}
 
 	var members []WireGuardMember

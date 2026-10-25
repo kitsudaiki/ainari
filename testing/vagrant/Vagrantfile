@@ -17,12 +17,13 @@
 # ('make up vagrant'), which builds the images and the CA before.
 #
 #   ainari-mgmt-1    192.168.56.10   k3s-server and one replica of miko, hanami, ryokan, omamori,
-#                                    izakaya and omikuji
+#                                    izakaya and omikuji, isekai runs on one of the management-VMs
 #   ainari-mgmt-2    192.168.56.14   one replica of miko, hanami, ryokan, omamori, izakaya, omikuji
 #   ainari-mgmt-3    192.168.56.15   one replica of miko, hanami, ryokan, omamori, izakaya, omikuji
 #   ainari-mysql     192.168.56.16   the mysql-server, which all replicas share
 #   ainari-onsen     192.168.56.17   one onsen, which stores the images of the virtual machines
-#   ainari-onsen-2   192.168.56.18   the other onsen
+#   ainari-onsen-2   192.168.56.18   the other onsen, onsen-backup with the backups of isekai runs
+#                                    on one of both
 #   ainari-torii     192.168.56.11   the gateway at the edge of the network (torii-public)
 #   ainari-sakura-1  192.168.56.12   the first sakura-host with the torii in front of it
 #   ainari-sakura-2  192.168.56.13   the second sakura-host with the torii in front of it

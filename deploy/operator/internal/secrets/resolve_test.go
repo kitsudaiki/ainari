@@ -93,6 +93,7 @@ func TestResolveCreatesSecretsOnce(t *testing.T) {
 		MikoTokenKey, MikoAdminPassphrase, OmamoriEncryptionKey, MySQLRootPassword,
 		MySQLPassword(&ainari.Spec.MySQL, "izakaya"),
 		MySQLPassword(&ainari.Spec.MySQL, "omikuji"),
+		MySQLPassword(&ainari.Spec.MySQL, "isekai"),
 	} {
 		secret := getSecret(t, c, ref.Secret)
 		if len(secret.Data[ref.Key]) == 0 {

@@ -63,6 +63,16 @@ spec:
   izakaya:
     image: ainari/izakaya:local
 
+  # The onsen of the backups is marked as backup-target by testing/kind/setup_kind_stack.sh. The
+  # parameters of the key-derivation are the minimum, so the tests don't wait for it.
+  isekai:
+    image: ainari/isekai:local
+    publicAddress: https://127.0.0.1:11425
+    kdf:
+      memoryKiB: 19456
+      iterations: 2
+      parallelism: 1
+
   # two onsen, each with its own volume, which register themselves at ryokan with their own
   # address, so the images are spread over both
   onsen:

@@ -1,0 +1,24 @@
+debug = {{ .Spec.Global.Debug }}
+log_path = ""
+database_type = "mysql"
+skip_tls_verification = true
+
+{{ api "isekai" }}
+
+{{ mysql "isekai" }}
+
+# isekai also uses the internal endpoints of miko for the project-lock and the export and import
+# of the projects, which are served by the same tls-termination
+[miko]
+address = {{ quote mikoAddress }}
+internal_address = {{ quote mikoAddress }}
+
+[processing]
+number_of_workers = {{ .Spec.Isekai.Processing.NumberOfWorkers }}
+max_parallel_snapshots = {{ .Spec.Isekai.Processing.MaxParallelSnapshots }}
+
+# parameters of Argon2id, which derives the keys of a new backup from its passphrase
+[kdf]
+memory_kib = {{ .Spec.Isekai.KDF.MemoryKiB }}
+iterations = {{ .Spec.Isekai.KDF.Iterations }}
+parallelism = {{ .Spec.Isekai.KDF.Parallelism }}

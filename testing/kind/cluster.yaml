@@ -25,13 +25,14 @@ name: ainari
 nodes:
 - role: control-plane
   extraPortMappings:
-  # ryokan, miko, hanami, omamori and omikuji. The api of torii is only reachable within the
-  # cluster.
+  # ryokan, miko, hanami, omamori, omikuji and isekai. The api of torii is only reachable within
+  # the cluster.
   - {containerPort: 31416, hostPort: 11416, listenAddress: "127.0.0.1"}
   - {containerPort: 31417, hostPort: 11417, listenAddress: "127.0.0.1"}
   - {containerPort: 31418, hostPort: 11418, listenAddress: "127.0.0.1"}
   - {containerPort: 31421, hostPort: 11421, listenAddress: "127.0.0.1"}
   - {containerPort: 31424, hostPort: 11424, listenAddress: "127.0.0.1"}
+  - {containerPort: 31425, hostPort: 11425, listenAddress: "127.0.0.1"}
   # dashboard
   - {containerPort: 31422, hostPort: 11422, listenAddress: "127.0.0.1"}
   # proxies of torii, which make the api of the sakura-hosts reachable from the host. All proxies

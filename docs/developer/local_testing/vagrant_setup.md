@@ -145,6 +145,7 @@ The api is reachable on the host at:
 | hanami    | `https://192.168.56.10:11418` |
 | ryokan    | `https://192.168.56.10:11416` |
 | omamori   | `https://192.168.56.10:11421` |
+| isekai    | `https://192.168.56.10:11425` |
 | dashboard | `https://192.168.56.10:11422` |
 
 The api of torii is only reachable within the cluster. The virtual machines and their sakura-hosts

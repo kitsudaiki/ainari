@@ -49,6 +49,7 @@ var ports = map[string]apiPorts{
 	"omamori": {Internal: 10421, Public: 11421},
 	"izakaya": {Internal: 10423, Public: 11423},
 	"omikuji": {Internal: 10424, Public: 11424},
+	"isekai":  {Internal: 10425, Public: 11425},
 }
 
 // dashboardPort is the published port of the dashboard.
@@ -99,6 +100,8 @@ func (r *renderer) publicAPI(name string) (domain, address string) {
 		return r.Spec.Omamori.Domain, r.Spec.Omamori.PublicAddress
 	case "omikuji":
 		return r.Spec.Omikuji.Domain, r.Spec.Omikuji.PublicAddress
+	case "isekai":
+		return r.Spec.Isekai.Domain, r.Spec.Isekai.PublicAddress
 	case "torii":
 		return r.Spec.Torii.Domain, r.Spec.Torii.PublicAddress
 	default:

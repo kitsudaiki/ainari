@@ -7,7 +7,7 @@ skip_tls_verification = true
 address = "http://@WIREGUARD_ADDRESS@:50051"
 {{- else }}
 # @HOSTNAME@ is replaced by the name of the pod, when it starts
-address = "http://@HOSTNAME@.onsen.{{ .Namespace }}.svc.cluster.local:50051"
+address = "http://@HOSTNAME@.{{ .Service }}.{{ .Namespace }}.svc.cluster.local:50051"
 {{- end }}
 
 [storage]
