@@ -599,7 +599,13 @@ export type TaskType =
     | "SnapshotRestore"
     | "VirtualMachineStart"
     | "VirtualMachineStop"
-    | "VirtualMachineReboot";
+    | "VirtualMachineReboot"
+    | "MigrationPrepare"
+    | "MigrationImport"
+    | "MigrationRemove"
+    | "MigrationCancel"
+    | "BackupSave"
+    | "BackupRestore";
 
 /** Mirror of `task_structs::TaskState`. */
 export type TaskState =

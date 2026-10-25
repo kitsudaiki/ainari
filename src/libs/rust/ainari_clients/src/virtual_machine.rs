@@ -18,7 +18,7 @@ use awc::http::StatusCode;
 use uuid::Uuid;
 
 use ainari_api_structs::task_structs::{
-    TaskBackupSaveReq, TaskResp, TaskSnapshotRestoreReq, VirtualMachineCreateTaskReq,
+    TaskBackupRestoreReq, TaskBackupSaveReq, TaskResp, VirtualMachineCreateTaskReq,
 };
 use ainari_api_structs::virtual_machine_structs::*;
 use ainari_common::config as ainari_config;
@@ -464,45 +464,39 @@ pub async fn create_virtual_machine_task(
     .await
 }
 
-/// Creates a task on the sakura-host, which replaces the root-disk of a virtual_machine with a
-/// snapshot.
-///
-/// The internal API key is sent as well, so the restore also works, while the project is locked
-/// by a restore.
+/// Creates a task on the sakura-host, which replaces the root-disk of a virtual_machine with the
+/// root-disk of a backup, which was registered as snapshot-image before.
 ///
 /// # Arguments
 ///
 /// * `sakura_address` - Internal address of the sakura-host, which runs the virtual_machine
 /// * `token` - The authentication token for the API
-/// * `internal_api_key` - The internal API key of the calling component
+/// * `internal_api_key` - The internal API key for accessing protected endpoints
 /// * `virtual_machine_uuid` - The virtual_machine, whose root-disk is replaced
-/// * `image_uuid` - The snapshot, which replaces the root-disk
+/// * `request` - The backup and the snapshot-image with its root-disk
 /// * `insecure_client` - Whether to use an insecure (HTTP) client instead of HTTPS
 ///
 /// # Returns
 ///
 /// A `Result` containing the new task, which can be polled, or an `AinariError`.
-pub async fn restore_virtual_machine_snapshot(
+pub async fn restore_virtual_machine_from_backup(
     sakura_address: &str,
     token: &String,
     internal_api_key: &Secret,
     virtual_machine_uuid: &Uuid,
-    image_uuid: &Uuid,
+    request: &TaskBackupRestoreReq,
     insecure_client: bool,
 ) -> Result<TaskResp, AinariError> {
     let client = prepare_client(sakura_address, insecure_client);
-    let url =
-        format!("{sakura_address}/v1alpha/virtual_machine/{virtual_machine_uuid}/snapshot_restore");
-
-    let body = TaskSnapshotRestoreReq {
-        image_uuid: *image_uuid,
-    };
+    let url = format!(
+        "{sakura_address}/v1alpha/virtual_machine/{virtual_machine_uuid}/backup_restore/internal"
+    );
 
     let response = client
         .post(url)
         .insert_header(("Authorization", format!("Bearer {}", token)))
         .insert_header(("X-Internal-API-Key", internal_api_key.reveal()))
-        .send_json(&body)
+        .send_json(request)
         .await;
 
     handle_response(

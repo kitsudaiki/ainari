@@ -59,7 +59,7 @@ pub async fn backup_virtual_machine_internal(
         .map_err(|e| ErrorResponse::BadRequest(format!("Invalid input: {e}")))?;
 
     let task_uuid = Uuid::new_v4();
-    let task_type = TaskType::SnapshotSave;
+    let task_type = TaskType::BackupSave;
 
     let virtual_machine_data = virtual_machine_table::get_virtual_machine(
         &virtual_machine_uuid,

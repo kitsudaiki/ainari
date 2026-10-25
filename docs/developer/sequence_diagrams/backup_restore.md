@@ -234,8 +234,8 @@ sequenceDiagram
     J->>R: POST /project/{project_id}/import/internal<br/>{snapshot-image at the location of the copy}
     alt the VM exists with the same disk-size and is overwritten
         J->>H: GET /virtual_machine/{uuid}/host/internal
-        J->>S: POST snapshot-restore of the VM {image_uuid}
-        S->>S: replace the root-disk with the snapshot
+        J->>S: POST /virtual_machine/{uuid}/backup_restore/internal<br/>{backup_uuid, image_uuid}
+        S->>S: task BackupRestore: replace the root-disk<br/>with the snapshot
     else new VM, or other disk-size (deleted before)
         J->>H: POST /v1alpha/virtual_machine/internal<br/>{uuid, cores, memory, disk_size, network,<br/>internal_ip, mac_address}
         alt UUID or addresses are taken

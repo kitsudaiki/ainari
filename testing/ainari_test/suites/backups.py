@@ -35,6 +35,7 @@ from ainari_sdk import network
 from ainari_sdk import project
 from ainari_sdk import public_key
 from ainari_sdk import secret
+from ainari_sdk import task
 from ainari_sdk import virtual_machine
 
 from ainari_test.checks import (CheckFailed, SkipTest, check, check_equal, check_in, check_not_in,
@@ -149,6 +150,18 @@ def register_unlock(ctx, project_id: str) -> str:
     return key
 
 
+def check_backup_task(ctx, entry: dict, task_type: str, backup_uuid: str):
+    """
+    Checks, that the sakura-host of the virtual machine has a finished task of the given type for
+    the backup, so the tasks of the virtual machine show, that it was saved or restored by a backup.
+    """
+    tasks = [item for item in task.list_tasks(ctx.api, entry["torii_address"])["tasks"]
+             if item["task_type"] == task_type and backup_uuid in item["description"]
+             and entry["uuid"] in item["description"]]
+    check(tasks, f"no task {task_type} of backup {backup_uuid} for {entry['name']}")
+    check_equal(tasks[0]["state"], "Finished", f"state of the task {task_type}")
+
+
 def check_unlocked(ctx, project_id: str, what: str):
     check_equal(project.get_project(ctx.api, project_id).get("lock"), None,
                 f"lock of the project {what}")
@@ -248,6 +261,7 @@ def create_vm_backup(ctx):
     check(data["total_size"] and data["total_size"] > 0,
           f"size of the backup is {data['total_size']}")
     ctx.log(f"backup {backup_uuid}: {data['file_count']} files, {data['total_size']} bytes")
+    check_backup_task(ctx, entry, "BackupSave", backup_uuid)
     ctx.state["vm_backup"] = backup_uuid
     ctx.state["vm_backup_job"] = result["job"]["uuid"]
 
@@ -392,6 +406,7 @@ def restore_with_force(ctx):
     ctx.cleanup.discard(lock_key)
     check_equal(job["job_type"], "RESTORE", "type of the job")
     check_equal(job["id_map"], [], "id-map of the restore with force")
+    check_backup_task(ctx, entry, "BackupRestore", ctx.state["vm_backup"])
 
     data = wait_for_vm_state(ctx.api, entry["uuid"], "RUNNING", ctx.config.task_timeout)
     check_equal(data["internal_ip"], entry["internal_ip"], "internal ip after the restore")

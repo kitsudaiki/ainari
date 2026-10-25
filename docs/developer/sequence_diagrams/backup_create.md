@@ -232,8 +232,9 @@ sequenceDiagram
     end
 ```
 
-The backup-task is a task of the virtual machine, like a snapshot, so it runs after the tasks,
-which were queued before, and no other task of the virtual machine runs at the same time. The disk
+The backup-task is a task of the virtual machine with the type `BackupSave`. It works like a
+snapshot, so it runs after the tasks, which were queued before, and no other task of the virtual
+machine runs at the same time. The disk
 is never registered as image in ryokan, it only exists within the package.
 
 Without `stop_vms` the virtual machines are only paused, while their disk is copied. The backup is

@@ -15,6 +15,7 @@
 use std::time::{Duration, Instant};
 use uuid::Uuid;
 
+use ainari_api_structs::task_structs::TaskBackupRestoreReq;
 use ainari_api_structs::virtual_machine_structs::{
     HanamiVirtualMachineExport, VirtualMachineReserveInternalReq,
 };
@@ -22,8 +23,8 @@ use ainari_clients::image::delete_image;
 use ainari_clients::network::export_project_networks;
 use ainari_clients::virtual_machine::{
     create_virtual_machine_task, delete_virtual_machine_in_hanami, get_virtual_machine_host,
-    is_virtual_machine_deleted, reserve_virtual_machine_internal, restore_virtual_machine_snapshot,
-    stop_virtual_machine_task,
+    is_virtual_machine_deleted, reserve_virtual_machine_internal,
+    restore_virtual_machine_from_backup, stop_virtual_machine_task,
 };
 use ainari_common::error::AinariError;
 
@@ -202,12 +203,16 @@ impl<'a> Restorer<'a> {
             self.services.insecure(),
         )
         .await?;
-        let task = restore_virtual_machine_snapshot(
+        let request = TaskBackupRestoreReq {
+            backup_uuid: self.job.backup_uuid,
+            image_uuid: *image_uuid,
+        };
+        let task = restore_virtual_machine_from_backup(
             &host.address,
             &self.services.token,
             self.services.key(),
             &existing.uuid,
-            image_uuid,
+            &request,
             self.services.insecure(),
         )
         .await?;

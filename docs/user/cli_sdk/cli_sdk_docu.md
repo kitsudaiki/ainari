@@ -1074,7 +1074,10 @@ Actions, which take longer, run as tasks in the background on the sakura-host of
 the creation, start, stop and reboot of virtual machines and the snapshots. The steps of a
 [migration](#migrate-virtual-machine) on the old and the new host are tasks as well
 (`MigrationPrepare`, `MigrationImport`, `MigrationRemove` and `MigrationCancel`), which are started
-by hanami. The `STATE` of a task
+by hanami. Saving the root-disk of a virtual machine into a [backup](#backups) and restoring it
+from a backup are the tasks `BackupSave` and `BackupRestore`, which are started by isekai. A
+virtual machine, which is created again by a restore, gets a `VirtualMachineCreate`-task. The
+`STATE` of a task
 is one of `Created`, `Queued`, `Active`, `Finished`, `Aborted` or `Error`. In case of an error,
 the reason is listed in `MESSAGES`.
 

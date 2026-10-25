@@ -20,6 +20,7 @@ pub mod get_virtual_machine_internal_v1_0;
 pub mod list_virtual_machine_internal_v1_0;
 pub mod reboot_virtual_machine_v1_0;
 pub mod reserve_virtual_machine_internal_v1_0;
+pub mod restore_backup_disk_internal_v1_0;
 pub mod snapshot_restore_v1_0;
 pub mod snapshot_save_v1_0;
 pub mod start_virtual_machine_v1_0;
