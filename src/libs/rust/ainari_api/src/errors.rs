@@ -48,6 +48,8 @@ pub enum ErrorResponse {
     Gone(String),
     PreconditionFailed(String),
     PayloadTooLarge(String),
+    /// The project of the request is locked by a backup or restore, so it can only be read
+    Locked(String),
     InternalError(String),
 }
 
@@ -66,6 +68,7 @@ impl Debug for ErrorResponse {
             | ErrorResponse::Gone(str)
             | ErrorResponse::PreconditionFailed(str)
             | ErrorResponse::PayloadTooLarge(str)
+            | ErrorResponse::Locked(str)
             | ErrorResponse::InternalError(str) => {
                 write!(f, "{str}")
             }
@@ -88,6 +91,7 @@ impl Display for ErrorResponse {
             | ErrorResponse::Gone(str)
             | ErrorResponse::PreconditionFailed(str)
             | ErrorResponse::PayloadTooLarge(str)
+            | ErrorResponse::Locked(str)
             | ErrorResponse::InternalError(str) => {
                 write!(f, "{str}")
             }
@@ -112,6 +116,7 @@ impl ResponseError for ErrorResponse {
             ErrorResponse::Gone(_) => StatusCode::GONE,
             ErrorResponse::PreconditionFailed(_) => StatusCode::PRECONDITION_FAILED,
             ErrorResponse::PayloadTooLarge(_) => StatusCode::PAYLOAD_TOO_LARGE,
+            ErrorResponse::Locked(_) => StatusCode::LOCKED,
             ErrorResponse::InternalError(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }

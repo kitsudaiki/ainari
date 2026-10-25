@@ -73,9 +73,11 @@ pub async fn create_project_admin(
     let project = project_table::get_project(project_id, &context)
         .map_err(|e| map_db_id_get_after_add_error("project", project_id, e, Some(&context)))?;
 
+    let lock = super::lock_of(&project, &context)?;
     let resp = ProjectResp {
         id: project.id,
         name: project.name,
+        lock,
         created_by: project.created_by,
         created_at: project.created_at,
         updated_by: project.updated_by,

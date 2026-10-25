@@ -19,4 +19,95 @@ pub mod get_project_admin_v1_0;
 pub mod list_project_admin_v1_0;
 pub mod list_users_in_project_admin_v1_0;
 pub mod list_users_in_project_v1_0;
+pub mod lock_project_admin_v1_0;
+pub mod lock_project_internal_v1_0;
 pub mod remove_user_from_project_admin_v1_0;
+pub mod unlock_project_admin_v1_0;
+pub mod unlock_project_internal_v1_0;
+
+use crate::database::project_table::{self, ProjectEntry};
+
+use ainari_api::common_functions::*;
+use ainari_api::errors::ErrorResponse;
+use ainari_api_structs::project_structs::{ProjectLock, ProjectLockResp};
+use ainari_api_structs::user_context::UserContext;
+
+/// Returns the lock of a project from the database as value of the api.
+///
+/// # Arguments
+///
+/// * `project` - The project from the database
+/// * `context` - User-context of the request
+///
+/// # Returns
+///
+/// * `Ok(Option<ProjectLock>)` - The lock, or None, if the project is not locked
+/// * `Err(ErrorResponse::InternalError)` - The database contains an invalid lock
+fn lock_of(
+    project: &ProjectEntry,
+    context: &UserContext,
+) -> Result<Option<ProjectLock>, ErrorResponse> {
+    project_table::lock_of(project).map_err(|e| {
+        ainari_api::report_internal_error!(Some(context), "{e}");
+        ErrorResponse::InternalError("Internal Error".to_string())
+    })
+}
+
+/// Returns the current lock of a project as response of the api.
+///
+/// # Arguments
+///
+/// * `project_id` - The ID of the project
+/// * `context` - User-context of the request
+///
+/// # Returns
+///
+/// * `Ok(ProjectLockResp)` - The lock of the project
+/// * `Err(ErrorResponse)` - The project doesn't exist or the database failed
+fn lock_resp(project_id: &String, context: &UserContext) -> Result<ProjectLockResp, ErrorResponse> {
+    let project = project_table::get_auth_project(project_id)
+        .map_err(|e| map_db_id_get_delete_error("project", project_id, e, Some(context)))?;
+    Ok(ProjectLockResp {
+        project_id: project_id.clone(),
+        lock: lock_of(&project, context)?,
+    })
+}
+
+/// Checks, that the user is allowed to lock or unlock a project. Admins can lock every project,
+/// all other users only the project of their token.
+///
+/// # Arguments
+///
+/// * `project_id` - The ID of the project
+/// * `context` - User-context of the request
+///
+/// # Returns
+///
+/// * `Ok(())` - The user is allowed
+/// * `Err(ErrorResponse::Forbidden)` - The project is not the one of the user
+fn check_project_access(project_id: &str, context: &UserContext) -> Result<(), ErrorResponse> {
+    if context.is_admin != true.to_string() && context.project_id != project_id {
+        return Err(permission_denied_response());
+    }
+    Ok(())
+}
+
+/// Checks, that a job doesn't use the nil-UUID, which marks the lock of an admin.
+///
+/// # Arguments
+///
+/// * `job_uuid` - The UUID of the job
+///
+/// # Returns
+///
+/// * `Ok(())` - The UUID can be used by a job
+/// * `Err(ErrorResponse::BadRequest)` - The UUID is the nil-UUID
+fn check_job_uuid(job_uuid: &uuid::Uuid) -> Result<(), ErrorResponse> {
+    if job_uuid.is_nil() {
+        return Err(ErrorResponse::BadRequest(
+            "The nil-UUID is reserved for the lock of an admin and can't be used by a job."
+                .to_string(),
+        ));
+    }
+    Ok(())
+}

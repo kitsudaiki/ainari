@@ -201,7 +201,7 @@ onsen about the bundles, so isekai doesn't need a wireguard-tunnel):
 - `get_endpoints` gets the address of isekai (`EndpointsResp.isekai`).
 - **Project-lock**:
     - `project_table`: new nullable columns `locked_by_job` (UUID of the backup- or restore-job),
-      `lock_reason` (`BACKUP` | `RESTORE`) and `locked_at`.
+      `lock_reason` (free text, like the running backup or restore) and `locked_at`.
     - `POST   /v1alpha/project/{project_id}/lock/internal` `{ job_uuid, reason }` – sets the lock.
       Rejected with `409`, if the project is already locked, so two backups/restores of the same
       project can't run at the same time.
@@ -209,12 +209,31 @@ onsen about the bundles, so isekai doesn't need a wireguard-tunnel):
       with the same job-UUID.
     - `DELETE /v1alpha/project/{project_id}/lock/admin` – manual unlock by a global admin, e.g.
       after a failed restore.
-    - `validate_token` returns the lock-state of the project in the `UserContext`
-      (`project_locked: bool`).
+    - `POST   /v1alpha/project/{project_id}/lock/admin` `{ reason }` – manual lock by a global
+      admin, e.g. for maintenance, with a description of the admin as reason. The lock gets the
+      nil-UUID as `locked_by_job`. The
+      internal lock-endpoints reject the nil-UUID with `400`, so no backup or restore can take
+      over or remove the lock, only `DELETE lock/admin`. Rejected with `409`, if the project is
+      already locked by a backup or restore; locking it again as admin is accepted.
+    - `validate_token` returns the lock-state of the project of the token as
+      `project_locked: bool` in its response (`UserTokenValidateResp`), next to the `UserContext`.
+      It is not part of the `UserContext`, because the services read the context from the token
+      itself, which doesn't change, while the lock does. Only the auth-middleware uses the flag.
+    - The lock-endpoints are internal, so they are only reachable over the internal address of
+      miko. The other components only know its public address so far, so isekai gets the internal
+      address of miko in its config.
+    - A locked project can't be deleted by `delete_project_admin` (`409`).
+    - `get_project_admin` / `create_project_admin` show the lock (`ProjectResp.lock`).
 - `ainari_api` (auth-middleware, shared by all services): requests with a method other than
   `GET` to a locked project are rejected with `423 Locked`. Requests with the internal API-key
   (from isekai and between the components during the restore) are not blocked. This way the
   lock is checked in one central place and doesn't have to be implemented in every endpoint.
+  `GET`, `HEAD` and `OPTIONS` count as reading requests. The clients map `423` to `Conflict`.
+  Miko itself is not blocked, because its own middleware handles only the user- and
+  admin-management, and a user must still be able to renew the token or change the passphrase.
+- Calls of the components between each other, which don't go to internal endpoints, send the
+  internal API-key as well, so they keep working during a lock (e.g. sakura deleting the image of
+  a failed snapshot over `image::delete_image`).
 
 ### 4.5 omamori
 
@@ -267,7 +286,8 @@ src/binaries/isekai/
 ├── Cargo.toml
 └── src/
     ├── main.rs
-    ├── config.rs                # miko-endpoint, database, internal api-key, worker-count,
+    ├── config.rs                # miko-endpoint (public and internal address), database,
+    │                            # internal api-key, worker-count,
     │                            # argon2-parameters, max parallel snapshots
     ├── api/
     │   ├── http_server.rs
@@ -303,12 +323,13 @@ restore-job the project stays locked (see 5.3).
 1. `POST /v1alpha/backup` `{ name, passphrase, stop_vms, include_images }` → check permission
    (project-admin or global admin), create a job and the backup-resource in ryokan
    (`POST backup/internal`, state `CREATING`), which selects the backup-target.
-2. **Lock** the project in miko with the UUID of the job (`lock/internal`, reason `BACKUP`). If
-   the project is already locked (other backup or restore running), the backup is rejected with
-   `409`. From now on no resources can be created, changed or deleted in the project, so the
-   set of VMs, images, secrets, networks, … can't change between the snapshots and the
-   collection of the metadata. Power-actions of the users (start/stop/reboot) are blocked too.
-   Only isekai itself (internal API-key) can stop/start the VMs for `stop_vms`.
+2. **Lock** the project in miko with the UUID of the job (`lock/internal`, with a reason like
+   `backup <backup_uuid>`). If the project is already locked (other backup or restore running, or
+   locked by an admin), the backup is rejected with `409`. From now on no resources can be
+   created, changed or deleted in the project, so the set of VMs, images, secrets, networks, …
+   can't change between the snapshots and the collection of the metadata. Power-actions of the
+   users (start/stop/reboot) are blocked too. Only isekai itself (internal API-key) can
+   stop/start the VMs for `stop_vms`.
 3. Derive the keys from the passphrase (Argon2id, random salt). Keep the passphrase/keys only in
    memory of the job.
 4. For every VM of the project: generate a secret in omamori (`owned_by = "backup"`), then
@@ -367,8 +388,9 @@ the VM, which belong to the project. Because only one disk is copied, this lock 
      contain remapped resources and the result would not be the state of the backup.
    - Floating IPs: always newly allocated. Quotas are checked before starting.
 3. **Lock**: create the project in miko if it doesn't exist yet and lock it with the UUID of the
-   job (`lock/internal`, reason `RESTORE`). If the project is already locked (other backup or
-   restore running), the restore is rejected with `409`.
+   job (`lock/internal`, with a reason like `restore of backup <backup_uuid>`). If the project is
+   already locked (other backup or restore running, or locked by an admin), the restore is
+   rejected with `409`.
    From now on users can only read the project.
 4. **Prune** (only with `prune=true`): delete the resources from the plan in the reverse order of
    the dependencies (floating-ips → network-filters → VMs → vm-types → networks → images →
@@ -422,7 +444,7 @@ the VM, which belong to the project. Because only one disk is copied, this lock 
 | restore into the existing project          | project-admin                                                                |
 | restore, which creates a new project       | global admin                                                                 |
 | `force`, `prune`                           | project-admin for its own project, global admin otherwise                    |
-| manual unlock of a project                 | global admin                                                                 |
+| manual lock / unlock of a project          | global admin                                                                 |
 | scan / import of foreign bundles, backup-targets | global admin                                                           |
 
 Isekai uses the token of the user for all calls, like sakura does for the snapshot. The internal
@@ -508,8 +530,8 @@ Each phase is **exactly one commit**, which can be reviewed on its own. Rules fo
 
 | #   | Commit                                                      | Content                                                                                                                                               |
 | --- | ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| C1  | `feat(miko): add lock of projects`                          | Columns `locked_by_job`, `lock_reason`, `locked_at` + migration; `POST/DELETE lock/internal`, `DELETE lock/admin`; `409` on double lock.             |
-| C2  | `feat(miko): return lock-state in token-validation`         | `project_locked` in the response of `validate_token` and in `UserContext`. Only informative, nothing is blocked yet.                                  |
+| C1  | `feat(miko): add lock of projects`                          | Columns `locked_by_job`, `lock_reason`, `locked_at` + migration; `POST/DELETE lock/internal`, `POST/DELETE lock/admin`; `409` on double lock.        |
+| C2  | `feat(miko): return lock-state in token-validation`         | `project_locked` in the response of `validate_token` (next to the `UserContext`). Only informative, nothing is blocked yet.                           |
 | C3  | `feat(ainari_api): reject writes to locked projects`        | Auth-middleware: non-`GET` requests of a locked project → `423`, internal API-key passes. Unit-tests of the middleware. From now on the lock is active in all services. |
 
 ### Block D – export/import of the components

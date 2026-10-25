@@ -446,6 +446,7 @@ async fn remove_failed_snapshot_image(image_uuid: &Uuid, context: &UserContext) 
         delete_image(
             &endpoints.ryokan,
             &context.token,
+            &config::INTERNAL_API_KEY,
             image_uuid,
             config::CONFIG.skip_tls_verification,
         )

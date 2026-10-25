@@ -56,6 +56,11 @@ pub struct OAuth2Request {
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
 pub struct UserTokenValidateResp {
     pub context: UserContext,
+    /// true, if the project of the token is locked by a backup or restore, so the user can only
+    /// read its resources. It is not part of the token itself, because the lock changes, while the
+    /// token is valid.
+    #[serde(default)]
+    pub project_locked: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]

@@ -18,6 +18,7 @@ use apistos::ApiComponent;
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 use validator::Validate;
 
 use ainari_common::enums::ProjectRole;
@@ -34,6 +35,9 @@ pub struct ProjectCreateReq {
 pub struct ProjectResp {
     pub id: String,
     pub name: String,
+    /// lock of the project during a backup or restore, None if the project is not locked
+    #[serde(default)]
+    pub lock: Option<ProjectLock>,
     pub created_at: DateTime<Utc>,
     pub created_by: String,
     pub updated_at: DateTime<Utc>,
@@ -97,4 +101,42 @@ pub struct ProjectRemoveUserReq {
 pub struct ProjectResourceCountInternalResp {
     /// number of the existing resources of the project, by the type of the resource
     pub resource_counts: BTreeMap<String, i64>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
+pub struct ProjectLockReq {
+    /// job, which locks the project. Only this job can remove the lock again.
+    pub job_uuid: Uuid,
+    /// description, why the project is locked, like the backup or restore, which is running
+    #[validate(length(min = 1, max = 4096))]
+    pub reason: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
+pub struct ProjectLockAdminReq {
+    /// description, why the admin has locked the project
+    #[validate(length(min = 1, max = 4096))]
+    pub reason: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
+pub struct ProjectUnlockReq {
+    /// job, which has locked the project
+    pub job_uuid: Uuid,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, ApiComponent)]
+pub struct ProjectLock {
+    /// job, which has locked the project
+    pub locked_by_job: Uuid,
+    /// description, why the project is locked
+    pub lock_reason: String,
+    pub locked_at: DateTime<Utc>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
+pub struct ProjectLockResp {
+    pub project_id: String,
+    /// lock of the project, None if the project is not locked
+    pub lock: Option<ProjectLock>,
 }

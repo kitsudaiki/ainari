@@ -170,10 +170,14 @@ pub async fn update_image_status(
 
 /// Deletes an existing image in ryokan, together with its file in the onsen and its secret
 ///
+/// The internal API-key marks the request as one of another component, so it is also accepted,
+/// while the project is locked by a backup or restore.
+///
 /// # Arguments
 ///
 /// * `ryokan_endpoint` - The endpoint configuration for the Ryokan service
 /// * `token` - The authentication token for the API request
+/// * `internal_api_key` - The internal API key of the calling component
 /// * `image_uuid` - The UUID of the image to delete
 /// * `insecure_client` - Whether to create an insecure HTTP client (for testing purposes)
 ///
@@ -183,6 +187,7 @@ pub async fn update_image_status(
 pub async fn delete_image(
     ryokan_endpoint: &ainari_config::Endpoint,
     token: &String,
+    internal_api_key: &Secret,
     image_uuid: &Uuid,
     insecure_client: bool,
 ) -> Result<(), AinariError> {
@@ -193,6 +198,7 @@ pub async fn delete_image(
     let response = client
         .delete(url)
         .insert_header(("Authorization", format!("Bearer {}", token)))
+        .insert_header(("X-Internal-API-Key", internal_api_key.reveal()))
         .send()
         .await;
 
