@@ -26,3 +26,5 @@ class AccessContext:
     verify_connection: bool = True
     # omikuji is optional, so it is empty, if it is not deployed
     omikuji_address: str = ""
+    # isekai is optional, so it is empty, if it is not deployed
+    isekai_address: str = ""

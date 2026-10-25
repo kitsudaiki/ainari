@@ -88,6 +88,24 @@ def list_onsen_hosts(context: AccessContext) -> dict:
                                            "")
 
 
+def set_onsen_host_backup_target(context: AccessContext,
+                                 host_uuid: str,
+                                 is_backup_target: bool) -> dict:
+    """
+    Sets, if an onsen-host is a backup-target, which only stores the backups of isekai and never
+    normal images or snapshots. A host can only be marked, while no images or snapshots are stored
+    on it, and only be unmarked, while no backups are stored on it.
+    """
+    path = f"/v1alpha/host/{host_uuid}/backup_target/admin"
+    json_body = {
+        "is_backup_target": is_backup_target,
+    }
+    return ainari_request.send_put_request(context,
+                                           context.ryokan_adress,
+                                           path,
+                                           json_body)
+
+
 def delete_onsen_host(context: AccessContext,
                       host_uuid: str):
     path = f"/v1alpha/host/{host_uuid}/admin"

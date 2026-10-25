@@ -65,6 +65,17 @@ func ListOnsenHost(context AccessContext) (map[string]interface{}, error) {
 	return SendGet(context, context.RyokanAddress, path, vars)
 }
 
+// SetOnsenHostBackupTarget sets, if an onsen-host is a backup-target, which only stores the
+// backups of isekai and never normal images or snapshots. A host can only be marked, while no
+// images or snapshots are stored on it, and only be unmarked, while no backups are stored on it.
+func SetOnsenHostBackupTarget(context AccessContext, hostId string, isBackupTarget bool) (map[string]interface{}, error) {
+	path := fmt.Sprintf("v1alpha/host/%s/backup_target/admin", hostId)
+	jsonBody := map[string]interface{}{
+		"is_backup_target": isBackupTarget,
+	}
+	return SendPut(context, context.RyokanAddress, path, jsonBody)
+}
+
 func DeleteOnsenHost(context AccessContext, hostId string) (map[string]interface{}, error) {
 	path := fmt.Sprintf("v1alpha/host/%s/admin", hostId)
 	vars := map[string]interface{}{}

@@ -37,6 +37,7 @@ def _handle_response(response) -> str:
         ainari_exceptions.ForbiddenException: If the response status code is 403.
         ainari_exceptions.NotFoundException: If the response status code is 404.
         ainari_exceptions.ConflictException: If the response status code is 409.
+        ainari_exceptions.LockedException: If the response status code is 423.
         ainari_exceptions.InternalServerErrorException: If the response status code is 500.
     """
     if response.status_code >= 200 and response.status_code < 300:
@@ -54,6 +55,8 @@ def _handle_response(response) -> str:
         raise ainari_exceptions.NotFoundException(response.content)
     if response.status_code == 409:
         raise ainari_exceptions.ConflictException(response.content)
+    if response.status_code == 423:
+        raise ainari_exceptions.LockedException(response.content)
     if response.status_code == 500:
         raise ainari_exceptions.InternalServerErrorException()
 
