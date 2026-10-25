@@ -46,7 +46,7 @@ pub async fn unlock_project_internal(
     body: Json<ProjectUnlockReq>,
     context: UserContext,
 ) -> Result<Json<ProjectLockResp>, ErrorResponse> {
-    super::check_project_access(&project_id, &context)?;
+    check_project_access(&project_id, &context)?;
     super::check_job_uuid(&body.job_uuid)?;
 
     let result = project_table::unlock_project(&project_id, Some(&body.job_uuid), &context)

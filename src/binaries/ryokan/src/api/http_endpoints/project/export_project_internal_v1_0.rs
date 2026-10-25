@@ -43,7 +43,7 @@ pub async fn export_project_internal(
     project_id: Path<String>,
     context: UserContext,
 ) -> Result<Json<RyokanProjectExport>, ErrorResponse> {
-    super::check_project_access(&project_id, &context)?;
+    check_project_access(&project_id, &context)?;
 
     let images = image_table::list_ready_images_of_project(&project_id)
         .map_err(|e| map_db_list_error("images", e, Some(&context)))?;

@@ -50,6 +50,10 @@ pub fn v1alpha_routes() -> Scope {
                     resource("/count")
                         .route(get().to(get_virtual_machine_count_v1_0::get_virtual_machine_count)),
                 )
+                // registered before "/{virtual_machine_uuid}", which would match it as well
+                .service(resource("/internal").route(
+                    post().to(reserve_virtual_machine_internal_v1_0::reserve_virtual_machine_internal),
+                ))
                 .service(
                     resource("/{virtual_machine_uuid}")
                         .route(get().to(get_virtual_machine_v1_0::get_virtual_machine))
@@ -163,11 +167,20 @@ pub fn v1alpha_routes() -> Scope {
                         .route(delete().to(delete_vm_type_admin_v1_0::delete_vm_type_admin)),
                 ),
         )
-        .service(scope("/project").service(
-            resource("/{project_id}/resource_count/internal").route(
-                get().to(
-                    get_project_resource_count_internal_v1_0::get_project_resource_count_internal,
+        .service(
+            scope("/project")
+                .service(
+                    resource("/{project_id}/resource_count/internal").route(get().to(
+                        get_project_resource_count_internal_v1_0::get_project_resource_count_internal,
+                    )),
+                )
+                .service(
+                    resource("/{project_id}/export/internal")
+                        .route(get().to(export_project_internal_v1_0::export_project_internal)),
+                )
+                .service(
+                    resource("/{project_id}/import/internal")
+                        .route(post().to(import_project_internal_v1_0::import_project_internal)),
                 ),
-            ),
-        ))
+        )
 }

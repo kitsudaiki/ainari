@@ -52,7 +52,7 @@ pub async fn lock_project_internal(
 ) -> Result<Json<ProjectLockResp>, ErrorResponse> {
     body.validate()
         .map_err(|e| ErrorResponse::BadRequest(format!("Invalid input: {e}")))?;
-    super::check_project_access(&project_id, &context)?;
+    check_project_access(&project_id, &context)?;
     super::check_job_uuid(&body.job_uuid)?;
 
     let result =

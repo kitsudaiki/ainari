@@ -506,3 +506,18 @@ mod tests {
         assert!(serde_json::from_str::<FilterPortReq>(r#"{"ports": ["0"]}"#).is_err());
     }
 }
+
+/// Packet filter of one direction of a virtual_machine, like it is exported from hanami into a
+/// backup.
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
+pub struct HanamiNetworkFilterExport {
+    /// virtual_machine at the time of the backup, which the filter belongs to
+    pub virtual_machine_uuid: Uuid,
+    pub direction: FilterDirection,
+    /// include-list of the ip-ranges
+    #[schemars(with = "Vec<String>")]
+    pub ip_ranges: Vec<IpRangeRule>,
+    /// include-list of the ports
+    #[schemars(with = "Vec<String>")]
+    pub ports: Vec<PortRangeRule>,
+}

@@ -75,25 +75,6 @@ fn lock_resp(project_id: &String, context: &UserContext) -> Result<ProjectLockRe
     })
 }
 
-/// Checks, that the user is allowed to lock or unlock a project. Admins can lock every project,
-/// all other users only the project of their token.
-///
-/// # Arguments
-///
-/// * `project_id` - The ID of the project
-/// * `context` - User-context of the request
-///
-/// # Returns
-///
-/// * `Ok(())` - The user is allowed
-/// * `Err(ErrorResponse::Forbidden)` - The project is not the one of the user
-fn check_project_access(project_id: &str, context: &UserContext) -> Result<(), ErrorResponse> {
-    if context.is_admin != true.to_string() && context.project_id != project_id {
-        return Err(permission_denied_response());
-    }
-    Ok(())
-}
-
 /// Checks, that a job doesn't use the nil-UUID, which marks the lock of an admin.
 ///
 /// # Arguments

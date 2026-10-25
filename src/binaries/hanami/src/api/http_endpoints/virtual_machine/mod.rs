@@ -17,4 +17,5 @@ pub mod get_virtual_machine_count_v1_0;
 pub mod get_virtual_machine_v1_0;
 pub mod list_virtual_machine_v1_0;
 pub mod migrate_virtual_machine_admin_v1_0;
+pub mod reserve_virtual_machine_internal_v1_0;
 pub mod reserve_virtual_machine_v1_0;

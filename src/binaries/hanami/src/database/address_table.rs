@@ -260,11 +260,167 @@ pub fn reserve_new_address(
         first_tap_candidate,
         first_ip_candidate,
         last_internal_ip,
+        FixedValues::default(),
         network_uuid,
         vni,
         host_address,
         context,
     )
+}
+
+/// Values of a reservation, which are fixed and must not be replaced by the next free ones.
+#[derive(Debug, Default, Clone, Copy)]
+struct FixedValues {
+    /// The MAC-address is fixed
+    mac: bool,
+    /// The internal IP-address is fixed
+    ip: bool,
+}
+
+/// Error of the reservation of an address with fixed values.
+pub enum FixedAddressError {
+    /// A fixed value is already used by another address
+    Conflict(String),
+    /// A fixed value is invalid or outside of the subnet
+    InvalidInput(String),
+    /// The reservation failed within the database
+    Db(enums::DbError),
+}
+
+/// Reserves an address within a network, whose internal IP-address and MAC-address can be fixed.
+///
+/// It is used to restore a virtual_machine from a backup with its original addresses. The values,
+/// which are not fixed, and the tap-device name are reserved like by `reserve_new_address`.
+///
+/// # Arguments
+/// * `network_uuid` - The UUID of the network
+/// * `internal_cidr` - The subnet of the network in CIDR-notation
+/// * `host_address` - Address of the sakura-host, which runs the virtual_machine of this address
+/// * `fixed_ip` - The internal IP-address, which must be used, if any
+/// * `fixed_mac` - The MAC-address, which must be used, if any
+/// * `context` - The user context containing information about the user and project
+///
+/// # Returns
+/// A Result containing the new entry, `Conflict`, if a fixed value is already used, or
+/// `InvalidInput`, if a fixed value is invalid
+pub fn reserve_fixed_address(
+    network_uuid: &Uuid,
+    internal_cidr: &str,
+    host_address: &str,
+    fixed_ip: Option<&Ipv4Addr>,
+    fixed_mac: Option<&str>,
+    context: &UserContext,
+) -> Result<AddressEntry, FixedAddressError> {
+    if fixed_ip.is_none() && fixed_mac.is_none() {
+        return reserve_new_address(network_uuid, internal_cidr, host_address, context)
+            .map_err(FixedAddressError::Db);
+    }
+    if context.is_read_only() {
+        return Err(FixedAddressError::Db(enums::DbError::PermissionDenied));
+    }
+    let Some((first_internal_ip, last_internal_ip)) = assignable_ip_range(internal_cidr) else {
+        log::error!("Invalid or too small CIDR '{internal_cidr}' for internal IP-addresses");
+        return Err(FixedAddressError::Db(enums::DbError::InternalError));
+    };
+    let db_error = |e: diesel::result::Error| {
+        log::error!("Database-error: {e:?}");
+        FixedAddressError::Db(enums::DbError::InternalError)
+    };
+
+    let ip_candidate = match fixed_ip {
+        Some(ip) => {
+            let number = u32::from(*ip);
+            if number < first_internal_ip || number > last_internal_ip {
+                return Err(FixedAddressError::InvalidInput(format!(
+                    "Internal IP-address '{ip}' is not assignable within '{internal_cidr}'."
+                )));
+            }
+            if is_internal_ip_used(network_uuid, ip).map_err(db_error)? {
+                return Err(FixedAddressError::Conflict(format!(
+                    "Internal IP-address '{ip}' is already used in network '{network_uuid}'."
+                )));
+            }
+            number
+        }
+        None => match get_highest_internal_ip(network_uuid).map_err(FixedAddressError::Db)? {
+            Some(highest) => (u32::from(highest) + 1).max(first_internal_ip),
+            None => first_internal_ip,
+        },
+    };
+    let mac_candidate = match fixed_mac {
+        Some(mac) => {
+            let number = mac_address_to_number(mac)
+                .filter(|number| (FIRST_MAC_ADDRESS..=LAST_MAC_ADDRESS).contains(number))
+                .ok_or_else(|| {
+                    FixedAddressError::InvalidInput(format!(
+                        "'{mac}' is no valid MAC-address with the prefix '{MAC_ADDRESS_PREFIX}'."
+                    ))
+                })?;
+            if is_mac_address_used(&number_to_mac_address(number)).map_err(db_error)? {
+                return Err(FixedAddressError::Conflict(format!(
+                    "MAC-address '{mac}' is already used."
+                )));
+            }
+            number
+        }
+        None => match get_highest_mac_address().map_err(db_error)? {
+            Some(highest) => mac_address_to_number(&highest)
+                .map(|number| number + 1)
+                .ok_or(FixedAddressError::Db(enums::DbError::InternalError))?,
+            None => FIRST_MAC_ADDRESS,
+        },
+    };
+    let tap_candidate = match get_highest_tap_number().map_err(FixedAddressError::Db)? {
+        Some(highest) => highest + 1,
+        None => FIRST_TAP_NUMBER,
+    };
+    let vni = vni_for_network(network_uuid).map_err(FixedAddressError::Db)?;
+
+    reserve_address_from(
+        mac_candidate,
+        tap_candidate,
+        ip_candidate,
+        // a fixed internal IP-address is the only one, which is tried
+        if fixed_ip.is_some() {
+            ip_candidate
+        } else {
+            last_internal_ip
+        },
+        FixedValues {
+            mac: fixed_mac.is_some(),
+            ip: fixed_ip.is_some(),
+        },
+        network_uuid,
+        vni,
+        host_address,
+        context,
+    )
+    .map_err(FixedAddressError::Db)
+}
+
+/// Checks, if an internal IP-address is used by an active address of a network.
+fn is_internal_ip_used(address_network_uuid: &Uuid, ip: &Ipv4Addr) -> QueryResult<bool> {
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+    use self::addresses::dsl::*;
+    addresses
+        .filter(network_uuid.eq(address_network_uuid.to_string()))
+        .filter(internal_ip.eq(ip.to_string()))
+        .filter(status.eq("ACTIVE"))
+        .select(count_star())
+        .first::<i64>(&mut *conn)
+        .map(|count| count > 0)
+}
+
+/// Checks, if a MAC-address is used by an active address.
+fn is_mac_address_used(address_mac: &str) -> QueryResult<bool> {
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+    use self::addresses::dsl::*;
+    addresses
+        .filter(mac_address.eq(address_mac))
+        .filter(status.eq("ACTIVE"))
+        .select(count_star())
+        .first::<i64>(&mut *conn)
+        .map(|count| count > 0)
 }
 
 /// Tries to reserve MAC-addresses, tap-device names and internal IP-addresses, beginning with the
@@ -292,6 +448,7 @@ fn reserve_address_from(
     first_tap_candidate: u32,
     first_ip_candidate: u32,
     last_internal_ip: u32,
+    fixed: FixedValues,
     network_uuid: &Uuid,
     vni: u32,
     host_address: &str,
@@ -332,13 +489,23 @@ fn reserve_address_from(
             // another request was faster and reserved one of the values, so try the next one
             Err(diesel::result::Error::DatabaseError(DatabaseErrorKind::UniqueViolation, info)) => {
                 let message = info.message();
-                if is_unique_violation_of(message, "addresses", "mac_address") {
+                let mac_taken = is_unique_violation_of(message, "addresses", "mac_address");
+                let ip_taken = is_unique_violation_of(message, "addresses", "internal_ip");
+                // a fixed value was checked to be free before, so another request was faster
+                if (fixed.mac && mac_taken) || (fixed.ip && ip_taken) {
+                    log::error!(
+                        "Fixed MAC- or internal IP-address was reserved by another request in \
+                         the meantime"
+                    );
+                    return Err(enums::DbError::InternalError);
+                }
+                if mac_taken {
                     mac_candidate += 1;
                 }
                 if is_unique_violation_of(message, "addresses", "tap_name") {
                     tap_candidate += 1;
                 }
-                if is_unique_violation_of(message, "addresses", "internal_ip") {
+                if ip_taken {
                     ip_candidate += 1;
                 }
             }
@@ -1660,6 +1827,7 @@ mod tests {
             TEST_TAP_BASE,
             ip_base,
             u32::from(LAST_TEST_IP),
+            FixedValues::default(),
             &network_uuid1,
             TEST_VNI,
             TEST_HOST_ADDRESS,
@@ -1709,6 +1877,7 @@ mod tests {
             TEST_TAP_BASE,
             ip_base,
             u32::from(LAST_TEST_IP),
+            FixedValues::default(),
             &network_uuid1,
             TEST_VNI,
             TEST_HOST_ADDRESS,
@@ -1767,6 +1936,7 @@ mod tests {
             TEST_TAP_BASE,
             u32::from(FIRST_TEST_IP),
             u32::from(LAST_TEST_IP),
+            FixedValues::default(),
             &network_uuid1,
             TEST_VNI,
             TEST_HOST_ADDRESS,
@@ -1793,6 +1963,7 @@ mod tests {
             FIRST_TAP_NUMBER,
             u32::from(FIRST_TEST_IP),
             u32::from(LAST_TEST_IP),
+            FixedValues::default(),
             &network_uuid1,
             TEST_VNI,
             TEST_HOST_ADDRESS,
@@ -1805,6 +1976,7 @@ mod tests {
             LAST_TAP_NUMBER + 1,
             u32::from(FIRST_TEST_IP),
             u32::from(LAST_TEST_IP),
+            FixedValues::default(),
             &network_uuid1,
             TEST_VNI,
             TEST_HOST_ADDRESS,
@@ -1817,6 +1989,7 @@ mod tests {
             FIRST_TAP_NUMBER,
             u32::from(LAST_TEST_IP) + 1,
             u32::from(LAST_TEST_IP),
+            FixedValues::default(),
             &network_uuid1,
             TEST_VNI,
             TEST_HOST_ADDRESS,
@@ -2295,5 +2468,76 @@ mod tests {
         ));
 
         hard_delete_address(&uuid1);
+    }
+
+    fn fixed_context() -> UserContext {
+        UserContext {
+            token: "".to_string(),
+            user_id: "test-user".to_string(),
+            project_id: "test-fixed-address".to_string(),
+            is_admin: false.to_string(),
+            project_role: ainari_common::enums::ProjectRole::Member.to_string(),
+        }
+    }
+
+    fn hard_delete_network_addresses(network: &Uuid) {
+        let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+        use self::addresses::dsl::*;
+        let _ = diesel::delete(addresses.filter(network_uuid.eq(network.to_string())))
+            .execute(&mut *conn);
+    }
+
+    #[test]
+    #[serial]
+    fn test_reserve_fixed_address() {
+        let network = Uuid::new_v4();
+        let context = fixed_context();
+        let cidr = "10.20.0.0/24";
+        let ip = Ipv4Addr::new(10, 20, 0, 50);
+        let mac = "02:aa:bb:cc:dd:01";
+
+        // both values are kept
+        let Ok(address) =
+            reserve_fixed_address(&network, cidr, "host", Some(&ip), Some(mac), &context)
+        else {
+            panic!("reservation with fixed values failed");
+        };
+        assert_eq!(address.internal_ip, ip);
+        assert_eq!(address.mac_address, mac);
+
+        // a used internal IP-address or MAC-address is a conflict
+        let other_ip = Ipv4Addr::new(10, 20, 0, 51);
+        assert!(matches!(
+            reserve_fixed_address(&network, cidr, "host", Some(&ip), None, &context),
+            Err(FixedAddressError::Conflict(_))
+        ));
+        assert!(matches!(
+            reserve_fixed_address(&network, cidr, "host", Some(&other_ip), Some(mac), &context),
+            Err(FixedAddressError::Conflict(_))
+        ));
+
+        // invalid values
+        let outside = Ipv4Addr::new(10, 21, 0, 5);
+        assert!(matches!(
+            reserve_fixed_address(&network, cidr, "host", Some(&outside), None, &context),
+            Err(FixedAddressError::InvalidInput(_))
+        ));
+        for invalid_mac in ["no-mac", "52:54:00:aa:bb:01"] {
+            assert!(matches!(
+                reserve_fixed_address(&network, cidr, "host", None, Some(invalid_mac), &context),
+                Err(FixedAddressError::InvalidInput(_))
+            ));
+        }
+
+        // only the internal IP-address is fixed, the MAC-address is the next free one
+        let Ok(address) =
+            reserve_fixed_address(&network, cidr, "host", Some(&other_ip), None, &context)
+        else {
+            panic!("reservation with fixed internal IP-address failed");
+        };
+        assert_eq!(address.internal_ip, other_ip);
+        assert_ne!(address.mac_address, mac);
+
+        hard_delete_network_addresses(&network);
     }
 }

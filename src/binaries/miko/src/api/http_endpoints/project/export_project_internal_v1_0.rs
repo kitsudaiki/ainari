@@ -43,7 +43,7 @@ pub async fn export_project_internal(
     project_id: Path<String>,
     context: UserContext,
 ) -> Result<Json<MikoProjectExport>, ErrorResponse> {
-    super::check_project_access(&project_id, &context)?;
+    check_project_access(&project_id, &context)?;
 
     let project = project_table::get_auth_project(&project_id)
         .map_err(|e| map_db_id_get_delete_error("project", &project_id, e, Some(&context)))?;

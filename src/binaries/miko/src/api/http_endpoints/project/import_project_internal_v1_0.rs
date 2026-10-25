@@ -54,7 +54,7 @@ pub async fn import_project_internal(
 ) -> Result<Json<MikoProjectImportResp>, ErrorResponse> {
     body.validate()
         .map_err(|e| ErrorResponse::BadRequest(format!("Invalid input: {e}")))?;
-    super::check_project_access(&project_id, &context)?;
+    check_project_access(&project_id, &context)?;
     if context.is_read_only() {
         return Err(permission_denied_response());
     }

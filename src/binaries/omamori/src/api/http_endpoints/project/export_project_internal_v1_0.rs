@@ -51,7 +51,7 @@ pub async fn export_project_internal(
     body: Json<OmamoriProjectExportReq>,
     context: UserContext,
 ) -> Result<Json<OmamoriProjectExport>, ErrorResponse> {
-    super::check_project_access(&project_id, &context)?;
+    check_project_access(&project_id, &context)?;
     let wrap_key = WrapKey::from_base64(&body.wrap_key)
         .map_err(|e| map_ainari_error_to_api_response(e, Some(&context)))?;
 

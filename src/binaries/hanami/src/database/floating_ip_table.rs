@@ -659,6 +659,27 @@ pub fn delete_all_floating_ip() -> Result<(), enums::DbError> {
     }
 }
 
+/// Lists all active floating ips of a project.
+///
+/// Unlike the listing for the users, it is done for the project of the path and not the one of
+/// the token, so an admin can export any project.
+///
+/// # Arguments
+/// * `project` - The ID of the project
+///
+/// # Returns
+/// A QueryResult containing the floating ips of the project
+pub fn list_floating_ips_of_project(project: &str) -> QueryResult<Vec<FloatingIpEntry>> {
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+    use self::floating_ips::dsl::*;
+
+    floating_ips
+        .filter(status.eq("ACTIVE"))
+        .filter(project_id.eq(project))
+        .select(FloatingIpEntry::as_select())
+        .load(&mut *conn)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
