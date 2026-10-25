@@ -14,6 +14,11 @@ base capabilities of uploading resources and creating a virtual machine based on
     implemented in older version. But v0.20.0 was a reboot of the project, so the older versions
     are not relevant in this overview here.
 
+!!! info
+
+    If there is a version on a feature, which doesn't exist yet, then this feature is not 
+    release at the moment and and is only avaiable on the develop brauch.
+
 ## Security
 
 ### Encrypted Images
@@ -118,6 +123,13 @@ task log it is visible which action (create, snapshot create, snapshot restore, 
 which user, at which point in time and if this task was successful. This log is visible by the user,
 as long as the virtual machine lives.
 
+### Encrypted backups
+
+**Status: <span style="color:#4caf50">implemented</span> (since v0.23.0)**
+
+The VM- and Project-Backups are always encrypted with a key provided by
+the user when creating the backup.
+
 ### Backend in Rust
 
 **Status: <span style="color:#4caf50">Current state</span>**
@@ -168,14 +180,6 @@ different compute-hosts.
     There are no remote mounted volumes in general, so there is nothing to encrypt here currently
 
 Remote mounted volumes will be encrypted as LUKS format with AES-256-XTS encryption.
-
-### Encrypted backups
-
-**Status: <span style="color:#e53935">planned</span>**
-
-!!! info
-
-    There are no backups in generate at the moment.
 
 ### Yubikey support for key management
 
@@ -246,6 +250,13 @@ passwords, is handled by the operator.
 The whole stack can be packed as offline installation package using [Zarf](https://zarf.dev/). So it
 can be deployed on a kubernetes in an air-gaped environment, where not internet access is available.
 
+### Project-Backups
+
+**Status: <span style="color:#4caf50">implemented</span> (since v0.23.0)**
+
+Entire projects can be backuped with network configurations and so on, to restore not only the
+disks for VMs, but entire projects with network-configuration, VM-configuration and so on.
+
 ### Easy local development
 
 **Status: <span style="color:#4caf50">Current state</span>**
@@ -276,13 +287,6 @@ at one point in time split over 40 repositories. Dependency updates were a total
 A Monorepo makes implementing new features and updating dependencies much easier. It is also easy to
 identify which versions of the different components belong together. Based on my experiences I made,
 a Monorepo makes much more sense for this project, even it contains microservices.
-
-### Project-Backups
-
-**Status: <span style="color:#e53935">planned</span>**
-
-Entire projects can be backuped with network configurations and so on, to restore not only the
-disks for VMs, but entire projects with user-, network- and VM-configuration.
 
 ### Load-balancer-as-a-Service
 

@@ -51,6 +51,8 @@ returns the addresses of all other components, so only the address of miko is re
     export AINARI_PASSPHRASE=asdfasdf
     # optional, the default-project of the user is used, if not set
     export AINARI_PROJECT=my_project
+    # optional, passphrase of the backups, see "Backups"
+    export AINARI_BACKUP_PASSPHRASE=my-backup-passphrase
     ```
 
     Global flags, which are available for all commands:
@@ -81,6 +83,9 @@ returns the addresses of all other components, so only the address of miko is re
     ```python
     context = login.request_context(address, user_id, passphrase, project_id="my_project")
     ```
+
+    The optional components omikuji and isekai have an empty address within the context, if
+    they are not deployed (`context.omikuji_address`, `context.isekai_address`).
 
 Each user has its own project `default-<USER_ID>`, in which the user is admin. The token is only
 created, if the user is assigned to the requested project, and contains the role of the user
@@ -119,6 +124,8 @@ admins, can only read resources. Creating, changing or deleting them is rejected
         print(e)
     except ainari_exceptions.NotFoundException as e:          # 404
         print(e)
+    except ainari_exceptions.LockedException as e:            # 423
+        print(e)
     except ainari_exceptions.ConflictException as e:          # 409
         print(e)
     except ainari_exceptions.InternalServerErrorException:    # 500
@@ -133,6 +140,22 @@ admins, can only read resources. Creating, changing or deleting them is rejected
 
         The `InternalServerErrorException` doesn't contain a message. If this exception appears,
         you have to look into the logs of the server.
+
+    !!! info
+
+        A project, which is locked by a backup, a restore or an admin, rejects every change with
+        `423` (see [Lock of a project](#lock-of-a-project)). The `LockedException` is a subclass of
+        the `ConflictException`, so it is caught as conflict as well, if it isn't caught before.
+
+=== "CLI"
+
+    The CLI prints the status-code and the message of the error and exits with `1`:
+
+    ```bash
+    ainarictl secret generate my-secret
+
+    status 423: err The project is locked by a backup or restore and can only be read at the moment.
+    ```
 
 ## Token, endpoints and version
 
@@ -220,6 +243,7 @@ An admin can also place a new virtual machine on a specific host (see
 
     ainarictl onsen_host list
     ainarictl onsen_host get <HOST_UUID>
+    ainarictl onsen_host set_backup_target <HOST_UUID> <true|false>
     ainarictl onsen_host delete <HOST_UUID>
     ```
 
@@ -238,6 +262,17 @@ An admin can also place a new virtual machine on a specific host (see
 
     Memory is given in MiB, disk-space in GiB.
 
+    ```bash
+    ainarictl onsen_host list
+
+    ┌───────────────────────────┬──────────────────┬──────────────┬──────────────────────────────────────┐
+    │       HOST ADDRESS        │ IS BACKUP TARGET │     NAME     │                 UUID                 │
+    ├───────────────────────────┼──────────────────┼──────────────┼──────────────────────────────────────┤
+    │ http://onsen:50051        │ false            │ 030d86097138 │ d71a767d-3875-4807-a8fc-36d369e166b1 │
+    │ http://onsen-backup:50051 │ true             │ 470dc9c5a52a │ f05c3e99-541d-45af-aa41-1ab648bb642c │
+    └───────────────────────────┴──────────────────┴──────────────┴──────────────────────────────────────┘
+    ```
+
 === "Python-SDK"
 
     ```python
@@ -250,6 +285,7 @@ An admin can also place a new virtual machine on a specific host (see
 
     host.list_onsen_hosts(context)
     host.get_onsen_host(context, host_uuid)
+    host.set_onsen_host_backup_target(context, host_uuid, True)
     host.delete_onsen_host(context, host_uuid)
 
     # example-content of the result of list_hosts:
@@ -1149,64 +1185,200 @@ end. Only a `READY` snapshot can be restored.
 
 ## Backups
 
-Isekai saves single virtual machines or whole projects as backups and restores them again. A
-backup of a project contains its quota, secrets, public keys, images, networks, virtual machines,
-network filters and floating IPs together with a copy of the root-disk of every virtual machine.
-A backup of a virtual machine contains the virtual machine with its root-disk, public key,
-network and network filters. Users and their assignments to the project are never part of a
-backup.
+Isekai saves single virtual machines or whole projects as backups and restores them again, also
+into another project or another deployment. Isekai is optional, so a deployment without it
+returns no address for it.
 
-A backup and a restore run as job in the background, which can be followed. During the job the
-project is locked, so its resources can only be read and every other change is rejected with
-`423`. A second backup or restore of the same project is rejected with `409`.
+| Kind            | Content                                                                                                                                          |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| project         | the project with its quota, secrets, public keys, images and snapshots, networks, virtual machines, network filters, floating IPs and a copy of the root-disk of every virtual machine |
+| virtual machine | the virtual machine with a copy of its root-disk, its public key, its network and its network filters                                              |
 
-!!! warning
+Users and their assignments to the project are never part of a backup, they are managed by an
+admin over the [projects](#projects) and [users](#users).
 
-    A backup is encrypted with a key, which is derived from its passphrase. The passphrase is
-    never stored, so a backup can't be restored without it. The CLI never takes it as argument,
-    because it would be visible in the history of the shell. It is read from the file of
-    `--passphrase_file`, from the env-variable `AINARI_BACKUP_PASSPHRASE` or from the terminal.
+A backup and a restore run as job in the background, which can be followed over its UUID. During
+the job the project is locked, so its resources can only be read and every change is rejected with
+`423`. A second backup or restore of the same project is rejected with `409` meanwhile (see
+[Lock of a project](#lock-of-a-project)).
 
-A restore always calculates its plan first: which resources get a new UUID, which are
-overwritten, which are deleted and how the quota is used afterwards. With `--dry_run` only the
-plan is shown.
+!!! warning "Passphrase"
 
-- Without `--force` a resource keeps its UUID, if it is free, otherwise it gets a new one. Restored
-  into another project (`--target_project`), all resources get new UUIDs.
-- With `--force` the existing resources with the same UUID are overwritten.
-- `--prune`, which is only allowed together with `--force` and only for a backup of a project,
-  deletes the resources of the project, which are not part of the backup.
+    A backup is encrypted with a key, which is derived from its passphrase, which has to have at
+    least 12 characters. The passphrase is never stored, so a backup can't be restored without it.
 
-If a restore fails, the project stays locked, until the restore is repeated with `--force` or an
-admin unlocks it with `ainarictl project unlock <PROJECT_ID>`.
+    The CLI never takes the passphrase as argument, because it would be visible in the history of
+    the shell. It is read from the file of `--passphrase_file`, from the env-variable
+    `AINARI_BACKUP_PASSPHRASE` or from the terminal, where a new passphrase is requested two times.
+
+!!! info "Permissions"
+
+    Admins and members of a project can create and list its backups, observers can only list
+    them. Only admins of the project can restore and delete them. A restore into another project
+    and the import of foreign backups is only allowed for admins.
+
+### Create a backup
+
+The root-disks of the virtual machines are saved by their sakura-hosts. A running virtual machine
+is only paused, while its root-disk is copied, so data, which is still in its memory, is missing in
+the backup. With `--stop_vms` (`--stop_vm` for a single virtual machine) the running virtual
+machines are shut down for the time of their copy and started again afterwards.
+
+The images and snapshots of the project are copied into the backup as well, so it is
+self-contained. `--without_images` only saves their metadata, which makes the backup smaller and
+faster, but they can't be restored then.
 
 === "CLI"
 
     ```bash
     ainarictl backup create_project [--stop_vms] [--without_images] [-w] <BACKUP_NAME>
     ainarictl backup create_vm [--stop_vm] [-w] <VIRTUAL_MACHINE_UUID> <BACKUP_NAME>
-    ainarictl backup list
-    ainarictl backup get <BACKUP_UUID>
-    ainarictl backup delete <BACKUP_UUID>
-    ainarictl backup restore [--force] [--prune] [--target_project <PROJECT_ID>] [--start_vms] \
-        [--without_dependencies] [--dry_run] [-w] <BACKUP_UUID>
-    ainarictl backup job_list [--backup <BACKUP_UUID>]
-    ainarictl backup job_get <JOB_UUID>
-
-    # admin only
-    ainarictl onsen_host set_backup_target <HOST_UUID> true|false
-    ainarictl backup scan <ONSEN_HOST_UUID>
-    ainarictl backup import [-n <NAME>] <ONSEN_HOST_UUID> <BACKUP_UUID>
-    ainarictl project lock <PROJECT_ID> <REASON>
-    ainarictl project unlock <PROJECT_ID>
     ```
 
-    `-w` waits, until the job is finished, and fails, if the job failed.
+    Without `-w` the command returns, as soon as the job is queued. `-w` waits, until the job is
+    finished, prints its steps meanwhile and exits with `1`, if the job failed.
+
+    example:
+
+    ```bash
+    export AINARI_BACKUP_PASSPHRASE=my-backup-passphrase
+    ainarictl backup create_vm -w 33fb6332-7528-46a0-b4c2-aad32bf0b7dd cli-vm-backup
+
+    ┌──────────────────────┬──────────────────────────────────────┐
+    │ AINARI VERSION       │ 0.22.0                               │
+    │ CREATED AT           │ 2026-10-25T20:02:43.183998495Z       │
+    │ CREATED BY           │ asdf                                 │
+    │ FILE COUNT           │ 5                                    │
+    │ HOST UUID            │ f05c3e99-541d-45af-aa41-1ab648bb642c │
+    │ KIND                 │ VIRTUAL_MACHINE                      │
+    │ NAME                 │ cli-vm-backup                        │
+    │ PROJECT ID           │ default-asdf                         │
+    │ STATE                │ READY                                │
+    │ TOTAL SIZE           │ 1917586598                           │
+    │ UUID                 │ 87b415d3-5c04-4e9b-bb72-ccdf619765ab │
+    │ VIRTUAL MACHINE UUID │ 33fb6332-7528-46a0-b4c2-aad32bf0b7dd │
+    └──────────────────────┴──────────────────────────────────────┘
+    job:
+    ┌─────────────┬──────────────────────────────────────┐
+    │ BACKUP UUID │ 87b415d3-5c04-4e9b-bb72-ccdf619765ab │
+    │ CREATED AT  │ 2026-10-25T20:02:43.212337005Z       │
+    │ CREATED BY  │ asdf                                 │
+    │ FINISHED AT │ 2026-10-25T20:02:52.800160078Z       │
+    │ JOB TYPE    │ BACKUP                               │
+    │ MESSAGES    │                                      │
+    │ PROJECT ID  │ default-asdf                         │
+    │ STARTED AT  │ 2026-10-25T20:02:43.263190932Z       │
+    │ STATE       │ FINISHED                             │
+    │ STEP        │ finished                             │
+    │ UUID        │ 01c35b71-94a8-473b-b467-af084f7de348 │
+    └─────────────┴──────────────────────────────────────┘
+    ```
+
+=== "Python-SDK"
+
+    ```python
+    from ainari_sdk import backup
+
+    result = backup.create_project_backup(context, "my-backup", passphrase,
+                                          stop_vms=False, include_images=True)
+    result = backup.create_virtual_machine_backup(context, virtual_machine_uuid, "my-vm-backup",
+                                                  passphrase, stop_vm=False)
+    # {"backup": {"uuid": "...", "state": "CREATING", ...}, "job": {"uuid": "...", ...}}
+
+    job = backup.wait_for_job_finished(context, result["job"]["uuid"])
+    # job["state"] is "FINISHED" or "ERROR", job["messages"] contains the reason of a failure
+    ```
+
+### Get, list and delete backups
+
+The `state` of a backup is `CREATING`, while its job runs, and `READY`, when it can be restored.
+A failed backup gets the state `ERROR`, its files are removed again and it can only be deleted.
+The number and size of the files of a backup are only known, after it was finished.
+
+Deleting a backup removes all its files. A backup, which is created or restored right now, can't
+be deleted (`409`).
+
+=== "CLI"
+
+    ```bash
+    ainarictl backup list [--project <PROJECT_ID>]
+    ainarictl backup get <BACKUP_UUID>
+    ainarictl backup delete <BACKUP_UUID>
+    ```
+
+    Admins see the backups of all projects, which can be restricted to one project with
+    `--project`.
+
+    example:
+
+    ```bash
+    ainarictl backup list
+
+    ┌────────────────┬────────────────────────────────┬────────────┬────────────┬──────────────────────────────────────┬─────────────────┬───────────────────────────┬──────────────┬───────┬────────────┬──────────────────────────────────────┬──────────────────────────────────────┐
+    │ AINARI VERSION │           CREATED AT           │ CREATED BY │ FILE COUNT │              HOST UUID               │      KIND       │           NAME            │  PROJECT ID  │ STATE │ TOTAL SIZE │                 UUID                 │         VIRTUAL MACHINE UUID         │
+    ├────────────────┼────────────────────────────────┼────────────┼────────────┼──────────────────────────────────────┼─────────────────┼───────────────────────────┼──────────────┼───────┼────────────┼──────────────────────────────────────┼──────────────────────────────────────┤
+    │ 0.22.0         │ 2026-10-25T20:02:43.183998495Z │ asdf       │ 5          │ f05c3e99-541d-45af-aa41-1ab648bb642c │ VIRTUAL_MACHINE │ cli-vm-backup             │ default-asdf │ READY │ 1917586598 │ 87b415d3-5c04-4e9b-bb72-ccdf619765ab │ 33fb6332-7528-46a0-b4c2-aad32bf0b7dd │
+    │ 0.22.0         │ 2026-10-25T20:00:11.844816329Z │ asdf       │ 9          │ f05c3e99-541d-45af-aa41-1ab648bb642c │ PROJECT         │ local-stack-test-5775b092 │ default-asdf │ READY │ 4390200248 │ 2cd90788-9e10-40fc-9bcb-db3bbde092ac │ <nil>                                │
+    └────────────────┴────────────────────────────────┴────────────┴────────────┴──────────────────────────────────────┴─────────────────┴───────────────────────────┴──────────────┴───────┴────────────┴──────────────────────────────────────┴──────────────────────────────────────┘
+    ```
+
+    The total size is given in bytes.
+
+=== "Python-SDK"
+
+    ```python
+    from ainari_sdk import backup
+
+    backup.list_backups(context)                  # {"backups": [{"uuid": "...", ...}, ...]}
+    backup.list_backups(context, project_id="my_project")
+    backup.get_backup(context, backup_uuid)
+    backup.delete_backup(context, backup_uuid)
+    ```
+
+### Restore a backup
+
+A backup of a project is restored into its own project or with `--target_project` into another
+one, which is created, if it doesn't exist. A backup of a virtual machine is restored into the
+project of the login or into `--target_project`, which must exist then.
+
+A restore always calculates its plan first: which resources get a new UUID, which are overwritten,
+which are deleted and how the quota of the project is used afterwards. A wrong passphrase or a
+manipulated backup is rejected with `400`, before anything is changed. With `--dry_run` only the
+plan is shown and nothing is changed.
+
+| Option                   | Effect                                                                                                                                    |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| (none)                   | a resource keeps its UUID, if it is free, otherwise it gets a new one. In another project all resources get new UUIDs.                     |
+| `--force`                | existing resources with the same UUID are overwritten, a virtual machine gets the root-disk of the backup                                 |
+| `--prune`                | only together with `--force` and for a backup of a project: the resources of the project, which are not part of the backup, are deleted    |
+| `--start_vms`            | all restored virtual machines are started, otherwise they get the power-state, which they had at the time of the backup                    |
+| `--without_dependencies` | a backup of a virtual machine doesn't create its network from the backup, if the network is missing in the project                        |
+| `--dry_run`              | only shows the plan                                                                                                                       |
+
+Floating IPs are always allocated again out of the pool of the deployment, so they can get other
+addresses. A restore, which would exceed the quota of the project, is rejected with `409`.
+
+!!! warning "Failed restore"
+
+    If a restore fails, after it has changed the project, the project stays locked, so nobody works
+    on a half restored project. The restore can be repeated with `--force`, which takes over the
+    lock of the failed restore, or an admin removes the lock with `ainarictl project unlock`.
+
+=== "CLI"
+
+    ```bash
+    ainarictl backup restore [--force] [--prune] [--target_project <PROJECT_ID>] [--start_vms] \
+        [--without_dependencies] [--dry_run] [-w] <BACKUP_UUID>
+    ```
+
+    The plan is printed as tables, followed by the job. `-w` waits for the job like at the creation
+    of a backup.
 
     example:
 
     ```bash
     ainarictl backup restore --force --dry_run 87b415d3-5c04-4e9b-bb72-ccdf619765ab
+
     Enter passphrase of the backup:
     target project: default-asdf
     overwritten resources:
@@ -1230,15 +1402,90 @@ admin unlocks it with `ainarictl project unlock <PROJECT_ID>`.
     ```python
     from ainari_sdk import backup
 
-    result = backup.create_virtual_machine_backup(context, virtual_machine_uuid, "my-backup",
-                                                  passphrase)
-    job = backup.wait_for_job_finished(context, result["job"]["uuid"])
-
     # only the plan
-    plan = backup.restore_backup(context, result["backup"]["uuid"], passphrase, force=True,
-                                 dry_run=True)["plan"]
-    restore = backup.restore_backup(context, result["backup"]["uuid"], passphrase, force=True)
-    backup.wait_for_job_finished(context, restore["job"]["uuid"])
+    result = backup.restore_backup(context, backup_uuid, passphrase, force=True, dry_run=True)
+    plan = result["plan"]
+    # {"target_project_id": "...", "create_project": False, "id_map": [...], "overwritten": [...],
+    #  "deleted": [...], "quota": [...], "warnings": [...]}
+
+    result = backup.restore_backup(context, backup_uuid, passphrase,
+                                   force=False,
+                                   prune=False,
+                                   target_project_id=None,
+                                   start_vms=False,
+                                   include_dependencies=True)
+    job = backup.wait_for_job_finished(context, result["job"]["uuid"])
+    # job["id_map"]: [{"resource_type": "virtual_machine", "old_uuid": "...", "new_uuid": "..."}]
+    ```
+
+### Jobs
+
+Every backup and restore is a job. The `step` of a job shows, what it does right now, or the step,
+where it failed. A finished restore lists the resources, which got a new UUID, in its `id_map`.
+
+=== "CLI"
+
+    ```bash
+    ainarictl backup job_list [--backup <BACKUP_UUID>]
+    ainarictl backup job_get <JOB_UUID>
+    ```
+
+    `job_list` doesn't show the messages and the id-map of the jobs, `job_get` shows them.
+
+    example:
+
+    ```bash
+    ainarictl backup job_list --backup 87b415d3-5c04-4e9b-bb72-ccdf619765ab
+
+    ┌──────────────────────────────────────┬────────────────────────────────┬────────────┬────────────────────────────────┬──────────┬──────────────┬────────────────────────────────┬──────────┬──────────┬──────────────────────────────────────┐
+    │             BACKUP UUID              │           CREATED AT           │ CREATED BY │          FINISHED AT           │ JOB TYPE │  PROJECT ID  │           STARTED AT           │  STATE   │   STEP   │                 UUID                 │
+    ├──────────────────────────────────────┼────────────────────────────────┼────────────┼────────────────────────────────┼──────────┼──────────────┼────────────────────────────────┼──────────┼──────────┼──────────────────────────────────────┤
+    │ 87b415d3-5c04-4e9b-bb72-ccdf619765ab │ 2026-10-25T20:03:07.516652431Z │ asdf       │ 2026-10-25T20:03:23.894842388Z │ RESTORE  │ default-asdf │ 2026-10-25T20:03:07.569398191Z │ FINISHED │ finished │ 31470db3-1710-457d-bd65-d6170309e1c3 │
+    │ 87b415d3-5c04-4e9b-bb72-ccdf619765ab │ 2026-10-25T20:02:43.212337005Z │ asdf       │ 2026-10-25T20:02:52.800160078Z │ BACKUP   │ default-asdf │ 2026-10-25T20:02:43.263190932Z │ FINISHED │ finished │ 01c35b71-94a8-473b-b467-af084f7de348 │
+    └──────────────────────────────────────┴────────────────────────────────┴────────────┴────────────────────────────────┴──────────┴──────────────┴────────────────────────────────┴──────────┴──────────┴──────────────────────────────────────┘
+    ```
+
+=== "Python-SDK"
+
+    ```python
+    from ainari_sdk import backup
+
+    backup.list_jobs(context)                     # {"jobs": [{"uuid": "...", ...}, ...]}
+    backup.list_jobs(context, backup_uuid=backup_uuid)
+    backup.get_job(context, job_uuid)
+    ```
+
+### Import of foreign backups
+
+The backups are stored on onsen-hosts, which are marked as backup-target (see [Hosts](#hosts)).
+A backup is one directory, which can be copied into the directory `backups/` of a backup-target
+of another deployment, for example for a disaster-recovery. `backup scan` lists these backups,
+which are not known yet, and `backup import` registers one of them, after its passphrase was
+checked. Afterwards it can be restored like every other backup, also into a new project. The users
+of the old deployment are not part of the backup and have to be created and assigned again.
+
+!!! info
+
+    Only admins are allowed to scan and import backups.
+
+=== "CLI"
+
+    ```bash
+    ainarictl backup scan <ONSEN_HOST_UUID>
+    ainarictl backup import [-n <NAME>] <ONSEN_HOST_UUID> <BACKUP_UUID>
+    ```
+
+    A backup without manifest is incomplete (`HAS MANIFEST` is `false`) and can't be imported.
+    Without `-n`, the imported backup is named `imported-<BACKUP_UUID>`.
+
+=== "Python-SDK"
+
+    ```python
+    from ainari_sdk import backup
+
+    backup.scan_backup_target(context, onsen_host_uuid)
+    # {"backups": [{"uuid": "...", "has_manifest": true}, ...]}
+    backup.import_backup(context, onsen_host_uuid, backup_uuid, passphrase, name="old-backup")
     ```
 
 ## Secrets
@@ -1427,6 +1674,56 @@ Projects are used for logical separation of the resources of users.
     # them
     project.list_users_in_project(context)
     # {"members": [{"user_id": "my_user", "project_role": "member"}, ...]}
+    ```
+
+### Lock of a project
+
+The resources of a locked project can only be read, every change is rejected with `423`. A project
+is locked by its [backups](#backups) and restores for the time of their job. An admin can also
+lock a project, for example for a maintenance, with a reason, which is shown with the lock.
+
+A failed restore keeps its project locked, so nobody works on a half restored project. The lock is
+removed by repeating the restore with `--force` or by an admin with `project unlock`, which removes
+every lock, also the one of a job. The lock of an admin is never taken over by a backup or a
+restore, they are rejected with `409`. A locked project can't be deleted.
+
+!!! info
+
+    Only admins are allowed to lock and unlock projects. The lock is shown in the field `lock` of
+    `project get`, and `token validate` returns `project_locked`, if the project of the token is
+    locked.
+
+=== "CLI"
+
+    ```bash
+    ainarictl project lock <PROJECT_ID> <REASON>
+    ainarictl project unlock <PROJECT_ID>
+    ```
+
+    example:
+
+    ```bash
+    ainarictl project lock default-asdf "maintenance of the network"
+
+    ┌────────────┬──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+    │ LOCK       │ {"lock_reason":"maintenance of the network","locked_at":"2026-10-25T20:38:56.154233692Z","locked_by_job":"00000000-0000-0000-0000-000000000000"} │
+    │ PROJECT ID │ default-asdf                                                                                                                                     │
+    └────────────┴──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+    ```
+
+    The lock of an admin has the nil-UUID as `locked_by_job`, the lock of a backup or a restore the
+    UUID of its job.
+
+=== "Python-SDK"
+
+    ```python
+    from ainari_sdk import project
+
+    project.lock_project(context, "my_project", "maintenance of the network")
+    project.get_project(context, "my_project")["lock"]
+    # {"locked_by_job": "00000000-0000-0000-0000-000000000000",
+    #  "lock_reason": "maintenance of the network", "locked_at": "2026-10-25T20:37:48.640601206Z"}
+    project.unlock_project(context, "my_project")
     ```
 
 ## Users
