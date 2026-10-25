@@ -162,6 +162,17 @@ onsen about the bundles, so isekai doesn't need a wireguard-tunnel):
   foreign bundle, which was found by `scan`, directly as `READY` (same checks like `finalize`)
 - `GET  /v1alpha/project/{project_id}/export/internal` and
   `POST /v1alpha/project/{project_id}/import/internal` (metadata of the images, without backups)
+    - The export contains only the `READY` images and snapshots without the location of their
+      files, because the files are copied into the bundle separately.
+    - The import gets for each image the location of its file (`onsen_address`, `file_path`
+      within `images/`), which was copied out of the bundle before with `copy/internal`. The copy
+      stores the file under `images/<image_uuid>` and rejects UUIDs, which are already used, so
+      an image, which is restored with an already used UUID (deleted image or `force`), is copied
+      under a new UUID and imported with its original UUID and the location of the copy.
+    - Conflicts are handled like in omamori (`check_import_target` of `ainari_api`): the UUID of
+      another project is always rejected, an active image of the project is only overwritten
+      with `force` (its old file is deleted, if the location changed) and a deleted one is
+      restored. `id_map` is applied to the images and their `secret_uuid`.
 
 ### 4.2 onsen – gRPC (`onsen_upload.proto`)
 
@@ -415,9 +426,10 @@ the VM, which belong to the project. Because only one disk is copied, this lock 
 5. **Apply** in the order of the dependencies:
    1. miko: project, quota
    2. omamori: secrets (unwrap → re-encrypt), public-keys
-   3. ryokan: copy images back to normal onsens and register them. The disk-files are copied out
-      of the bundle (`copy/internal`) to a normal onsen and registered as snapshot-images of the
-      project. The bundle itself stays sealed and untouched, so it can be restored again.
+   3. ryokan: copy images back to normal onsens and register them with `import/internal` and
+      the locations of the copies. The disk-files are copied out of the bundle (`copy/internal`)
+      to a normal onsen and registered as snapshot-images of the project the same way. The bundle
+      itself stays sealed and untouched, so it can be restored again.
    4. hanami: networks, vm-types
    5. VMs:
       - new VM (or `force` and the existing VM doesn't fit anymore, e.g. other disk-size): delete
@@ -559,7 +571,7 @@ Each phase is **exactly one commit**, which can be reviewed on its own. Rules fo
 | D2  | `feat(omamori): add owner-type backup for secrets`               | `owned_by = "backup"`, not deletable by users, like the internal secrets of images; not counted in the quota or the project-deletion-check. |
 | D3  | `feat(omamori): add internal export of project-secrets`          | Payloads wrapped with `wrap_key`, public-keys; test that no plain payload is in the response and that `wrap_key` isn't logged. |
 | D4  | `feat(omamori): add internal import of project-secrets`          | Unwrap → re-encrypt with `simple_crypto`; `force`; `id_map`. Round-trip-test with D3.                                          |
-| D5  | `feat(ryokan): add internal export and import of image-metadata` | Images and snapshots of the project (backups are not part of it), `force`, `id_map` for the references to secrets.             |
+| D5  | `feat(ryokan): add internal export and import of image-metadata` | Images and snapshots of the project (backups are not part of it), `force`, `id_map` for the references to secrets; the import gets the locations of the copied files. |
 | D6  | `feat(hanami): add internal export of projects`                  | Networks, vm-types, meta-VMs, addresses, network-filters, floating-ips with the attached VM.                                   |
 | D7  | `feat(hanami): add internal import of networks and vm-types`     | `force`, `id_map`.                                                                                                             |
 | D8  | `feat(hanami): add internal import of filters and floating-ips`  | Filters with rewritten VM-references; floating-ips newly allocated from the pool and attached.                                 |

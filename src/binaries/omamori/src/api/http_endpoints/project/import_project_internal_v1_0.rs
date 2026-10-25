@@ -16,7 +16,6 @@ use actix_web::web::Json;
 use actix_web::web::Path;
 use apistos::api_operation;
 use chrono::Utc;
-use std::collections::HashSet;
 use uuid::Uuid;
 use validator::Validate;
 
@@ -98,14 +97,14 @@ pub async fn import_project_internal(
     // check all conflicts, before anything is changed
     let secret_uuids: Vec<Uuid> = body.secrets.iter().map(|s| new_uuid(&s.uuid)).collect();
     let public_key_uuids: Vec<Uuid> = body.public_keys.iter().map(|k| new_uuid(&k.uuid)).collect();
-    check_unique(&secret_uuids, &public_key_uuids)?;
+    check_unique_uuids(secret_uuids.iter().chain(&public_key_uuids))?;
     let mut overwritten_secrets = Vec::new();
     for uuid in &secret_uuids {
         let existing = secret_table::find_secret(uuid)
             .map_err(|e| map_db_list_error("secrets", e, Some(&context)))?
             .map(|secret| (secret.project_id, secret.status));
-        overwritten_secrets.push(check_target(
-            existing,
+        overwritten_secrets.push(check_import_target(
+            existing.as_ref().map(|(p, st)| (p.as_str(), st.as_str())),
             &project_id,
             body.force,
             "Secret",
@@ -117,8 +116,8 @@ pub async fn import_project_internal(
         let existing = public_key_table::find_public_key(uuid)
             .map_err(|e| map_db_list_error("public-keys", e, Some(&context)))?
             .map(|public_key| (public_key.project_id, public_key.status));
-        overwritten_public_keys.push(check_target(
-            existing,
+        overwritten_public_keys.push(check_import_target(
+            existing.as_ref().map(|(p, st)| (p.as_str(), st.as_str())),
             &project_id,
             body.force,
             "Public-key",
@@ -211,57 +210,6 @@ pub async fn import_project_internal(
         secrets: imported_secrets,
         public_keys: imported_public_keys,
     }))
-}
-
-/// Checks, that no UUID is used twice within the import, for example by a wrong `id_map`.
-fn check_unique(secret_uuids: &[Uuid], public_key_uuids: &[Uuid]) -> Result<(), ErrorResponse> {
-    let mut seen = HashSet::new();
-    for uuid in secret_uuids.iter().chain(public_key_uuids) {
-        if !seen.insert(uuid) {
-            return Err(ErrorResponse::BadRequest(format!(
-                "UUID '{uuid}' is used more than once within the import."
-            )));
-        }
-    }
-    Ok(())
-}
-
-/// Checks, if a resource can be imported under a UUID.
-///
-/// # Arguments
-///
-/// * `existing` - Project and status of the entry, which already uses the UUID, if there is one
-/// * `project_id` - The project, into which the resource is imported
-/// * `force` - Overwrite an existing resource of the project
-/// * `kind` - Kind of the resource for the error-message
-/// * `uuid` - The UUID of the resource
-///
-/// # Returns
-///
-/// * `Ok(bool)` - The resource can be imported, true if an active resource is overwritten
-/// * `Err(ErrorResponse::Conflict)` - The UUID is used by another project, or by an active
-///   resource of the project without `force`
-fn check_target(
-    existing: Option<(String, String)>,
-    project_id: &str,
-    force: bool,
-    kind: &str,
-    uuid: &Uuid,
-) -> Result<bool, ErrorResponse> {
-    match existing {
-        None => Ok(false),
-        Some((existing_project, _)) if existing_project != project_id => {
-            Err(ErrorResponse::Conflict(format!(
-                "{kind} with UUID '{uuid}' can't be imported, because the UUID is already used by \
-                 another project."
-            )))
-        }
-        Some((_, status)) if status == "ACTIVE" && !force => Err(ErrorResponse::Conflict(format!(
-            "{kind} with UUID '{uuid}' already exists. Use 'force' to overwrite it."
-        ))),
-        // a deleted entry of the project is restored
-        Some((_, status)) => Ok(status == "ACTIVE"),
-    }
 }
 
 #[cfg(test)]

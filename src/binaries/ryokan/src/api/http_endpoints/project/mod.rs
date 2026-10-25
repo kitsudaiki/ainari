@@ -12,4 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+pub mod export_project_internal_v1_0;
 pub mod get_project_resource_count_internal_v1_0;
+pub mod import_project_internal_v1_0;
+
+use ainari_api::common_functions::permission_denied_response;
+use ainari_api::errors::ErrorResponse;
+use ainari_api_structs::user_context::UserContext;
+
+/// Checks, that the user is allowed to access the resources of a project. Admins can access every
+/// project, all other users only the project of their token.
+///
+/// # Arguments
+///
+/// * `project_id` - The ID of the project
+/// * `context` - User-context of the request
+///
+/// # Returns
+///
+/// * `Ok(())` - The user is allowed
+/// * `Err(ErrorResponse::Forbidden)` - The project is not the one of the user
+fn check_project_access(project_id: &str, context: &UserContext) -> Result<(), ErrorResponse> {
+    if context.is_admin != true.to_string() && context.project_id != project_id {
+        return Err(permission_denied_response());
+    }
+    Ok(())
+}

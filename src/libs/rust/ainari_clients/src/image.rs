@@ -204,3 +204,75 @@ pub async fn delete_image(
 
     handle_empty_response(response, "image", &image_uuid.to_string()).await
 }
+
+/// Exports the images and snapshots of a project from ryokan for a backup.
+///
+/// # Arguments
+///
+/// * `ryokan_endpoint` - The endpoint configuration for the Ryokan service
+/// * `token` - The authentication token for the API
+/// * `internal_api_key` - The internal API key for accessing protected endpoints
+/// * `project_id` - The ID of the project to export
+/// * `insecure_client` - Whether to use an insecure (HTTP) client instead of HTTPS
+///
+/// # Returns
+///
+/// A `Result` containing the metadata of the images, or an `AinariError`.
+pub async fn export_project_images(
+    ryokan_endpoint: &ainari_config::Endpoint,
+    token: &String,
+    internal_api_key: &Secret,
+    project_id: &str,
+    insecure_client: bool,
+) -> Result<RyokanProjectExport, AinariError> {
+    let address = ryokan_endpoint.internal_address.clone();
+    let client = prepare_client(&address, insecure_client);
+    let url = format!("{address}/v1alpha/project/{project_id}/export/internal");
+
+    let response = client
+        .get(url)
+        .insert_header(("Authorization", format!("Bearer {}", token)))
+        .insert_header(("X-Internal-API-Key", internal_api_key.reveal()))
+        .send()
+        .await;
+
+    handle_response(response, "project", project_id).await
+}
+
+/// Imports the images and snapshots of a project from a backup into ryokan, whose files were
+/// already copied to normal onsens.
+///
+/// # Arguments
+///
+/// * `ryokan_endpoint` - The endpoint configuration for the Ryokan service
+/// * `token` - The authentication token for the API
+/// * `internal_api_key` - The internal API key for accessing protected endpoints
+/// * `project_id` - The ID of the project, into which is imported
+/// * `request` - The images with the locations of their files, `force` and the `id_map`
+/// * `insecure_client` - Whether to use an insecure (HTTP) client instead of HTTPS
+///
+/// # Returns
+///
+/// A `Result` containing the imported images with their UUIDs, or an `AinariError`. Conflicts
+/// with existing images are rejected with `Conflict`.
+pub async fn import_project_images(
+    ryokan_endpoint: &ainari_config::Endpoint,
+    token: &String,
+    internal_api_key: &Secret,
+    project_id: &str,
+    request: &RyokanProjectImportReq,
+    insecure_client: bool,
+) -> Result<RyokanProjectImportResp, AinariError> {
+    let address = ryokan_endpoint.internal_address.clone();
+    let client = prepare_client(&address, insecure_client);
+    let url = format!("{address}/v1alpha/project/{project_id}/import/internal");
+
+    let response = client
+        .post(url)
+        .insert_header(("Authorization", format!("Bearer {}", token)))
+        .insert_header(("X-Internal-API-Key", internal_api_key.reveal()))
+        .send_json(request)
+        .await;
+
+    handle_response(response, "project", project_id).await
+}
