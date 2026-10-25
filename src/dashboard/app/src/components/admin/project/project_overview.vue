@@ -47,6 +47,9 @@
                                     >
                                         Show members
                                     </button>
+                                    <button @click="openLockModal(project)">
+                                        Lock / unlock
+                                    </button>
                                     <!-- the default-project of a user is only deleted
                                          together with the user -->
                                     <button
@@ -72,6 +75,14 @@
             @cancel="cancelAddModal"
         />
 
+        <ProjectLockModal
+            v-if="projectToLock"
+            :project="projectToLock"
+            :icons="icons"
+            @accept="projectToLock = null"
+            @cancel="projectToLock = null"
+        />
+
         <ProjectDeleteModal
             v-if="showDeleteModal"
             :project="projectToDelete"
@@ -93,6 +104,7 @@ import { miko } from "@/api";
 import type { ProjectBasicResp } from "@/api";
 import ProjectCreateModal from "./project_create_modal.vue";
 import ProjectDeleteModal from "./project_delete_modal.vue";
+import ProjectLockModal from "./project_lock_modal.vue";
 import { handleAxiosError } from "@/handleAxiosError";
 import NoEntries from "@/components/no_entries.vue";
 
@@ -102,6 +114,7 @@ const showAddModal = ref(false);
 const showDeleteModal = ref(false);
 const openDropdown = ref<string | null>(null);
 const projectToDelete = ref<ProjectBasicResp | null>(null);
+const projectToLock = ref<ProjectBasicResp | null>(null);
 const icons = inject<{ acceptIcon: string; cancelIcon: string }>("icons")!;
 
 const emit = defineEmits<{
@@ -162,6 +175,11 @@ async function acceptAddModal() {
 //=============================================================================
 // Delete modal
 //=============================================================================
+function openLockModal(project: ProjectBasicResp) {
+    projectToLock.value = project;
+    openDropdown.value = null;
+}
+
 function openDeleteModal(project: ProjectBasicResp) {
     projectToDelete.value = project;
     showDeleteModal.value = true;

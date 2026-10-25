@@ -161,6 +161,12 @@
                                         Restore from snapshot
                                     </button>
                                     <button
+                                        v-if="isekaiDeployed"
+                                        @click="openBackupModal(virtualMachine)"
+                                    >
+                                        Create backup
+                                    </button>
+                                    <button
                                         v-if="isAdmin"
                                         @click="
                                             openMigrateModal(virtualMachine)
@@ -223,6 +229,14 @@
             @cancel="closeSnapshotModals"
         />
 
+        <BackupCreateModal
+            v-if="virtualMachineToBackup"
+            :virtual-machine="virtualMachineToBackup"
+            :icons="icons"
+            @accept="acceptBackupModal"
+            @cancel="virtualMachineToBackup = null"
+        />
+
         <SnapshotRestoreModal
             v-if="showSnapshotRestoreModal"
             :virtual_machine_uuid="snapshotVirtualMachineUuid"
@@ -242,8 +256,9 @@
 import { ref, onMounted, onBeforeUnmount, inject } from "vue";
 
 import { getAuthContext } from "@/auth_context";
-import { hanami, sakura } from "@/api";
+import { hanami, hasIsekai, sakura } from "@/api";
 import type {
+    BackupJobResp,
     TaskResp,
     VirtualMachineBasicResp,
     VirtualMachineState,
@@ -254,6 +269,7 @@ import VirtualMachineDeleteModal from "./virtual_machine_delete_modal.vue";
 import VirtualMachineMigrateModal from "./virtual_machine_migrate_modal.vue";
 import SnapshotSaveModal from "./snapshot_save_modal.vue";
 import SnapshotRestoreModal from "./snapshot_restore_modal.vue";
+import BackupCreateModal from "@/components/storage/backup/backup_create_modal.vue";
 import { handleAxiosError } from "@/handleAxiosError";
 import NoEntries from "@/components/no_entries.vue";
 
@@ -275,6 +291,9 @@ const showSnapshotRestoreModal = ref(false);
 const snapshotVirtualMachineUuid = ref<string | null>(null);
 // the torii-address of the virtual-machine, which is needed to reach its sakura
 const snapshotToriiAddress = ref<string>("");
+// backups are only available, if isekai is deployed
+const isekaiDeployed = hasIsekai();
+const virtualMachineToBackup = ref<VirtualMachineBasicResp | null>(null);
 
 // State of each virtual machine, shown as traffic-light in the table. "pending"
 // is only local and shows, that a start-, stop- or reboot-task is not finished yet.
@@ -632,6 +651,19 @@ function closeSnapshotModals() {
     showSnapshotRestoreModal.value = false;
     snapshotVirtualMachineUuid.value = null;
     snapshotToriiAddress.value = "";
+}
+
+//=============================================================================
+// Backup modal
+//=============================================================================
+function openBackupModal(virtualMachine: VirtualMachineBasicResp) {
+    virtualMachineToBackup.value = virtualMachine;
+    openDropdown.value = null;
+}
+// the backup is created by a job in the background, which is followed in the view of the backups
+function acceptBackupModal(result: BackupJobResp) {
+    virtualMachineToBackup.value = null;
+    emit("change-view", { view: "StorageBackup", id: result.backup.uuid });
 }
 
 //=============================================================================

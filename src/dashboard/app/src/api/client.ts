@@ -58,6 +58,16 @@ export function omikujiClient(): AxiosInstance {
     return createClient(getAuthContext().omikuji_address);
 }
 
+/** Client for the isekai, which backs up and restores virtual-machines and projects. */
+export function isekaiClient(): AxiosInstance {
+    return createClient(getAuthContext().isekai_address);
+}
+
+/** True, if isekai is deployed, so the backups can be used. */
+export function hasIsekai(): boolean {
+    return !!getAuthContext().isekai_address;
+}
+
 /**
  * Creates a client for the sakura of a single virtual-machine. The sakura is not
  * reachable directly, but only through a proxy of the torii, which has its own

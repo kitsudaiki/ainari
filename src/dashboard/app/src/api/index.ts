@@ -17,9 +17,11 @@
 // (for example `host` on the hanami and on the ryokan).
 
 export * as hanami from "./hanami";
+export * as isekai from "./isekai";
 export * as miko from "./miko";
 export * as omamori from "./omamori";
 export * as omikuji from "./omikuji";
 export * as ryokan from "./ryokan";
 export * as sakura from "./sakura";
 export * from "./types";
+export { hasIsekai } from "./client";

@@ -109,6 +109,7 @@ import AdminVmType from "@/components/admin/vm_type/vm_type_overview.vue";
 import AdminErrorLog from "@/components/admin/error_log/error_log_overview.vue";
 import AdminAuditLog from "@/components/admin/audit_log/audit_log_overview.vue";
 import StorageImage from "@/components/storage/image/image_overview.vue";
+import StorageBackup from "@/components/storage/backup/backup_overview.vue";
 import NetworkNetwork from "@/components/network/network/network_overview.vue";
 import NetworkFloatingIp from "@/components/network/floating_ip/floating_ip_overview.vue";
 import SecuritySecret from "@/components/security/secret/secret_overview.vue";
@@ -166,6 +167,7 @@ const components = {
     AdminErrorLog,
     AdminAuditLog,
     StorageImage,
+    StorageBackup,
     NetworkNetwork,
     NetworkFloatingIp,
     SecuritySecret,

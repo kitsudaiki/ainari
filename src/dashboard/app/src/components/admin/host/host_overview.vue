@@ -52,6 +52,7 @@
                             <th class="resource-column">Disk</th>
                             <th>Isolated</th>
                         </template>
+                        <th v-else>Backup Target</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -83,6 +84,9 @@
                             </td>
                             <td>{{ host.is_host_isolated ? "yes" : "no" }}</td>
                         </template>
+                        <td v-else-if="isOnsenHost(host)">
+                            {{ host.is_backup_target ? "yes" : "no" }}
+                        </td>
                         <td>
                             <!-- Dropdown menu -->
                             <div
@@ -99,6 +103,12 @@
                                         @click="openIsolationModal(host)"
                                     >
                                         Set host isolation
+                                    </button>
+                                    <button
+                                        v-if="isOnsenHost(host)"
+                                        @click="openBackupTargetModal(host)"
+                                    >
+                                        Set backup target
                                     </button>
                                     <button @click="openDeleteModal(host)">
                                         Delete
@@ -122,6 +132,14 @@
             @cancel="cancelDeleteModal"
         />
 
+        <OnsenBackupTargetModal
+            v-if="hostToMark"
+            :host="hostToMark"
+            :icons="icons"
+            @accept="acceptBackupTargetModal"
+            @cancel="hostToMark = null"
+        />
+
         <HostIsolationModal
             v-if="showIsolationModal"
             :host="hostToIsolate"
@@ -140,9 +158,10 @@
 import { ref, onMounted, onBeforeUnmount, inject } from "vue";
 
 import { hanami, ryokan } from "@/api";
-import type { HostBasicResp, SakuraHostBasicResp } from "@/api";
+import type { HostBasicResp, OnsenHostBasicResp, SakuraHostBasicResp } from "@/api";
 import HostDeleteModal from "./host_delete_modal.vue";
 import HostIsolationModal from "./host_isolation_modal.vue";
+import OnsenBackupTargetModal from "./onsen_backup_target_modal.vue";
 import UsageBar from "@/components/usage_bar.vue";
 import { handleAxiosError } from "@/handleAxiosError";
 import NoEntries from "@/components/no_entries.vue";
@@ -152,12 +171,13 @@ type HostKind = "sakura" | "onsen";
 
 const errorPopupMsg = ref<string>("");
 // only the sakura-hosts provide their resources
-const hosts = ref<(HostBasicResp | SakuraHostBasicResp)[]>([]);
+const hosts = ref<(OnsenHostBasicResp | SakuraHostBasicResp)[]>([]);
 const showDeleteModal = ref(false);
 const openDropdown = ref<string | null>(null);
 const hostToDelete = ref<HostBasicResp | null>(null);
 const showIsolationModal = ref(false);
 const hostToIsolate = ref<SakuraHostBasicResp | null>(null);
+const hostToMark = ref<OnsenHostBasicResp | null>(null);
 const selectedTab = ref<HostKind>("sakura");
 const icons = inject<{ acceptIcon: string; cancelIcon: string }>("icons")!;
 
@@ -182,6 +202,13 @@ function isSakuraHost(
     host: HostBasicResp | SakuraHostBasicResp,
 ): host is SakuraHostBasicResp {
     return "number_of_cores" in host;
+}
+
+// only the onsen-hosts can be backup-targets
+function isOnsenHost(
+    host: HostBasicResp | OnsenHostBasicResp | SakuraHostBasicResp,
+): host is OnsenHostBasicResp {
+    return "is_backup_target" in host;
 }
 
 /** The memory is provided in MiB, but GiB with one decimal is easier to read. */
@@ -252,6 +279,18 @@ function cancelIsolationModal() {
 async function acceptIsolationModal() {
     await fetchHosts();
     cancelIsolationModal();
+}
+
+//=============================================================================
+// Backup-target modal
+//=============================================================================
+function openBackupTargetModal(host: OnsenHostBasicResp) {
+    hostToMark.value = host;
+    openDropdown.value = null;
+}
+async function acceptBackupTargetModal() {
+    await fetchHosts();
+    hostToMark.value = null;
 }
 
 //=============================================================================

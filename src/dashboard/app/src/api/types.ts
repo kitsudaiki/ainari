@@ -126,8 +126,29 @@ export interface ProjectBasicResp {
     name: string;
 }
 
+/** Mirror of `project_structs::ProjectLock`. */
+export interface ProjectLock {
+    /** job, which has locked the project, the nil-UUID for a lock of an admin */
+    locked_by_job: string;
+    lock_reason: string;
+    locked_at: string;
+}
+
+/** Mirror of `project_structs::ProjectLockAdminReq`. */
+export interface ProjectLockAdminReq {
+    reason: string;
+}
+
+/** Mirror of `project_structs::ProjectLockResp`. */
+export interface ProjectLockResp {
+    project_id: string;
+    lock: ProjectLock | null;
+}
+
 /** Mirror of `project_structs::ProjectResp`. */
 export interface ProjectResp extends ProjectBasicResp {
+    /** lock of the project during a backup or restore, null if the project is not locked */
+    lock?: ProjectLock | null;
     created_at: string;
     created_by: string;
     updated_at: string;
@@ -536,6 +557,22 @@ export interface HostResp extends HostBasicResp {
     updated_by: string;
 }
 
+/** Mirror of `host_structs::HostBasicResp` of an onsen-host of the ryokan. */
+export interface OnsenHostBasicResp extends HostBasicResp {
+    /** host only stores backups and never normal images or snapshots */
+    is_backup_target: boolean;
+}
+
+/** Mirror of `host_structs::HostResp` of an onsen-host of the ryokan. */
+export interface OnsenHostResp extends HostResp {
+    is_backup_target: boolean;
+}
+
+/** Mirror of `host_structs::HostBackupTargetUpdateReq`. */
+export interface HostBackupTargetUpdateReq {
+    is_backup_target: boolean;
+}
+
 /** Mirror of `host_structs::HostIsolationUpdateReq`. */
 export interface HostIsolationUpdateReq {
     /** host is only used by the virtual machines of a single project */
@@ -635,4 +672,144 @@ export interface AuditLogResp {
     user_id: string;
     project_id: string;
     created_at: string;
+}
+
+//=============================================================================
+// backup / restore (isekai)
+//=============================================================================
+
+/** Mirror of `backup_structs::BackupKind`. */
+export type BackupKind = "PROJECT" | "VIRTUAL_MACHINE";
+
+/** Mirror of `backup_structs::BackupStatus`. */
+export type BackupStatus = "CREATING" | "READY" | "DELETING" | "ERROR";
+
+/** Mirror of `backup_structs::JobType`. */
+export type JobType = "BACKUP" | "RESTORE";
+
+/** Mirror of `backup_structs::JobState`. */
+export type JobState = "QUEUED" | "ACTIVE" | "FINISHED" | "ERROR";
+
+/** Minimum length of the passphrase of a new backup, see `MIN_BACKUP_PASSPHRASE_LENGTH`. */
+export const MIN_BACKUP_PASSPHRASE_LENGTH = 12;
+
+/** Mirror of `backup_structs::ProjectBackupCreateReq`. */
+export interface ProjectBackupCreateReq {
+    name: string;
+    passphrase: string;
+    /** shut the running virtual machines down, while their root-disks are saved */
+    stop_vms: boolean;
+    /** copy the images and snapshots of the project into the backup */
+    include_images: boolean;
+}
+
+/** Mirror of `backup_structs::VirtualMachineBackupCreateReq`. */
+export interface VirtualMachineBackupCreateReq {
+    virtual_machine_uuid: string;
+    name: string;
+    passphrase: string;
+    stop_vm: boolean;
+}
+
+/** Mirror of `backup_structs::BackupRestoreReq`. */
+export interface BackupRestoreReq {
+    passphrase: string;
+    force: boolean;
+    prune: boolean;
+    target_project_id?: string;
+    start_vms: boolean;
+    include_dependencies: boolean;
+    dry_run: boolean;
+}
+
+/** Mirror of `backup_structs::IsekaiBackupResp`. */
+export interface BackupResp {
+    uuid: string;
+    name: string;
+    kind: BackupKind;
+    project_id: string;
+    virtual_machine_uuid: string | null;
+    state: BackupStatus;
+    ainari_version: string;
+    host_uuid: string | null;
+    file_count: number | null;
+    total_size: number | null;
+    created_at: string;
+    created_by: string;
+}
+
+/** Mirror of `backup_structs::IdMapEntryResp`. */
+export interface IdMapEntryResp {
+    resource_type: string;
+    old_uuid: string;
+    new_uuid: string;
+}
+
+/** Mirror of `backup_structs::JobResp`. */
+export interface JobResp {
+    uuid: string;
+    job_type: JobType;
+    backup_uuid: string;
+    project_id: string;
+    state: JobState;
+    step: string;
+    messages: string[];
+    id_map: IdMapEntryResp[];
+    created_at: string;
+    created_by: string;
+    started_at: string | null;
+    finished_at: string | null;
+}
+
+/** Mirror of `backup_structs::BackupJobResp`. */
+export interface BackupJobResp {
+    backup: BackupResp;
+    job: JobResp;
+}
+
+/** Mirror of `backup_structs::PlannedResource`. */
+export interface PlannedResource {
+    resource_type: string;
+    uuid: string;
+    name: string;
+}
+
+/** Mirror of `backup_structs::QuotaUsageResp`. */
+export interface QuotaUsageResp {
+    resource_type: string;
+    current: number;
+    after_restore: number;
+    max: number;
+}
+
+/** Mirror of `backup_structs::RestorePlanResp`. */
+export interface RestorePlanResp {
+    target_project_id: string;
+    create_project: boolean;
+    id_map: IdMapEntryResp[];
+    overwritten: PlannedResource[];
+    deleted: PlannedResource[];
+    quota: QuotaUsageResp[];
+    warnings: string[];
+}
+
+/** Mirror of `backup_structs::RestoreResp`. */
+export interface RestoreResp {
+    plan: RestorePlanResp;
+    /** empty for a dry-run */
+    job: JobResp | null;
+}
+
+/** Mirror of `backup_structs::BackupScanEntry`. */
+export interface BackupScanEntry {
+    uuid: string;
+    has_manifest: boolean;
+}
+
+/** Mirror of `backup_structs::BackupImportReq`. */
+export interface BackupImportReq {
+    onsen_host_uuid: string;
+    backup_uuid: string;
+    passphrase: string;
+    name?: string;
 }

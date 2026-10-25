@@ -191,7 +191,9 @@ admins, can only read resources. Creating, changing or deleting them is rejected
 ## Hosts
 
 The sakura-hosts run the virtual machines, the onsen-hosts store the images and snapshots. Both
-register themselves at startup.
+register themselves at startup. An onsen-host, which is marked as backup-target, only stores the
+[backups](#backups) and never images or snapshots. It can only be marked, while it stores no
+images or snapshots.
 
 !!! info
 
@@ -1143,6 +1145,100 @@ end. Only a `READY` snapshot can be restored.
                                    secret_uuid=secret_uuid)
     task.create_snapshot_restore_task(context, torii_address, virtual_machine_uuid,
                                       snapshot_image_uuid)
+    ```
+
+## Backups
+
+Isekai saves single virtual machines or whole projects as backups and restores them again. A
+backup of a project contains its quota, secrets, public keys, images, networks, virtual machines,
+network filters and floating IPs together with a copy of the root-disk of every virtual machine.
+A backup of a virtual machine contains the virtual machine with its root-disk, public key,
+network and network filters. Users and their assignments to the project are never part of a
+backup.
+
+A backup and a restore run as job in the background, which can be followed. During the job the
+project is locked, so its resources can only be read and every other change is rejected with
+`423`. A second backup or restore of the same project is rejected with `409`.
+
+!!! warning
+
+    A backup is encrypted with a key, which is derived from its passphrase. The passphrase is
+    never stored, so a backup can't be restored without it. The CLI never takes it as argument,
+    because it would be visible in the history of the shell. It is read from the file of
+    `--passphrase_file`, from the env-variable `AINARI_BACKUP_PASSPHRASE` or from the terminal.
+
+A restore always calculates its plan first: which resources get a new UUID, which are
+overwritten, which are deleted and how the quota is used afterwards. With `--dry_run` only the
+plan is shown.
+
+- Without `--force` a resource keeps its UUID, if it is free, otherwise it gets a new one. Restored
+  into another project (`--target_project`), all resources get new UUIDs.
+- With `--force` the existing resources with the same UUID are overwritten.
+- `--prune`, which is only allowed together with `--force` and only for a backup of a project,
+  deletes the resources of the project, which are not part of the backup.
+
+If a restore fails, the project stays locked, until the restore is repeated with `--force` or an
+admin unlocks it with `ainarictl project unlock <PROJECT_ID>`.
+
+=== "CLI"
+
+    ```bash
+    ainarictl backup create_project [--stop_vms] [--without_images] [-w] <BACKUP_NAME>
+    ainarictl backup create_vm [--stop_vm] [-w] <VIRTUAL_MACHINE_UUID> <BACKUP_NAME>
+    ainarictl backup list
+    ainarictl backup get <BACKUP_UUID>
+    ainarictl backup delete <BACKUP_UUID>
+    ainarictl backup restore [--force] [--prune] [--target_project <PROJECT_ID>] [--start_vms] \
+        [--without_dependencies] [--dry_run] [-w] <BACKUP_UUID>
+    ainarictl backup job_list [--backup <BACKUP_UUID>]
+    ainarictl backup job_get <JOB_UUID>
+
+    # admin only
+    ainarictl onsen_host set_backup_target <HOST_UUID> true|false
+    ainarictl backup scan <ONSEN_HOST_UUID>
+    ainarictl backup import [-n <NAME>] <ONSEN_HOST_UUID> <BACKUP_UUID>
+    ainarictl project lock <PROJECT_ID> <REASON>
+    ainarictl project unlock <PROJECT_ID>
+    ```
+
+    `-w` waits, until the job is finished, and fails, if the job failed.
+
+    example:
+
+    ```bash
+    ainarictl backup restore --force --dry_run 87b415d3-5c04-4e9b-bb72-ccdf619765ab
+    Enter passphrase of the backup:
+    target project: default-asdf
+    overwritten resources:
+    ┌─────────────────────────────┬─────────────────┬──────────────────────────────────────┐
+    │            NAME             │  RESOURCE TYPE  │                 UUID                 │
+    ├─────────────────────────────┼─────────────────┼──────────────────────────────────────┤
+    │ local-stack-test-5775b092-1 │ virtual_machine │ 33fb6332-7528-46a0-b4c2-aad32bf0b7dd │
+    └─────────────────────────────┴─────────────────┴──────────────────────────────────────┘
+    quota after the restore:
+    ┌───────────────┬─────────┬─────┬─────────────────┐
+    │ AFTER RESTORE │ CURRENT │ MAX │  RESOURCE TYPE  │
+    ├───────────────┼─────────┼─────┼─────────────────┤
+    │ 2             │ 2       │ 10  │ virtual_machine │
+    │ 2             │ 2       │ 10  │ floating_ip     │
+    │ 1             │ 1       │ 10  │ network         │
+    └───────────────┴─────────┴─────┴─────────────────┘
+    ```
+
+=== "Python-SDK"
+
+    ```python
+    from ainari_sdk import backup
+
+    result = backup.create_virtual_machine_backup(context, virtual_machine_uuid, "my-backup",
+                                                  passphrase)
+    job = backup.wait_for_job_finished(context, result["job"]["uuid"])
+
+    # only the plan
+    plan = backup.restore_backup(context, result["backup"]["uuid"], passphrase, force=True,
+                                 dry_run=True)["plan"]
+    restore = backup.restore_backup(context, result["backup"]["uuid"], passphrase, force=True)
+    backup.wait_for_job_finished(context, restore["job"]["uuid"])
     ```
 
 ## Secrets
