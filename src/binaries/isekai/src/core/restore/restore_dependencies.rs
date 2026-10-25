@@ -54,6 +54,7 @@ impl Restorer<'_> {
         }
 
         let public_key = self
+            .restore
             .metadata
             .omamori
             .public_keys
@@ -67,7 +68,7 @@ impl Restorer<'_> {
             })?;
 
         match self
-            .import_secrets(Vec::new(), vec![public_key.clone()], BTreeMap::new())
+            .import_secrets(Vec::new(), vec![public_key.clone()], false, BTreeMap::new())
             .await
         {
             Ok(_) => Ok(*old_uuid),
@@ -76,6 +77,7 @@ impl Restorer<'_> {
                 self.import_secrets(
                     Vec::new(),
                     vec![public_key.clone()],
+                    false,
                     BTreeMap::from([(*old_uuid, new_uuid)]),
                 )
                 .await?;
@@ -91,13 +93,14 @@ impl Restorer<'_> {
         &self,
         secrets: Vec<OmamoriSecretExport>,
         public_keys: Vec<OmamoriPublicKeyExport>,
+        force: bool,
         id_map: BTreeMap<Uuid, Uuid>,
     ) -> Result<OmamoriProjectImportResp, AinariError> {
         let request = OmamoriProjectImportReq {
             wrap_key: self.restore.keys.wrap_key_base64(),
             secrets,
             public_keys,
-            force: false,
+            force,
             id_map,
         };
         import_project_secrets(
@@ -138,6 +141,7 @@ impl Restorer<'_> {
             )));
         }
         let network = self
+            .restore
             .metadata
             .hanami
             .networks
@@ -170,7 +174,10 @@ impl Restorer<'_> {
     }
 
     /// Sends an import-request to hanami.
-    async fn import_networks(&self, request: &HanamiProjectImportReq) -> Result<(), AinariError> {
+    pub(super) async fn import_networks(
+        &self,
+        request: &HanamiProjectImportReq,
+    ) -> Result<(), AinariError> {
         import_project_networks(
             &self.services.endpoints.hanami,
             &self.services.token,
@@ -188,7 +195,7 @@ impl Restorer<'_> {
     /// The floating ip-addresses are allocated again from the pool of the deployment, so they
     /// only keep their address, if it is still free.
     pub(super) async fn restore_network_filters(&self, old_uuid: &Uuid) -> Result<(), AinariError> {
-        let hanami = &self.metadata.hanami;
+        let hanami = &self.restore.metadata.hanami;
         let request = HanamiProjectImportReq {
             networks: Vec::new(),
             network_filters: hanami

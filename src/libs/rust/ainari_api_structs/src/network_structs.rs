@@ -74,7 +74,7 @@ pub struct HanamiNetworkExport {
 
 /// Networks, virtual_machines, packet filters and floating ip-addresses of a project, like they
 /// are exported from hanami into a backup.
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default, JsonSchema, ApiComponent)]
 pub struct HanamiProjectExport {
     pub networks: Vec<HanamiNetworkExport>,
     pub virtual_machines: Vec<HanamiVirtualMachineExport>,

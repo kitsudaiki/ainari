@@ -21,6 +21,7 @@ pub mod get_backup_internal_v1_0;
 pub mod list_backup_internal_v1_0;
 pub mod prepare_backup_disk_internal_v1_0;
 pub mod read_backup_file_internal_v1_0;
+pub mod read_unregistered_manifest_internal_v1_0;
 pub mod register_backup_internal_v1_0;
 pub mod scan_backup_target_internal_v1_0;
 pub mod write_backup_file_internal_v1_0;

@@ -203,7 +203,7 @@ pub struct OmamoriProjectExportReq {
 }
 
 /// Secrets and public-keys of a project, like they are exported from omamori into a backup.
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default, JsonSchema, ApiComponent, Validate)]
 pub struct OmamoriProjectExport {
     #[validate(nested)]
     pub secrets: Vec<OmamoriSecretExport>,

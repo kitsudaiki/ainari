@@ -23,7 +23,7 @@ use ainari_api_structs::backup_structs::*;
 use ainari_api_structs::user_context::UserContext;
 
 use crate::database::id_map_table;
-use crate::database::job_table::{self, JobEntry};
+use crate::database::job_table;
 
 #[api_operation(
     tag = "job",

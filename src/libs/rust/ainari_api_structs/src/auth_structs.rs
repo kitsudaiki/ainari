@@ -36,6 +36,13 @@ pub struct TokenRenewReq {
     pub project_id: Option<String>,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
+pub struct TokenProjectAdminReq {
+    /// Project, for which the new token is created. The admin doesn't have to be assigned to it.
+    #[validate(length(min = 4, max = 127))]
+    pub project_id: String,
+}
+
 #[derive(Debug, Deserialize, Validate)]
 pub struct OAuth2Request {
     pub token_format: String,

@@ -17,6 +17,7 @@ use apistos::web::{Scope, delete, get, post, resource, scope};
 use ainari_api::endpoints::*;
 
 use crate::api::http_endpoints::backup::*;
+use crate::api::http_endpoints::import::*;
 use crate::api::http_endpoints::job::*;
 use crate::api::http_endpoints::restore::*;
 
@@ -41,7 +42,15 @@ pub fn v1alpha_routes() -> Scope {
                         .route(post().to(create_project_backup_v1_0::create_project_backup))
                         .route(get().to(list_backup_v1_0::list_backup)),
                 )
-                // registered before "/{backup_uuid}", which would match it as well
+                // registered before "/{backup_uuid}", which would match them as well
+                .service(
+                    resource("/scan/admin")
+                        .route(get().to(scan_backup_target_admin_v1_0::scan_backup_target_admin)),
+                )
+                .service(
+                    resource("/import/admin")
+                        .route(post().to(import_backup_admin_v1_0::import_backup_admin)),
+                )
                 .service(resource("/virtual_machine").route(
                     post().to(create_virtual_machine_backup_v1_0::create_virtual_machine_backup),
                 ))

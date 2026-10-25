@@ -121,7 +121,10 @@ pub fn v1alpha_routes() -> Scope {
             scope("/backup_target")
                 .service(resource("/{host_uuid}/scan/internal").route(
                     get().to(scan_backup_target_internal_v1_0::scan_backup_target_internal),
-                )),
+                ))
+                .service(resource("/{host_uuid}/manifest/internal").route(get().to(
+                    read_unregistered_manifest_internal_v1_0::read_unregistered_manifest_internal,
+                ))),
         )
         .service(
             scope("/project")

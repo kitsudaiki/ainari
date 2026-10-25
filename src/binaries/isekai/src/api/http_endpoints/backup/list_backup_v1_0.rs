@@ -112,3 +112,71 @@ fn to_backup_resp(
         created_by: entry.created_by,
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::Utc;
+    use uuid::Uuid;
+
+    #[test]
+    fn test_to_backup_resp() {
+        let entry = BackupEntry {
+            uuid: Uuid::new_v4(),
+            name: "backup".to_string(),
+            backup_kind: "PROJECT".to_string(),
+            project_id: "project".to_string(),
+            virtual_machine_uuid: None,
+            backup_state: "CREATING".to_string(),
+            ainari_version: "0.22.0".to_string(),
+            secret_uuids: Vec::new(),
+            owner_id: "user".to_string(),
+            status: "ACTIVE".to_string(),
+            created_at: Utc::now(),
+            created_by: "user".to_string(),
+            updated_at: Utc::now(),
+            updated_by: "user".to_string(),
+            deleted_at: None,
+            deleted_by: None,
+        };
+        let mut package = BackupResp {
+            uuid: entry.uuid,
+            host_uuid: Uuid::new_v4(),
+            onsen_address: "http://onsen:50051".to_string(),
+            directory_path: format!("backups/{}", entry.uuid),
+            backup_status: BackupStatus::Creating,
+            file_count: 0,
+            total_size: 0,
+            manifest_sha256: None,
+            owner_id: "user".to_string(),
+            project_id: "project".to_string(),
+            created_at: Utc::now(),
+            created_by: "user".to_string(),
+            updated_at: Utc::now(),
+            updated_by: "user".to_string(),
+        };
+
+        // the size is unknown, until the package is sealed
+        let resp = to_backup_resp(entry.clone(), Some(&package)).unwrap();
+        assert_eq!(resp.kind, BackupKind::Project);
+        assert_eq!(resp.state, BackupStatus::Creating);
+        assert_eq!(resp.host_uuid, Some(package.host_uuid));
+        assert!(resp.total_size.is_none());
+
+        package.backup_status = BackupStatus::Ready;
+        package.total_size = 42;
+        package.file_count = 3;
+        let resp = to_backup_resp(entry.clone(), Some(&package)).unwrap();
+        assert_eq!(resp.total_size, Some(42));
+        assert_eq!(resp.file_count, Some(3));
+
+        let resp = to_backup_resp(entry.clone(), None).unwrap();
+        assert!(resp.host_uuid.is_none());
+
+        let invalid = BackupEntry {
+            backup_kind: "UNKNOWN".to_string(),
+            ..entry
+        };
+        assert!(to_backup_resp(invalid, None).is_err());
+    }
+}

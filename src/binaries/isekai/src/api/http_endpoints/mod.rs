@@ -13,6 +13,7 @@
 // limitations under the License.
 
 pub mod backup;
+pub mod import;
 pub mod job;
 pub mod restore;
 

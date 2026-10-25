@@ -37,12 +37,16 @@ pub fn v1alpha_routes() -> Scope {
                 .service(resource("").route(get().to(is_ready_v1_0::get_ready_status))),
         )
         .service(
-            scope("/token").service(
-                resource("")
-                    .route(put().to(renew_token_v1_0::renew_token))
-                    .route(post().to(create_token_v1_0::create_token))
-                    .route(get().to(validate_token_v1_0::validate_token)),
-            ),
+            scope("/token")
+                .service(
+                    resource("")
+                        .route(put().to(renew_token_v1_0::renew_token))
+                        .route(post().to(create_token_v1_0::create_token))
+                        .route(get().to(validate_token_v1_0::validate_token)),
+                )
+                .service(resource("/project/admin").route(
+                    put().to(renew_token_for_project_admin_v1_0::renew_token_for_project_admin),
+                )),
         )
         .service(
             scope("/passphrase")

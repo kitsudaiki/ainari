@@ -159,6 +159,102 @@ pub fn add_new_backup(
     })
 }
 
+/// Adds a backup, which was created by another deployment and is imported, in the state `READY`.
+///
+/// An entry of a deleted backup with the same UUID is replaced, so a package can be imported again,
+/// after its entry was deleted.
+///
+/// # Arguments
+///
+/// * `backup_uuid` - UUID of the backup, which is also used by the backup-resource in ryokan
+/// * `backup_name` - Name of the backup
+/// * `kind` - Content of the backup
+/// * `project` - Project of the backup
+/// * `vm_uuid` - Saved virtual_machine of a backup of the kind `VIRTUAL_MACHINE`
+/// * `version` - Version of ainari, which has created the backup
+/// * `context` - The user context of the admin, who imports the backup
+///
+/// # Returns
+///
+/// A QueryResult indicating the number of rows affected
+pub fn add_imported_backup(
+    backup_uuid: &Uuid,
+    backup_name: &str,
+    kind: BackupKind,
+    project: &str,
+    vm_uuid: Option<Uuid>,
+    version: &str,
+    context: &UserContext,
+) -> QueryResult<usize> {
+    let now = Utc::now();
+    let entry = BackupEntry {
+        uuid: *backup_uuid,
+        name: backup_name.to_string(),
+        backup_kind: kind.to_string(),
+        project_id: project.to_string(),
+        virtual_machine_uuid: vm_uuid,
+        backup_state: BackupStatus::Ready.to_string(),
+        ainari_version: version.to_string(),
+        // the secrets of the disks are only part of the backup itself
+        secret_uuids: Vec::new(),
+        owner_id: context.user_id.clone(),
+        status: "ACTIVE".to_string(),
+        created_at: now,
+        created_by: context.user_id.clone(),
+        updated_at: now,
+        updated_by: context.user_id.clone(),
+        deleted_at: None,
+        deleted_by: None,
+    };
+    replace_deleted_backup(entry)
+}
+
+/// Adds a backup and removes an entry of a deleted backup with the same UUID before.
+///
+/// # Arguments
+///
+/// * `entry` - The backup to insert
+///
+/// # Returns
+///
+/// A QueryResult indicating the number of rows affected
+fn replace_deleted_backup(entry: BackupEntry) -> QueryResult<usize> {
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+    use self::backups::dsl::*;
+    let backup_uuid = entry.uuid;
+    conn.transaction(|conn| {
+        diesel::delete(
+            backups
+                .filter(uuid.eq(backup_uuid.to_string()))
+                .filter(status.ne("ACTIVE")),
+        )
+        .execute(conn)?;
+        diesel::insert_into(backups).values(entry).execute(conn)
+    })
+}
+
+/// Checks, if a backup is known, which is not deleted, independent of its project.
+///
+/// # Arguments
+///
+/// * `backup_uuid` - The UUID of the backup
+///
+/// # Returns
+///
+/// True, if the backup exists
+pub fn is_known(backup_uuid: &Uuid) -> QueryResult<bool> {
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+    use self::backups::dsl::*;
+
+    backups
+        .filter(uuid.eq(backup_uuid.to_string()))
+        .filter(status.eq("ACTIVE"))
+        .select(uuid)
+        .first::<String>(&mut *conn)
+        .optional()
+        .map(|entry| entry.is_some())
+}
+
 /// Version of ainari, which is stored with each backup.
 ///
 /// # Returns
@@ -566,6 +662,51 @@ mod tests {
 
         hard_delete_backup(&uuid1);
         hard_delete_backup(&uuid2);
+    }
+
+    #[test]
+    #[serial]
+    fn test_add_imported_backup() {
+        let backup_uuid = Uuid::new_v4();
+        let admin = new_context("admin-project", true, ProjectRole::Member);
+        hard_delete_backup(&backup_uuid);
+        assert!(!is_known(&backup_uuid).unwrap());
+
+        add_imported_backup(
+            &backup_uuid,
+            "imported",
+            BackupKind::Project,
+            "old-project",
+            None,
+            "0.21.0",
+            &admin,
+        )
+        .unwrap();
+        assert!(is_known(&backup_uuid).unwrap());
+        let entry = expect_entry(get_backup(&backup_uuid, &admin));
+        assert_eq!(entry.state(), Ok(BackupStatus::Ready));
+        assert_eq!(entry.project_id, "old-project");
+        assert_eq!(entry.ainari_version, "0.21.0");
+
+        // an active backup can't be imported twice, but a deleted one again
+        let again = |name| {
+            add_imported_backup(
+                &backup_uuid,
+                name,
+                BackupKind::Project,
+                "old-project",
+                None,
+                "0.21.0",
+                &admin,
+            )
+        };
+        assert!(again("twice").is_err());
+        assert!(delete_backup(&backup_uuid, &admin).is_ok());
+        assert!(!is_known(&backup_uuid).unwrap());
+        again("again").unwrap();
+        assert_eq!(expect_entry(get_backup(&backup_uuid, &admin)).name, "again");
+
+        hard_delete_backup(&backup_uuid);
     }
 
     #[test]

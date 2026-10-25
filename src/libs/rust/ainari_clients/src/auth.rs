@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::{handle_response, prepare_client};
-use ainari_api_structs::auth_structs::{TokenRenewReq, UserTokenResp};
+use ainari_api_structs::auth_structs::{TokenProjectAdminReq, TokenRenewReq, UserTokenResp};
 use ainari_common::error::AinariError;
 use awc::http::StatusCode;
 
@@ -125,4 +125,42 @@ pub async fn renew_token(
         .await;
 
     handle_response(response, "token", "").await
+}
+
+/// Creates a new token of an admin for any existing project, so another component can act on
+/// the resources of this project on behalf of the admin.
+///
+/// It uses the admin-endpoint of miko, which also works for projects, to which the admin is not
+/// assigned. A user, who is no admin, is rejected by miko.
+///
+/// # Arguments
+///
+/// * `address` - The base URL of the Miko server.
+/// * `token` - The current token of the admin, which must still be valid.
+/// * `project_id` - The project of the new token.
+/// * `insecure_client` - A boolean indicating whether to use an insecure client.
+///
+/// # Returns
+///
+/// * `Result<UserTokenResp, AinariError>` - The new token together with its lifetime in seconds.
+pub async fn renew_token_for_project_admin(
+    address: &str,
+    token: &str,
+    project_id: &str,
+    insecure_client: bool,
+) -> Result<UserTokenResp, AinariError> {
+    let client = prepare_client(address, insecure_client);
+    let url = format!("{address}/v1alpha/token/project/admin");
+
+    let body = TokenProjectAdminReq {
+        project_id: project_id.to_owned(),
+    };
+
+    let response = client
+        .put(url)
+        .insert_header(("Authorization", format!("Bearer {token}")))
+        .send_json(&body)
+        .await;
+
+    handle_response(response, "token", project_id).await
 }

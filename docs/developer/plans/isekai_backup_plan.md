@@ -161,6 +161,9 @@ onsen about the bundles, so isekai doesn't need a wireguard-tunnel):
   streams it chunk by chunk from the source to the target, without storing it.
 - `GET    /v1alpha/backup_target/{host_uuid}/scan/internal` – lists the directories in `backups/`,
   which are not registered in the `backups`-table (for the import of foreign bundles)
+- `GET    /v1alpha/backup_target/{host_uuid}/manifest/internal?backup_uuid=…` – reads the
+  manifest of a package, which is not registered yet, so isekai can check the passphrase and read
+  the project of a foreign bundle, before it is registered (admin only)
 - `POST   /v1alpha/backup/register/internal` `{ uuid, project_id, host_uuid }` – registers a
   foreign bundle, which was found by `scan`, directly as `READY` (same checks like `finalize`)
 - `GET  /v1alpha/project/{project_id}/export/internal` and
@@ -223,6 +226,12 @@ onsen about the bundles, so isekai doesn't need a wireguard-tunnel):
       by the passphrase of the user, so otherwise a project-admin could raise the quota of the own
       project with a manipulated backup. The response shows it with `quota_imported`.
 - `get_endpoints` gets the address of isekai (`EndpointsResp.isekai`).
+- `PUT /v1alpha/token/project/admin` `{ project_id }` – a global admin gets a token for every
+  existing project, also without being assigned to it (role `admin`, or the own role, if the admin
+  is assigned). It is a separate admin-endpoint, so the normal creation and renewal of tokens never
+  gives access to a project, to which the user is not assigned. The admin-flag is read from the
+  database. Isekai switches the token of an admin to the target-project of a restore with it,
+  because hanami and sakura act on the project of the token, like for the reservation of the VMs.
 - **Project-lock**:
     - `project_table`: new nullable columns `locked_by_job` (UUID of the backup- or restore-job),
       `lock_reason` (free text, like the running backup or restore) and `locked_at`.
@@ -428,15 +437,19 @@ the VM, which belong to the project. Because only one disk is copied, this lock 
 ### 5.3 Flow of a restore
 
 `POST /v1alpha/backup/{backup_uuid}/restore`
-`{ passphrase, force, prune, target_project_id?, start_vms }`
+`{ passphrase, force, prune, target_project_id?, start_vms, include_dependencies, dry_run }`
 
 1. **Verify**: read the manifest, check the HMAC (wrong passphrase → `400` before any change),
    check the sha256 of all files, check `format_version`/`ainari_version` for compatibility.
-2. **Plan** (dry-run, also available as `?dry_run=true`): get the existing resources of the target
-   project over the export-endpoints and calculate the `id_map`:
+2. **Plan** (dry-run, also available with `dry_run: true` in the body): get the existing
+   resources of the target project over the export-endpoints and calculate the `id_map`. The
+   plan is calculated by the endpoint, before the project is locked, and is returned together
+   with the job (`RestoreResp { plan, job }`, `job` is empty for a dry-run):
    - `force=false`: UUID free → keep it; taken → new UUID, rewrite all references (VM → network,
      image, public-key; image → secret; filter → VM; floating-ip → VM). Internal IP free in
-     the network → keep it, otherwise a new one.
+     the network → keep it, otherwise a new one. Into another project all resources get new UUIDs,
+     because isekai can only see the resources of the target project, and the UUIDs are usually
+     still used by the project of the backup.
    - `force=true`: every UUID is kept. Existing resources with the same UUID are overwritten.
    - `prune=true`: all resources of the target project, which are not in the backup, are added
      to the plan as "to delete". The dry-run shows them, so the user can check them before.
@@ -489,6 +502,9 @@ the VM, which belong to the project. Because only one disk is copied, this lock 
    the bundle and registers it in the backup-table of isekai and as backup-resource in ryokan
    (`backup/register/internal`, directly `READY`). Afterwards it is a normal backup, which can be
    restored with 5.3.
+   The manifest is read over `backup_target/{host_uuid}/manifest/internal` and checked with the
+   passphrase, before the bundle is registered, because the deletion of a wrong registration would
+   delete the whole bundle.
 4. Import is global admin only, because the restore can create projects. The users of the old
    deployment are not part of the bundle and have to be created and assigned by the admin.
 
@@ -619,7 +635,7 @@ Each phase is **exactly one commit**, which can be reviewed on its own. Rules fo
 | E6  | `feat(isekai): add backup of single virtual machines`     | Create/get/list/delete VM-backup with lock, backup-resource in ryokan, snapshot over D11, metadata, manifest, finalize, error-cleanup + unlock.               |
 | E7  | `feat(isekai): add restore of single virtual machines`    | Restore into an existing project, with `force` over the existing `snapshot_restore_task`, without `force` as new VM from the snapshot.                       |
 | E8  | `feat(isekai): add backup of projects`                    | All components, `include_images` with copy over B7, lock for the whole duration.                                                                            |
-| E9  | `feat(isekai): add restore-plan with dry-run`             | Calculation of the `id_map` (remap/`force`), quota-check; only reading, endpoint with `dry_run=true`. Unit-tests of the reference-rewriting.               |
+| E9  | `feat(isekai): add restore-plan with dry-run`             | Calculation of the `id_map` (remap/`force`), quota-check; only reading, `dry_run` in the body. Unit-tests of the reference-rewriting.                       |
 | E10 | `feat(isekai): add restore of projects`                   | Lock, apply in dependency-order, unlock; failed restore keeps the lock; re-run with `force` takes over the lock.                                             |
 | E11 | `feat(isekai): add prune-option to the restore`           | Delete-list in the plan/dry-run, deletion in reverse order, `prune` only with `force`.                                                                     |
 | E12 | `feat(isekai): add scan and import of foreign bundles`    | `GET backup/scan/admin`, `POST backup/import/admin`, registration of the bundle as backup-resource in ryokan.                                                 |

@@ -190,6 +190,12 @@ pub struct BackupScanResp {
     pub backups: Vec<BackupScanEntry>,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
+pub struct BackupManifestQuery {
+    /// UUID of the package, which is the name of its directory on the backup-target
+    pub backup_uuid: Uuid,
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
 pub struct BackupRegisterReq {
     /// UUID of the backup, which is the name of its directory on the backup-target
@@ -345,6 +351,9 @@ pub struct BackupRestoreReq {
     /// project anymore
     #[serde(default = "default_true")]
     pub include_dependencies: bool,
+    /// Only calculate and return the plan of the restore, without changing anything
+    #[serde(default)]
+    pub dry_run: bool,
 }
 
 /// Default for the flags, which are enabled, if they are not given
@@ -504,6 +513,86 @@ pub struct JobListQuery {
     pub backup_uuid: Option<Uuid>,
 }
 
+/// Resource of the project, which is changed by a restore.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, ApiComponent)]
+pub struct PlannedResource {
+    /// kind of the resource, like `virtual_machine` or `network`
+    pub resource_type: String,
+    /// UUID of the resource. For a packet-filter it is the UUID of its virtual_machine.
+    pub uuid: Uuid,
+    /// name of the resource. For a packet-filter it is its direction.
+    pub name: String,
+}
+
+/// Usage of the quota of the project for one kind of resource after the restore.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, ApiComponent)]
+pub struct QuotaUsageResp {
+    /// kind of the resource, like `virtual_machine` or `network`
+    pub resource_type: String,
+    /// number of resources of the project before the restore
+    pub current: i64,
+    /// number of resources of the project after the restore
+    pub after_restore: i64,
+    /// maximum number of resources of the project after the restore
+    pub max: i64,
+}
+
+impl QuotaUsageResp {
+    /// True, if the restore would exceed the quota. A restore, which reduces the number of
+    /// resources, is always possible, also if the project is already above its quota.
+    pub fn is_exceeded(&self) -> bool {
+        self.after_restore > self.max && self.after_restore > self.current
+    }
+}
+
+/// Plan of a restore, which shows, how the project is changed by it.
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
+pub struct RestorePlanResp {
+    /// project, which the backup is restored into
+    pub target_project_id: String,
+    /// true, if the project doesn't exist and is created by the restore
+    pub create_project: bool,
+    /// resources, which get a new UUID, because their UUID is already used
+    pub id_map: Vec<IdMapEntryResp>,
+    /// existing resources, which are overwritten by the backup
+    pub overwritten: Vec<PlannedResource>,
+    /// resources of the project, which are not part of the backup and deleted by `prune`
+    pub deleted: Vec<PlannedResource>,
+    /// usage of the quota of the project after the restore
+    pub quota: Vec<QuotaUsageResp>,
+    /// hints about parts of the backup, which can't be restored completely
+    pub warnings: Vec<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
+pub struct RestoreResp {
+    /// plan of the restore
+    pub plan: RestorePlanResp,
+    /// job, which restores the backup and which can be polled. Empty for a dry-run.
+    pub job: Option<JobResp>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
+pub struct BackupScanQuery {
+    /// backup-target, which is scanned for packages, which are not known yet
+    pub onsen_host_uuid: Uuid,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
+pub struct BackupImportReq {
+    /// backup-target, which stores the package
+    pub onsen_host_uuid: Uuid,
+    /// UUID of the package, which is the name of its directory on the backup-target
+    pub backup_uuid: Uuid,
+    /// Passphrase, which was given, when the backup was created
+    #[validate(length(min = 1, max = "MAX_BACKUP_PASSPHRASE_LENGTH"))]
+    pub passphrase: Secret,
+    /// Name of the backup. Without it, the backup is named after its UUID.
+    #[serde(default)]
+    #[validate(length(min = 4, max = 127))]
+    pub name: Option<String>,
+}
+
 /// Response of a new backup, which is created by a job in the background.
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
 pub struct BackupJobResp {
@@ -587,8 +676,23 @@ mod tests {
             serde_json::from_str(r#"{"passphrase": "correct horse battery"}"#).unwrap();
         assert!(req.validate().is_ok());
         assert!(req.include_dependencies);
-        assert!(!req.force && !req.prune && !req.start_vms);
+        assert!(!req.force && !req.prune && !req.start_vms && !req.dry_run);
         assert!(req.target_project_id.is_none());
+    }
+
+    #[test]
+    fn test_quota_usage_is_exceeded() {
+        let usage = |current, after_restore, max| QuotaUsageResp {
+            resource_type: "network".to_string(),
+            current,
+            after_restore,
+            max,
+        };
+        assert!(!usage(1, 3, 3).is_exceeded());
+        assert!(usage(1, 4, 3).is_exceeded());
+        // a project above its quota can still be reduced
+        assert!(!usage(6, 5, 3).is_exceeded());
+        assert!(!usage(5, 5, 3).is_exceeded());
     }
 
     #[test]

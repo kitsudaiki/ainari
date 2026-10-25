@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::time::{Duration, Instant};
 use uuid::Uuid;
 
 use ainari_api_structs::virtual_machine_structs::{
@@ -20,8 +21,9 @@ use ainari_api_structs::virtual_machine_structs::{
 use ainari_clients::image::delete_image;
 use ainari_clients::network::export_project_networks;
 use ainari_clients::virtual_machine::{
-    create_virtual_machine_task, get_virtual_machine_host, reserve_virtual_machine_internal,
-    restore_virtual_machine_snapshot, stop_virtual_machine_task,
+    create_virtual_machine_task, delete_virtual_machine_in_hanami, get_virtual_machine_host,
+    is_virtual_machine_deleted, reserve_virtual_machine_internal, restore_virtual_machine_snapshot,
+    stop_virtual_machine_task,
 };
 use ainari_common::error::AinariError;
 
@@ -30,30 +32,24 @@ use crate::core::bundle::BackupVirtualMachine;
 
 /// Power-state of a running virtual_machine in sakura
 const STATE_RUNNING: &str = "RUNNING";
+/// Time between two checks, if a deleted virtual_machine is gone on its sakura-host
+const DELETE_POLL_INTERVAL: Duration = Duration::from_secs(2);
+/// Maximum time, which the deletion of a virtual_machine on its sakura-host may take
+const DELETE_TIMEOUT: Duration = Duration::from_secs(10 * 60);
 
-impl Restorer<'_> {
-    /// Restores a virtual_machine together with its public-key, network, packet-filters and
-    /// floating ip-addresses.
+impl<'a> Restorer<'a> {
+    /// Restores a virtual_machine of a VM-backup together with its public-key, network,
+    /// packet-filters and floating ip-addresses.
     ///
     /// Without `force` an existing virtual_machine with the same UUID stays untouched and the
-    /// backup is restored as new virtual_machine. With `force` the root-disk of the existing
-    /// virtual_machine is replaced.
+    /// backup is restored as new virtual_machine under the UUID of the plan. With `force` the
+    /// root-disk of the existing virtual_machine is replaced.
     pub(super) async fn restore_virtual_machine(
         &mut self,
         virtual_machine: &BackupVirtualMachine,
     ) -> Result<(), AinariError> {
         let old_uuid = virtual_machine.config.uuid;
-        let hanami_vm = self
-            .metadata
-            .hanami
-            .virtual_machines
-            .iter()
-            .find(|entry| entry.uuid == old_uuid)
-            .ok_or_else(|| {
-                AinariError::InvalidInput(format!(
-                    "Virtual_machine '{old_uuid}' is missing in the metadata of hanami."
-                ))
-            })?;
+        let hanami_vm = self.backup_vm(&old_uuid)?;
 
         self.job.step(&format!(
             "restore dependencies of virtual_machine {old_uuid}"
@@ -93,6 +89,7 @@ impl Restorer<'_> {
                 self.job.step(&format!("create virtual_machine {old_uuid}"));
                 self.create_virtual_machine(
                     hanami_vm,
+                    self.new_uuid(&old_uuid),
                     existing.is_none(),
                     &network_uuid,
                     &image_uuid,
@@ -101,19 +98,7 @@ impl Restorer<'_> {
                 .await
             }
         };
-
-        // the snapshot-image was only required to create the root-disk of the virtual_machine
-        if let Err(e) = delete_image(
-            &self.services.endpoints.ryokan,
-            &self.services.token,
-            self.services.key(),
-            &image_uuid,
-            self.services.insecure(),
-        )
-        .await
-        {
-            log::warn!("Failed to delete the temporary snapshot-image {image_uuid}: {e}");
-        }
+        self.delete_temporary_image(&image_uuid).await;
         let (new_uuid, sakura_address) = result?;
         self.map_uuid("virtual_machine", old_uuid, new_uuid)?;
 
@@ -122,20 +107,71 @@ impl Restorer<'_> {
         ));
         self.restore_network_filters(&old_uuid).await?;
 
-        if virtual_machine.config.vm_state != STATE_RUNNING && !self.restore.start_vms {
-            self.job.step(&format!("stop virtual_machine {old_uuid}"));
-            let task = stop_virtual_machine_task(
-                &sakura_address,
-                &self.services.token,
-                self.services.key(),
-                &new_uuid,
-                self.services.insecure(),
-            )
-            .await?;
-            self.services.wait_for_task(&sakura_address, &task).await?;
-        }
+        self.apply_power_state(virtual_machine, &new_uuid, &sakura_address)
+            .await
+    }
 
-        Ok(())
+    /// Virtual_machine within the metadata of hanami of the backup.
+    pub(super) fn backup_vm(
+        &self,
+        virtual_machine_uuid: &Uuid,
+    ) -> Result<&'a HanamiVirtualMachineExport, AinariError> {
+        self.restore
+            .metadata
+            .hanami
+            .virtual_machines
+            .iter()
+            .find(|entry| entry.uuid == *virtual_machine_uuid)
+            .ok_or_else(|| {
+                AinariError::InvalidInput(format!(
+                    "Virtual_machine '{virtual_machine_uuid}' is missing in the metadata of hanami."
+                ))
+            })
+    }
+
+    /// Deletes the snapshot-image, which was only required to create the root-disk of a
+    /// virtual_machine. A failure is only logged, because the virtual_machine is already restored.
+    pub(super) async fn delete_temporary_image(&self, image_uuid: &Uuid) {
+        if let Err(e) = delete_image(
+            &self.services.endpoints.ryokan,
+            &self.services.token,
+            self.services.key(),
+            image_uuid,
+            self.services.insecure(),
+        )
+        .await
+        {
+            log::warn!("Failed to delete the temporary snapshot-image {image_uuid}: {e}");
+        }
+    }
+
+    /// Stops a restored virtual_machine, if it was not running at the time of the backup, unless
+    /// all virtual_machines are started by the restore.
+    ///
+    /// # Arguments
+    ///
+    /// * `virtual_machine` - The virtual_machine within the backup
+    /// * `uuid` - UUID of the restored virtual_machine
+    /// * `sakura_address` - Internal address of the sakura-host of the restored virtual_machine
+    pub(super) async fn apply_power_state(
+        &self,
+        virtual_machine: &BackupVirtualMachine,
+        uuid: &Uuid,
+        sakura_address: &str,
+    ) -> Result<(), AinariError> {
+        if virtual_machine.config.vm_state == STATE_RUNNING || self.restore.start_vms {
+            return Ok(());
+        }
+        self.job.step(&format!("stop virtual_machine {uuid}"));
+        let task = stop_virtual_machine_task(
+            sakura_address,
+            &self.services.token,
+            self.services.key(),
+            uuid,
+            self.services.insecure(),
+        )
+        .await?;
+        self.services.wait_for_task(sakura_address, &task).await
     }
 
     /// Replaces the root-disk of an existing virtual_machine with the one of the backup.
@@ -143,7 +179,7 @@ impl Restorer<'_> {
     /// # Returns
     ///
     /// The internal address of the sakura-host of the virtual_machine.
-    async fn replace_root_disk(
+    pub(super) async fn replace_root_disk(
         &self,
         existing: &HanamiVirtualMachineExport,
         backup: &HanamiVirtualMachineExport,
@@ -182,16 +218,18 @@ impl Restorer<'_> {
 
     /// Creates the virtual_machine of the backup as new virtual_machine from the snapshot-image.
     ///
-    /// It keeps its original UUID and addresses, as long as they are free. Otherwise hanami
-    /// selects new ones.
+    /// It gets the given UUID and, if requested, its original addresses. If the addresses are
+    /// used by another virtual_machine, hanami selects new ones, and if also the UUID is used, a
+    /// new UUID.
     ///
     /// # Returns
     ///
     /// The UUID of the new virtual_machine and the internal address of its sakura-host.
-    async fn create_virtual_machine(
+    pub(super) async fn create_virtual_machine(
         &self,
         backup: &HanamiVirtualMachineExport,
-        keep_identity: bool,
+        uuid: Uuid,
+        keep_addresses: bool,
         network_uuid: &Uuid,
         image_uuid: &Uuid,
         public_key_uuid: &Uuid,
@@ -203,31 +241,34 @@ impl Restorer<'_> {
             ))
         })?;
         let mut request = VirtualMachineReserveInternalReq {
-            uuid: keep_identity.then_some(backup.uuid),
+            uuid: Some(uuid),
             name: backup.name.clone(),
             network_uuid: *network_uuid,
             number_of_cores,
             memory_size: backup.memory_size,
             disk_size: backup.disk_size,
-            internal_ip: keep_identity.then_some(backup.internal_ip),
-            mac_address: keep_identity.then(|| backup.mac_address.clone()),
+            internal_ip: keep_addresses.then_some(backup.internal_ip),
+            mac_address: keep_addresses.then(|| backup.mac_address.clone()),
             isolated_host: false,
         };
 
-        let reserved = match self.reserve(&request).await {
-            Err(AinariError::Conflict(msg)) if keep_identity => {
-                // the UUID or one of the addresses is used by another virtual_machine
-                log::info!(
-                    "Restore virtual_machine '{}' with new identity, because: {msg}",
-                    backup.uuid
-                );
-                request.uuid = None;
-                request.internal_ip = None;
-                request.mac_address = None;
-                self.reserve(&request).await?
-            }
-            result => result?,
-        };
+        let mut result = self.reserve(&request).await;
+        // the addresses or the UUID are used by another virtual_machine
+        if matches!(result, Err(AinariError::Conflict(_))) && keep_addresses {
+            log::info!(
+                "Restore virtual_machine '{}' with new addresses",
+                backup.uuid
+            );
+            request.internal_ip = None;
+            request.mac_address = None;
+            result = self.reserve(&request).await;
+        }
+        if matches!(result, Err(AinariError::Conflict(_))) {
+            log::info!("Restore virtual_machine '{}' with new UUID", backup.uuid);
+            request.uuid = None;
+            result = self.reserve(&request).await;
+        }
+        let reserved = result?;
 
         let host = get_virtual_machine_host(
             &self.services.endpoints.hanami,
@@ -250,6 +291,54 @@ impl Restorer<'_> {
         self.services.wait_for_task(&host.address, &task).await?;
 
         Ok((reserved, host.address))
+    }
+
+    /// Deletes a virtual_machine of the project and waits, until it is gone on its sakura-host,
+    /// so its UUID and resources can be used again.
+    ///
+    /// A virtual_machine, which doesn't exist anymore, is skipped, so the deletion can be
+    /// repeated.
+    pub(super) async fn delete_virtual_machine(&self, uuid: &Uuid) -> Result<(), AinariError> {
+        let host = match get_virtual_machine_host(
+            &self.services.endpoints.hanami,
+            &self.services.token,
+            self.services.key(),
+            uuid,
+            self.services.insecure(),
+        )
+        .await
+        {
+            Ok(host) => host,
+            Err(AinariError::NotFound(_)) => return Ok(()),
+            Err(e) => return Err(e),
+        };
+        delete_virtual_machine_in_hanami(
+            &self.services.endpoints.hanami,
+            &self.services.token,
+            self.services.key(),
+            uuid,
+            self.services.insecure(),
+        )
+        .await?;
+
+        let start = Instant::now();
+        while !is_virtual_machine_deleted(
+            &host.address,
+            &self.services.token,
+            self.services.key(),
+            uuid,
+            self.services.insecure(),
+        )
+        .await?
+        {
+            if start.elapsed() > DELETE_TIMEOUT {
+                return Err(AinariError::internal(format!(
+                    "Virtual_machine '{uuid}' was not deleted in time"
+                )));
+            }
+            tokio::time::sleep(DELETE_POLL_INTERVAL).await;
+        }
+        Ok(())
     }
 
     /// Reserves a virtual_machine in hanami.

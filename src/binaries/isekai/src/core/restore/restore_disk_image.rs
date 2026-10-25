@@ -25,10 +25,9 @@ use ainari_clients::image::import_project_images;
 use ainari_common::error::AinariError;
 
 use super::Restorer;
+use super::plan::SECRET_OWNER_IMAGE;
 use crate::core::bundle::BackupVirtualMachine;
 
-/// Kind of owner of the secrets, which encrypt the files of images
-const SECRET_OWNER_IMAGE: &str = "image";
 /// Type of the root-disks within a backup
 const DISK_FILE_TYPE: &str = "qcow2";
 
@@ -47,6 +46,7 @@ impl Restorer<'_> {
         virtual_machine: &BackupVirtualMachine,
     ) -> Result<Uuid, AinariError> {
         let disk_secret = self
+            .restore
             .metadata
             .omamori
             .secrets
@@ -83,6 +83,7 @@ impl Restorer<'_> {
         self.import_secrets(
             vec![image_secret],
             Vec::new(),
+            false,
             BTreeMap::from([(disk_secret.uuid, secret_uuid)]),
         )
         .await?;

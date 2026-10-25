@@ -433,6 +433,61 @@ pub async fn scan_backup_target(
     handle_response::<BackupScanResp>(response, "onsen-host", &host_uuid.to_string()).await
 }
 
+/// Reads the manifest of a package on a backup-target, which is not registered as backup yet.
+///
+/// # Arguments
+///
+/// * `ryokan_endpoint` - The endpoint configuration for the Ryokan service
+/// * `token` - The authentication token of an admin
+/// * `internal_api_key` - The internal API key for accessing protected endpoints
+/// * `host_uuid` - The backup-target, which stores the package
+/// * `backup_uuid` - The UUID of the package
+/// * `insecure_client` - Whether to use an insecure (HTTP) client instead of HTTPS
+///
+/// # Returns
+///
+/// A `Result` containing the content of the manifest, or an `AinariError`.
+pub async fn read_unregistered_manifest(
+    ryokan_endpoint: &ainari_config::Endpoint,
+    token: &String,
+    internal_api_key: &Secret,
+    host_uuid: &Uuid,
+    backup_uuid: &Uuid,
+    insecure_client: bool,
+) -> Result<Vec<u8>, AinariError> {
+    let address = ryokan_endpoint.internal_address.clone();
+    let client = prepare_client(&address, insecure_client);
+    let url = format!("{address}/v1alpha/backup_target/{host_uuid}/manifest/internal");
+
+    let query = BackupManifestQuery {
+        backup_uuid: *backup_uuid,
+    };
+    let request = client
+        .get(url)
+        .query(&query)
+        .map_err(|e| AinariError::internal(format!("Failed to build query of manifest: {e}")))?;
+
+    let response = request
+        .insert_header(("Authorization", format!("Bearer {}", token)))
+        .insert_header(("X-Internal-API-Key", internal_api_key.reveal()))
+        .send()
+        .await;
+
+    let resp: BackupFileResp = handle_response_with_limit(
+        response,
+        "backup",
+        &backup_uuid.to_string(),
+        MAX_BACKUP_FILE_MESSAGE_SIZE,
+    )
+    .await?;
+
+    BASE64.decode(resp.content).map_err(|e| {
+        AinariError::internal(format!(
+            "Manifest of backup '{backup_uuid}' is not base64-encoded: {e}"
+        ))
+    })
+}
+
 /// Registers a package, which was copied onto a backup-target from outside, as backup in ryokan.
 ///
 /// # Arguments
