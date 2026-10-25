@@ -217,9 +217,11 @@ import { handleAxiosError } from "@/handleAxiosError";
 
 interface Props {
     backup: BackupResp | null;
+    /** project, which is preset as target of the restore */
+    targetProjectId?: string | null;
     icons: { acceptIcon: string; cancelIcon: string };
 }
-const props = defineProps<Props>();
+const props = withDefaults(defineProps<Props>(), { targetProjectId: null });
 const emit = defineEmits<{
     (e: "accept", job: JobResp): void;
     (e: "cancel"): void;
@@ -227,7 +229,7 @@ const emit = defineEmits<{
 
 const form = reactive({
     passphrase: "",
-    targetProjectId: "",
+    targetProjectId: props.targetProjectId ?? "",
     force: false,
     prune: false,
     startVms: false,

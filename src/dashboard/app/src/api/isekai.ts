@@ -36,9 +36,15 @@ import type {
  *
  * Creates a backup of the whole project of the token by a job in the background. The project is
  * locked, until the job is done.
+ *
+ * @param body - Name, passphrase and options of the backup
+ * @param token - Optional token for another project than the one of the login
  */
-export async function createProjectBackup(body: ProjectBackupCreateReq): Promise<BackupJobResp> {
-    const resp = await isekaiClient().post("/v1alpha/backup", body);
+export async function createProjectBackup(
+    body: ProjectBackupCreateReq,
+    token?: string,
+): Promise<BackupJobResp> {
+    const resp = await isekaiClient(token).post("/v1alpha/backup", body);
     return resp.data;
 }
 
@@ -50,9 +56,14 @@ export async function createVirtualMachineBackup(
     return resp.data;
 }
 
-/** `GET /v1alpha/backup` - the backups of the project of the token, the newest first. */
-export async function listBackups(): Promise<BackupResp[]> {
-    const resp = await isekaiClient().get("/v1alpha/backup");
+/**
+ * `GET /v1alpha/backup` - the backups of the project of the token, the newest first. Admins see
+ * the backups of all projects, which can be restricted to one project.
+ */
+export async function listBackups(projectId?: string): Promise<BackupResp[]> {
+    const resp = await isekaiClient().get("/v1alpha/backup", {
+        params: projectId ? { project_id: projectId } : {},
+    });
     return resp.data.backups;
 }
 

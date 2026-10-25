@@ -124,6 +124,8 @@ export interface UserSetProjectRoleResp {
 export interface ProjectBasicResp {
     id: string;
     name: string;
+    /** lock of the project during a backup or restore, null if the project is not locked */
+    lock?: ProjectLock | null;
 }
 
 /** Mirror of `project_structs::ProjectLock`. */
@@ -147,8 +149,6 @@ export interface ProjectLockResp {
 
 /** Mirror of `project_structs::ProjectResp`. */
 export interface ProjectResp extends ProjectBasicResp {
-    /** lock of the project during a backup or restore, null if the project is not locked */
-    lock?: ProjectLock | null;
     created_at: string;
     created_by: string;
     updated_at: string;

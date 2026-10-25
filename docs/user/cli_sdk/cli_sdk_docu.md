@@ -1662,7 +1662,8 @@ Projects are used for logical separation of the resources of users.
 
     result = project.create_project(context, "my_project", "my project")
 
-    project.list_projects(context)    # {"projects": [{"id": "my_project", "name": "my project"}]}
+    project.list_projects(context)
+    # {"projects": [{"id": "my_project", "name": "my project", "lock": None}]}
     project.get_project(context, "my_project")
     project.delete_project(context, "my_project")
     project.delete_all_projects(context)
@@ -1693,8 +1694,8 @@ restore, they are rejected with `409`. A locked project can't be deleted.
 !!! info
 
     Only admins are allowed to lock and unlock projects. The lock is shown in the field `lock` of
-    `project get`, and `token validate` returns `project_locked`, if the project of the token is
-    locked.
+    `project get` and `project list`, where the CLI only prints its reason, and `token validate`
+    returns `project_locked`, if the project of the token is locked.
 
 === "CLI"
 

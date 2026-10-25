@@ -17,7 +17,7 @@ base capabilities of uploading resources and creating a virtual machine based on
 !!! info
 
     If there is a version on a feature, which doesn't exist yet, then this feature is not 
-    release at the moment and and is only avaiable on the develop brauch.
+    release at the moment and and is only available on the develop brauch.
 
 ## Security
 

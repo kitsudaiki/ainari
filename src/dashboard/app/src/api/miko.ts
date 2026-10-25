@@ -53,6 +53,16 @@ export async function renewToken(body: TokenRenewReq): Promise<UserTokenResp> {
     return resp.data;
 }
 
+/**
+ * `PUT /v1alpha/token/project/admin` - new token of an admin for any existing project, also if
+ * the admin is not assigned to it. It is only used for single requests, like a backup of the
+ * project, the token of the login is not replaced.
+ */
+export async function renewTokenForProjectAdmin(projectId: string): Promise<UserTokenResp> {
+    const resp = await mikoClient().put("/v1alpha/token/project/admin", { project_id: projectId });
+    return resp.data;
+}
+
 //=============================================================================
 // passphrase
 //=============================================================================

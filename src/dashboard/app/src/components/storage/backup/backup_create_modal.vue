@@ -21,6 +21,7 @@
                 <span v-if="virtualMachine">
                     Create backup: {{ virtualMachine.name }}
                 </span>
+                <span v-else-if="projectId">Create backup: {{ projectId }}</span>
                 <span v-else>Create project backup</span>
             </div>
             <div class="modal-content">
@@ -120,16 +121,21 @@
 <script lang="ts" setup>
 import { ref, reactive } from "vue";
 
-import { isekai, MIN_BACKUP_PASSPHRASE_LENGTH } from "@/api";
+import { isekai, miko, MIN_BACKUP_PASSPHRASE_LENGTH } from "@/api";
 import type { BackupJobResp } from "@/api";
 import { handleAxiosError } from "@/handleAxiosError";
 
 interface Props {
     /** virtual machine, which is saved, or null for a backup of the whole project */
     virtualMachine?: { uuid: string; name: string } | null;
+    /**
+     * project, which is saved, if it is not the project of the login. Isekai saves the project of
+     * the token, so an admin gets a token for this project first.
+     */
+    projectId?: string | null;
     icons: { acceptIcon: string; cancelIcon: string };
 }
-const props = withDefaults(defineProps<Props>(), { virtualMachine: null });
+const props = withDefaults(defineProps<Props>(), { virtualMachine: null, projectId: null });
 const emit = defineEmits<{
     (e: "accept", result: BackupJobResp): void;
     (e: "cancel"): void;
@@ -165,12 +171,17 @@ async function handleAccept() {
                   passphrase: form.passphrase,
                   stop_vm: form.stopVms,
               })
-            : await isekai.createProjectBackup({
-                  name: form.name,
-                  passphrase: form.passphrase,
-                  stop_vms: form.stopVms,
-                  include_images: form.includeImages,
-              });
+            : await isekai.createProjectBackup(
+                  {
+                      name: form.name,
+                      passphrase: form.passphrase,
+                      stop_vms: form.stopVms,
+                      include_images: form.includeImages,
+                  },
+                  props.projectId
+                      ? (await miko.renewTokenForProjectAdmin(props.projectId)).access_token
+                      : undefined,
+              );
         emit("accept", result);
     } catch (err) {
         errorPopupMsg.value = handleAxiosError(err, "Failed to create backup");

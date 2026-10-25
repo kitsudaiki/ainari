@@ -254,9 +254,12 @@ These pages are only available for admins.
 
     ![Users](img/admin_user.jpg)
 
-- **Project** lists the projects. **+** creates a new project with ID and name. **Lock / unlock**
-    shows the lock of a project, locks it with a reason, for example for a maintenance, or removes
-    the lock, also the one of a failed restore.
+- **Project** lists the projects. **+** creates a new project with ID and name. The column
+    **Lock** shows the reason, while a project is locked by a backup, a restore or an admin.
+    **Lock / unlock** shows the details of the lock, locks a project with a reason, for example for
+    a maintenance, or removes the lock, also the one of a failed restore. **Create backup** saves
+    the whole project, also if the admin is not assigned to it, and **Restore backup** selects one
+    of the backups of the project and restores it into the project, after its plan was shown.
 
     ![Projects](img/admin_project.jpg)
 

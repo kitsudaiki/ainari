@@ -75,6 +75,17 @@ var getProjectCmd = &cobra.Command{
 	},
 }
 
+// lockReason returns the reason of the lock of a project for the table of the projects, or "-",
+// if the project is not locked. The complete lock is shown by 'project get'.
+func lockReason(project map[string]interface{}) string {
+	lock, ok := project["lock"].(map[string]interface{})
+	if !ok {
+		return "-"
+	}
+	reason, _ := lock["lock_reason"].(string)
+	return reason
+}
+
 var listProjectCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List all project.",
@@ -86,7 +97,13 @@ var listProjectCmd = &cobra.Command{
 		}
 		content, err := ainari_sdk.ListProject(context)
 		if err == nil {
-			ainarictl_common.PrintList(content["projects"].([]interface{}))
+			projects := content["projects"].([]interface{})
+			if !ainarictl_common.PrintAsJson {
+				for _, project := range projects {
+					project.(map[string]interface{})["lock"] = lockReason(project.(map[string]interface{}))
+				}
+			}
+			ainarictl_common.PrintList(projects)
 		} else {
 			fmt.Println(err)
 			os.Exit(1)
