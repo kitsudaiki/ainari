@@ -17,7 +17,9 @@ use std::net::Ipv4Addr;
 use awc::http::StatusCode;
 use uuid::Uuid;
 
+use ainari_api_structs::task_structs::{TaskBackupSaveReq, TaskResp};
 use ainari_api_structs::virtual_machine_structs::*;
+use ainari_common::config as ainari_config;
 use ainari_common::error::AinariError;
 use ainari_common::secret::Secret;
 
@@ -39,6 +41,7 @@ use crate::{handle_empty_response, handle_response};
 /// * `internal_ip` - Internal address, which is assigned to the virtual_machine.
 /// * `tap_name` - Name of the TAP-device, which is attached to the virtual_machine.
 /// * `mac_address` - MAC-address of the network-interface of the virtual_machine.
+/// * `uuid` - Optional UUID of the virtual_machine, otherwise sakura generates one
 /// * `insecure_client` - Whether to use an insecure client (no TLS verification).
 ///
 /// # Returns
@@ -57,6 +60,7 @@ pub async fn create_virtual_machine(
     internal_ip: &Ipv4Addr,
     tap_name: &String,
     mac_address: &str,
+    uuid: Option<&Uuid>,
     insecure_client: bool,
 ) -> Result<VirtualMachineResp, AinariError> {
     let client = prepare_client(sakura_address, insecure_client);
@@ -71,6 +75,7 @@ pub async fn create_virtual_machine(
         internal_ip: *internal_ip,
         tap_name: tap_name.to_owned(),
         mac_address: mac_address.to_owned(),
+        uuid: uuid.copied(),
     };
     let json_str = serde_json::to_string(&body).unwrap();
 
@@ -248,4 +253,121 @@ pub async fn is_virtual_machine_deleted(
              Got response-code: {code}"
         ))),
     }
+}
+
+/// Reserves a new virtual_machine in hanami for another component, for example to restore it from
+/// a backup with its original UUID and addresses.
+///
+/// # Arguments
+///
+/// * `hanami_endpoint` - The endpoint configuration for the hanami service
+/// * `token` - The authentication token for the API
+/// * `internal_api_key` - The internal API key for accessing protected endpoints
+/// * `request` - Values of the new virtual_machine
+/// * `insecure_client` - Whether to use an insecure (HTTP) client instead of HTTPS
+///
+/// # Returns
+///
+/// A `Result` containing the reserved virtual_machine, or an `AinariError`. A UUID or an address,
+/// which is already used, is rejected with `Conflict`.
+pub async fn reserve_virtual_machine_internal(
+    hanami_endpoint: &ainari_config::Endpoint,
+    token: &String,
+    internal_api_key: &Secret,
+    request: &VirtualMachineReserveInternalReq,
+    insecure_client: bool,
+) -> Result<VirtualMachineResp, AinariError> {
+    let address = hanami_endpoint.internal_address.clone();
+    let client = prepare_client(&address, insecure_client);
+    let url = format!("{address}/v1alpha/virtual_machine/internal");
+
+    let response = client
+        .post(url)
+        .insert_header(("Authorization", format!("Bearer {}", token)))
+        .insert_header(("X-Internal-API-Key", internal_api_key.reveal()))
+        .send_json(request)
+        .await;
+
+    handle_response(response, "virtual_machine", "").await
+}
+
+/// Exports the config of a virtual_machine from its sakura-host for a backup.
+///
+/// # Arguments
+///
+/// * `sakura_address` - Internal address of the sakura-host, which runs the virtual_machine
+/// * `token` - The authentication token for the API
+/// * `internal_api_key` - The internal API key for accessing protected endpoints
+/// * `virtual_machine_uuid` - The virtual_machine to export
+/// * `insecure_client` - Whether to use an insecure (HTTP) client instead of HTTPS
+///
+/// # Returns
+///
+/// A `Result` containing the config of the virtual_machine, or an `AinariError`.
+pub async fn export_virtual_machine(
+    sakura_address: &str,
+    token: &String,
+    internal_api_key: &Secret,
+    virtual_machine_uuid: &Uuid,
+    insecure_client: bool,
+) -> Result<SakuraVirtualMachineExport, AinariError> {
+    let client = prepare_client(sakura_address, insecure_client);
+    let url =
+        format!("{sakura_address}/v1alpha/virtual_machine/{virtual_machine_uuid}/export/internal");
+
+    let response = client
+        .get(url)
+        .insert_header(("Authorization", format!("Bearer {}", token)))
+        .insert_header(("X-Internal-API-Key", internal_api_key.reveal()))
+        .send()
+        .await;
+
+    handle_response(
+        response,
+        "virtual_machine",
+        &virtual_machine_uuid.to_string(),
+    )
+    .await
+}
+
+/// Creates a task on the sakura-host, which saves the root-disk of a virtual_machine into a
+/// backup.
+///
+/// # Arguments
+///
+/// * `sakura_address` - Internal address of the sakura-host, which runs the virtual_machine
+/// * `token` - The authentication token for the API
+/// * `internal_api_key` - The internal API key for accessing protected endpoints
+/// * `virtual_machine_uuid` - The virtual_machine, whose root-disk is saved
+/// * `request` - The backup, the secret for the encryption and if the virtual_machine is stopped
+/// * `insecure_client` - Whether to use an insecure (HTTP) client instead of HTTPS
+///
+/// # Returns
+///
+/// A `Result` containing the new task, which can be polled, or an `AinariError`.
+pub async fn backup_virtual_machine(
+    sakura_address: &str,
+    token: &String,
+    internal_api_key: &Secret,
+    virtual_machine_uuid: &Uuid,
+    request: &TaskBackupSaveReq,
+    insecure_client: bool,
+) -> Result<TaskResp, AinariError> {
+    let client = prepare_client(sakura_address, insecure_client);
+    let url =
+        format!("{sakura_address}/v1alpha/virtual_machine/{virtual_machine_uuid}/backup/internal");
+
+    let response = client
+        .post(url)
+        .insert_header(("Authorization", format!("Bearer {}", token)))
+        .insert_header(("X-Internal-API-Key", internal_api_key.reveal()))
+        .send_json(request)
+        .await;
+
+    handle_response(
+        response,
+        "virtual_machine",
+        &virtual_machine_uuid.to_string(),
+    )
+    .await
 }

@@ -547,6 +547,26 @@ pub fn check_if_id_exist_in_db<T>(
     Ok(())
 }
 
+/// Checks, that the user is allowed to access the resources of a project, which is given by the
+/// request and not by the token. Admins can access every project, all other users only the project
+/// of their token.
+///
+/// # Arguments
+///
+/// * `project_id` - The ID of the project
+/// * `context` - User-context of the request
+///
+/// # Returns
+///
+/// * `Ok(())` - The user is allowed
+/// * `Err(ErrorResponse::Forbidden)` - The project is not the one of the user
+pub fn check_project_access(project_id: &str, context: &UserContext) -> Result<(), ErrorResponse> {
+    if context.is_admin != true.to_string() && context.project_id != project_id {
+        return Err(permission_denied_response());
+    }
+    Ok(())
+}
+
 /// Checks, that no UUID is used twice within an import of resources, for example because of a
 /// wrong mapping of the UUIDs.
 ///

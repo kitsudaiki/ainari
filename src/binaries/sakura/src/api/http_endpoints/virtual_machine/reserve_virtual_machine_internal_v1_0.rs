@@ -34,6 +34,7 @@ so its resources are blocked, before the create-task is queued."###,
     error_code = 400,
     error_code = 401,
     error_code = 404,
+    error_code = 409,
     error_code = 500
 )]
 pub async fn reserve_virtual_machine_internal(
@@ -44,7 +45,32 @@ pub async fn reserve_virtual_machine_internal(
     body.validate()
         .map_err(|e| ErrorResponse::BadRequest(format!("Invalid input: {e}")))?;
 
-    let virtual_machine_uuid = Uuid::new_v4();
+    // a fixed UUID, for example of a restored virtual_machine, can only replace a deleted one
+    let virtual_machine_uuid = match body.uuid {
+        Some(uuid) => {
+            match virtual_machine_table::find_virtual_machine_status(&uuid)
+                .map_err(|e| map_db_list_error("virtual_machines", e, Some(&context)))?
+            {
+                Some(status) if status != "DELETED" => {
+                    return Err(ErrorResponse::Conflict(format!(
+                        "Virtual_machine with UUID '{uuid}' already exists."
+                    )));
+                }
+                Some(_) => {
+                    virtual_machine_table::remove_deleted_virtual_machine(&uuid).map_err(|e| {
+                        map_db_write_error(
+                            &format!("remove deleted virtual_machine '{uuid}'"),
+                            e,
+                            Some(&context),
+                        )
+                    })?;
+                }
+                None => {}
+            }
+            uuid
+        }
+        None => Uuid::new_v4(),
+    };
 
     // these values coming from the task, so they are temporary filled with nil-values
     let empty_image_uuid = Uuid::nil();
@@ -100,4 +126,85 @@ pub async fn reserve_virtual_machine_internal(
     };
 
     Ok(CreatedJson(resp))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::api::http_endpoints::virtual_machine::export_virtual_machine_internal_v1_0::export_virtual_machine_internal;
+    use crate::database::db_handle;
+    use actix_web::web::Path;
+    use ainari_common::enums::ProjectRole;
+    use diesel::prelude::*;
+    use serial_test::serial;
+    use std::net::Ipv4Addr;
+
+    fn context() -> UserContext {
+        UserContext {
+            token: "".to_string(),
+            user_id: "test-user".to_string(),
+            project_id: "test-project".to_string(),
+            is_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
+        }
+    }
+
+    fn request(uuid: Option<Uuid>) -> VirtualMachineInternalCreateReq {
+        VirtualMachineInternalCreateReq {
+            name: "restored".to_string(),
+            network_uuid: Uuid::new_v4(),
+            number_of_cores: 2,
+            memory_size: 1 << 30,
+            disk_size: 10,
+            internal_ip: Ipv4Addr::new(10, 0, 0, 5),
+            tap_name: "tap-test".to_string(),
+            mac_address: "02:00:00:00:00:05".to_string(),
+            uuid,
+        }
+    }
+
+    fn hard_delete(vm: &Uuid) {
+        let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+        use crate::database::virtual_machine_table::virtual_machines::dsl::*;
+        let _ =
+            diesel::delete(virtual_machines.filter(uuid.eq(vm.to_string()))).execute(&mut *conn);
+    }
+
+    #[actix_rt::test]
+    #[serial]
+    async fn test_reserve_with_fixed_uuid_and_export() {
+        let vm = Uuid::new_v4();
+        let resp = reserve_virtual_machine_internal(Json(request(Some(vm))), context())
+            .await
+            .unwrap()
+            .0;
+        assert_eq!(resp.uuid, vm);
+
+        // the config is exported with the original values
+        let exported = export_virtual_machine_internal(Path::from(vm), context())
+            .await
+            .unwrap()
+            .into_inner();
+        assert_eq!(exported.uuid, vm);
+        assert_eq!(exported.number_of_cores, 2);
+        assert_eq!(exported.memory_size, 1 << 30);
+        assert_eq!(exported.internal_ip, Ipv4Addr::new(10, 0, 0, 5));
+        assert_eq!(exported.mac_address, "02:00:00:00:00:05");
+
+        // an active virtual_machine blocks its UUID
+        assert!(matches!(
+            reserve_virtual_machine_internal(Json(request(Some(vm))), context()).await,
+            Err(ErrorResponse::Conflict(_))
+        ));
+
+        // the UUID of a deleted virtual_machine can be used again
+        assert!(virtual_machine_table::delete_virtual_machine(&vm, &context()).is_ok());
+        let resp = reserve_virtual_machine_internal(Json(request(Some(vm))), context())
+            .await
+            .unwrap()
+            .0;
+        assert_eq!(resp.uuid, vm);
+
+        hard_delete(&vm);
+    }
 }

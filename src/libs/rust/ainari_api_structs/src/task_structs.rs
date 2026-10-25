@@ -236,6 +236,18 @@ pub struct TaskSnapshotSaveReq {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
+pub struct TaskBackupSaveReq {
+    /// Backup in the state CREATING, which gets the root-disk as one of its disks
+    pub backup_uuid: Uuid,
+    /// Secret in the omamori, which is used to encrypt the root-disk
+    pub secret_uuid: Uuid,
+    /// Shut a running virtual_machine down before the root-disk is saved and start it again
+    /// afterwards, so the saved root-disk is consistent
+    #[serde(default)]
+    pub stop_vm: bool,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
 pub struct TaskSnapshotRestoreReq {
     /// Image, which must be a snapshot, to reset the root-disk of the virtual_machine to
     pub image_uuid: Uuid,

@@ -22,33 +22,102 @@ use uuid::Uuid;
 use ainari_api::common_functions::*;
 use ainari_api_structs::image_structs::ImageStatus;
 use ainari_api_structs::user_context::UserContext;
+use ainari_clients::backup::prepare_backup_disk;
 use ainari_clients::endpoints::get_endpoints;
 use ainari_clients::image::{get_image, update_image_status};
 use ainari_clients::onsen_file_transfer::upload_file;
 use ainari_clients::secret::get_secret_payload;
 use ainari_common::error::AinariError;
 use ainari_files::file_encryption::encrypt_file;
-use ainari_files::file_info::get_disk_image_info;
+use ainari_files::file_info::{FileInfo, get_disk_image_info};
 
 use super::{snapshot_temp_directory, vm_socket_path};
 use crate::config;
 use crate::database::virtual_machine_table;
 
-/// Creates a snapshot of the root-disk of a cloud-hypervisor virtual_machine
+/// Saves the root-disk of a cloud-hypervisor virtual_machine as encrypted file.
+///
+/// The root-disk is copied into a qcow2-image in the temp-directory, while the virtual_machine is
+/// paused, so the disk doesn't change during the copy. Afterwards the image is encrypted with the
+/// given secret and handed over to `upload`, which stores it, for example as snapshot-image in an
+/// onsen or as disk within a backup. The temp-directory is removed again afterwards, also if a
+/// step failed.
+///
+/// The copy is only crash-consistent: pausing doesn't flush the page-cache of the guest, so
+/// data, which the guest didn't write to the disk yet, is missing in the copy (e.g. empty
+/// files, which were created shortly before). A clean shutdown or a guest-agent would avoid this,
+/// but it was decided to keep the virtual_machine running and to tell the user to run `sync`
+/// inside the virtual_machine before the snapshot instead. A backup can shut the virtual_machine
+/// down before instead.
+///
+/// # Arguments
+/// * `uuid` - Unique identifier of the virtual_machine
+/// * `temp_name` - Unique name of the temp-directory, like the UUID of the new snapshot
+/// * `secret_uuid` - Unique identifier of the secret, which is used to encrypt the root-disk
+/// * `context` - User context containing authentication information
+/// * `upload` - Stores the encrypted file, gets its local path and the type and size of the
+///   unencrypted file
+///
+/// # Returns
+/// * `Ok(())` if the root-disk was saved
+/// * `Err(AinariError)` with an appropriate error on failure
+pub async fn save_ch_virtual_machine<F>(
+    uuid: &Uuid,
+    temp_name: &Uuid,
+    secret_uuid: &Uuid,
+    context: &UserContext,
+    upload: F,
+) -> Result<(), AinariError>
+where
+    F: AsyncFnOnce(&str, &FileInfo) -> Result<(), AinariError>,
+{
+    let virtual_machine_data = virtual_machine_table::get_virtual_machine(uuid, context)
+        .map_err(|e| map_db_uuid_get_delete_ainari_error("virtual_machine", uuid, e))?;
+    let root_disk_path = virtual_machine_data.root_disk_path.ok_or_else(|| {
+        AinariError::InvalidInput(format!("VM {uuid} has no root-disk, which can be saved."))
+    })?;
+
+    let endpoints =
+        get_endpoints(&config::CONFIG.miko, config::CONFIG.skip_tls_verification).await?;
+    let secret = get_secret_payload(
+        &endpoints.omamori,
+        &context.token,
+        secret_uuid,
+        config::CONFIG.skip_tls_verification,
+    )
+    .await?;
+
+    let temp_dir = snapshot_temp_directory(temp_name);
+    create_directory(&temp_dir).await?;
+    let local_file_path = format!("{temp_dir}/{temp_name}");
+    let local_encrypted_file_path = format!("{local_file_path}_encrypted");
+
+    let result = async {
+        copy_root_disk(uuid, &root_disk_path, &local_file_path).await?;
+
+        // the type and size can only be measured on the unencrypted file
+        let file_info = get_disk_image_info(&local_file_path).await?;
+        encrypt_file(&local_file_path, &local_encrypted_file_path, &secret).await?;
+
+        upload(&local_encrypted_file_path, &file_info).await
+    }
+    .await;
+
+    // the temporary files are not required anymore, even if the saving failed
+    let _ = std::fs::remove_dir_all(&temp_dir).map_err(|e| {
+        log::error!("Failed to delete temp-dir {temp_dir} from disk with error {e}.");
+    });
+
+    result
+}
+
+/// Saves the root-disk of a virtual_machine as snapshot-image.
 ///
 /// The snapshot must already be registered in ryokan as image, which is marked as snapshot.
 /// Ryokan also generated the secret for it in omamori, if the user didn't provide an existing
 /// one. The image is registered with the status `ENCRYPTING`, which is changed to `UPLOADING`
-/// before the encrypted file is uploaded and to `READY` at the end. The root-disk is copied into a
-/// qcow2-image in the temp-directory, while the
-/// virtual_machine is paused, so the disk doesn't change during the copy. Afterwards the image is encrypted with the secret of the snapshot and uploaded into
-/// the onsen, which was selected by ryokan.
-///
-/// The snapshot is only crash-consistent: pausing doesn't flush the page-cache of the guest, so
-/// data, which the guest didn't write to the disk yet, is missing in the snapshot (e.g. empty
-/// files, which were created shortly before). A clean shutdown or a guest-agent would avoid this,
-/// but it was decided to keep the virtual_machine running and to tell the user to run `sync`
-/// inside the virtual_machine before the snapshot instead.
+/// before the encrypted file is uploaded into the onsen, which was selected by ryokan, and to
+/// `READY` at the end.
 ///
 /// # Arguments
 /// * `uuid` - Unique identifier of the virtual_machine
@@ -59,18 +128,12 @@ use crate::database::virtual_machine_table;
 /// # Returns
 /// * `Ok(())` if the snapshot was uploaded
 /// * `Err(AinariError)` with an appropriate error on failure
-pub async fn save_ch_virtual_machine(
+pub async fn save_snapshot_image(
     uuid: &Uuid,
     image_uuid: &Uuid,
     secret_uuid: &Uuid,
     context: &UserContext,
 ) -> Result<(), AinariError> {
-    let virtual_machine_data = virtual_machine_table::get_virtual_machine(uuid, context)
-        .map_err(|e| map_db_uuid_get_delete_ainari_error("virtual_machine", uuid, e))?;
-    let root_disk_path = virtual_machine_data.root_disk_path.ok_or_else(|| {
-        AinariError::InvalidInput(format!("VM {uuid} has no root-disk, which can be saved."))
-    })?;
-
     let endpoints =
         get_endpoints(&config::CONFIG.miko, config::CONFIG.skip_tls_verification).await?;
 
@@ -84,68 +147,103 @@ pub async fn save_ch_virtual_machine(
     )
     .await?;
 
-    let secret = get_secret_payload(
-        &endpoints.omamori,
-        &context.token,
+    log::info!("Start snapshot-image {image_uuid} of VM {uuid}");
+    save_ch_virtual_machine(
+        uuid,
+        image_uuid,
         secret_uuid,
+        context,
+        async |local_path: &str, file_info: &FileInfo| {
+            update_image_status(
+                &endpoints.ryokan,
+                &context.token,
+                &config::INTERNAL_API_KEY,
+                image_uuid,
+                ImageStatus::Uploading,
+                Some((&file_info.file_type, file_info.file_size)),
+                config::CONFIG.skip_tls_verification,
+            )
+            .await?;
+
+            upload_file(&image_resp.onsen_address, &image_resp.file_path, local_path)
+                .await
+                .map_err(|e| {
+                    AinariError::internal(format!("Failed to upload snapshot-file to onsen: {e}"))
+                })?;
+
+            // only now the snapshot is complete and can be restored
+            update_image_status(
+                &endpoints.ryokan,
+                &context.token,
+                &config::INTERNAL_API_KEY,
+                image_uuid,
+                ImageStatus::Ready,
+                None,
+                config::CONFIG.skip_tls_verification,
+            )
+            .await
+            .map(|_| ())
+        },
+    )
+    .await?;
+
+    log::info!("Snapshot-image {image_uuid} of VM {uuid} uploaded");
+    Ok(())
+}
+
+/// Saves the root-disk of a virtual_machine as disk within a backup.
+///
+/// The disk is no image, so it is not registered in ryokan. Ryokan only provides the location
+/// within the package of the backup, which must still be created, on the backup-target, where
+/// the encrypted disk is uploaded to.
+///
+/// # Arguments
+/// * `uuid` - Unique identifier of the virtual_machine
+/// * `backup_uuid` - Unique identifier of the backup, which gets the disk
+/// * `secret_uuid` - Unique identifier of the secret, which is used to encrypt the disk
+/// * `context` - User context containing authentication information
+///
+/// # Returns
+/// * `Ok(())` if the disk was uploaded into the backup
+/// * `Err(AinariError)` with an appropriate error on failure
+pub async fn save_backup_disk(
+    uuid: &Uuid,
+    backup_uuid: &Uuid,
+    secret_uuid: &Uuid,
+    context: &UserContext,
+) -> Result<(), AinariError> {
+    let endpoints =
+        get_endpoints(&config::CONFIG.miko, config::CONFIG.skip_tls_verification).await?;
+
+    let target = prepare_backup_disk(
+        &endpoints.ryokan,
+        &context.token,
+        &config::INTERNAL_API_KEY,
+        backup_uuid,
+        uuid,
         config::CONFIG.skip_tls_verification,
     )
     .await?;
 
-    log::info!("Start snapshot-image {image_uuid} of VM {uuid}");
+    log::info!("Start disk of VM {uuid} for backup {backup_uuid}");
+    // the temp-directory is named after the backup, so two backups of the same virtual_machine
+    // don't share it
+    save_ch_virtual_machine(
+        uuid,
+        backup_uuid,
+        secret_uuid,
+        context,
+        async |local_path: &str, _: &FileInfo| {
+            upload_file(&target.onsen_address, &target.file_path, local_path)
+                .await
+                .map_err(|e| {
+                    AinariError::internal(format!("Failed to upload disk into backup: {e}"))
+                })
+        },
+    )
+    .await?;
 
-    let temp_dir = snapshot_temp_directory(image_uuid);
-    create_directory(&temp_dir).await?;
-    let local_file_path = format!("{temp_dir}/{image_uuid}");
-    let local_encrypted_file_path = format!("{local_file_path}_encrypted");
-
-    let result = async {
-        copy_root_disk(uuid, &root_disk_path, &local_file_path).await?;
-        // the type and size can only be measured on the unencrypted file
-        let file_info = get_disk_image_info(&local_file_path).await?;
-        encrypt_file(&local_file_path, &local_encrypted_file_path, &secret).await?;
-        update_image_status(
-            &endpoints.ryokan,
-            &context.token,
-            &config::INTERNAL_API_KEY,
-            image_uuid,
-            ImageStatus::Uploading,
-            Some((&file_info.file_type, file_info.file_size)),
-            config::CONFIG.skip_tls_verification,
-        )
-        .await?;
-        upload_file(
-            &image_resp.onsen_address,
-            &image_resp.file_path,
-            &local_encrypted_file_path,
-        )
-        .await
-        .map_err(|e| {
-            AinariError::internal(format!("Failed to upload snapshot-file to onsen: {e}"))
-        })?;
-        // only now the snapshot is complete and can be restored
-        update_image_status(
-            &endpoints.ryokan,
-            &context.token,
-            &config::INTERNAL_API_KEY,
-            image_uuid,
-            ImageStatus::Ready,
-            None,
-            config::CONFIG.skip_tls_verification,
-        )
-        .await
-        .map(|_| ())
-    }
-    .await;
-
-    // the temporary files are not required anymore, even if the snapshot failed
-    let _ = std::fs::remove_dir_all(&temp_dir).map_err(|e| {
-        log::error!("Failed to delete temp-dir {temp_dir} from disk with error {e}.");
-    });
-    result?;
-
-    log::info!("Snapshot-image {image_uuid} of VM {uuid} uploaded");
-
+    log::info!("Disk of VM {uuid} uploaded into backup {backup_uuid}");
     Ok(())
 }
 

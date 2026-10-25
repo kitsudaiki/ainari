@@ -70,6 +70,12 @@ pub fn v1alpha_routes() -> Scope {
                         get().to(get_migration_file_internal_v1_0::get_migration_file_internal),
                     ),
                 )
+                .service(resource("/{virtual_machine_uuid}/backup/internal").route(
+                    post().to(backup_virtual_machine_internal_v1_0::backup_virtual_machine_internal),
+                ))
+                .service(resource("/{virtual_machine_uuid}/export/internal").route(
+                    get().to(export_virtual_machine_internal_v1_0::export_virtual_machine_internal),
+                ))
                 .service(
                     resource("/{virtual_machine_uuid}/internal")
                         .route(

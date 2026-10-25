@@ -20,7 +20,7 @@ use validator::Validate;
 
 use crate::config;
 use crate::core::processing::tasks::{
-    CloudHypervisorVirtualMachineSnapshotInfo, Task, TaskMeta, TaskVariant,
+    CloudHypervisorVirtualMachineSnapshotInfo, SnapshotKind, Task, TaskMeta, TaskVariant,
 };
 use crate::database::task_table;
 use crate::database::virtual_machine_table;
@@ -100,8 +100,9 @@ pub async fn snapshot_save_task(
     );
     let info = CloudHypervisorVirtualMachineSnapshotInfo {
         vm_uuid: virtual_machine_data.uuid,
-        image_uuid,
+        kind: SnapshotKind::Image { image_uuid },
         secret_uuid: image_resp.secret_uuid,
+        stop_vm: false,
         description: task_description.clone(),
         context: context.clone(),
     };

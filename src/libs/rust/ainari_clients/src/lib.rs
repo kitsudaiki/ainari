@@ -20,6 +20,7 @@ pub mod host;
 pub mod image;
 pub mod izakaya;
 pub mod logging;
+pub mod network;
 pub mod network_crypto;
 pub mod network_filter;
 pub mod network_interface;
