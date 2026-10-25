@@ -44,6 +44,17 @@ def delete_kind(ctx, kind: str):
     return entries
 
 
+# first, because all other deletions are rejected, while a project is locked
+@suite.test("unlock projects")
+def unlock_projects(ctx):
+    delete_kind(ctx, "project_lock")
+
+
+@suite.test("delete backups")
+def delete_backups(ctx):
+    delete_kind(ctx, "backup")
+
+
 @suite.test("delete floating ip-addresses")
 def delete_floating_ips(ctx):
     delete_kind(ctx, "floating_ip")

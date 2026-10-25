@@ -4,7 +4,9 @@
 
 `testing/local_stack/prepare_resources.py` prepares virtual machines for testing
 with the Python-SDK: it uploads a public key and an ubuntu-cloud-image, creates a network, two
-virtual machines and their floating ip-addresses and logs into them over ssh.
+virtual machines and their floating ip-addresses and logs into them over ssh. Before that, it
+marks one of the two onsen-hosts as backup-target and at the end it creates a backup of the whole
+project with isekai (passphrase from `AINARI_BACKUP_PASSPHRASE`).
 
 - Prepare a python-environment with the dependencies of the SDK once in the root of the repository:
 
@@ -79,6 +81,7 @@ run was aborted.
 | `power`            | reboot (new boot-id), stop (unreachable), stop twice, other virtual machines unaffected, start, start while running |
 | `snapshots`        | write a marker-file → save snapshot → listed as qcow2 snapshot-image → change the disk → restore → marker is back and the later file is gone; invalid restores rejected |
 | `tasks`            | every task created during the run is `Finished`, has consistent timestamps and shows up in the list |
+| `backups`          | backup-target marked, invalid backups rejected, backup of a virtual machine → `READY`, get/list of backups and jobs, dry-run changes nothing, wrong passphrase and `prune` without `force` rejected, locked project rejects writes with `423` and backups/restores with `409`, restore with `force` → marker is back and the later file is gone, restore into another project → new UUIDs, project-backup locks the project, dry-run with `prune` lists newer resources, scan/import, delete |
 | `cleanup`          | deletes everything and checks, that it is gone, including the release of the host-resources  |
 
 Tests, which require two virtual machines, are skipped, if the test runs with only one.

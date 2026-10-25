@@ -17,7 +17,8 @@ End-to-end test of the local docker-compose setup.
 
 It walks through the whole life-cycle of two virtual machines with the python-sdk:
 
-    0. wait until all sakura-hosts of the setup are registered in hanami
+    0. wait until all sakura-hosts of the setup are registered in hanami and mark one of the
+       onsen-hosts as backup-target, which is used by isekai and never stores normal images
     1. generate a ssh-key-pair and upload the public key to omamori
     2. download an ubuntu-cloud-image and upload it to ryokan
     3. create a network and a vm-type with the cores and the memory of the virtual machines
@@ -28,6 +29,7 @@ It walks through the whole life-cycle of two virtual machines with the python-sd
     7. log into every virtual machine over ssh with the generated key. If the floating
        ip-addresses are only reachable within a network-namespace, like in the single-node setup
        of VSCode, this is set with AINARI_SSH_NETNS
+    8. create a backup of the whole project with isekai and wait until it is finished
 
 Both virtual machines use the same image, the same public key and the same network and differ
 only in their addresses. Hanami picks a sakura-host for every one of them, so they can land on
@@ -49,6 +51,8 @@ import uuid
 REPO_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.join(REPO_DIR, "src", "sdk", "python", "ainari_sdk"))
 
+from ainari_sdk import ainari_exceptions  # noqa: E402
+from ainari_sdk import backup        # noqa: E402
 from ainari_sdk import floating_ip   # noqa: E402
 from ainari_sdk import host          # noqa: E402
 from ainari_sdk import image         # noqa: E402
@@ -94,6 +98,17 @@ SSH_KEY_PATH = os.path.join(WORK_DIR, "id_ed25519")
 # hanami, when it starts, and a host, which is not registered yet, can not get a virtual machine.
 NUMBER_OF_SAKURA_HOSTS = int(os.getenv("AINARI_SAKURA_HOSTS", "2"))
 HOST_REGISTRATION_TIMEOUT = 300
+
+# number of onsen-hosts of the docker-compose setup. One of them becomes the backup-target, the
+# others store the images.
+NUMBER_OF_ONSEN_HOSTS = int(os.getenv("AINARI_ONSEN_HOSTS", "2"))
+# address of the onsen, which is preferred as backup-target
+BACKUP_ONSEN_ADDRESS = os.getenv("AINARI_BACKUP_ONSEN_ADDRESS", "http://onsen-backup:50051")
+
+# passphrase of the backup of the project, which is required again for its restore
+BACKUP_PASSPHRASE = os.getenv("AINARI_BACKUP_PASSPHRASE", "local-stack-backup-passphrase")
+# the backup copies the root-disks of all virtual machines and the image into the backup-target
+BACKUP_TIMEOUT = 1200
 
 # a virtual machine needs a while to boot, before it answers on ssh
 VM_CREATE_TIMEOUT = 600
@@ -158,6 +173,66 @@ def wait_for_sakura_hosts(context) -> list:
 
     raise TimeoutError(f"only {len(hosts)} of {NUMBER_OF_SAKURA_HOSTS} sakura-hosts registered "
                        f"themselves within {HOST_REGISTRATION_TIMEOUT}s")
+
+
+def mark_backup_target(context) -> dict:
+    """
+    Waits until all onsen-hosts of the setup are registered in ryokan and marks one of them as
+    backup-target, which is returned. A host, which is already marked, is kept, so the script can
+    run multiple times. The onsen-host for the backups is preferred, but a host can only be marked,
+    while it stores no images, so the other ones are tried as well.
+    """
+    end_time = time.time() + HOST_REGISTRATION_TIMEOUT
+    hosts = []
+    while time.time() < end_time:
+        hosts = host.list_onsen_hosts(context)["hosts"]
+        if len(hosts) >= NUMBER_OF_ONSEN_HOSTS:
+            break
+        time.sleep(2.0)
+    else:
+        raise TimeoutError(f"only {len(hosts)} of {NUMBER_OF_ONSEN_HOSTS} onsen-hosts registered "
+                           f"themselves within {HOST_REGISTRATION_TIMEOUT}s")
+
+    marked = [host_data for host_data in hosts if host_data["is_backup_target"]]
+    if marked:
+        return marked[0]
+    if len(hosts) < 2:
+        raise RuntimeError("at least 2 onsen-hosts are required, one for the images and one as "
+                           "backup-target")
+
+    # the preferred host first, the others as fallback
+    hosts.sort(key=lambda host_data: host_data["host_address"] != BACKUP_ONSEN_ADDRESS)
+    for host_data in hosts:
+        try:
+            return host.set_onsen_host_backup_target(context, host_data["uuid"], True)
+        except ainari_exceptions.ConflictException:
+            log(f"    onsen-host '{host_data['name']}' stores images, so it can't be marked")
+
+    raise RuntimeError("no onsen-host could be marked as backup-target, because all of them "
+                       "store images")
+
+
+def create_project_backup(context, name: str) -> dict:
+    """
+    Creates a backup of the whole project of the user and waits until its job is finished. The
+    project is locked by isekai for the duration of the backup.
+    """
+    result = backup.create_project_backup(context, name, BACKUP_PASSPHRASE)
+    backup_uuid = result["backup"]["uuid"]
+    job_uuid = result["job"]["uuid"]
+    log(f"    backup {backup_uuid}, job {job_uuid}")
+
+    end_time = time.time() + BACKUP_TIMEOUT
+    while time.time() < end_time:
+        job = backup.get_job(context, job_uuid)
+        if job["state"] == "FINISHED":
+            return backup.get_backup(context, backup_uuid)
+        if job["state"] == "ERROR":
+            raise RuntimeError(f"backup '{backup_uuid}' failed at step '{job['step']}': "
+                               f"{job['messages']}")
+        time.sleep(5.0)
+
+    raise TimeoutError(f"backup '{backup_uuid}' was not finished within {BACKUP_TIMEOUT}s")
 
 
 def reserve_and_create_virtual_machine(context,
@@ -271,6 +346,11 @@ def main() -> int:
     for host_data in wait_for_sakura_hosts(context):
         log(f"    sakura-host '{host_data['name']}' at {host_data['host_address']}")
 
+    # before the upload of the image, so the image is stored on another onsen-host
+    log("marking an onsen-host as backup-target")
+    backup_target = mark_backup_target(context)
+    log(f"    backup-target '{backup_target['name']}' at {backup_target['host_address']}")
+
     # 1. ssh-key-pair
     log("generating ssh-key-pair and uploading the public key to omamori")
     public_key_content = generate_ssh_key()
@@ -358,6 +438,15 @@ def main() -> int:
         log(f"ssh-access to {virtual_machine_entry['name']} works:")
         for line in output.splitlines():
             log(f"    {line}")
+
+    # 8. backup of the project
+    if context.isekai_address:
+        log("creating a backup of the project with isekai (this takes a while) ...")
+        backup_data = create_project_backup(context, f"local-stack-test-{test_id}")
+        log(f"backup: {backup_data['uuid']} ({backup_data['file_count']} files, "
+            f"{backup_data['total_size']} bytes)")
+    else:
+        log("isekai is not part of the endpoints of miko, so no backup is created")
 
     log("")
     log("SUCCESS")

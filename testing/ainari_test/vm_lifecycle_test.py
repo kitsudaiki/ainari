@@ -32,6 +32,7 @@ It runs the suites of ./suites against a running stack:
     power             reboot, stop and start
     snapshots         save and restore a snapshot of the root-disk
     tasks             the tasks, which were created on the sakura-hosts
+    backups           backup and restore of virtual machines and projects with isekai
     migration         move virtual machines to another sakura-host
     cleanup           delete and verify all created resources
 

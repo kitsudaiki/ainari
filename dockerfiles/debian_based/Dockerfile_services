@@ -75,7 +75,7 @@ RUN --mount=type=cache,target=/root/.cargo/registry,sharing=locked \
 FROM ${BUILD_BASE_IMAGE} AS hypervisor
 
 # the hypervisor, which runs the virtual machines, and the firmware, which boots them
-ARG CLOUD_HYPERVISOR_VERSION=v54.0
+ARG CLOUD_HYPERVISOR_VERSION=v53.0
 RUN mkdir -p /out && \
     curl -fSLo /out/cloud-hypervisor \
         https://github.com/cloud-hypervisor/cloud-hypervisor/releases/download/${CLOUD_HYPERVISOR_VERSION}/cloud-hypervisor-static && \
