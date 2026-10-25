@@ -80,6 +80,10 @@ pub struct ProxyEntry {
 
 /// Adds a new proxy entry to the database with default values for a newly created proxy.
 ///
+/// A proxy has the UUID of its virtual_machine. The UUID of a deleted virtual_machine can be used
+/// again by its project, like by the restore of a backup, so a deleted proxy of the same project
+/// with this UUID is replaced by the new one.
+///
 /// # Arguments
 /// * `proxy_uuid` - Unique identifier for the new proxy
 /// * `target_address` - Address the proxy will forward traffic to
@@ -115,22 +119,31 @@ pub fn add_new_proxy(
         deleted_by: None,
     };
 
-    add_proxy(proxy.clone())
+    add_proxy_replacing_deleted(proxy)
 }
 
-/// Adds a proxy entry to the database.
+/// Adds a proxy entry to the database and replaces a deleted proxy of the same project with the
+/// same UUID within the same transaction.
 ///
 /// # Arguments
 /// * `proxy` - The ProxyEntry to be added
 ///
 /// # Returns
-/// * `QueryResult<usize>` indicating the number of rows affected
-pub fn add_proxy(proxy: ProxyEntry) -> QueryResult<usize> {
+/// * `QueryResult<usize>` indicating the number of added rows
+fn add_proxy_replacing_deleted(proxy: ProxyEntry) -> QueryResult<usize> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::proxys::dsl::*;
-    diesel::insert_into(proxys)
-        .values(proxy)
-        .execute(&mut *conn)
+    conn.transaction(|conn| {
+        diesel::delete(
+            proxys.filter(
+                uuid.eq(proxy.uuid.to_string())
+                    .and(status.eq("DELETED"))
+                    .and(project_id.eq(proxy.project_id.clone())),
+            ),
+        )
+        .execute(conn)?;
+        diesel::insert_into(proxys).values(proxy).execute(conn)
+    })
 }
 
 /// Retrieves a proxy entry from the database based on its UUID and user context.
@@ -168,19 +181,30 @@ pub fn get_proxy(proxy_uuid: &Uuid, context: &UserContext) -> Result<ProxyEntry,
     }
 }
 
-/// Checks, if a proxy with the UUID exists, also if it is already marked as deleted.
+/// Checks, if the UUID can't be used for a new proxy of a project.
+///
+/// The UUID is used by an active proxy or by a proxy of another project, also if that one is
+/// already marked as deleted. A deleted proxy of the same project doesn't block its UUID, because
+/// it is replaced by the new proxy (see `add_new_proxy`).
 ///
 /// # Arguments
 /// * `proxy_uuid` - UUID of the proxy
+/// * `context` - User context with the project of the new proxy
 ///
 /// # Returns
 /// * `QueryResult<bool>` true, if the UUID can't be used for a new proxy
-pub fn proxy_uuid_in_use(proxy_uuid: &Uuid) -> QueryResult<bool> {
+pub fn proxy_uuid_in_use(proxy_uuid: &Uuid, context: &UserContext) -> QueryResult<bool> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::proxys::dsl::*;
 
     diesel::select(diesel::dsl::exists(
-        proxys.filter(uuid.eq(proxy_uuid.to_string())),
+        proxys.filter(
+            uuid.eq(proxy_uuid.to_string()).and(
+                status
+                    .eq("ACTIVE")
+                    .or(project_id.ne(context.project_id.clone())),
+            ),
+        ),
     ))
     .get_result(&mut *conn)
 }
@@ -292,6 +316,15 @@ mod tests {
     use ainari_common::enums::ProjectRole;
     use serial_test::serial;
 
+    /// Adds a proxy entry to the database, like it is, without replacing a deleted one.
+    fn add_proxy(proxy: ProxyEntry) -> QueryResult<usize> {
+        let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+        use self::proxys::dsl::*;
+        diesel::insert_into(proxys)
+            .values(proxy)
+            .execute(&mut *conn)
+    }
+
     fn hard_delete_proxy(proxy_uuid: &Uuid) {
         use self::proxys::dsl::*;
         let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
@@ -367,15 +400,32 @@ mod tests {
             project_role: ProjectRole::Member.to_string(),
         };
 
+        let other_project = UserContext {
+            project_id: "other-project".to_string(),
+            ..member.clone()
+        };
+
         hard_delete_proxy(&proxy_uuid);
-        assert!(!proxy_uuid_in_use(&proxy_uuid).unwrap());
+        assert!(!proxy_uuid_in_use(&proxy_uuid, &member).unwrap());
 
         add_new_proxy(&proxy_uuid, "10.0.0.1:443", &proxy_uuid, &member).unwrap();
-        assert!(proxy_uuid_in_use(&proxy_uuid).unwrap());
+        assert!(proxy_uuid_in_use(&proxy_uuid, &member).unwrap());
+        assert!(proxy_uuid_in_use(&proxy_uuid, &other_project).unwrap());
 
-        // a deleted proxy keeps its uuid in the database
+        // a deleted proxy only blocks its uuid for other projects
         assert!(delete_proxy(&proxy_uuid, &member).is_ok());
-        assert!(proxy_uuid_in_use(&proxy_uuid).unwrap());
+        assert!(!proxy_uuid_in_use(&proxy_uuid, &member).unwrap());
+        assert!(proxy_uuid_in_use(&proxy_uuid, &other_project).unwrap());
+
+        // the virtual_machine of the deleted proxy is restored with its uuid, so the deleted
+        // proxy is replaced
+        add_new_proxy(&proxy_uuid, "10.0.0.2:443", &proxy_uuid, &member).unwrap();
+        let proxy = get_proxy(&proxy_uuid, &member).ok().unwrap();
+        assert_eq!(proxy.status, "ACTIVE");
+        assert_eq!(proxy.target_address, "10.0.0.2:443");
+
+        // an active proxy is never replaced
+        assert!(add_new_proxy(&proxy_uuid, "10.0.0.3:443", &proxy_uuid, &member).is_err());
 
         hard_delete_proxy(&proxy_uuid);
     }

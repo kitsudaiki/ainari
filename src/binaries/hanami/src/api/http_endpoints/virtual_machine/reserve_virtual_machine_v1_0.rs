@@ -442,6 +442,62 @@ async fn prepare_selected_host(
         FixedAddressError::Db(e) => map_db_register_error("mac", e, Some(context)),
     })?;
 
+    // everything, which is prepared after the address was reserved, is removed again, if a later
+    // step fails, so a failed reservation doesn't block the address, the MAC-address or the UUID
+    // of the virtual_machine, like for the retry of a restore with other addresses
+    let mut created_on_host = None;
+    let result = finish_reservation(
+        selected_host,
+        request,
+        number_of_cores,
+        memory_size_bytes,
+        &vm_address,
+        network_data.disable_encryption,
+        &mut created_on_host,
+        context,
+    )
+    .await;
+    if result.is_err() {
+        rollback_reservation(
+            selected_host,
+            &network_data.uuid,
+            &vm_address,
+            created_on_host,
+            context,
+        )
+        .await;
+    }
+    result
+}
+
+/// Prepares the network, the entry on the sakura-host and the proxy of a new virtual_machine,
+/// whose address is already reserved.
+///
+/// # Arguments
+/// * `selected_host` - Sakura-host, which runs the new virtual_machine
+/// * `request` - Values of the new virtual_machine
+/// * `number_of_cores` - Number of cores of the new virtual_machine
+/// * `memory_size_bytes` - Memory of the new virtual_machine in bytes, as expected by sakura
+/// * `vm_address` - Reserved address of the new virtual_machine
+/// * `disable_encryption` - True, if the network of the virtual_machine is not encrypted
+/// * `created_on_host` - Set to the UUID of the virtual_machine, as soon as the sakura-host has
+///   created its entry, so a rollback knows, that it has to be deleted there
+/// * `context` - User context containing authentication information
+///
+/// # Returns
+/// * `Ok((VirtualMachineResp, Uuid))` with the new virtual_machine and the uuid of its proxy
+/// * `Err(ErrorResponse)` with an appropriate error on failure
+#[allow(clippy::too_many_arguments)]
+async fn finish_reservation(
+    selected_host: &HostEntry,
+    request: &ReserveRequest,
+    number_of_cores: i32,
+    memory_size_bytes: i64,
+    vm_address: &AddressEntry,
+    disable_encryption: bool,
+    created_on_host: &mut Option<Uuid>,
+    context: &UserContext,
+) -> Result<(VirtualMachineResp, Uuid), ErrorResponse> {
     // get endpoints from miko
     let miko_endpoint = &config::CONFIG.miko;
     let endpoints = get_endpoints(miko_endpoint, config::CONFIG.skip_tls_verification)
@@ -451,8 +507,8 @@ async fn prepare_selected_host(
     // prepare the network of the virtual_machine, so sakura can attach the virtual_machine to the
     // TAP-device, when it creates the virtual_machine later
     // a network with disabled encryption gets neither encrypted routes nor a MLS-group
-    let encrypted = network_encrypted(network_data.disable_encryption);
-    prepare_network(&endpoints, selected_host, &vm_address, encrypted, context).await?;
+    let encrypted = network_encrypted(disable_encryption);
+    prepare_network(&endpoints, selected_host, vm_address, encrypted, context).await?;
 
     // send request to the selected sakura-host to create a virtual_machine
     let mut virtual_machine_resp = virtual_machine_clients::create_virtual_machine(
@@ -472,6 +528,7 @@ async fn prepare_selected_host(
     )
     .await
     .map_err(|e| map_ainari_error_to_api_response(e, Some(context)))?;
+    *created_on_host = Some(virtual_machine_resp.uuid);
 
     // the UUID of the virtual_machine is only known now, so the address is linked with it
     // afterwards. The link is what a floating ip-address is attached by later.
@@ -506,6 +563,62 @@ async fn prepare_selected_host(
     virtual_machine_resp.memory_size /= 1024 * 1024;
 
     Ok((virtual_machine_resp, proxy_resp.uuid))
+}
+
+/// Removes everything of a failed reservation, which was prepared after the address of the
+/// virtual_machine was reserved: the entry on the sakura-host, the routes on the gateways and the
+/// address itself. Every step is done, also if an earlier one failed, and the errors are only
+/// logged, because the error of the reservation is returned.
+///
+/// # Arguments
+/// * `selected_host` - Sakura-host, which should have run the virtual_machine
+/// * `network_uuid` - Network of the virtual_machine
+/// * `vm_address` - Reserved address of the virtual_machine
+/// * `created_on_host` - UUID of the virtual_machine, if the sakura-host has already created it
+/// * `context` - User context containing authentication information
+async fn rollback_reservation(
+    selected_host: &HostEntry,
+    network_uuid: &Uuid,
+    vm_address: &AddressEntry,
+    created_on_host: Option<Uuid>,
+    context: &UserContext,
+) {
+    if let Some(virtual_machine_uuid) = created_on_host
+        && let Err(e) = virtual_machine_clients::delete_virtual_machine(
+            &selected_host.address,
+            &context.token,
+            &config::INTERNAL_API_KEY,
+            &virtual_machine_uuid,
+            config::CONFIG.skip_tls_verification,
+        )
+        .await
+    {
+        log::error!(
+            "Failed to delete virtual_machine '{virtual_machine_uuid}' of a failed reservation \
+             on host '{}': {e}",
+            selected_host.address
+        );
+    }
+
+    let endpoints = get_endpoints(&config::CONFIG.miko, config::CONFIG.skip_tls_verification).await;
+    let cleaned = match &endpoints {
+        Ok(endpoints) => super::delete_virtual_machine_v1_0::cleanup_network(
+            endpoints,
+            network_uuid,
+            vm_address.internal_ip,
+            context,
+        )
+        .await
+        .is_ok(),
+        Err(_) => false,
+    };
+    // without the gateways, the address is at least released, so it can be used again
+    if !cleaned && address_table::force_delete_address(&vm_address.uuid).is_err() {
+        log::error!(
+            "Failed to release address '{}' of a failed reservation.",
+            vm_address.internal_ip
+        );
+    }
 }
 
 /// Prepares the network of a new virtual_machine on the gateways

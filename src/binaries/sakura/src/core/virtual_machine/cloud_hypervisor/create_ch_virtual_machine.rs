@@ -113,6 +113,7 @@ async fn create_and_boot_vm(uuid: &Uuid, context: &UserContext) -> Result<VmHand
     .await?;
     let seed_path = create_seed_file(
         &vm_dir,
+        &virtual_machine_data.uuid,
         &public_key_resp.public_key,
         &virtual_machine_data.internal_ip,
         &virtual_machine_data.mac_address,
@@ -310,10 +311,33 @@ async fn prepare_directories(vm_uuid: &Uuid) -> Result<(String, String), AinariE
     Ok((vm_dir, temp_dir))
 }
 
+/// Returns the instance-id of the cloud-init seed-image of a virtual_machine.
+///
+/// cloud-init applies the network-config and the ssh-key only at the first boot of an instance,
+/// which it recognizes by the instance-id. The root-disk of a backup or a snapshot was already
+/// booted, so its virtual_machine only gets its addresses, if the instance-id changes, when they
+/// change, like when it is restored with a new UUID or new addresses. A virtual_machine, which
+/// keeps its UUID and addresses, like after a migration, keeps its instance-id as well.
+///
+/// # Arguments
+/// * `vm_uuid` - Unique identifier of the virtual_machine
+/// * `internal_ip` - Internal address of the virtual_machine
+/// * `mac_address` - MAC-address of the network-interface of the virtual_machine
+///
+/// # Returns
+/// The instance-id
+fn instance_id(vm_uuid: &Uuid, internal_ip: &Ipv4Addr, mac_address: &str) -> String {
+    format!(
+        "{vm_uuid}-{}-{internal_ip}",
+        mac_address.replace(':', "").to_lowercase()
+    )
+}
+
 /// Creates the cloud-init seed-image with the network-config and user-data of a virtual_machine
 ///
 /// # Arguments
 /// * `vm_dir` - Directory of the virtual_machine, where the seed-image is written to
+/// * `vm_uuid` - Unique identifier of the virtual_machine, which is part of its instance-id
 /// * `public_key` - Public ssh-key, which is added to the authorized keys of the virtual_machine
 /// * `internal_ip` - Internal address of the virtual_machine
 /// * `mac_address` - MAC-address of the network-interface of the virtual_machine
@@ -323,12 +347,14 @@ async fn prepare_directories(vm_uuid: &Uuid) -> Result<(String, String), AinariE
 /// * `Err(AinariError)` with an appropriate error on failure
 fn create_seed_file(
     vm_dir: &str,
+    vm_uuid: &Uuid,
     public_key: &str,
     internal_ip: &Ipv4Addr,
     mac_address: &str,
 ) -> Result<String, AinariError> {
     let network_config_path = format!("{vm_dir}/network-config");
     let user_data_path = format!("{vm_dir}/user-data");
+    let meta_data_path = format!("{vm_dir}/meta-data");
     let seed_path = format!("{vm_dir}/seed.iso");
 
     // the gateway is the first address of the /24 network of the virtual_machine
@@ -370,11 +396,24 @@ ssh_authorized_keys:
     })?;
     fs::write(&user_data_path, user_data)
         .map_err(|e| AinariError::internal(format!("Failed to write {user_data_path}: {e}")))?;
+    // without meta-data, cloud-localds gives every seed-image the same instance-id
+    let meta_data = format!(
+        "instance-id: {}\n",
+        instance_id(vm_uuid, internal_ip, mac_address)
+    );
+    fs::write(&meta_data_path, meta_data)
+        .map_err(|e| AinariError::internal(format!("Failed to write {meta_data_path}: {e}")))?;
 
     // combine network-config and user-data into the seed-image
     if let Err(e) = super::run_command(
         "cloud-localds",
-        &["-N", &network_config_path, &seed_path, &user_data_path],
+        &[
+            "-N",
+            &network_config_path,
+            &seed_path,
+            &user_data_path,
+            &meta_data_path,
+        ],
     ) {
         let _ = fs::remove_file(&seed_path);
         return Err(e);
@@ -489,4 +528,27 @@ fn convert_image(input_path: &str, output_path: &str, disk_size: i64) -> Result<
         "qemu-img",
         &["resize", output_path, &format!("+{disk_size}G")],
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_instance_id() {
+        let uuid = Uuid::new_v4();
+        let ip = Ipv4Addr::new(192, 168, 100, 3);
+        let id = instance_id(&uuid, &ip, "02:00:00:00:00:02");
+        assert_eq!(id, format!("{uuid}-020000000002-192.168.100.3"));
+
+        // the same virtual_machine with the same addresses keeps its instance-id
+        assert_eq!(instance_id(&uuid, &ip, "02:00:00:00:00:02"), id);
+        // a new UUID or new addresses give a new instance, so cloud-init applies them
+        assert_ne!(instance_id(&Uuid::new_v4(), &ip, "02:00:00:00:00:02"), id);
+        assert_ne!(
+            instance_id(&uuid, &Ipv4Addr::new(192, 168, 100, 5), "02:00:00:00:00:02"),
+            id
+        );
+        assert_ne!(instance_id(&uuid, &ip, "02:00:00:00:00:05"), id);
+    }
 }

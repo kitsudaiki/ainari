@@ -27,7 +27,8 @@ use ainari_api_structs::user_context::UserContext;
     summary = "List projects",
     description = r###"List basic information of all projects from the database.
 
-This can only be done by an admin."###,
+Every project contains its lock, while it is locked by a backup, a restore or an admin. This can
+only be done by an admin."###,
     error_code = 401,
     error_code = 500
 )]
@@ -47,13 +48,104 @@ pub async fn list_project_admin(
 
     // convert database-output
     for project in projects {
+        let lock = super::lock_of(&project, &context)?;
         let obj = ProjectBasicResp {
             id: project.id,
             name: project.name,
+            lock,
         };
 
         resp.projects.push(obj);
     }
 
     Ok(Json(resp))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::api::http_endpoints::project::import_project_internal_v1_0::import_project_internal;
+    use actix_web::web::Path;
+    use ainari_common::enums::ProjectRole;
+    use serial_test::serial;
+    use uuid::Uuid;
+
+    const PROJECT_ID: &str = "test-list-project-lock";
+
+    fn admin() -> UserContext {
+        UserContext {
+            token: "".to_string(),
+            user_id: "test-user".to_string(),
+            project_id: PROJECT_ID.to_string(),
+            is_admin: true.to_string(),
+            project_role: ProjectRole::Admin.to_string(),
+        }
+    }
+
+    fn hard_delete(project_id: &str) {
+        let mut conn = crate::database::db_handle::DB_CONN
+            .lock()
+            .expect("mutex poisoned");
+        use diesel::prelude::*;
+        {
+            use crate::database::project_table::projects::dsl::*;
+            let _ = diesel::delete(projects.filter(id.eq(project_id))).execute(&mut *conn);
+        }
+        use crate::database::quota_table::quotas::dsl::*;
+        let _ = diesel::delete(quotas.filter(id.eq(project_id))).execute(&mut *conn);
+    }
+
+    async fn listed_lock(context: &UserContext) -> Option<ProjectLock> {
+        let resp = list_project_admin(context.clone()).await.ok().unwrap();
+        resp.projects
+            .iter()
+            .find(|project| project.id == PROJECT_ID)
+            .expect("project is not listed")
+            .lock
+            .clone()
+    }
+
+    #[actix_rt::test]
+    #[serial]
+    async fn test_list_shows_lock() {
+        let project_id = PROJECT_ID.to_string();
+        hard_delete(&project_id);
+        let context = admin();
+        let body = MikoProjectImportReq {
+            project: MikoProjectExport {
+                id: project_id.clone(),
+                name: "lock test".to_string(),
+                quota: MikoQuotaExport {
+                    max_virtual_machine: 1,
+                    max_image: 1,
+                    max_secret: 1,
+                    max_network: 1,
+                    max_floating_ip: 1,
+                },
+            },
+            force: false,
+        };
+        import_project_internal(Path::from(project_id.clone()), Json(body), context.clone())
+            .await
+            .ok()
+            .unwrap();
+        assert_eq!(listed_lock(&context).await, None);
+
+        let job_uuid = Uuid::new_v4();
+        assert!(matches!(
+            project_table::lock_project(&project_id, &job_uuid, "backup of the test", &context),
+            Ok(project_table::LockResult::Locked)
+        ));
+        let lock = listed_lock(&context).await.expect("lock is not listed");
+        assert_eq!(lock.locked_by_job, job_uuid);
+        assert_eq!(lock.lock_reason, "backup of the test");
+
+        assert!(matches!(
+            project_table::unlock_project(&project_id, Some(&job_uuid), &context),
+            Ok(project_table::UnlockResult::Unlocked)
+        ));
+        assert_eq!(listed_lock(&context).await, None);
+
+        hard_delete(&project_id);
+    }
 }

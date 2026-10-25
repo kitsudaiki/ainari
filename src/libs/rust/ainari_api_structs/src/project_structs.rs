@@ -51,6 +51,9 @@ pub struct ProjectResp {
 pub struct ProjectBasicResp {
     pub id: String,
     pub name: String,
+    /// lock of the project during a backup or restore, None if the project is not locked
+    #[serde(default)]
+    pub lock: Option<ProjectLock>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]

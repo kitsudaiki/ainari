@@ -246,7 +246,7 @@ async fn detach_floating_ip_of_virtual_machine(
 /// # Returns
 /// * `Ok(())` if all routes are deleted and the address is released
 /// * `Err(ErrorResponse)` with an appropriate error on failure
-async fn cleanup_network(
+pub(super) async fn cleanup_network(
     endpoints: &Endpoints,
     network_uuid: &Uuid,
     internal_ip: Ipv4Addr,
