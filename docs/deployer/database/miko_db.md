@@ -40,17 +40,30 @@ When a user is created, a project with the ID `default-<USER_ID>` is created tog
 prefix `default-` is reserved for these default-projects, so projects with such an ID can not be
 created over the API.
 
-| field      | type         | is primary | constraints |
-| ---------- | ------------ | ---------- | ----------- |
-| id         | VARCHAR(256) | x          |             |
-| name       | VARCHAR(256) |            |             |
-| status     | VARCHAR(8)   |            |             |
-| created_at | VARCHAR(64)  |            |             |
-| created_by | VARCHAR(256) |            |             |
-| updated_at | VARCHAR(64)  |            |             |
-| updated_by | VARCHAR(256) |            |             |
-| deleted_at | VARCHAR(64)  |            |             |
-| deleted_by | VARCHAR(256) |            |             |
+`locked_by_job`, `lock_reason` and `locked_at` are the lock of the project during a backup or
+restore. The project is locked, while `locked_by_job` is set, and it is unlocked, when all three are
+NULL. `lock_reason` is a free text, which describes, why the project is locked, like the running
+backup or restore, or the description, which an admin has given for a manual lock. While a project
+is locked, its users can only read its resources, and only the job in
+`locked_by_job` or an admin can remove the lock. A lock of an admin has the nil-UUID in
+`locked_by_job`, which the jobs are not allowed to use, so only an admin can remove it. A locked project
+can not be deleted. In the SQLite-database the columns are at the end of the table, because SQLite
+can only append new columns.
+
+| field         | type         | is primary | constraints |
+| ------------- | ------------ | ---------- | ----------- |
+| id            | VARCHAR(256) | x          |             |
+| name          | VARCHAR(256) |            |             |
+| status        | VARCHAR(8)   |            |             |
+| locked_by_job | VARCHAR(40)  |            |             |
+| lock_reason   | TEXT         |            |             |
+| locked_at     | VARCHAR(64)  |            |             |
+| created_at    | VARCHAR(64)  |            |             |
+| created_by    | VARCHAR(256) |            |             |
+| updated_at    | VARCHAR(64)  |            |             |
+| updated_by    | VARCHAR(256) |            |             |
+| deleted_at    | VARCHAR(64)  |            |             |
+| deleted_by    | VARCHAR(256) |            |             |
 
 !!! note
 

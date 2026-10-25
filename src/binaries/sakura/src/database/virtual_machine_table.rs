@@ -531,6 +531,52 @@ pub fn remove_virtual_machine(virtual_machine_uuid: &Uuid) -> Result<(), enums::
         })
 }
 
+/// Searches a virtual_machine by its UUID, also if it is already deleted.
+///
+/// It is used to check, if a fixed UUID is still free, before a virtual_machine with this UUID is
+/// reserved.
+///
+/// # Arguments
+///
+/// * `virtual_machine_uuid` - The UUID of the virtual_machine
+///
+/// # Returns
+///
+/// A QueryResult containing the status of the virtual_machine, or None, if the UUID was never used
+pub fn find_virtual_machine_status(virtual_machine_uuid: &Uuid) -> QueryResult<Option<String>> {
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+    use self::virtual_machines::dsl::*;
+
+    virtual_machines
+        .filter(uuid.eq(virtual_machine_uuid.to_string()))
+        .select(status)
+        .first::<String>(&mut *conn)
+        .optional()
+}
+
+/// Removes the entry of a deleted virtual_machine, so its UUID can be used again, for example to
+/// restore it from a backup. Active virtual_machines are never removed.
+///
+/// # Arguments
+///
+/// * `virtual_machine_uuid` - The UUID of the deleted virtual_machine
+///
+/// # Returns
+///
+/// A QueryResult with the number of removed entries
+pub fn remove_deleted_virtual_machine(virtual_machine_uuid: &Uuid) -> QueryResult<usize> {
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+    use self::virtual_machines::dsl::*;
+
+    diesel::delete(
+        virtual_machines.filter(
+            uuid.eq(virtual_machine_uuid.to_string())
+                .and(status.eq("DELETED")),
+        ),
+    )
+    .execute(&mut *conn)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

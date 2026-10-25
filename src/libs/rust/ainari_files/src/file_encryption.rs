@@ -324,9 +324,12 @@ pub async fn decrypt_file(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ainari_common::encryption::{ENCRYPTION_KEY_LEN, encrypt_bytes};
     use openssl::rand::rand_bytes;
     use std::fs::{File, remove_file};
     use std::io::{Read, Write};
+
+    const KEY: &[u8; ENCRYPTION_KEY_LEN] = b"0123456789abcdef0123456789abcdef";
 
     fn create_random_file(path: &String, size: usize) {
         let mut f = File::create(path).expect("create random file");
@@ -389,6 +392,25 @@ mod tests {
 
         // cleanup
         let _ = remove_file(&in_path);
+        let _ = remove_file(&enc_path);
+        let _ = remove_file(&dec_path);
+    }
+
+    #[tokio::test]
+    async fn encrypt_bytes_compatible_with_decrypt_file() {
+        let dir = std::env::temp_dir();
+        let enc_path = dir
+            .join(format!("ainari_bytes_{}.enc", uuid::Uuid::new_v4()))
+            .to_string_lossy()
+            .to_string();
+        let dec_path = format!("{enc_path}.dec");
+        let key_b64 = Secret::from(STANDARD.encode(KEY));
+
+        let plaintext = b"data, which is encrypted in memory and decrypted as file";
+        std::fs::write(&enc_path, encrypt_bytes(plaintext, KEY, b"").unwrap()).unwrap();
+        decrypt_file(&enc_path, &dec_path, &key_b64).await.unwrap();
+        assert_eq!(read_all(&dec_path), plaintext);
+
         let _ = remove_file(&enc_path);
         let _ = remove_file(&dec_path);
     }

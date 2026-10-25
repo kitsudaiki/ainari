@@ -70,6 +70,10 @@ pub enum TaskType {
     MigrationImport = 8,
     MigrationRemove = 9,
     MigrationCancel = 10,
+    /// saves the root-disk of a virtual_machine into a backup of isekai
+    BackupSave = 11,
+    /// replaces the root-disk of a virtual_machine with the one of a backup of isekai
+    BackupRestore = 12,
 }
 
 #[cfg(feature = "diesel")]
@@ -117,6 +121,8 @@ impl fmt::Display for TaskType {
             TaskType::MigrationImport => "MigrationImportTask",
             TaskType::MigrationRemove => "MigrationRemoveTask",
             TaskType::MigrationCancel => "MigrationCancelTask",
+            TaskType::BackupSave => "BackupSaveTask",
+            TaskType::BackupRestore => "BackupRestoreTask",
         };
         write!(f, "{s}")
     }
@@ -138,6 +144,8 @@ impl FromStr for TaskType {
             "MigrationImportTask" => Ok(TaskType::MigrationImport),
             "MigrationRemoveTask" => Ok(TaskType::MigrationRemove),
             "MigrationCancelTask" => Ok(TaskType::MigrationCancel),
+            "BackupSaveTask" => Ok(TaskType::BackupSave),
+            "BackupRestoreTask" => Ok(TaskType::BackupRestore),
             _ => Err(()),
         }
     }
@@ -236,6 +244,26 @@ pub struct TaskSnapshotSaveReq {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
+pub struct TaskBackupSaveReq {
+    /// Backup in the state CREATING, which gets the root-disk as one of its disks
+    pub backup_uuid: Uuid,
+    /// Secret in the omamori, which is used to encrypt the root-disk
+    pub secret_uuid: Uuid,
+    /// Shut a running virtual_machine down before the root-disk is saved and start it again
+    /// afterwards, so the saved root-disk is consistent
+    #[serde(default)]
+    pub stop_vm: bool,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
+pub struct TaskBackupRestoreReq {
+    /// Backup, whose root-disk is restored
+    pub backup_uuid: Uuid,
+    /// Snapshot-image with the root-disk of the backup, which was copied out of the backup
+    pub image_uuid: Uuid,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
 pub struct TaskSnapshotRestoreReq {
     /// Image, which must be a snapshot, to reset the root-disk of the virtual_machine to
     pub image_uuid: Uuid,
@@ -275,4 +303,39 @@ pub struct TaskListQuery {
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
 pub struct TaskListResp {
     pub tasks: Vec<TaskBasicResp>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_task_type_round_trip() {
+        // the names are stored in the database of sakura, so they must be parsed again
+        for task_type in [
+            TaskType::VirtualMachineCreate,
+            TaskType::VirtualMachineDelete,
+            TaskType::SnapshotSave,
+            TaskType::SnapshotRestore,
+            TaskType::VirtualMachineStart,
+            TaskType::VirtualMachineStop,
+            TaskType::VirtualMachineReboot,
+            TaskType::MigrationPrepare,
+            TaskType::MigrationImport,
+            TaskType::MigrationRemove,
+            TaskType::MigrationCancel,
+            TaskType::BackupSave,
+            TaskType::BackupRestore,
+        ] {
+            assert_eq!(
+                task_type.to_string().parse::<TaskType>(),
+                Ok(task_type.clone())
+            );
+        }
+        assert_eq!(TaskType::BackupSave.to_string(), "BackupSaveTask");
+        assert_eq!(
+            serde_json::to_string(&TaskType::BackupRestore).unwrap(),
+            "\"BackupRestore\""
+        );
+    }
 }

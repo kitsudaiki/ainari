@@ -196,6 +196,33 @@ else
     echo "WARNING: no default route found on the host, so the virtual machines have no internet."
 fi
 
+# ---------------------------------------------------------------------------------------------
+# mark the second onsen as backup-target, so isekai stores the backups there
+# ---------------------------------------------------------------------------------------------
+echo "Marking the onsen of the backups as backup-target ..."
+"$PROJECT_DIR/testing/local_stack/mark_backup_targets.sh" \
+    "http://127.0.0.1:11417" "http://127.0.0.1:11416" || true
+
+# ---------------------------------------------------------------------------------------------
+# isekai, which orchestrates the backups and restores
+# ---------------------------------------------------------------------------------------------
+ISEKAI_ADDRESS="http://127.0.0.1:11425"
+
+echo "Waiting for isekai at $ISEKAI_ADDRESS ..."
+# isekai is restarted by docker, until miko and the other components are reachable
+ISEKAI_READY=false
+for _ in $(seq 1 60); do
+    if curl -sf "$ISEKAI_ADDRESS/v1alpha/is_ready" > /dev/null 2>&1; then
+        ISEKAI_READY=true
+        break
+    fi
+    sleep 2
+done
+if [ "$ISEKAI_READY" != true ]; then
+    echo "WARNING: isekai is not ready, so no backups can be created. Check its logs with"
+    echo "         docker compose logs isekai"
+fi
+
 echo ""
 echo "The stack is up. The api is reachable at:"
 echo "    miko     http://127.0.0.1:11417"
@@ -204,6 +231,7 @@ echo "    ryokan   http://127.0.0.1:11416"
 echo "    omamori  http://127.0.0.1:11421"
 echo "    izakaya  http://127.0.0.1:11423"
 echo "    omikuji  http://127.0.0.1:11424"
+echo "    isekai   http://127.0.0.1:11425"
 echo "    torii    http://127.0.0.1:11419"
 echo ""
 echo "Every virtual machine is reachable over the proxy https://<vm-uuid>.$PROXY_DOMAIN:10042,"

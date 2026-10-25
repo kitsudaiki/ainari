@@ -25,12 +25,17 @@
                 <thead>
                     <tr>
                         <th>ID</th>
+                        <th>Lock</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr v-for="project in projects" :key="project.id">
                         <td>{{ project.id }}</td>
+                        <!-- the reason of the lock, the details are shown by "Lock / unlock" -->
+                        <td :class="{ locked: project.lock }">
+                            {{ project.lock ? project.lock.lock_reason : "-" }}
+                        </td>
                         <td>
                             <!-- Dropdown menu -->
                             <div
@@ -47,6 +52,17 @@
                                     >
                                         Show members
                                     </button>
+                                    <button @click="openLockModal(project)">
+                                        Lock / unlock
+                                    </button>
+                                    <template v-if="isekaiDeployed">
+                                        <button @click="openBackupModal(project)">
+                                            Create backup
+                                        </button>
+                                        <button @click="openRestoreModal(project)">
+                                            Restore backup
+                                        </button>
+                                    </template>
                                     <!-- the default-project of a user is only deleted
                                          together with the user -->
                                     <button
@@ -72,6 +88,39 @@
             @cancel="cancelAddModal"
         />
 
+        <ProjectLockModal
+            v-if="projectToLock"
+            :project="projectToLock"
+            :icons="icons"
+            @accept="acceptLockModal"
+            @cancel="projectToLock = null"
+        />
+
+        <BackupCreateModal
+            v-if="projectToBackup"
+            :project-id="projectToBackup.id"
+            :icons="icons"
+            @accept="acceptBackupModal"
+            @cancel="projectToBackup = null"
+        />
+
+        <BackupSelectModal
+            v-if="projectToRestore && !backupToRestore"
+            :project-id="projectToRestore.id"
+            :icons="icons"
+            @select="(backup) => (backupToRestore = backup)"
+            @cancel="projectToRestore = null"
+        />
+
+        <BackupRestoreModal
+            v-if="projectToRestore && backupToRestore"
+            :backup="backupToRestore"
+            :target-project-id="projectToRestore.id"
+            :icons="icons"
+            @accept="acceptRestoreModal"
+            @cancel="closeRestoreModals"
+        />
+
         <ProjectDeleteModal
             v-if="showDeleteModal"
             :project="projectToDelete"
@@ -89,10 +138,14 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, inject } from "vue";
 
-import { miko } from "@/api";
-import type { ProjectBasicResp } from "@/api";
+import { hasIsekai, miko } from "@/api";
+import type { BackupJobResp, BackupResp, JobResp, ProjectBasicResp } from "@/api";
 import ProjectCreateModal from "./project_create_modal.vue";
 import ProjectDeleteModal from "./project_delete_modal.vue";
+import ProjectLockModal from "./project_lock_modal.vue";
+import BackupCreateModal from "@/components/storage/backup/backup_create_modal.vue";
+import BackupSelectModal from "@/components/storage/backup/backup_select_modal.vue";
+import BackupRestoreModal from "@/components/storage/backup/backup_restore_modal.vue";
 import { handleAxiosError } from "@/handleAxiosError";
 import NoEntries from "@/components/no_entries.vue";
 
@@ -102,6 +155,12 @@ const showAddModal = ref(false);
 const showDeleteModal = ref(false);
 const openDropdown = ref<string | null>(null);
 const projectToDelete = ref<ProjectBasicResp | null>(null);
+const projectToLock = ref<ProjectBasicResp | null>(null);
+// backups are only available, if isekai is deployed
+const isekaiDeployed = hasIsekai();
+const projectToBackup = ref<ProjectBasicResp | null>(null);
+const projectToRestore = ref<ProjectBasicResp | null>(null);
+const backupToRestore = ref<BackupResp | null>(null);
 const icons = inject<{ acceptIcon: string; cancelIcon: string }>("icons")!;
 
 const emit = defineEmits<{
@@ -162,6 +221,46 @@ async function acceptAddModal() {
 //=============================================================================
 // Delete modal
 //=============================================================================
+function openLockModal(project: ProjectBasicResp) {
+    projectToLock.value = project;
+    openDropdown.value = null;
+}
+
+async function acceptLockModal() {
+    projectToLock.value = null;
+    await fetchProjects();
+}
+
+//=============================================================================
+// Backup and restore of a project
+//=============================================================================
+function openBackupModal(project: ProjectBasicResp) {
+    projectToBackup.value = project;
+    openDropdown.value = null;
+}
+
+// the backup is created by a job in the background, which is followed in the view of the backups
+function acceptBackupModal(result: BackupJobResp) {
+    projectToBackup.value = null;
+    emit("change-view", { view: "StorageBackup", id: result.backup.uuid });
+}
+
+function openRestoreModal(project: ProjectBasicResp) {
+    projectToRestore.value = project;
+    backupToRestore.value = null;
+    openDropdown.value = null;
+}
+
+function closeRestoreModals() {
+    projectToRestore.value = null;
+    backupToRestore.value = null;
+}
+
+function acceptRestoreModal(job: JobResp) {
+    closeRestoreModals();
+    emit("change-view", { view: "StorageBackup", id: job.backup_uuid });
+}
+
 function openDeleteModal(project: ProjectBasicResp) {
     projectToDelete.value = project;
     showDeleteModal.value = true;
@@ -192,3 +291,9 @@ onBeforeUnmount(() => {
     window.removeEventListener("click", handleClickOutside);
 });
 </script>
+
+<style scoped>
+.locked {
+    color: var(--color-usage-warning);
+}
+</style>

@@ -129,3 +129,24 @@ IP. The same workflow is also used for automated testing within the project with
     ```bash
     ssh -i ./ainari_key ubuntu@<FLOATING_IP>
     ```
+
+1. **Create a backup and restore it**
+
+    Save the virtual machine as backup. The passphrase encrypts the backup and is required again
+    for the restore, so keep it safe. `-w` waits, until the backup is finished:
+
+    ```bash
+    export AINARI_BACKUP_PASSPHRASE=<BACKUP_PASSPHRASE>
+    ./ainarictl backup create_vm -w <VIRTUAL_MACHINE_UUID> my-vm-backup
+    ```
+
+    Later on, the virtual machine can be reset to the state of the backup. Check the plan of the
+    restore first and restore it afterwards:
+
+    ```bash
+    ./ainarictl backup restore --force --dry_run <BACKUP_UUID>
+    ./ainarictl backup restore --force -w <BACKUP_UUID>
+    ```
+
+    See [Backups](cli_sdk_docu.md#backups) for the backup of a whole project and the other
+    options of the restore.

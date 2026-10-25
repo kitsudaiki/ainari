@@ -43,6 +43,7 @@ pub async fn list_host_admin(context: UserContext) -> Result<Json<HostListResp>,
             uuid,
             name: host.name,
             host_address: host.address,
+            is_backup_target: host.is_backup_target,
         };
 
         resp.hosts.push(obj);

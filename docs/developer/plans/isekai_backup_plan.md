@@ -1,0 +1,572 @@
+# Plan: Isekai – backup- and restore-orchestrator
+
+Isekai (異世界, "another world") is the new component in `src/binaries/isekai`, which backs up and
+restores single virtual machines and whole projects. Isekai **doesn't store any data itself**. It
+only orchestrates the other components, collects their metadata and pushes it back on restore. The
+result of a backup is one self-contained directory on a dedicated backup-onsen, which contains the
+metadata of all components and the encrypted disks, and which can also be imported into another
+ainari-deployment for disaster-recovery.
+
+## 1. Decisions
+
+| Topic                | Decision                                                                                                                                                                                                                                                                                                                                                 |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Storage of bundles   | On onsen-hosts, which an admin marked in ryokan as **backup-target**. Only these hosts are used by isekai, and they are never used for normal images and snapshots. A host can only be marked, when it holds no images or snapshots.                                                                                                                      |
+| Backups in ryokan    | A backup is a **separate resource** in ryokan with its own table, not a new kind of image. A bundle consists of multiple files and metadata and must stay consistent, so ryokan tracks and handles it only as one atomic package (create → write → finalize → read only → delete as a whole), never its single files. The `images`-table and its `is_snapshot` stay unchanged.                                  |
+| Encryption of bundle | A **backup-passphrase** is provided by the user for each backup. A key is derived from it (Argon2id) and wraps all secrets of the project (incl. the secrets of the disks) and encrypts the metadata. The disk-files stay encrypted like they already are in the onsen. On import omamori unwraps the secrets and re-encrypts them with its own key.         |
+| Users                | Users and their project-mappings are **not** part of a backup, because a user can be member of multiple projects. Only the project itself (incl. quota) is restored. Creating users and assigning them to the restored project is done by an admin over the existing API of miko.                                                                          |
+| Identities           | **Without `force`**: UUIDs and internal IPs are kept when free, otherwise new UUIDs are generated and all references are rewritten through a mapping-table. Floating IPs are always newly allocated from the pool of the target. **With `force`**: existing resources with the same UUID are overwritten, so the restored state keeps the original UUIDs. |
+| Prune                | With the additional flag `prune`, resources which exist in the target project, but not in the backup, are deleted, so the project is reset exactly to the state of the backup. Default `false`.                                                                                                                                                          |
+| Project-lock         | The project is locked in miko for the whole backup and the whole restore, so the disks and the metadata of a backup are consistent and a restore can't be disturbed. All write-requests of users to the project are rejected in all components, read-requests stay allowed. The running VMs are not affected.                                              |
+| Disk-data            | Reuses the existing snapshot-functions of sakura (`save_ch_virtual_machine` / `restore_ch_virtual_machine`) and the task-queue of the VM, so a backup can't overtake other tasks of the same VM.                                                                                                                                                          |
+
+## 2. Scope of a backup
+
+| Component | Content                                                                                       | Note                                                                         |
+| --------- | --------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| miko      | project, quota                                                                                 | no users, no user-project-mappings, no tokens                                |
+| omamori   | secrets (`owned_by` user and internal ones of images/snapshots), public-keys                   | payloads only wrapped with the backup-key, never in plain text                |
+| ryokan    | images and snapshots of the project (metadata + file)                                          | files are copied as they are (already encrypted)                              |
+| hanami    | networks, vm-types, meta-virtual-machines, addresses (IP/MAC), network-filters, floating-ips   | floating IP only as "was attached to VM X", not the address itself as a requirement |
+| sakura    | VM-config (cores, memory, disk-size, image, public-key, network, IP, MAC, power-state) + a new root-disk-snapshot | seed is regenerated on restore                                                 |
+| torii     | –                                                                                               | derived state, is configured again by hanami (like `host_restore.rs`)        |
+| izakaya   | –                                                                                               | MLS-keys belong to the hosts, not to the project                              |
+| omikuji   | –                                                                                               | only new audit-log entries for backup/restore                                 |
+
+A **VM-backup** contains only the VM, its root-disk, its public-key, its network-filters and a
+reference to its network/image (UUID + name). On restore the network must exist in the target
+project, or it is created from the backup, when the network-metadata is included (option
+`include_dependencies`, default `true`).
+
+## 3. Layout of the backup-directory
+
+Location on the backup-onsen: `<storage.location>/backups/<backup_uuid>/`
+
+```text
+<backup_uuid>/
+├── manifest.json            # plain: format-version, ainari-version, kind (project|vm),
+│                            # project-id, created_at, kdf-params + salt, list of all files with
+│                            # sha256 and size; authenticated with HMAC (key from HKDF)
+├── metadata/                # every file AES-256-GCM encrypted with the metadata-key
+│   ├── miko.json.enc
+│   ├── omamori.json.enc     # secrets: payload wrapped with the wrap-key
+│   ├── ryokan.json.enc
+│   ├── hanami.json.enc
+│   └── sakura.json.enc
+├── images/
+│   └── <image_uuid>.enc     # images and user-snapshots of the project, copied unchanged
+└── disks/
+    └── <vm_uuid>.enc        # root-disk-snapshots created for this backup
+```
+
+- Keys: `master = Argon2id(passphrase, salt)`, then `HKDF(master)` → `metadata_key`, `wrap_key`,
+  `manifest_mac_key`. A wrong passphrase is detected by the manifest-HMAC, before anything is
+  changed in the target.
+- Each component-file contains `{ "schema_version": n, "data": … }`, so an older bundle can be
+  migrated by the component on import.
+- The disk-files are encrypted with their own secrets (like every image in the onsen). These
+  secrets are part of `omamori.json.enc`, so the bundle is self-contained.
+- The directory can be copied 1:1 (rsync, tape, …) to the backup-onsen of another deployment and
+  imported there.
+- The whole directory belongs to exactly one backup-resource in ryokan (see 4.1). Ryokan doesn't
+  know the single files of the bundle, only the package as a whole.
+
+## 4. Changes in the existing components
+
+### 4.1 ryokan – backup-targets
+
+- `host_table`: new column `is_backup_target BOOL NOT NULL DEFAULT false` (diesel-migration).
+- New admin-endpoint `PUT /v1alpha/host/{host_uuid}/backup_target/admin` with
+  `{ "is_backup_target": bool }` (like `isolation/admin` of hanami)
+    - `true` is rejected with `409`, if any image or snapshot exists on the host. The check and
+      the update run in one transaction.
+    - `false` is rejected with `409`, if backups still exist on the host (directory
+      `backups/` on the host isn't empty, checked with `ListDirectory`, so ryokan doesn't depend
+      on isekai). With B5 additionally, if a not deleted entry in the `backups`-table references
+      the host. The directory-check stays, because it also covers foreign bundles, which were
+      copied onto the host, but aren't registered yet.
+- The host-selection of `init_image_internal` / `create_image` ignores backup-targets. Adding an
+  image on a backup-host is a hard error, not only a filter: `add_image` checks it in the same
+  transaction, so a host, which was marked after it was selected, still gets no image.
+- `list_host_admin` / `get_host_admin` show the flag.
+
+#### Backups as own resource
+
+The `images`-table stays as it is (`is_snapshot` is kept, there is no new image-kind). A backup is
+a new, separate resource with its own table `backups`, because a bundle consists of multiple files
+(disks, images, metadata, manifest) and is only consistent as a whole. Ryokan tracks the package,
+not its single files, and only allows operations, which keep the package consistent.
+
+Table `backups` (diesel-migration for mysql and sqlite, documented in
+`docs/deployer/database/ryokan_db.md`):
+
+| Column            | Type                    | Description                                                                                                  |
+| ----------------- | ----------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `uuid`            | `VARCHAR(40)` PK        | UUID of the backup; the same UUID like in isekai and the name of the directory `backups/<uuid>/`              |
+| `host_uuid`       | `VARCHAR(40)`           | backup-target (`hosts.uuid`), on which the bundle is stored. The onsen-address is resolved over the host.   |
+| `directory_path`  | `TEXT`                  | path of the bundle relative to the storage-location of the onsen (`backups/<uuid>`)                          |
+| `backup_status`   | `VARCHAR(16)`           | state of the package: `CREATING`, `READY`, `DELETING`, `ERROR`                                               |
+| `file_count`      | `INTEGER`               | number of files in the bundle, set by `finalize` / `register`                                                |
+| `total_size`      | `BIGINT`                | size of all files of the bundle in bytes, set by `finalize` / `register`                                     |
+| `manifest_sha256` | `VARCHAR(64)` nullable  | sha256 of `manifest.json` at `finalize` / `register`, so a later change of the sealed bundle can be detected |
+| `owner_id`        | `VARCHAR(256)`          | user, who created the backup                                                                                 |
+| `project_id`      | `VARCHAR(256)`          | project of the backup                                                                                        |
+| `status`          | `VARCHAR(8)`            | common status-column like in all tables                                                                      |
+| `created_at`, `created_by`, `updated_at`, `updated_by`, `deleted_at`, `deleted_by` | like in all tables | soft-delete and audit-fields                              |
+
+Name, kind (project/VM), VM-UUID, ainari-version and the job-state stay in isekai (5.1). Ryokan
+only owns the storage-side of the backup, so both tables don't duplicate each other.
+
+Lifecycle of the package (`backup_status`):
+
+- `CREATING`: created by isekai at the start of a backup. Ryokan selects the backup-target (same
+  selection like for images, but only backup-targets) or uses the host given by isekai. Files can
+  only be written into the bundle in this state.
+- `READY`: set by `finalize`. Ryokan gets size and sha256 of all files over `ListDirectory` /
+  `GetFileInfo`, stores `file_count`, `total_size`, `manifest_sha256` and seals the bundle: from
+  now on it is read only. A bundle without `manifest.json` can't be finalized. Files can only be
+  read and copied out of the bundle in this state.
+- `DELETING`: the bundle is only deleted as a whole. The state is set before `DeleteDirectory`,
+  then the row is soft-deleted. A failed deletion stays in `DELETING` and can be repeated; such a
+  bundle can't be read anymore.
+- `ERROR`: the bundle is incomplete or inconsistent (e.g. finalize found a missing manifest). It
+  can only be deleted.
+
+Every state-change is a conditional update in the database, so of two concurrent changes (e.g.
+finalize and delete of the same bundle) only one can succeed. The files themselves are written by
+isekai and sakura, which only write into a bundle of their own running job. Backups don't count to
+the image-quota and don't appear in `list_image` / `get_image`, because they are in their own
+table.
+
+New internal endpoints for isekai and sakura (ryokan is the only component, which talks with the
+onsen about the bundles, so isekai doesn't need a wireguard-tunnel):
+
+- `POST   /v1alpha/backup/internal` `{ uuid, project_id, host_uuid? }` – creates the package in
+  state `CREATING`
+- `GET    /v1alpha/backup/{backup_uuid}/internal` and `GET /v1alpha/backup/internal?project_id=…`
+- `POST   /v1alpha/backup/{backup_uuid}/finalize/internal` – `CREATING` → `READY`
+- `DELETE /v1alpha/backup/{backup_uuid}/internal` – deletes the whole bundle
+- `PUT    /v1alpha/backup/{backup_uuid}/file/internal` – writes a metadata-file or the manifest
+  into the bundle (only `CREATING`)
+- `GET    /v1alpha/backup/{backup_uuid}/file/internal` – reads a metadata-file or the manifest
+  from the bundle (only `READY`)
+- `GET    /v1alpha/backup/{backup_uuid}/file_info/internal?path=…` – size and sha256 of a file of
+  the bundle over `GetFileInfo` (only `CREATING` and `READY`). Isekai uses it for the disks and
+  images in the manifest and to check them again before a restore.
+- `POST   /v1alpha/backup/{backup_uuid}/disk/internal` `{ vm_uuid }` – returns the onsen-address
+  and the path `disks/<vm_uuid>.enc` for the upload of a root-disk by sakura (only `CREATING`).
+  The disk is no image, so no entry in the `images`-table is created.
+- `POST   /v1alpha/backup/{backup_uuid}/copy/internal` – copies a file between onsens (image →
+  bundle on backup, only `CREATING`; bundle → normal onsen on restore, only `READY`). Ryokan
+  streams it chunk by chunk from the source to the target, without storing it.
+- `GET    /v1alpha/backup_target/{host_uuid}/scan/internal` – lists the directories in `backups/`,
+  which are not registered in the `backups`-table (for the import of foreign bundles)
+- `GET    /v1alpha/backup_target/{host_uuid}/manifest/internal?backup_uuid=…` – reads the
+  manifest of a package, which is not registered yet, so isekai can check the passphrase and read
+  the project of a foreign bundle, before it is registered (admin only)
+- `POST   /v1alpha/backup/register/internal` `{ uuid, project_id, host_uuid }` – registers a
+  foreign bundle, which was found by `scan`, directly as `READY` (same checks like `finalize`)
+- `GET  /v1alpha/project/{project_id}/export/internal` and
+  `POST /v1alpha/project/{project_id}/import/internal` (metadata of the images, without backups)
+    - The export contains only the `READY` images and snapshots without the location of their
+      files, because the files are copied into the bundle separately.
+    - The import gets for each image the location of its file (`onsen_address`, `file_path`
+      within `images/`), which was copied out of the bundle before with `copy/internal`. The copy
+      stores the file under `images/<image_uuid>` and rejects UUIDs, which are already used, so
+      an image, which is restored with an already used UUID (deleted image or `force`), is copied
+      under a new UUID and imported with its original UUID and the location of the copy.
+    - Conflicts are handled like in omamori (`check_import_target` of `ainari_api`): the UUID of
+      another project is always rejected, an active image of the project is only overwritten
+      with `force` (its old file is deleted, if the location changed) and a deleted one is
+      restored. `id_map` is applied to the images and their `secret_uuid`.
+
+### 4.2 onsen – gRPC (`onsen_upload.proto`)
+
+- New RPCs: `ListDirectory(path)`, `DeleteDirectory(path)`, `GetFileInfo(path)` (size + sha256).
+  `is_safe_subpath` is used for all of them like for the existing RPCs.
+- Optional, if the copy-performance over ryokan isn't enough: `PushFile(path, target_onsen,
+  target_path)` for direct onsen-to-onsen transfer. This needs additional wireguard-peers between
+  the onsens, so it is not part of the first version.
+
+### 4.3 sakura
+
+- New internal endpoint `POST /v1alpha/virtual_machine/{uuid}/backup/internal`
+  (`TaskBackupSaveReq { backup_uuid, secret_uuid }`). It does the same as `snapshot_save_task`,
+  but registers no image in ryokan. Instead it gets the upload-target inside the bundle over
+  `POST backup/{backup_uuid}/disk/internal` and uploads the encrypted root-disk there. The
+  secret is generated by isekai in omamori (`owned_by = "backup"`) and passed as `secret_uuid`.
+  The task-variant `CloudHypervisorVirtualMachineSnapshot` gets a field
+  `kind: SnapshotKind` (`Image { image_uuid }` | `BackupDisk { backup_uuid }`) instead of a new
+  task, and keeps the task-type `SnapshotSave`. `save_ch_virtual_machine` keeps the
+  copy/encrypt-logic and the cleanup of the temp-files and gets the upload as async closure, so
+  the image-specific parts (`get_image` / `update_image_status`) move into the caller
+  `save_snapshot_image`, the upload into the bundle into `save_backup_disk`.
+  Option `stop_vm`: a running VM is shut down before the snapshot and started again afterwards,
+  also if the snapshot failed (application-consistent instead of only crash-consistent). A VM,
+  which was not running, is not started.
+- `GET /v1alpha/virtual_machine/{uuid}/export/internal` – config of the VM for `sakura.json`.
+- Restore uses the existing `restore_ch_virtual_machine` for existing VMs (`force`). New VMs are
+  created over the existing creation path of hanami/sakura, which already supports a snapshot as
+  boot-image (see 5.3). The internal reserve of sakura (`POST virtual_machine/internal`) gets an
+  optional `uuid`, which can replace the entry of a deleted VM, but never an active one (`409`).
+  `restore_ch_virtual_machine` stays unchanged: the disk is copied out of the bundle and
+  registered as normal snapshot-image (`is_snapshot`) before, so it never reads from a bundle.
+
+### 4.4 miko
+
+- `GET  /v1alpha/project/{project_id}/export/internal` – project and quota.
+- `POST /v1alpha/project/{project_id}/import/internal` – creates the project with its quota, or
+  updates name and quota of an existing project with the same ID with `force`. Users and
+  mappings are never touched.
+    - The project is imported under the ID of the path, not the one in the backup, so a backup
+      can also be restored into another project (`target_project_id`).
+    - Creating a project is only allowed for a global admin (like `create_project_admin`), and
+      IDs with the prefix `default-` are rejected.
+    - With `force` the quota is only overwritten for a global admin. The bundle is only protected
+      by the passphrase of the user, so otherwise a project-admin could raise the quota of the own
+      project with a manipulated backup. The response shows it with `quota_imported`.
+- `get_endpoints` gets the address of isekai (`EndpointsResp.isekai`).
+- `PUT /v1alpha/token/project/admin` `{ project_id }` – a global admin gets a token for every
+  existing project, also without being assigned to it (role `admin`, or the own role, if the admin
+  is assigned). It is a separate admin-endpoint, so the normal creation and renewal of tokens never
+  gives access to a project, to which the user is not assigned. The admin-flag is read from the
+  database. Isekai switches the token of an admin to the target-project of a restore with it,
+  because hanami and sakura act on the project of the token, like for the reservation of the VMs.
+- **Project-lock**:
+    - `project_table`: new nullable columns `locked_by_job` (UUID of the backup- or restore-job),
+      `lock_reason` (free text, like the running backup or restore) and `locked_at`.
+    - `POST   /v1alpha/project/{project_id}/lock/internal` `{ job_uuid, reason }` – sets the lock.
+      Rejected with `409`, if the project is already locked, so two backups/restores of the same
+      project can't run at the same time.
+    - `DELETE /v1alpha/project/{project_id}/lock/internal` `{ job_uuid }` – removes the lock, only
+      with the same job-UUID.
+    - `DELETE /v1alpha/project/{project_id}/lock/admin` – manual unlock by a global admin, e.g.
+      after a failed restore.
+    - `POST   /v1alpha/project/{project_id}/lock/admin` `{ reason }` – manual lock by a global
+      admin, e.g. for maintenance, with a description of the admin as reason. The lock gets the
+      nil-UUID as `locked_by_job`. The
+      internal lock-endpoints reject the nil-UUID with `400`, so no backup or restore can take
+      over or remove the lock, only `DELETE lock/admin`. Rejected with `409`, if the project is
+      already locked by a backup or restore; locking it again as admin is accepted.
+    - `validate_token` returns the lock-state of the project of the token as
+      `project_locked: bool` in its response (`UserTokenValidateResp`), next to the `UserContext`.
+      It is not part of the `UserContext`, because the services read the context from the token
+      itself, which doesn't change, while the lock does. Only the auth-middleware uses the flag.
+    - The lock-endpoints are internal, so they are only reachable over the internal address of
+      miko. The other components only know its public address so far, so isekai gets the internal
+      address of miko in its config.
+    - A locked project can't be deleted by `delete_project_admin` (`409`).
+    - `get_project_admin` / `create_project_admin` show the lock (`ProjectResp.lock`).
+- `ainari_api` (auth-middleware, shared by all services): requests with a method other than
+  `GET` to a locked project are rejected with `423 Locked`. Requests with the internal API-key
+  (from isekai and between the components during the restore) are not blocked. This way the
+  lock is checked in one central place and doesn't have to be implemented in every endpoint.
+  `GET`, `HEAD` and `OPTIONS` count as reading requests. The clients map `423` to `Conflict`.
+  Isekai disables this check for itself (`ApiValidationConfig::ignore_project_lock`), because it
+  sets and checks the lock itself, so a user can still delete a backup or repeat a restore, while
+  the project is locked by a failed job.
+  Miko itself is not blocked, because its own middleware handles only the user- and
+  admin-management, and a user must still be able to renew the token or change the passphrase.
+- Calls of the components between each other, which don't go to internal endpoints, send the
+  internal API-key as well, so they keep working during a lock (e.g. sakura deleting the image of
+  a failed snapshot over `image::delete_image`).
+
+### 4.5 omamori
+
+- `POST /v1alpha/project/{project_id}/export/internal` with `{ wrap_key, backup_uuid }` – returns
+  all secrets of the project with the payload wrapped by `wrap_key` (AES-256-GCM, new nonce per
+  secret, the UUID of the secret as additional data) and the public-keys. The plain payload never
+  leaves omamori. Secrets with `owned_by = "backup"` are only exported for the backup
+  `backup_uuid`, never the ones of other backups.
+- `POST /v1alpha/project/{project_id}/import/internal` with `{ wrap_key, secrets, public_keys,
+  force, id_map }` – unwraps the payloads and stores them encrypted with its own key (`simple_crypto`).
+    - All payloads are unwrapped and all conflicts are checked first, so a wrong `wrap_key`
+      (`400`) or a conflict (`409`) changes nothing.
+    - `id_map` is applied to the UUIDs of the secrets and public-keys and to the `resource_uuid`
+      of the secrets. A UUID, which is used by another project, is always a conflict, also with
+      `force`. An active resource of the project is only overwritten with `force`, a deleted one
+      is restored with its UUID.
+    - The quota is not checked by the import, but by isekai before the restore.
+- `generate_secret_internal` gets `owned_by = "backup"` for the secrets of the disks inside a
+  backup, which can't be deleted by the user. Isekai creates them for each disk and deletes them
+  together with the backup. They don't count to the secret-quota and don't block the deletion of
+  the project, because a backup can outlive its project (scenario 6 in chapter 7).
+- The `wrap_key` is only transmitted over the internal TLS-connection with the internal API-key
+  and is never logged or stored.
+
+### 4.6 hanami
+
+- `GET  /v1alpha/project/{project_id}/export/internal` – networks, meta-VMs with their address
+  (IP/MAC), network-filters, floating-ips (+ the VM they are attached to). The vm-types are not
+  part of it, because they are global and not bound to a project, and the VMs don't reference
+  them: a meta-VM stores its cores, memory and disk-size itself.
+- `POST /v1alpha/project/{project_id}/import/internal` – networks, network-filters, floating-ips,
+  all optional. The VMs are not created here, but by the reserve-flow (see 5.3), so the
+  scheduling of the sakura-host and the configuration of torii are reused. So isekai calls the
+  import twice: with the networks before the VMs, with the filters and floating-ips afterwards.
+    - Networks are handled like the resources of the other components (`check_import_target`).
+      With `force` the subnet and the encryption of a network can only change, while no VM uses
+      it (`409`).
+    - Filters are applied by the torii of the host of their VM like over the public endpoints. An
+      existing filter of the same direction is replaced with `force`, otherwise `409`.
+    - The VMs of filters and floating-ips must exist in the project (`400`), which is checked
+      before anything is changed.
+    - The new entries belong to the project of the import, also if an admin imports.
+- Floating-ips are allocated again from the pool of the target and attached to the restored VM.
+  The old address is only a preference. A VM, which already has a floating-ip, keeps it, so the
+  import can be repeated.
+- `POST /v1alpha/virtual_machine/internal` – reservation of a VM by isekai. Like the public
+  reservation, but with cores and memory instead of a vm-type and optional fixed `uuid`,
+  `internal_ip` and `mac_address`. A taken UUID (active VM or other project) or address is
+  rejected with `409`, the UUID of a deleted VM of the project is used again. Both reservations
+  share one function (`reserve`).
+- `GET /v1alpha/virtual_machine/{uuid}/host/internal` – the sakura-host of a VM with its internal
+  address, so isekai can call the internal endpoints of sakura for the VM directly.
+- Torii-state is not restored explicitly. It results from the restored networks/VMs, like after
+  `host_restore`.
+
+### 4.7 shared libraries
+
+- `ainari_api_structs`: new `backup_structs.rs` with the requests/responses of the backups. The
+  export-/import-structs of the components are placed in the file of the resource, which they
+  belong to (e.g. `MikoProjectExport` in `project_structs.rs`). Isekai only uses these typed
+  structs, so the reference-rewriting (`id_map`) is checked by the compiler.
+- `ainari_clients`: `backup.rs` (isekai), plus client-functions for the new internal endpoints of
+  every component.
+- `ainari_common`: generic `encrypt_bytes`/`decrypt_bytes` in `encryption.rs` (AES-256-GCM),
+  used for the metadata-files.
+- `ainari_common`: generic key-derivation in `kdf.rs` (Argon2id from a passphrase into a
+  master-key, HKDF into single keys by label), with zeroize of the keys after usage. It knows
+  nothing about backups, so it can be reused in other contexts. The backup-specific labels
+  (`ainari-backup-v1 metadata-key`, …) are defined in isekai (`core/keys.rs`).
+
+## 5. Isekai
+
+### 5.1 Structure
+
+Same structure like the other services (actix-web + apistos, diesel, config via `CONFIG_FILE`):
+
+```text
+src/binaries/isekai/
+├── Cargo.toml
+└── src/
+    ├── main.rs
+    ├── config.rs                # miko-endpoint (public and internal address), database,
+    │                            # internal api-key, worker-count,
+    │                            # argon2-parameters, max parallel snapshots
+    ├── api/
+    │   ├── http_server.rs
+    │   ├── routes/v1alpha.rs
+    │   └── http_endpoints/
+    │       ├── backup/          # create_project_backup, create_vm_backup, get, list, delete
+    │       ├── restore/         # restore_backup, get_restore, list_restore
+    │       └── import/          # scan_backup_target_admin, import_backup_admin
+    ├── core/
+    │   ├── backup/              # job-steps of the backup
+    │   ├── restore/             # job-steps of the restore, id_map, conflict-check
+    │   ├── keys.rs              # labels and derivation of metadata_key, wrap_key,
+    │   │                        # manifest_mac_key over ainari_common::kdf
+    │   ├── manifest.rs          # format, versioning, HMAC, sha256
+    │   └── processing/          # job-queue + worker, like the task-queue of sakura
+    └── database/
+        ├── backup_table.rs      # uuid, name, kind, project_id, vm_uuid, state, ainari_version,
+        │                        # created_*, deleted_* (host and size come from the
+        │                        # backup-resource in ryokan with the same uuid)
+        ├── job_table.rs         # uuid, type (BACKUP|RESTORE), backup_uuid, state, step,
+        │                        # messages, options, started/finished
+        └── id_map_table.rs      # job_uuid, resource_type, old_uuid, new_uuid
+```
+
+Jobs are asynchronous like the tasks in sakura: the endpoint returns a job, which can be
+polled. Following the design-decision "Sakura task abort after restart", an active job is set
+to `ERROR` after a restart of isekai and isn't resumed. For a backup-job the partial bundle is
+deleted and the project is unlocked again, because the project itself wasn't changed. For a
+restore-job the project stays locked (see 5.3).
+
+### 5.2 Flow of a project-backup
+
+1. `POST /v1alpha/backup` `{ name, passphrase, stop_vms, include_images }` → check permission
+   (project-admin or global admin), create a job and the backup-resource in ryokan
+   (`POST backup/internal`, state `CREATING`), which selects the backup-target.
+2. **Lock** the project in miko with the UUID of the job (`lock/internal`, with a reason like
+   `backup <backup_uuid>`). If the project is already locked (other backup or restore running, or
+   locked by an admin), the backup is rejected with `409`. From now on no resources can be
+   created, changed or deleted in the project, so the set of VMs, images, secrets, networks, …
+   can't change between the snapshots and the collection of the metadata. Power-actions of the
+   users (start/stop/reboot) are blocked too. Only isekai itself (internal API-key) can
+   stop/start the VMs for `stop_vms`.
+3. Derive the keys from the passphrase (Argon2id, random salt). Keep the passphrase/keys only in
+   memory of the job.
+4. For every VM of the project: generate a secret in omamori (`owned_by = "backup"`), then
+   `POST sakura …/backup/internal` → wait for the tasks (with a limit of parallel snapshots per
+   sakura-host). The disks land directly in the bundle on the backup-target. `stop_vms` is
+   passed to sakura as `stop_vm` for each VM:
+   - `stop_vms=false`: the VMs keep running and are only paused shortly by the
+     snapshot-function of sakura. The backup is crash-consistent (like a power-loss), data which
+     an application still holds in memory is not part of the backup, but the VMs stay available.
+   - `stop_vms=true`: each running VM is shut down before its snapshot and started again directly
+     afterwards. The backup is application-consistent, but the VMs are unavailable during their
+     snapshot and the project-lock is held longer. VMs which were already stopped are not
+     started.
+5. When `include_images`: copy all images/snapshots of the project into `images/` over ryokan.
+6. Collect the metadata: miko (project, quota) → omamori (with `wrap_key`) → ryokan → hanami →
+   sakura. Because of the lock, the metadata matches exactly the state of the disks. Images or
+   secrets, which are referenced but missing, are still checked as safety-net → job fails.
+7. Encrypt each component-file, write it over ryokan into `metadata/`.
+8. Write `manifest.json` last (sha256 of all files over `GetFileInfo`, HMAC). A bundle without a
+   valid manifest counts as incomplete and is ignored on scan/import.
+9. **Finalize** the backup-resource in ryokan (`finalize/internal`, `CREATING` → `READY`), so the
+   bundle is sealed and read only from now on.
+10. **Unlock** the project (`lock/internal`), backup-state `READY`, audit-log in omikuji.
+11. **Errors**: the backup-resource is deleted in ryokan as a whole (`DELETE backup/internal`,
+    removes the partial bundle incl. the disks), the disk-secrets of the job are deleted in
+    omamori, VMs which were stopped for `stop_vms` are started again and the project is unlocked.
+    Unlike a failed restore, the project itself wasn't changed, so it doesn't have to stay locked.
+
+Deleting a backup deletes the backup-resource in ryokan (whole bundle), the disk-secrets in
+omamori and the entry in isekai.
+
+The lock is held as short as possible: with `include_images=false` and without `stop_vms` it
+lasts mainly for the copy of the root-disks in sakura. The VMs themselves keep running during
+the backup (only paused shortly by the snapshot-function of sakura).
+
+A VM-backup is the same with only one VM and the reduced scope from chapter 2. It locks the
+whole project as well, because the backup also contains the network, filters and public-key of
+the VM, which belong to the project. Because only one disk is copied, this lock is short.
+
+### 5.3 Flow of a restore
+
+`POST /v1alpha/backup/{backup_uuid}/restore`
+`{ passphrase, force, prune, target_project_id?, start_vms, include_dependencies, dry_run }`
+
+1. **Verify**: read the manifest, check the HMAC (wrong passphrase → `400` before any change),
+   check the sha256 of all files, check `format_version`/`ainari_version` for compatibility.
+2. **Plan** (dry-run, also available with `dry_run: true` in the body): get the existing
+   resources of the target project over the export-endpoints and calculate the `id_map`. The
+   plan is calculated by the endpoint, before the project is locked, and is returned together
+   with the job (`RestoreResp { plan, job }`, `job` is empty for a dry-run):
+   - `force=false`: UUID free → keep it; taken → new UUID, rewrite all references (VM → network,
+     image, public-key; image → secret; filter → VM; floating-ip → VM). Internal IP free in
+     the network → keep it, otherwise a new one. Into another project all resources get new UUIDs,
+     because isekai can only see the resources of the target project, and the UUIDs are usually
+     still used by the project of the backup.
+   - `force=true`: every UUID is kept. Existing resources with the same UUID are overwritten.
+   - `prune=true`: all resources of the target project, which are not in the backup, are added
+     to the plan as "to delete". The dry-run shows them, so the user can check them before.
+     `prune` is only allowed together with `force`, because without `force` the target can
+     contain remapped resources and the result would not be the state of the backup.
+   - Floating IPs: always newly allocated. Quotas are checked before starting.
+3. **Lock**: create the project in miko if it doesn't exist yet and lock it with the UUID of the
+   job (`lock/internal`, with a reason like `restore of backup <backup_uuid>`). If the project is
+   already locked (other backup or restore running, or locked by an admin), the restore is
+   rejected with `409`.
+   From now on users can only read the project.
+4. **Prune** (only with `prune=true`): delete the resources from the plan in the reverse order of
+   the dependencies (floating-ips → network-filters → VMs → vm-types → networks → images →
+   public-keys/secrets). The internal secrets of images are deleted together with their images.
+5. **Apply** in the order of the dependencies:
+   1. miko: project, quota
+   2. omamori: secrets (unwrap → re-encrypt), public-keys
+   3. ryokan: copy images back to normal onsens and register them with `import/internal` and
+      the locations of the copies. The disk-files are copied out of the bundle (`copy/internal`)
+      to a normal onsen and registered as snapshot-images of the project the same way. The bundle
+      itself stays sealed and untouched, so it can be restored again.
+   4. hanami: networks (first call of `import/internal`)
+   5. VMs:
+      - new VM (or `force` and the existing VM doesn't fit anymore, e.g. other disk-size): delete
+        the old one with `force`, then create it over the existing creation-path of hanami with
+        the restored snapshot as boot-image and the original UUID/IP/MAC (internal reservation
+        `POST virtual_machine/internal` of hanami, see 4.6).
+      - `force` and the VM exists with the same config: reuse the existing
+        `snapshot_restore_task` of sakura, which replaces the root-disk.
+   6. hanami: network-filters, floating-ips (second call of `import/internal`)
+   7. Start the VMs according to their saved power-state or `start_vms`.
+6. **Unlock**: remove the lock of the project (`lock/internal`) and store the `id_map` in the
+   job, so the user can see which UUIDs changed.
+7. **Users**: a restored project has no members, if it was newly created. An admin creates the
+   users if required and assigns them over the existing miko-endpoints (`create_user_admin`,
+   `set_project_role_admin`).
+8. **Errors**: steps are idempotent. A failure leaves the job in `ERROR` with the last step and the
+   already created resources (listed in the job). The project **stays locked**, so nobody works
+   on a half restored project. It is unlocked again by a successful second restore of the same
+   backup with `force` (which takes over the lock of the failed job) or manually by an admin
+   (`lock/admin`). The same happens with an active restore-job after a restart of isekai.
+   Rollback of a partial restore is optional (phase G1).
+
+### 5.4 Import of a foreign bundle (disaster-recovery)
+
+1. The operator copies the directory into `backups/` of a backup-target of the new deployment.
+2. `GET /v1alpha/backup/scan/admin?onsen_host_uuid=…` → lists the bundles with a valid manifest,
+   which are not known in isekai.
+3. `POST /v1alpha/backup/import/admin` `{ onsen_host_uuid, backup_uuid, passphrase }` → verifies
+   the bundle and registers it in the backup-table of isekai and as backup-resource in ryokan
+   (`backup/register/internal`, directly `READY`). Afterwards it is a normal backup, which can be
+   restored with 5.3.
+   The manifest is read over `backup_target/{host_uuid}/manifest/internal` and checked with the
+   passphrase, before the bundle is registered, because the deletion of a wrong registration would
+   delete the whole bundle.
+4. Import is global admin only, because the restore can create projects. The users of the old
+   deployment are not part of the bundle and have to be created and assigned by the admin.
+
+### 5.5 Permissions
+
+| Action                                     | Role                                                                         |
+| ------------------------------------------ | ---------------------------------------------------------------------------- |
+| VM-/project-backup, list, get              | project-member / project-admin of the project (observer: read only)          |
+| delete backup                              | project-admin                                                                |
+| restore into the existing project          | project-admin                                                                |
+| restore, which creates a new project       | global admin                                                                 |
+| `force`, `prune`                           | project-admin for its own project, global admin otherwise                    |
+| manual lock / unlock of a project          | global admin                                                                 |
+| scan / import of foreign bundles, backup-targets | global admin                                                           |
+
+Isekai uses the token of the user for all calls, like sakura does for the snapshot. The internal
+endpoints additionally require the internal API-key.
+
+## 6. Deployment and other parts of the repo
+
+- `Cargo.toml`: add `src/binaries/isekai` to `members` and `default-members`.
+- `example_configs/ainari/isekai.toml` (tested by the CI like the other examples).
+- `dockerfiles/{debian_based,nix_based}`: new target `isekai` in `Dockerfile_services` / nix-flake.
+- `docker-compose.yml`: isekai-service + a second onsen as backup-target.
+- `deploy/operator`: isekai-deployment, `Ainari`-CRD extended by isekai and a backup-onsen with its
+  own volume (`backupStorage`). No wireguard-peer is needed for isekai. Zarf-package: add image.
+- `scripts/`: OpenAPI-collector and docker-build-script extended.
+- CLI `ainarictl`: `backup create|list|get|delete`, `backup restore`, `backup scan|import`,
+  `onsen-host set-backup-target`. Passphrase only interactive or from a file/env, never as an
+  argument (shell-history).
+- Go- and Python-SDK: same functions.
+- Dashboard: backup-tab in the project and on the VM, restore-dialog with dry-run-result.
+- Docs: architecture-overview (new component), user-docs, sequence-diagrams for backup/restore
+  in `docs/developer/sequence_diagrams/`, entry in `repo_structure.md`.
+
+## 7. Tests
+
+- Unit-tests: manifest (HMAC, wrong passphrase, manipulated file), key-derivation, id_map-
+  calculation (conflicts, `force`), reference-rewriting of all structs.
+- Unit-tests of the prune-plan (only resources missing in the backup, `prune` without `force`
+  rejected) and of the lock in the auth-middleware (`423` for writes, internal API-key passes,
+  reads allowed).
+- Unit-tests in ryokan: backup-target can't be set with images or registered backups, normal
+  images never land on a backup-target, backups are only created on backup-targets, the
+  state-machine of the package (no write after `finalize`, no read before `finalize`, no
+  `finalize` without manifest, delete only as a whole, failed delete stays `DELETING`).
+- Omamori: wrap/unwrap round-trip, plain payload not in the export-response.
+- E2E in `testing/local_stack` (like `vm_lifecycle_test.py`):
+  1. Project with 2 networks, 2 VMs, filters, floating IP, secret, own image → backup.
+  2. Write a file in the VM, then restore with `force` → file is gone, UUIDs are the same.
+  3. Create an additional VM, then restore with `force` + `prune` → the additional VM is deleted.
+  4. During a restore, a user tries to create a VM in the project → `423`, listing still works.
+     The same during a backup; a second backup or a restore of the project during a running
+     backup → `409`; after a failed backup the project is unlocked again.
+  5. Restore into a new project without `force` → new UUIDs, VMs reachable.
+  6. Delete the project completely, then restore → all resources are back, the admin assigns the
+     users again.
+  7. Copy the bundle into a second stack (DR) → scan, import, restore, create and assign a user,
+     log in and access the VMs.
+  8. Wrong passphrase / manipulated file → rejected before any change and without a lock.
+
+## 8. Open points
+
+- **Data-disks**: at the moment only the root-disk exists. When additional volumes are added,
+  they must be part of `disks/`.

@@ -32,10 +32,13 @@ use crate::core::virtual_machine::cloud_hypervisor::migration::prepare::{
 use crate::core::virtual_machine::cloud_hypervisor::migration::remove::remove_migrated_ch_virtual_machine;
 use crate::core::virtual_machine::cloud_hypervisor::reboot_ch_virtual_machine::reboot_ch_virtual_machine;
 use crate::core::virtual_machine::cloud_hypervisor::restore_ch_virtual_machine::restore_ch_virtual_machine;
-use crate::core::virtual_machine::cloud_hypervisor::save_ch_virtual_machine::save_ch_virtual_machine;
+use crate::core::virtual_machine::cloud_hypervisor::save_ch_virtual_machine::{
+    save_backup_disk, save_snapshot_image,
+};
 use crate::core::virtual_machine::cloud_hypervisor::start_ch_virtual_machine::start_ch_virtual_machine;
 use crate::core::virtual_machine::cloud_hypervisor::stop_ch_virtual_machine::stop_ch_virtual_machine;
 use crate::database::task_table;
+use crate::database::virtual_machine_table::{self, VirtualMachineState};
 
 #[derive(Debug)]
 pub struct CloudHypervisorVirtualMachineCreateInfo {
@@ -66,15 +69,27 @@ pub struct CloudHypervisorVirtualMachinePowerInfo {
     pub context: UserContext,
 }
 
+/// Target of the saved root-disk of a virtual_machine.
+#[derive(Debug, Clone, Copy)]
+pub enum SnapshotKind {
+    /// Image, which was already registered in ryokan as snapshot and gets the root-disk as content
+    Image { image_uuid: Uuid },
+    /// Backup, which gets the root-disk as one of its disks
+    BackupDisk { backup_uuid: Uuid },
+}
+
 #[derive(Debug)]
 pub struct CloudHypervisorVirtualMachineSnapshotInfo {
     #[allow(dead_code)]
     pub vm_uuid: Uuid,
-    /// Image, which was already registered in ryokan as snapshot and gets the root-disk as content
-    pub image_uuid: Uuid,
-    /// Secret to encrypt the snapshot with, which was either provided by the user or generated
+    /// Where the root-disk is saved
+    pub kind: SnapshotKind,
+    /// Secret to encrypt the root-disk with, which was either provided by the caller or generated
     /// for the snapshot by ryokan
     pub secret_uuid: Uuid,
+    /// Shut a running virtual_machine down before the root-disk is saved and start it again
+    /// afterwards, so the saved root-disk is consistent
+    pub stop_vm: bool,
     #[allow(dead_code)]
     pub description: String,
     pub context: UserContext,
@@ -394,7 +409,8 @@ async fn handle_vm_deletion(
     delete_ch_virtual_machine(virtual_machine_uuid, &task_info.context).await
 }
 
-/// Handles the task, which saves the root-disk of the virtual_machine as snapshot.
+/// Handles the task, which saves the root-disk of the virtual_machine as snapshot or as disk of a
+/// backup.
 ///
 /// A failure is returned, so the task is marked as failed.
 ///
@@ -403,7 +419,7 @@ async fn handle_vm_deletion(
 /// * `_task_uuid` - Unique identifier for the task
 /// * `virtual_machine_uuid` - Unique identifier for the virtual machine to save
 /// * `_` - Unused TaskMeta parameter (kept for interface consistency)
-/// * `task_info` - Information, which is needed to create the snapshot
+/// * `task_info` - Information, which is needed to save the root-disk
 async fn handle_vm_snapshot(
     _task_uuid: &Uuid,
     virtual_machine_uuid: &Uuid,
@@ -411,25 +427,86 @@ async fn handle_vm_snapshot(
     task_info: &mut CloudHypervisorVirtualMachineSnapshotInfo,
 ) -> Result<(), AinariError> {
     let result = match ensure_not_migrating(virtual_machine_uuid, &task_info.context) {
-        Ok(()) => {
-            save_ch_virtual_machine(
-                virtual_machine_uuid,
-                &task_info.image_uuid,
-                &task_info.secret_uuid,
-                &task_info.context,
-            )
-            .await
-        }
+        Ok(()) => save_root_disk(virtual_machine_uuid, task_info).await,
         Err(e) => Err(e),
     };
 
     // the image was registered in ryokan before the task was queued, so a failed snapshot would
-    // leave an image behind, which has no file
-    if result.is_err() {
-        remove_failed_snapshot_image(&task_info.image_uuid, &task_info.context).await;
+    // leave an image behind, which has no file. A failed disk of a backup is removed together
+    // with the whole backup by its creator.
+    if result.is_err()
+        && let SnapshotKind::Image { image_uuid } = task_info.kind
+    {
+        remove_failed_snapshot_image(&image_uuid, &task_info.context).await;
     }
 
     result
+}
+
+/// Saves the root-disk of the virtual_machine into the target of the task.
+///
+/// With `stop_vm` a running virtual_machine is shut down before and started again afterwards,
+/// also if the saving failed. A virtual_machine, which was not running, is not started.
+///
+/// # Arguments
+///
+/// * `virtual_machine_uuid` - Unique identifier for the virtual machine to save
+/// * `task_info` - Information, which is needed to save the root-disk
+///
+/// # Returns
+///
+/// * `Ok(())` if the root-disk was saved and the virtual_machine runs again, if it was stopped
+/// * `Err(AinariError)` with an appropriate error on failure
+async fn save_root_disk(
+    virtual_machine_uuid: &Uuid,
+    task_info: &CloudHypervisorVirtualMachineSnapshotInfo,
+) -> Result<(), AinariError> {
+    let context = &task_info.context;
+    let restart = task_info.stop_vm && is_running(virtual_machine_uuid, context)?;
+    if restart {
+        stop_ch_virtual_machine(virtual_machine_uuid, context).await?;
+    }
+
+    let result = match task_info.kind {
+        SnapshotKind::Image { image_uuid } => {
+            save_snapshot_image(
+                virtual_machine_uuid,
+                &image_uuid,
+                &task_info.secret_uuid,
+                context,
+            )
+            .await
+        }
+        SnapshotKind::BackupDisk { backup_uuid } => {
+            save_backup_disk(
+                virtual_machine_uuid,
+                &backup_uuid,
+                &task_info.secret_uuid,
+                context,
+            )
+            .await
+        }
+    };
+
+    if restart && let Err(e) = start_ch_virtual_machine(virtual_machine_uuid, context).await {
+        log::error!("Failed to start VM {virtual_machine_uuid} again after saving its disk: {e}");
+        // the error of the saving is more important, if both failed
+        return result.and(Err(e));
+    }
+    result
+}
+
+/// Checks, if a virtual_machine is running.
+fn is_running(virtual_machine_uuid: &Uuid, context: &UserContext) -> Result<bool, AinariError> {
+    let virtual_machine = virtual_machine_table::get_virtual_machine(virtual_machine_uuid, context)
+        .map_err(|e| {
+            ainari_api::common_functions::map_db_uuid_get_delete_ainari_error(
+                "virtual_machine",
+                virtual_machine_uuid,
+                e,
+            )
+        })?;
+    Ok(virtual_machine.vm_state == VirtualMachineState::Running.to_string())
 }
 
 /// Removes the image of a failed snapshot from ryokan. A failure is only logged, because the
@@ -446,6 +523,7 @@ async fn remove_failed_snapshot_image(image_uuid: &Uuid, context: &UserContext) 
         delete_image(
             &endpoints.ryokan,
             &context.token,
+            &config::INTERNAL_API_KEY,
             image_uuid,
             config::CONFIG.skip_tls_verification,
         )

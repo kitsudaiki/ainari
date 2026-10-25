@@ -54,6 +54,40 @@ pub struct VirtualMachineInternalCreateReq {
     pub internal_ip: Ipv4Addr,
     pub tap_name: String,
     pub mac_address: String,
+    /// UUID of the virtual_machine, for example the original one of a backup. Without it, a new
+    /// UUID is generated.
+    #[serde(default)]
+    pub uuid: Option<Uuid>,
+}
+
+/// Reservation of a virtual_machine by another component, for example to restore it from a
+/// backup. Unlike `VirtualMachineCreateReq` the resources are given directly instead of a vm-type,
+/// and the UUID and the addresses can be fixed.
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
+pub struct VirtualMachineReserveInternalReq {
+    /// UUID of the virtual_machine. Without it, a new UUID is generated.
+    #[serde(default)]
+    pub uuid: Option<Uuid>,
+    #[validate(length(min = 4, max = 127))]
+    pub name: String,
+    pub network_uuid: Uuid,
+    #[validate(range(min = 1))]
+    pub number_of_cores: i32,
+    /// memory of the virtual_machine in MiB
+    #[validate(range(min = 1))]
+    pub memory_size: i64,
+    /// size of the disk of the virtual_machine in GiB
+    #[validate(range(min = 1))]
+    pub disk_size: i64,
+    /// internal IP-address within the network. Without it, the next free one is used.
+    #[serde(default)]
+    pub internal_ip: Option<Ipv4Addr>,
+    /// MAC-address of the virtual_machine. Without it, the next free one is used.
+    #[serde(default)]
+    pub mac_address: Option<String>,
+    /// Place the virtual_machine on a host, which is isolated for the project
+    #[serde(default)]
+    pub isolated_host: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
@@ -80,6 +114,15 @@ pub struct VirtualMachineResp {
     pub updated_by: String,
 }
 
+/// Sakura-host, which runs a virtual_machine.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, ApiComponent)]
+pub struct VirtualMachineHostResp {
+    pub virtual_machine_uuid: Uuid,
+    pub host_uuid: Uuid,
+    /// Internal address of the sakura-host, where its internal endpoints are reachable
+    pub address: String,
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
 pub struct VirtualMachineBasicResp {
     pub uuid: Uuid,
@@ -96,4 +139,43 @@ pub struct VirtualMachineBasicResp {
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
 pub struct VirtualMachineListResp {
     pub virtual_machines: Vec<VirtualMachineBasicResp>,
+}
+
+/// Virtual_machine, like it is exported from hanami into a backup. The disk and the config within
+/// the virtual_machine are exported by sakura.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, ApiComponent)]
+pub struct HanamiVirtualMachineExport {
+    /// UUID of the virtual_machine at the time of the backup
+    pub uuid: Uuid,
+    pub name: String,
+    pub number_of_cores: i64,
+    /// memory in MiB
+    pub memory_size: i64,
+    /// size of the root-disk in GiB
+    pub disk_size: i64,
+    pub network_uuid: Uuid,
+    pub internal_ip: Ipv4Addr,
+    pub mac_address: String,
+}
+
+/// Config of a virtual_machine, like it is exported from sakura into a backup. The root-disk is
+/// saved separately into the backup.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, ApiComponent)]
+pub struct SakuraVirtualMachineExport {
+    /// UUID of the virtual_machine at the time of the backup
+    pub uuid: Uuid,
+    pub name: String,
+    /// Power-state of the virtual_machine: RESERVED, CREATED, RUNNING, STOPPED, RESTORING or ERROR
+    pub vm_state: String,
+    pub number_of_cores: i32,
+    /// memory of the virtual_machine in bytes
+    pub memory_size: i64,
+    /// size of the root-disk in GiB
+    pub disk_size: i64,
+    /// image, which the virtual_machine was created from
+    pub image_uuid: Uuid,
+    pub public_key_uuid: Uuid,
+    pub network_uuid: Uuid,
+    pub internal_ip: Ipv4Addr,
+    pub mac_address: String,
 }

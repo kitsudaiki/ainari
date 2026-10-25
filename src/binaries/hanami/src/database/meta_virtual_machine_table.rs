@@ -415,6 +415,74 @@ pub fn delete_all_meta_virtual_machine() -> Result<(), enums::DbError> {
     }
 }
 
+/// Searches a virtual_machine by its UUID within all projects, also if it is already deleted.
+///
+/// It is used to check, if a fixed UUID is still free, before a virtual_machine with this UUID is
+/// reserved.
+///
+/// # Arguments
+/// * `virtual_machine_uuid` - The UUID of the virtual_machine
+///
+/// # Returns
+/// A QueryResult containing project and status of the virtual_machine, or None, if the UUID was
+/// never used
+pub fn find_meta_virtual_machine(
+    virtual_machine_uuid: &Uuid,
+) -> QueryResult<Option<(String, String)>> {
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+    use self::meta_virtual_machines::dsl::*;
+
+    meta_virtual_machines
+        .filter(uuid.eq(virtual_machine_uuid.to_string()))
+        .select((project_id, status))
+        .first::<(String, String)>(&mut *conn)
+        .optional()
+}
+
+/// Removes the entry of a deleted virtual_machine, so its UUID can be used again, for example to
+/// restore it from a backup. Active virtual_machines are never removed.
+///
+/// # Arguments
+/// * `virtual_machine_uuid` - The UUID of the deleted virtual_machine
+///
+/// # Returns
+/// A QueryResult with the number of removed entries
+pub fn remove_deleted_meta_virtual_machine(virtual_machine_uuid: &Uuid) -> QueryResult<usize> {
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+    use self::meta_virtual_machines::dsl::*;
+
+    diesel::delete(
+        meta_virtual_machines.filter(
+            uuid.eq(virtual_machine_uuid.to_string())
+                .and(status.eq("DELETED")),
+        ),
+    )
+    .execute(&mut *conn)
+}
+
+/// Lists all active meta virtual machines of a project.
+///
+/// Unlike the listing for the users, it is done for the project of the path and not the one of
+/// the token, so an admin can export any project.
+///
+/// # Arguments
+/// * `project` - The ID of the project
+///
+/// # Returns
+/// A QueryResult containing the meta virtual machines of the project
+pub fn list_meta_virtual_machines_of_project(
+    project: &str,
+) -> QueryResult<Vec<MetaVirtualMachineEntry>> {
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+    use self::meta_virtual_machines::dsl::*;
+
+    meta_virtual_machines
+        .filter(status.eq("ACTIVE"))
+        .filter(project_id.eq(project))
+        .select(MetaVirtualMachineEntry::as_select())
+        .load(&mut *conn)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

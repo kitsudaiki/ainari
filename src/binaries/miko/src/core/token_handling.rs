@@ -26,6 +26,7 @@ use crate::database::user_project_mapping_table;
 use crate::database::user_table;
 
 use ainari_api_structs::user_context::UserContext;
+use ainari_common::enums::{DbError, ProjectRole};
 use ainari_common::secret::Secret;
 
 /// Represents the claims contained within a JSON Web Token (JWT).
@@ -89,6 +90,10 @@ pub fn validate_token(token: &str) -> Result<UserContext, String> {
 /// - the user was removed from the project of the token or the project was deleted,
 /// - the role of the user within the project was changed.
 ///
+/// A global admin can get a token with the role `admin` for a project, to which the admin is not
+/// assigned (`PUT /v1alpha/token/project/admin`). Such a token stays valid without a mapping, as
+/// long as the user is still an admin and the project exists.
+///
 /// Every component lets miko validate the tokens of its requests, so the invalidation applies to
 /// all of them immediately.
 ///
@@ -122,8 +127,13 @@ pub fn check_token_against_database(
         context.project_id
     );
     project_table::get_auth_project(&context.project_id).map_err(|_| no_access_msg.clone())?;
-    let mapping = user_project_mapping_table::get_mapping(&context.project_id, &context.user_id)
-        .map_err(|_| no_access_msg)?;
+    let mapping =
+        match user_project_mapping_table::get_mapping(&context.project_id, &context.user_id) {
+            Ok(mapping) => mapping,
+            // the admin-flag was already compared with the database above
+            Err(DbError::NotFound) if admin_without_mapping(context) => return Ok(()),
+            Err(_) => return Err(no_access_msg),
+        };
     if mapping.role.as_str() != context.project_role {
         return Err(format!(
             "Role of the user within the project '{}' was changed to '{}', the token has to be \
@@ -133,6 +143,12 @@ pub fn check_token_against_database(
     }
 
     Ok(())
+}
+
+/// True, if the token belongs to a global admin with the role `admin`, like the tokens, which an
+/// admin gets for a project, to which the admin is not assigned.
+fn admin_without_mapping(context: &UserContext) -> bool {
+    context.is_admin == true.to_string() && context.project_role == ProjectRole::Admin.as_str()
 }
 
 /// Creates a new JSON Web Token (JWT) for a user.
@@ -219,3 +235,27 @@ static TOKEN_KEY: Lazy<Secret> = Lazy::new(|| {
         }
     }
 });
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn context(is_admin: bool, project_role: &str) -> UserContext {
+        UserContext {
+            token: String::new(),
+            user_id: "user".to_string(),
+            project_id: "project".to_string(),
+            is_admin: is_admin.to_string(),
+            project_role: project_role.to_string(),
+        }
+    }
+
+    #[test]
+    fn test_admin_without_mapping() {
+        assert!(admin_without_mapping(&context(true, "admin")));
+        // only the role, which the admin gets for a not assigned project, is accepted
+        assert!(!admin_without_mapping(&context(true, "member")));
+        assert!(!admin_without_mapping(&context(true, "observer")));
+        assert!(!admin_without_mapping(&context(false, "admin")));
+    }
+}

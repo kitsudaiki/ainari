@@ -216,7 +216,8 @@ impl CryptoModule for SimpleCrypto {
         let encrypted_secret = self.encrypt(plaintext, key_b64)?;
 
         // add new secret to database
-        simple_crypto_table::add_new_simple_crypto_data(secret_uuid, &encrypted_secret).map_err(
+        // an existing payload is replaced, like it is defined by the trait
+        simple_crypto_table::put_simple_crypto_data(secret_uuid, &encrypted_secret).map_err(
             |_| {
                 AinariError::internal(format!(
                     "Failed to add simple-crypto-secret with UUID '{secret_uuid}' to database."

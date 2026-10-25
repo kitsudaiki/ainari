@@ -83,6 +83,13 @@ class Config:
     # a migration shuts the virtual machine down, transfers its disk and boots it again
     migration_timeout: int = field(
         default_factory=lambda: _env_int("AINARI_MIGRATION_TIMEOUT", 900))
+    # a backup copies the root-disks of the virtual machines into the backup-target and a restore
+    # copies them back and boots the virtual machines again
+    backup_timeout: int = field(default_factory=lambda: _env_int("AINARI_BACKUP_TIMEOUT", 1200))
+
+    # passphrase of the backups, which are created by the test
+    backup_passphrase: str = field(default_factory=lambda: os.getenv(
+        "AINARI_BACKUP_PASSPHRASE", "local-stack-backup-passphrase"))
 
     @property
     def image_path(self) -> str:

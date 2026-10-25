@@ -425,6 +425,27 @@ pub fn delete_network_filters_of_virtual_machine(
     }
 }
 
+/// Lists all active network filters of a project.
+///
+/// Unlike the listing for the users, it is done for the project of the path and not the one of
+/// the token, so an admin can export any project.
+///
+/// # Arguments
+/// * `project` - The ID of the project
+///
+/// # Returns
+/// A QueryResult containing the network filters of the project
+pub fn list_network_filters_of_project(project: &str) -> QueryResult<Vec<NetworkFilterEntry>> {
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+    use self::network_filters::dsl::*;
+
+    network_filters
+        .filter(status.eq("ACTIVE"))
+        .filter(project_id.eq(project))
+        .select(NetworkFilterEntry::as_select())
+        .load(&mut *conn)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

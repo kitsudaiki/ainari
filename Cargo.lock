@@ -291,6 +291,7 @@ dependencies = [
  "cipher 0.5.2",
  "cpubits",
  "cpufeatures 0.3.1",
+ "zeroize",
 ]
 
 [[package]]
@@ -319,6 +320,7 @@ dependencies = [
  "ctr 0.10.1",
  "ctutils",
  "ghash 0.6.0",
+ "zeroize",
 ]
 
 [[package]]
@@ -416,15 +418,19 @@ dependencies = [
 name = "ainari_common"
 version = "0.22.0"
 dependencies = [
+ "aes-gcm 0.11.1",
  "apistos-schemars",
+ "argon2",
  "base64 0.23.1",
  "chrono",
  "diesel",
  "diesel_migrations",
  "env_logger",
  "hex",
+ "hkdf 0.13.0",
  "log",
  "percent-encoding",
+ "rand 0.10.3",
  "serde",
  "serde_json",
  "sha2 0.11.1",
@@ -651,6 +657,7 @@ dependencies = [
  "blake2",
  "cpufeatures 0.3.1",
  "password-hash",
+ "zeroize",
 ]
 
 [[package]]
@@ -2295,6 +2302,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2eecf2d5dc9b66b732b97707a0210906b1d30523eb773193ab777c0c84b3e8d5"
 dependencies = [
  "polyval 0.7.3",
+ "zeroize",
 ]
 
 [[package]]
@@ -2885,6 +2893,40 @@ name = "is_terminal_polyfill"
 version = "1.70.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a6cb138bb79a146c1bd460005623e142ef0181e3d0219cb493e02f7d08a35695"
+
+[[package]]
+name = "isekai"
+version = "0.22.0"
+dependencies = [
+ "actix-rt",
+ "actix-web",
+ "ainari_api",
+ "ainari_api_structs",
+ "ainari_clients",
+ "ainari_common",
+ "apistos",
+ "apistos-schemars",
+ "base64 0.23.1",
+ "chrono",
+ "diesel",
+ "diesel_migrations",
+ "futures",
+ "futures-util",
+ "hex",
+ "hmac 0.13.0",
+ "lazy_static",
+ "log",
+ "once_cell",
+ "serde",
+ "serde_json",
+ "serial_test",
+ "sha2 0.11.1",
+ "tokio",
+ "toml 1.1.6+spec-1.1.0",
+ "uuid",
+ "validator",
+ "zeroize",
+]
 
 [[package]]
 name = "itertools"
@@ -3763,6 +3805,7 @@ dependencies = [
  "toml 1.1.6+spec-1.1.0",
  "uuid",
  "validator",
+ "zeroize",
 ]
 
 [[package]]
@@ -3822,6 +3865,7 @@ dependencies = [
  "futures",
  "futures-core",
  "futures-util",
+ "hex",
  "lazy_static",
  "log",
  "once_cell",
@@ -3832,6 +3876,7 @@ dependencies = [
  "serde_json",
  "serde_urlencoded",
  "serial_test",
+ "sha2 0.11.1",
  "sysinfo",
  "tokio",
  "toml 1.1.6+spec-1.1.0",
@@ -4174,6 +4219,7 @@ dependencies = [
  "cpubits",
  "cpufeatures 0.3.1",
  "universal-hash 0.6.1",
+ "zeroize",
 ]
 
 [[package]]
@@ -4637,6 +4683,7 @@ dependencies = [
  "ainari_files",
  "apistos",
  "apistos-schemars",
+ "base64 0.23.1",
  "bytes",
  "chrono",
  "diesel",

@@ -107,7 +107,9 @@ tags in the following steps.
     kubectl label nodes NODE_NAME ryokan-node=true
     kubectl label nodes NODE_NAME omamori-node=true
     kubectl label nodes NODE_NAME izakaya-node=true
+    kubectl label nodes NODE_NAME isekai-node=true
     kubectl label nodes NODE_NAME onsen-node=true
+    kubectl label nodes NODE_NAME onsen-backup-node=true
     kubectl label nodes NODE_NAME sakura-node=true
     kubectl label nodes NODE_NAME torii-node=true
     kubectl label nodes NODE_NAME ainari-dashboard-node=true
@@ -164,6 +166,8 @@ tags in the following steps.
         image: kitsudaiki/omamori:VERSION
       izakaya:
         image: kitsudaiki/izakaya:VERSION
+      isekai:
+        image: kitsudaiki/isekai:VERSION
       onsen:
         image: kitsudaiki/onsen:VERSION
       sakura:
@@ -210,30 +214,44 @@ tags in the following steps.
 
     - Mysql
 
-        - Miko, hanami, ryokan, omamori and izakaya always store their data in a mysql-server,
-          each in its own database with its own user. By default the operator deploys the server
-          on the node with the label `mysql-node` and creates the databases and users at its
-          first start.
+        - Miko, hanami, ryokan, omamori, izakaya and isekai always store their data in a
+          mysql-server, each in its own database with its own user. By default the operator
+          deploys the server on the node with the label `mysql-node` and creates the databases
+          and users at its first start.
         - To use an existing server instead, set `mysql.deploy: false`, its address as
           `mysql.host` (and `mysql.port`) and the name of a secret in the namespace of the
           installation as `mysql.credentialsSecret`. This secret needs the passwords of the
           users, which have to exist already, under the keys `miko_password`, `hanami_password`,
-          `ryokan_password`, `omamori_password` and `izakaya_password`. The names of the
-          databases and users are the names of the components by default and can be changed with
-          `mysql.databases.<component>`. The components create their tables themselves.
+          `ryokan_password`, `omamori_password`, `izakaya_password` and `isekai_password`. The
+          names of the databases and users are the names of the components by default and can be
+          changed with `mysql.databases.<component>`. The components create their tables
+          themselves.
 
     - Replicas
 
         - Every component has the field `replicas`. Miko, hanami, ryokan, omamori and izakaya can
           run with multiple replicas, one on each node with their label, because they keep their
           state only within their mysql-database. Onsen can run with multiple replicas as well,
-          every one with its own volume.
+          every one with its own volume. Isekai runs with at most one replica, because it
+          processes its backup- and restore-jobs itself.
+
+    - Backups
+
+        - Isekai stores the backups on its own onsen `onsen-backup` (`isekai.backupStorage`),
+          which uses the image of onsen and has its own volumes (default `10Gi`), on the nodes
+          with the label `onsen-backup-node`.
+        - Ryokan only stores backups on an onsen-host, which an admin marked as backup-target,
+          and never puts normal images or snapshots there. So the pods of `onsen-backup` have to
+          be marked once after the installation, see [Backup-targets](#backup-targets).
+        - The parameters of the key-derivation of the passphrases of the backups are set with
+          `isekai.kdf`.
 
     - Wireguard
 
-        - The connections of ryokan and sakura to onsen run through wireguard. The operator
-          creates the keys and configs of all pods itself, also for multiple replicas of onsen,
-          ryokan and sakura, and updates the running pods, when the number of replicas changes.
+        - The connections of ryokan and sakura to onsen and to the onsen of the backups run
+          through wireguard. The operator creates the keys and configs of all pods itself, also
+          for multiple replicas of onsen, ryokan and sakura, and updates the running pods, when
+          the number of replicas changes.
 
     - Without gateway
 
@@ -245,8 +263,8 @@ tags in the following steps.
     - Domains
 
         - Every component is reachable over the domain in the field `domain` of the component, by
-          default `local-miko`, `local-hanami`, `local-ryokan`, `local-omamori`, `local-torii`
-          and `local-ainari` for the dashboard.
+          default `local-miko`, `local-hanami`, `local-ryokan`, `local-omamori`, `local-isekai`,
+          `local-torii` and `local-ainari` for the dashboard.
 
 1. **Install the stack**
 
@@ -327,6 +345,7 @@ kubectl -n ainari create secret generic miko-admin --from-literal=passphrase=PAS
         192.168.178.87  local-hanami
         192.168.178.87  local-ryokan
         192.168.178.87  local-omamori
+        192.168.178.87  local-isekai
         192.168.178.87  local-torii
         192.168.178.87  local-ainari
         ```
@@ -347,6 +366,27 @@ kubectl -n ainari create secret generic miko-admin --from-literal=passphrase=PAS
     ```
 
 - the dashboard is available under `https://local-ainari`
+
+### Backup-targets
+
+The pods of `onsen-backup` register themselves at ryokan with the name of their pod, like
+`onsen-backup-0`. An admin marks them once as backup-targets, while they store nothing yet:
+
+```bash
+# token of the admin, the passphrase is in the secret 'miko-admin'
+TOKEN="$(curl -s -X POST https://local-miko/v1alpha/token \
+    -d token_format=jwt -d grant_type=client_credentials \
+    -d client_id=USER_ID -d client_secret=PASSPHRASE | jq -r .access_token)"
+
+# the uuids of the onsen-hosts of the backups
+curl -s -H "Authorization: Bearer $TOKEN" https://local-ryokan/v1alpha/host/admin \
+    | jq -r '.hosts[] | select(.name | startswith("onsen-backup-")) | .uuid'
+
+curl -X PUT -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+    -d '{"is_backup_target": true}' https://local-ryokan/v1alpha/host/HOST_UUID/backup_target/admin
+```
+
+`testing/local_stack/mark_backup_targets.sh` does the same for all of them.
 
 ## Uninstall
 

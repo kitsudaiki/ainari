@@ -43,6 +43,8 @@ spec:
     image: kitsudaiki/omikuji:###ZARF_CONST_AINARI_VERSION###
   izakaya:
     image: kitsudaiki/izakaya:###ZARF_CONST_AINARI_VERSION###
+  isekai:
+    image: kitsudaiki/isekai:###ZARF_CONST_AINARI_VERSION###
   onsen:
     image: kitsudaiki/onsen:###ZARF_CONST_AINARI_VERSION###
   sakura:

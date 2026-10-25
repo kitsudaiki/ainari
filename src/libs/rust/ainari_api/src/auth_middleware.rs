@@ -23,6 +23,7 @@ use actix_web::{
 use crate::errors::ErrorResponse;
 use crate::omikuji_logging::{RequestInfo, send_audit_log};
 
+use ainari_api_structs::auth_structs::UserTokenValidateResp;
 use ainari_clients::auth::check_token;
 use ainari_common::config::{Api, MikoEndpoint};
 use ainari_common::error::AinariError;
@@ -50,6 +51,9 @@ pub struct ApiValidationConfig {
     /// a user. For services, whose internal endpoints are also called by background-jobs of other
     /// services, which act without a user.
     pub internal_endpoints_without_token: bool,
+    /// Writes to locked projects are not rejected. For services, which manage the lock of the
+    /// projects themselves, so their users can still handle the job, which holds the lock.
+    pub ignore_project_lock: bool,
 }
 
 impl ApiValidationConfig {
@@ -78,6 +82,7 @@ impl ApiValidationConfig {
             skip_tls_verification,
             internal_endpoints_port: None,
             internal_endpoints_without_token: false,
+            ignore_project_lock: false,
         }
     }
 
@@ -111,6 +116,20 @@ impl ApiValidationConfig {
     /// The config without the token-check for the internal endpoints
     pub fn authorize_internal_endpoints_by_api_key(mut self) -> Self {
         self.internal_endpoints_without_token = true;
+        self
+    }
+
+    /// Doesn't reject the writes of users to locked projects.
+    ///
+    /// For services, which set and check the lock of the projects themselves, so the requests of
+    /// their users must still reach them, while a project is locked, like the deletion of a
+    /// backup, whose job has failed.
+    ///
+    /// # Returns
+    ///
+    /// The config without the check of the project-lock
+    pub fn ignore_project_lock(mut self) -> Self {
+        self.ignore_project_lock = true;
         self
     }
 }
@@ -210,7 +229,10 @@ pub async fn authorization_middleware(
         check_internal_request(&req, api_validation_config)?;
     }
     if !skip_token_check {
-        check_auth_header(&req, api_validation_config).await?;
+        let project_locked = check_auth_header(&req, api_validation_config).await?;
+        if !api_validation_config.ignore_project_lock {
+            check_project_lock(&req, api_validation_config, project_locked)?;
+        }
     }
     //else {
     //    log::debug!("skip token-check");
@@ -229,6 +251,72 @@ pub async fn authorization_middleware(
     };
 
     resp
+}
+
+/// Checks if the method of a request only reads, so it is allowed for a locked project.
+fn is_read_request(method: &Method) -> bool {
+    matches!(*method, Method::GET | Method::HEAD | Method::OPTIONS)
+}
+
+/// Checks if a request carries the valid internal API-key, so it comes from another component and
+/// not directly from a user.
+///
+/// # Arguments
+///
+/// * `req` - The incoming service request
+/// * `api_validation_config` - Configuration containing the valid internal API key
+///
+/// # Returns
+///
+/// True, if the header `X-Internal-API-Key` contains the valid key
+fn has_valid_internal_api_key(
+    req: &ServiceRequest,
+    api_validation_config: &ApiValidationConfig,
+) -> bool {
+    req.headers()
+        .get("X-Internal-API-Key")
+        .and_then(|value| value.to_str().ok())
+        .is_some_and(|key| Secret::from(key) == api_validation_config.internal_api_key)
+}
+
+/// Rejects all requests of a user to a locked project, which don't only read.
+///
+/// A project is locked during a backup or restore, so its resources don't change in the meantime.
+/// The lock is checked here centrally for all components, so it doesn't have to be implemented in
+/// every endpoint. Requests with the internal API-key come from the backup or restore itself or
+/// from other components, which act on its behalf, so they are not blocked.
+///
+/// # Arguments
+///
+/// * `req` - The incoming service request
+/// * `api_validation_config` - Configuration containing the valid internal API key
+/// * `project_locked` - True, if the project of the token of the request is locked
+///
+/// # Returns
+///
+/// Ok(()) if the request is allowed, or the error `423 Locked`
+pub fn check_project_lock(
+    req: &ServiceRequest,
+    api_validation_config: &ApiValidationConfig,
+    project_locked: bool,
+) -> Result<(), actix_web::Error> {
+    if project_locked
+        && !is_read_request(req.method())
+        && !has_valid_internal_api_key(req, api_validation_config)
+    {
+        log::debug!(
+            "Rejected '{}'-request against '{}', because the project is locked",
+            req.method(),
+            req.path()
+        );
+        return Err(ErrorResponse::Locked(
+            "The project is locked by a backup or restore and can only be read at the moment."
+                .to_string(),
+        )
+        .into());
+    }
+
+    Ok(())
 }
 
 /// Validates that an internal request is coming from a trusted source
@@ -309,11 +397,12 @@ pub fn check_internal_request(
 ///
 /// # Returns
 ///
-/// Ok(()) if the token is valid, or an error if authorization fails
+/// Ok(true) if the token is valid and its project is locked, Ok(false) if the token is valid and
+/// its project is not locked, or an error if authorization fails
 async fn check_auth_header(
     req: &ServiceRequest,
     api_validation_config: &ApiValidationConfig,
-) -> Result<(), actix_web::Error> {
+) -> Result<bool, actix_web::Error> {
     let uri = req.uri();
 
     log::debug!("Check token for request against {uri}");
@@ -354,10 +443,17 @@ async fn check_auth_header(
     .await;
 
     match response {
-        Ok(_) => {
-            // println!("Success: {body_str}");
-            Ok(())
-        }
+        Ok(body) => match serde_json::from_str::<UserTokenValidateResp>(&body) {
+            Ok(validation) => Ok(validation.project_locked),
+            Err(e) => {
+                // without the lock-state, the request can't be checked against the lock
+                crate::report_internal_error!(
+                    None,
+                    "Failed to read token-validation of Miko with error: '{e}'"
+                );
+                Err(ErrorResponse::InternalError("Internal Error".to_string()).into())
+            }
+        },
         Err(AinariError::Unauthorized(msg)) => Err(ErrorResponse::Unauthorized(msg).into()),
         Err(AinariError::InvalidInput(msg)) => Err(ErrorResponse::Unauthorized(msg).into()),
         // miko doesn't know the user of the token anymore
@@ -410,10 +506,16 @@ mod tests {
 
     /// Sends a GET-request with additional header-lines and returns the status-code.
     fn get_status_with_headers(port: u16, path: &str, headers: &str) -> u16 {
+        request_status(port, "GET", path, headers)
+    }
+
+    /// Sends a request without body with additional header-lines and returns the status-code.
+    fn request_status(port: u16, method: &str, path: &str, headers: &str) -> u16 {
         let mut stream = TcpStream::connect(("127.0.0.1", port)).expect("failed to connect");
         write!(
             stream,
-            "GET {path} HTTP/1.1\r\nHost: localhost\r\n{headers}Connection: close\r\n\r\n"
+            "{method} {path} HTTP/1.1\r\nHost: localhost\r\n{headers}Content-Length: 0\r\n\
+             Connection: close\r\n\r\n"
         )
         .expect("failed to send request");
         let mut response = String::new();
@@ -441,6 +543,7 @@ mod tests {
             skip_tls_verification: false,
             internal_endpoints_port: None,
             internal_endpoints_without_token: false,
+            ignore_project_lock: false,
         }
         .restrict_internal_endpoints(internal_port);
 
@@ -494,6 +597,7 @@ mod tests {
             skip_tls_verification: false,
             internal_endpoints_port: None,
             internal_endpoints_without_token: false,
+            ignore_project_lock: false,
         }
         .restrict_internal_endpoints(internal_port)
         .authorize_internal_endpoints_by_api_key();
@@ -542,5 +646,140 @@ mod tests {
         assert_ne!(results.2, 200);
         // every other endpoint still needs the token of a user
         assert_ne!(results.3, 200);
+    }
+
+    #[test]
+    fn test_is_read_request() {
+        assert!(is_read_request(&Method::GET));
+        assert!(is_read_request(&Method::HEAD));
+        assert!(is_read_request(&Method::OPTIONS));
+        assert!(!is_read_request(&Method::POST));
+        assert!(!is_read_request(&Method::PUT));
+        assert!(!is_read_request(&Method::DELETE));
+        assert!(!is_read_request(&Method::PATCH));
+    }
+
+    /// Token-validation of a fake miko, which reports the project of the token "locked" as locked.
+    async fn fake_validate_token(req: actix_web::HttpRequest) -> HttpResponse {
+        let token = req
+            .headers()
+            .get("Authorization")
+            .and_then(|value| value.to_str().ok())
+            .and_then(split_bearer_token)
+            .unwrap_or_default();
+        if token != "locked" && token != "unlocked" {
+            return HttpResponse::Unauthorized().finish();
+        }
+        HttpResponse::Ok().json(serde_json::json!({
+            "context": {
+                "user_id": "user",
+                "project_id": "project",
+                "is_admin": "false",
+                "project_role": "member",
+            },
+            "project_locked": token == "locked",
+        }))
+    }
+
+    #[actix_web::test]
+    async fn test_writes_to_locked_project_are_rejected() {
+        let miko = TcpListener::bind("127.0.0.1:0").unwrap();
+        let miko_port = miko.local_addr().unwrap().port();
+        let miko_server = HttpServer::new(|| {
+            App::new().route("/v1alpha/token", web::get().to(fake_validate_token))
+        })
+        .workers(1)
+        .listen(miko)
+        .unwrap()
+        .run();
+        let miko_handle = miko_server.handle();
+        actix_rt::spawn(miko_server);
+
+        let service = TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = service.local_addr().unwrap().port();
+        let config = ApiValidationConfig {
+            miko_address: format!("http://127.0.0.1:{miko_port}"),
+            internal_ip: "127.0.0.1".to_string(),
+            internal_api_key: Secret::from("key"),
+            skip_tls_verification: false,
+            internal_endpoints_port: None,
+            internal_endpoints_without_token: false,
+            ignore_project_lock: false,
+        };
+        let ignoring_config = config.clone().ignore_project_lock();
+        let server = HttpServer::new(move || {
+            App::new()
+                .app_data(web::Data::new(config.clone()))
+                .wrap(from_fn(authorization_middleware))
+                .route("/v1alpha/vm", web::get().to(HttpResponse::Ok))
+                .route("/v1alpha/vm", web::post().to(HttpResponse::Ok))
+                .route("/v1alpha/vm", web::delete().to(HttpResponse::Ok))
+        })
+        .workers(1)
+        .listen(service)
+        .unwrap()
+        .run();
+        let handle = server.handle();
+        actix_rt::spawn(server);
+
+        let ignoring_service = TcpListener::bind("127.0.0.1:0").unwrap();
+        let ignoring_port = ignoring_service.local_addr().unwrap().port();
+        let ignoring_server = HttpServer::new(move || {
+            App::new()
+                .app_data(web::Data::new(ignoring_config.clone()))
+                .wrap(from_fn(authorization_middleware))
+                .route("/v1alpha/vm", web::post().to(HttpResponse::Ok))
+        })
+        .workers(1)
+        .listen(ignoring_service)
+        .unwrap()
+        .run();
+        let ignoring_handle = ignoring_server.handle();
+        actix_rt::spawn(ignoring_server);
+
+        let results = actix_web::rt::task::spawn_blocking(move || {
+            let locked = "Authorization: Bearer locked\r\n";
+            let unlocked = "Authorization: Bearer unlocked\r\n";
+            let with_key = "Authorization: Bearer locked\r\nX-Internal-API-Key: key\r\n";
+            let wrong_key = "Authorization: Bearer locked\r\nX-Internal-API-Key: wrong\r\n";
+            (
+                request_status(port, "GET", "/v1alpha/vm", locked),
+                request_status(port, "POST", "/v1alpha/vm", locked),
+                request_status(port, "DELETE", "/v1alpha/vm", locked),
+                request_status(port, "POST", "/v1alpha/vm", with_key),
+                request_status(port, "POST", "/v1alpha/vm", wrong_key),
+                request_status(port, "POST", "/v1alpha/vm", unlocked),
+                request_status(port, "POST", "/v1alpha/vm", "Authorization: Bearer x\r\n"),
+                request_status(ignoring_port, "POST", "/v1alpha/vm", locked),
+                request_status(
+                    ignoring_port,
+                    "POST",
+                    "/v1alpha/vm",
+                    "Authorization: Bearer x\r\n",
+                ),
+            )
+        })
+        .await
+        .unwrap();
+        handle.stop(true).await;
+        ignoring_handle.stop(true).await;
+        miko_handle.stop(true).await;
+
+        // a locked project can still be read
+        assert_eq!(results.0, 200);
+        // all other requests of the user are rejected
+        assert_eq!(results.1, 423);
+        assert_eq!(results.2, 423);
+        // requests of other components with the internal API-key are not blocked
+        assert_eq!(results.3, 200);
+        assert_eq!(results.4, 423);
+        // a project, which is not locked, can be changed
+        assert_eq!(results.5, 200);
+        // an invalid token is still rejected first
+        assert_eq!(results.6, 401);
+        // a service, which handles the lock itself, gets the writes to a locked project, but
+        // still checks the token
+        assert_eq!(results.7, 200);
+        assert_eq!(results.8, 401);
     }
 }

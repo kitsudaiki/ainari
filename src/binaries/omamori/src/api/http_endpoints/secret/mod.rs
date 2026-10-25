@@ -28,8 +28,29 @@ use crate::database::secret_table;
 
 use ainari_api::common_functions::map_ainari_error_to_api_response;
 use ainari_api::errors::ErrorResponse;
+use ainari_api_structs::secret_structs::SECRET_OWNER_BACKUP;
 use ainari_api_structs::user_context::UserContext;
 use ainari_clients::quota::get_quota;
+
+/// Checks the quota for a new secret, which is owned by a resource of the given kind.
+///
+/// The secrets of backups don't count to the quota of the project, so they are always allowed.
+///
+/// # Arguments
+///
+/// * `owned_by` - The kind of owner of the new secret
+/// * `context` - User-context of the request
+///
+/// # Returns
+///
+/// * `Ok(())` - The secret can be created.
+/// * `Err(ErrorResponse)` - The quota is exhausted or could not be checked.
+async fn check_quota_for_owner(owned_by: &str, context: &UserContext) -> Result<(), ErrorResponse> {
+    if owned_by == SECRET_OWNER_BACKUP {
+        return Ok(());
+    }
+    check_quota(context).await
+}
 
 /// Checks if the user is still allowed to create another secret.
 ///

@@ -1,0 +1,12 @@
+# Config of the second onsen of the local docker-compose setup, which is marked as backup-target
+# by testing/local_stack/setup_local_stack.sh, so it only stores the backups of isekai.
+debug = true
+log_path = "/var/log"
+skip_tls_verification = true
+address = "http://onsen-backup:50051"
+
+[miko]
+address = "http://miko:11417"
+
+[storage]
+location = "/tmp/onsen"

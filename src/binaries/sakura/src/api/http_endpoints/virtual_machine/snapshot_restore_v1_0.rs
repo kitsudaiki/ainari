@@ -56,22 +56,60 @@ pub async fn snapshot_restore_task(
     body.validate()
         .map_err(|e| ErrorResponse::BadRequest(format!("Invalid input: {e}")))?;
 
-    let task_uuid = Uuid::new_v4();
-    let task_type = TaskType::SnapshotRestore;
-
-    // check if virtual_machine exist
-    let virtual_machine_data = virtual_machine_table::get_virtual_machine(
+    let resp = create_restore_task(
         &virtual_machine_uuid,
+        &body.image_uuid,
+        TaskType::SnapshotRestore,
+        |image_uuid, virtual_machine_uuid| {
+            format!(
+                "Restore snapshot-image {image_uuid} into virtual machine with UUID \
+                 {virtual_machine_uuid}"
+            )
+        },
         &context,
     )
-    .map_err(|e| {
-        map_db_uuid_get_delete_error("virtual_machine", &virtual_machine_uuid, e, Some(&context))
-    })?;
+    .await?;
+    Ok(CreatedJson(resp))
+}
+
+/// Creates a task, which replaces the root-disk of a virtual_machine with a snapshot-image.
+///
+/// It is shared by the restore of a snapshot and of the root-disk of a backup, which only differ
+/// in the type and the description of their task.
+///
+/// # Arguments
+///
+/// * `virtual_machine_uuid` - The virtual_machine, whose root-disk is replaced
+/// * `image_uuid` - The snapshot-image, which replaces the root-disk
+/// * `task_type` - Type of the new task
+/// * `description` - Creates the description of the task from the UUIDs of the image and the
+///   virtual_machine
+/// * `context` - User-context of the request
+///
+/// # Returns
+///
+/// The new task, or `BadRequest`, if the image is no snapshot, `NotFound`, if the
+/// virtual_machine or the image doesn't exist, and `Conflict`, if the virtual_machine is migrated
+/// or the image is not ready.
+pub(super) async fn create_restore_task(
+    virtual_machine_uuid: &Uuid,
+    image_uuid: &Uuid,
+    task_type: TaskType,
+    description: impl FnOnce(&Uuid, &Uuid) -> String,
+    context: &UserContext,
+) -> Result<TaskResp, ErrorResponse> {
+    let task_uuid = Uuid::new_v4();
+
+    // check if virtual_machine exist
+    let virtual_machine_data =
+        virtual_machine_table::get_virtual_machine(virtual_machine_uuid, context).map_err(|e| {
+            map_db_uuid_get_delete_error("virtual_machine", virtual_machine_uuid, e, Some(context))
+        })?;
     super::reject_migrating(&virtual_machine_data)?;
 
     let endpoints = get_endpoints(&config::CONFIG.miko, config::CONFIG.skip_tls_verification)
         .await
-        .map_err(|e| map_ainari_error_to_api_response(e, Some(&context)))?;
+        .map_err(|e| map_ainari_error_to_api_response(e, Some(context)))?;
 
     // check if the image exist, is a snapshot and is ready, so an invalid image is rejected
     // before the task is queued
@@ -79,11 +117,11 @@ pub async fn snapshot_restore_task(
         &endpoints.ryokan,
         &context.token,
         &config::INTERNAL_API_KEY,
-        &body.image_uuid,
+        image_uuid,
         config::CONFIG.skip_tls_verification,
     )
     .await
-    .map_err(|e| map_ainari_error_to_api_response(e, Some(&context)))?;
+    .map_err(|e| map_ainari_error_to_api_response(e, Some(context)))?;
     if !image_resp.is_snapshot {
         return Err(ErrorResponse::BadRequest(format!(
             "Image {} is not a snapshot and can not be restored.",
@@ -93,10 +131,7 @@ pub async fn snapshot_restore_task(
     super::reject_image_not_ready(&image_resp)?;
 
     // prepare task-info
-    let task_description = format!(
-        "Restore snapshot-image {} into virtual machine with UUID {}",
-        image_resp.uuid, virtual_machine_data.uuid
-    );
+    let task_description = description(&image_resp.uuid, &virtual_machine_data.uuid);
     let info = CloudHypervisorVirtualMachineRestoreInfo {
         vm_uuid: virtual_machine_data.uuid,
         image_uuid: image_resp.uuid,
@@ -114,14 +149,14 @@ pub async fn snapshot_restore_task(
         info: TaskVariant::CloudHypervisorVirtualMachineRestore(info),
         meta: TaskMeta::new(),
     };
-    super::super::task::add_task(task, &task_type, &context)
+    super::super::task::add_task(task, &task_type, context)
         .inspect_err(|e| log::error!("Creating a restore-task failed with error: {e}"))?;
 
     // get new created task from database to get additional information
-    let task_data = task_table::get_task(&task_uuid, &context)
-        .map_err(|e| map_db_uuid_get_delete_error("task", &task_uuid, e, Some(&context)))?;
+    let task_data = task_table::get_task(&task_uuid, context)
+        .map_err(|e| map_db_uuid_get_delete_error("task", &task_uuid, e, Some(context)))?;
 
-    let resp = TaskResp {
+    Ok(TaskResp {
         uuid: task_uuid,
         description: task_data.description,
         task_type: task_data.task_type,
@@ -131,7 +166,5 @@ pub async fn snapshot_restore_task(
         finished_at: task_data.finished_at,
         messages: task_data.messages,
         created_by: task_data.created_by,
-    };
-
-    Ok(CreatedJson(resp))
+    })
 }

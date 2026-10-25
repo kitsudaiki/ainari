@@ -47,7 +47,7 @@ pub async fn clone_secret_internal(
     body.validate()
         .map_err(|e| ErrorResponse::BadRequest(format!("Invalid input: {e}")))?;
 
-    super::check_quota(&context).await?;
+    super::check_quota_for_owner(&body.owned_by, &context).await?;
 
     // check if the source-secret exist and is accessible with the given context
     let source_uuid = body.secret_uuid;

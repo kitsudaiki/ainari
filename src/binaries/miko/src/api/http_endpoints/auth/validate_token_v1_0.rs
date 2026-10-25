@@ -15,6 +15,8 @@
 use actix_web::web::Json;
 use apistos::api_operation;
 
+use crate::database::project_table;
+
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::auth_structs::*;
 use ainari_api_structs::user_context::UserContext;
@@ -25,14 +27,40 @@ use ainari_api_structs::user_context::UserContext;
     description = r###"Validate the access-token of the request.
 
 The check itself is done by the middleware, so a successful response means that
-the token is valid, and the content of the token is returned."###,
+the token is valid, and the content of the token is returned.
+
+`project_locked` is true, while the project of the token is locked by a backup or restore. The
+other components only allow reading requests of the user to a locked project."###,
     error_code = 401,
     error_code = 500
 )]
 pub async fn validate_token(
     context: UserContext,
 ) -> Result<Json<UserTokenValidateResp>, ErrorResponse> {
-    let response = UserTokenValidateResp { context };
+    // the lock is read from the database for every validation, because it changes, while the
+    // token is valid
+    let project_locked = match project_table::is_project_locked(&context.project_id) {
+        Ok(project_locked) => project_locked,
+        Err(ainari_common::enums::DbError::NotFound) => {
+            return Err(ErrorResponse::Unauthorized(format!(
+                "Project '{}' of the token doesn't exist anymore.",
+                context.project_id
+            )));
+        }
+        Err(_) => {
+            ainari_api::report_internal_error!(
+                Some(&context),
+                "Failed to read lock of project '{}' from database",
+                context.project_id
+            );
+            return Err(ErrorResponse::InternalError("Internal Error".to_string()));
+        }
+    };
+
+    let response = UserTokenValidateResp {
+        context,
+        project_locked,
+    };
     // HINT(kitsudaki): Here is not validation-code, even the function is named this way,
     // because it provides only the endpoint itself. The token-validation will be done
     // in the middleware, like for the other endpoints

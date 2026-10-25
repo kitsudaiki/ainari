@@ -13,6 +13,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- backup and restore of virtual machines and whole projects with the new component "Isekai":
+    - backups are encrypted with a passphrase of the user and stored as self-contained package on
+      onsen-hosts, which an admin marked as backup-target, and never on normal onsen-hosts
+    - restore into the own or another project, with `force` to overwrite existing resources and
+      `prune` to delete the resources, which are not part of the backup, and a dry-run to check the
+      plan of the restore before
+    - import of backups, which were copied from another deployment, for a disaster-recovery
+    - new backup-commands in CLI, python- and go-SDK and a backups-view in the dashboard
+    - deployed by docker-compose, the operator (with an own onsen for the backups) and zarf
+- lock of projects: while a backup or restore runs, the resources of the project can only be read.
+  Admins can lock and unlock projects manually, for example after a failed restore.
 - added to CI:
     - spell-checker
     - markdown-linter
@@ -22,6 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- write-requests to a locked project are rejected with `423 Locked` by all components
 - updated dashboard-styling
 - synced go-versions used in the repo to version 1.26.10
 

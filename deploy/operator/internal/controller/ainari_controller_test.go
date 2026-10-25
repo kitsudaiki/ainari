@@ -280,14 +280,15 @@ func TestReconcileChangesOfTheSpec(t *testing.T) {
 		t.Errorf("the config of the dashboard still exists, although it is disabled")
 	}
 
-	// the running pods of ryokan get the new onsen-pods as peers
+	// the running pods of ryokan get the new onsen-pods as peers, beside the onsen of the backups
 	wgRyokan := &corev1.Secret{}
 	if !env.exists(t, wgRyokan, "changes", "wg-ryokan-secret") {
 		t.Fatal("the wireguard-secret of ryokan is missing")
 	}
 	peers := strings.Split(strings.TrimSpace(string(wgRyokan.Data["ryokan-0.peers"])), "\n")
-	if len(peers) != 3 {
-		t.Errorf("ryokan has %d peers instead of the 3 onsen-pods: %v", len(peers), peers)
+	if len(peers) != 3+1 {
+		t.Errorf("ryokan has %d peers instead of the 3 onsen-pods and the onsen of the backups: %v",
+			len(peers), peers)
 	}
 }
 

@@ -89,11 +89,13 @@ def request_context(address: str,
     omamori_address = resp["omamori"]["public_address"]
     # omikuji is optional, so a deployment without it has no or an empty endpoint for it
     omikuji_address = resp.get("omikuji", {}).get("public_address", "")
+    # isekai is optional as well, like omikuji
+    isekai_address = resp.get("isekai", {}).get("public_address", "")
 
     # Create and return the context object
     context = AccessContext(token, miko_address, hanami_address,
                             ryokan_address, omamori_address, torii_address,
-                            verify_connection, omikuji_address)
+                            verify_connection, omikuji_address, isekai_address)
     return context
 
 
@@ -107,6 +109,23 @@ def renew_token(context: AccessContext) -> dict:
                                            context.miko_address,
                                            path,
                                            {})
+
+
+def renew_token_for_project_admin(context: AccessContext,
+                                  project_id: str) -> dict:
+    """
+    Requests a new token of an admin for any existing project, also if the admin is not assigned
+    to it. The returned token has to be set in a new context, because the context of this call is
+    not modified.
+    """
+    path = "/v1alpha/token/project/admin"
+    json_body = {
+        "project_id": project_id,
+    }
+    return ainari_request.send_put_request(context,
+                                           context.miko_address,
+                                           path,
+                                           json_body)
 
 
 def validate_token(context: AccessContext) -> dict:

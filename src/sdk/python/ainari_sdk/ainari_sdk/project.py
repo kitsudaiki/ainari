@@ -56,6 +56,36 @@ def delete_project(context: AccessContext,
                                        "")
 
 
+def lock_project(context: AccessContext,
+                 project_id: str,
+                 reason: str) -> dict:
+    """
+    Locks a project manually, for example for a maintenance, so its resources can only be read.
+    A project, which is locked by a running backup or restore, is rejected with a conflict.
+    """
+    path = f"/v1alpha/project/{project_id}/lock/admin"
+    json_body = {
+        "reason": reason,
+    }
+    return ainari_request.send_post_request(context,
+                                            context.miko_address,
+                                            path,
+                                            json_body)
+
+
+def unlock_project(context: AccessContext,
+                   project_id: str):
+    """
+    Removes the lock of a project, also the one of a backup or restore, for example after a
+    failed restore.
+    """
+    path = f"/v1alpha/project/{project_id}/lock/admin"
+    ainari_request.send_delete_request(context,
+                                       context.miko_address,
+                                       path,
+                                       "")
+
+
 def list_users_in_project(context: AccessContext) -> dict:
     """
     Returns all users of the project of the access-context, together with the role of each user

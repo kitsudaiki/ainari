@@ -32,7 +32,12 @@ use ainari_api_structs::user_context::UserContext;
     summary = "Create new generated secret (internal)",
     description = r###"Create a new secret with a randomly generated 256-bit key as payload,
 
-so the payload never has to be transferred to the server."###,
+so the payload never has to be transferred to the server.
+
+The secret is owned by the resource \`resource_uuid\` of the kind \`owned_by\`. Secrets with
+\`owned_by = "backup"\` encrypt the disks within a backup. They don't count to the quota of the
+project and don't block the deletion of the project, because a backup can outlive its project. Like
+all secrets, which are owned by a resource, they can't be deleted by the users."###,
     error_code = 400,
     error_code = 401,
     error_code = 409,
@@ -46,7 +51,7 @@ pub async fn generate_secret_internal(
     body.validate()
         .map_err(|e| ErrorResponse::BadRequest(format!("Invalid input: {e}")))?;
 
-    super::check_quota(&context).await?;
+    super::check_quota_for_owner(&body.owned_by, &context).await?;
 
     let secret_uuid = Uuid::new_v4();
 

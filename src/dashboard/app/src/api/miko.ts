@@ -23,6 +23,8 @@ import type {
     ProjectBasicResp,
     ProjectCreateReq,
     ProjectInvitedResp,
+    ProjectLockAdminReq,
+    ProjectLockResp,
     ProjectMemberResp,
     ProjectRemoveUserReq,
     ProjectResp,
@@ -48,6 +50,16 @@ import type {
  */
 export async function renewToken(body: TokenRenewReq): Promise<UserTokenResp> {
     const resp = await mikoClient().put("/v1alpha/token", body);
+    return resp.data;
+}
+
+/**
+ * `PUT /v1alpha/token/project/admin` - new token of an admin for any existing project, also if
+ * the admin is not assigned to it. It is only used for single requests, like a backup of the
+ * project, the token of the login is not replaced.
+ */
+export async function renewTokenForProjectAdmin(projectId: string): Promise<UserTokenResp> {
+    const resp = await mikoClient().put("/v1alpha/token/project/admin", { project_id: projectId });
     return resp.data;
 }
 
@@ -90,6 +102,29 @@ export async function createProject(body: ProjectCreateReq): Promise<ProjectResp
 /** `DELETE /v1alpha/project/{project_id}/admin` */
 export async function deleteProject(projectId: string): Promise<void> {
     await mikoClient().delete(`/v1alpha/project/${projectId}/admin`);
+}
+
+/**
+ * `POST /v1alpha/project/{project_id}/lock/admin`
+ *
+ * Locks the project manually, so its resources can only be read. A project, which is locked by
+ * a running backup or restore, is rejected with 409.
+ */
+export async function lockProject(
+    projectId: string,
+    body: ProjectLockAdminReq,
+): Promise<ProjectLockResp> {
+    const resp = await mikoClient().post(`/v1alpha/project/${projectId}/lock/admin`, body);
+    return resp.data;
+}
+
+/**
+ * `DELETE /v1alpha/project/{project_id}/lock/admin`
+ *
+ * Removes any lock of the project, also the one of a failed restore.
+ */
+export async function unlockProject(projectId: string): Promise<void> {
+    await mikoClient().delete(`/v1alpha/project/${projectId}/lock/admin`);
 }
 
 /** `GET /v1alpha/project/{project_id}/users/admin` */

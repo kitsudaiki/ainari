@@ -42,7 +42,8 @@ use crate::prepare_client;
 ///
 /// # Returns
 ///
-/// A `Result` containing either the `HostResp` from the server or an `AinariError` if the request fails.
+/// A `Result` containing either the `SakuraHostResp` from the server or an `AinariError` if the
+/// request fails.
 #[allow(clippy::too_many_arguments)]
 pub async fn register_sakura_host(
     hanami_endpoint: &ainari_config::Endpoint,
@@ -56,7 +57,7 @@ pub async fn register_sakura_host(
     memory_size: u64,
     disk_space: u64,
     insecure_client: bool,
-) -> Result<HostResp, AinariError> {
+) -> Result<SakuraHostResp, AinariError> {
     let address = hanami_endpoint.internal_address.clone();
     let client = prepare_client(&address, insecure_client);
     let url = format!("{address}/v1alpha/host/internal");
@@ -80,7 +81,8 @@ pub async fn register_sakura_host(
         .send_body(json_str)
         .await;
 
-    let resp: Result<HostResp, AinariError> = handle_response(response, "sakura-host", "").await;
+    let resp: Result<SakuraHostResp, AinariError> =
+        handle_response(response, "sakura-host", "").await;
     resp
 }
 

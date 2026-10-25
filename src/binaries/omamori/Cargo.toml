@@ -45,6 +45,8 @@ base64 = "0.23"
 # aes-encryption
 aes-gcm = "0.11" 
 aes = "0.9.3"
+# wiping of keys after their usage
+zeroize = "1.9"
 
 [dev-dependencies]
 serial_test = "4"

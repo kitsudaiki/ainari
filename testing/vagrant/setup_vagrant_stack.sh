@@ -19,6 +19,8 @@
 # the stack of the Ainari-resource of testing/vagrant/ainari.yaml. Miko,
 # hanami, ryokan, omamori, izakaya and omikuji run with one replica on each of the three management-machines and
 # share the mysql-server on the machine ainari-mysql. Onsen runs twice, on its own machines ainari-onsen and ainari-onsen-2.
+# Isekai runs once on a management-machine and stores the backups on onsen-backup, which runs on
+# one of the onsen-machines.
 # The images are built on the host and copied
 # into the virtual machines.
 #
@@ -57,7 +59,7 @@ PROXY_DOMAIN="192-168-56-11.sslip.io"
 CA_CERT="$WORK_DIR/ainari-vagrant-ca.crt"
 CA_KEY="$WORK_DIR/ainari-vagrant-ca.key"
 
-IMAGES=(miko omamori izakaya omikuji ryokan onsen hanami sakura torii dashboard operator)
+IMAGES=(miko omamori izakaya omikuji isekai ryokan onsen hanami sakura torii dashboard operator)
 
 SUDO=""
 if [ "$EUID" -ne 0 ]; then
@@ -137,6 +139,10 @@ vagrant provision "$LAST_MACHINE"
 echo "Adding the route towards $FLOATING_IP_CIDR over ainari-torii ..."
 $SUDO ip route replace "$FLOATING_IP_CIDR" via "$TORII_VM_ADDRESS"
 
+echo "Marking the onsen of the backups as backup-target ..."
+"$PROJECT_DIR/testing/local_stack/mark_backup_targets.sh" \
+    "https://$MGMT_VM_ADDRESS:11417" "https://$MGMT_VM_ADDRESS:11416" "$CA_CERT" || true
+
 echo ""
 echo "The stack is up. The api is reachable over https at:"
 echo "    miko       https://$MGMT_VM_ADDRESS:11417"
@@ -144,6 +150,7 @@ echo "    hanami     https://$MGMT_VM_ADDRESS:11418"
 echo "    ryokan     https://$MGMT_VM_ADDRESS:11416"
 echo "    omamori    https://$MGMT_VM_ADDRESS:11421"
 echo "    omikuji    https://$MGMT_VM_ADDRESS:11424"
+echo "    isekai     https://$MGMT_VM_ADDRESS:11425"
 echo "    dashboard  https://$MGMT_VM_ADDRESS:11422"
 echo ""
 echo "All certificates are signed by the CA $CA_CERT"
@@ -153,6 +160,8 @@ echo ""
 echo "Miko, hanami, ryokan, omamori, izakaya and omikuji run three times, on ainari-mgmt-1 to"
 echo "ainari-mgmt-3, and"
 echo "share the mysql-server on ainari-mysql. The api is reachable over every virtual machine."
+echo "Isekai runs once on one of them and stores the backups on onsen-backup on ainari-onsen or"
+echo "ainari-onsen-2."
 echo ""
 echo "The cluster can be inspected with"
 echo "    kubectl --kubeconfig $WORK_DIR/kubeconfig --namespace ainari get pods -o wide"

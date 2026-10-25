@@ -24,6 +24,16 @@ service DataService {
   rpc DownloadFile(DownloadRequest) returns (stream DataChunk);
 
   rpc DeleteFile(DeleteRequest) returns (DataResponse);
+
+  // Lists the direct entries of a directory (not recursive). Returns NOT_FOUND, if the directory
+  // doesn't exist.
+  rpc ListDirectory(ListDirectoryRequest) returns (ListDirectoryResponse);
+
+  // Deletes a directory with all of its content. Deleting a not existing directory is no error.
+  rpc DeleteDirectory(DeleteDirectoryRequest) returns (DataResponse);
+
+  // Returns size and sha256-checksum of a file. Returns NOT_FOUND, if the file doesn't exist.
+  rpc GetFileInfo(FileInfoRequest) returns (FileInfoResponse);
 }
 
 message DataChunk {
@@ -44,4 +54,34 @@ message DeleteRequest {
 
 message DataResponse {
   string status = 1;
+}
+
+message ListDirectoryRequest {
+  string remote_dir_path = 1;
+}
+
+message DirectoryEntry {
+  string name = 1;
+  bool is_dir = 2;
+  // size in bytes, 0 for directories
+  uint64 size = 3;
+}
+
+message ListDirectoryResponse {
+  repeated DirectoryEntry entries = 1;
+}
+
+message DeleteDirectoryRequest {
+  string remote_dir_path = 1;
+}
+
+message FileInfoRequest {
+  string remote_file_path = 1;
+}
+
+message FileInfoResponse {
+  // size in bytes
+  uint64 size = 1;
+  // hex-encoded sha256-checksum of the content
+  string sha256 = 2;
 }

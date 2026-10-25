@@ -19,9 +19,11 @@ pub mod constants;
 pub mod counter;
 #[cfg(feature = "mysql")]
 pub mod database;
+pub mod encryption;
 pub mod enums;
 pub mod error;
 pub mod functions;
+pub mod kdf;
 pub mod logger;
 pub mod objects;
 pub mod secret;

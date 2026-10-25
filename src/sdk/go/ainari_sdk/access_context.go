@@ -27,6 +27,7 @@ type AccessContext struct {
 	RyokanAddress       string
 	OmamoriAddress      string
 	OmikujiAddress      string
+	IsekaiAddress       string
 	ToriiAddress        string
 	skipTlsVerification bool
 }

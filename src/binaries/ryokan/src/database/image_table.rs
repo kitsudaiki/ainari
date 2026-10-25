@@ -18,9 +18,11 @@ use diesel::prelude::*;
 use uuid::Uuid;
 
 use crate::database::db_handle;
+use crate::database::host_table;
 use ainari_api_structs::image_structs::ImageStatus;
 use ainari_api_structs::user_context::UserContext;
 
+use ainari_common::database::DbConnection;
 use ainari_common::enums;
 use ainari_common::objects::*;
 
@@ -171,9 +173,138 @@ pub fn add_image(image: ImageEntry) -> QueryResult<usize> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::images::dsl::*;
 
-    diesel::insert_into(images)
-        .values(image)
-        .execute(&mut *conn)
+    // a backup-target never stores normal images or snapshots. The host-selection already skips
+    // them, but the host could have been marked in the meantime, so it is checked again within
+    // the same transaction like the marking itself.
+    conn.transaction(|conn| {
+        check_no_backup_target(conn, &image.onsen_address)?;
+        diesel::insert_into(images).values(image).execute(conn)
+    })
+}
+
+/// Rejects an onsen-host, which is a backup-target, because it never stores images.
+///
+/// # Arguments
+/// * `conn` - The locked database-connection within the transaction of the change
+/// * `address` - Address of the onsen-host
+///
+/// # Returns
+/// * `QueryResult<()>` - An error, if the host is a backup-target
+fn check_no_backup_target(conn: &mut DbConnection, address: &str) -> QueryResult<()> {
+    if host_table::is_backup_target_address(conn, address)? {
+        return Err(diesel::result::Error::DatabaseError(
+            diesel::result::DatabaseErrorKind::CheckViolation,
+            Box::new(format!(
+                "onsen-host '{address}' is a backup-target and can not store images"
+            )),
+        ));
+    }
+    Ok(())
+}
+
+/// Lists all complete images and snapshots of a project.
+///
+/// Unlike `list_images`, it is done for the project of the path and not the one of the token, so
+/// an admin can export any project. Images, which are not `READY`, are skipped, because their
+/// file is not complete.
+///
+/// # Arguments
+/// * `project` - The ID of the project
+///
+/// # Returns
+/// * `QueryResult<Vec<ImageEntry>>` - The images of the project
+pub fn list_ready_images_of_project(project: &str) -> QueryResult<Vec<ImageEntry>> {
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+    use self::images::dsl::*;
+
+    images
+        .filter(status.eq("ACTIVE"))
+        .filter(project_id.eq(project))
+        .filter(image_status.eq(ImageStatus::Ready.as_str()))
+        .select(ImageEntry::as_select())
+        .load(&mut *conn)
+}
+
+/// Searches an image by its UUID within all projects, also if it is already deleted.
+///
+/// It is used to check, if the UUID is still free, before an image with this UUID is imported.
+///
+/// # Arguments
+/// * `image_uuid` - The UUID of the image
+///
+/// # Returns
+/// * `QueryResult<Option<ImageEntry>>` - The image, or None, if the UUID was never used
+pub fn find_image(image_uuid: &Uuid) -> QueryResult<Option<ImageEntry>> {
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+    use self::images::dsl::*;
+
+    images
+        .filter(uuid.eq(image_uuid.to_string()))
+        .select(ImageEntry::as_select())
+        .first::<ImageEntry>(&mut *conn)
+        .optional()
+}
+
+/// Adds an image to the database or replaces the existing entry with the same UUID.
+///
+/// It is used to import an image, so also an already deleted image can be restored with its
+/// original UUID, which is the primary key of the table. Like `add_image`, an image is never
+/// stored on a backup-target.
+///
+/// # Arguments
+/// * `image` - The image to store
+///
+/// # Returns
+/// * `QueryResult<usize>` - The number of rows affected by the insert operation
+pub fn put_image(image: ImageEntry) -> QueryResult<usize> {
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+    use self::images::dsl::*;
+
+    conn.transaction(|conn| {
+        check_no_backup_target(conn, &image.onsen_address)?;
+        diesel::delete(images.filter(uuid.eq(image.uuid.to_string()))).execute(conn)?;
+        diesel::insert_into(images).values(image).execute(conn)
+    })
+}
+
+/// Counts the active images and snapshots, which are stored on an onsen-host.
+///
+/// It takes the already locked connection, so it can be used within the transaction of another
+/// table.
+///
+/// # Arguments
+/// * `conn` - The locked database-connection
+/// * `address` - Address of the onsen-host
+///
+/// # Returns
+/// * `QueryResult<i64>` - The number of active images on the host
+pub fn count_images_on_onsen(conn: &mut DbConnection, address: &str) -> QueryResult<i64> {
+    use self::images::dsl::*;
+
+    images
+        .filter(status.eq("ACTIVE"))
+        .filter(onsen_address.eq(address))
+        .select(count_star())
+        .first::<i64>(conn)
+}
+
+/// Checks, if an image with this UUID was ever registered, in any project and also if it is
+/// already deleted.
+///
+/// # Arguments
+/// * `image_uuid` - The UUID of the image
+///
+/// # Returns
+/// * `QueryResult<bool>` - True, if the UUID is already used
+pub fn is_uuid_taken(image_uuid: &Uuid) -> QueryResult<bool> {
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+    use self::images::dsl::*;
+
+    images
+        .filter(uuid.eq(image_uuid.to_string()))
+        .select(count_star())
+        .first::<i64>(&mut *conn)
+        .map(|count| count > 0)
 }
 
 /// Retrieves an image from the database.
@@ -574,11 +705,17 @@ mod tests {
         };
 
         hard_delete_image(&uuid1);
+        assert!(!is_uuid_taken(&uuid1).unwrap());
 
         add_image(image).unwrap();
+        assert!(is_uuid_taken(&uuid1).unwrap());
         let _ = delete_image(&uuid1, &context);
         let result = get_image(&uuid1, &context);
         assert!(result.is_err());
+        // also a deleted image keeps its UUID
+        assert!(is_uuid_taken(&uuid1).unwrap());
+
+        hard_delete_image(&uuid1);
     }
 
     #[test]

@@ -70,6 +70,8 @@ func RequestContext(address, user, passphrase, projectId string, skipTlsVerifica
 	omamoriAddr := resp["omamori"].(map[string]interface{})
 	// omikuji is optional, so a deployment without it has no or an empty endpoint for it
 	omikujiAddr, _ := resp["omikuji"].(map[string]interface{})
+	// isekai is optional as well, like omikuji
+	isekaiAddr, _ := resp["isekai"].(map[string]interface{})
 
 	// fill context
 	context.token = token
@@ -78,6 +80,7 @@ func RequestContext(address, user, passphrase, projectId string, skipTlsVerifica
 	context.RyokanAddress = ryokanAddr["public_address"].(string)
 	context.OmamoriAddress = omamoriAddr["public_address"].(string)
 	context.OmikujiAddress, _ = omikujiAddr["public_address"].(string)
+	context.IsekaiAddress, _ = isekaiAddr["public_address"].(string)
 	context.ToriiAddress = toriiAddr["public_address"].(string)
 	context.skipTlsVerification = skipTlsVerification
 
@@ -89,6 +92,17 @@ func RequestContext(address, user, passphrase, projectId string, skipTlsVerifica
 func RenewToken(context AccessContext) (map[string]interface{}, error) {
 	path := "v1alpha/token"
 	jsonBody := map[string]interface{}{}
+	return SendPut(context, context.MikoAddress, path, jsonBody)
+}
+
+// RenewTokenForProjectAdmin requests a new token of an admin for any existing project, also if
+// the admin is not assigned to it. The returned token has to be set in a new context, because the
+// context of this call is not modified.
+func RenewTokenForProjectAdmin(context AccessContext, projectId string) (map[string]interface{}, error) {
+	path := "v1alpha/token/project/admin"
+	jsonBody := map[string]interface{}{
+		"project_id": projectId,
+	}
 	return SendPut(context, context.MikoAddress, path, jsonBody)
 }
 

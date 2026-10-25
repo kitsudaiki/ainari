@@ -21,11 +21,11 @@ https by an nginx-container (`sakura-tls`, `sakura-2-tls`) with a certificate fo
 
 ```mermaid
 flowchart TB
-    host["host<br/>10.0.0.1 on veth-host<br/>api on 127.0.0.1:11416-11424<br/>proxies on 127.0.0.1:10042"]
+    host["host<br/>10.0.0.1 on veth-host<br/>api on 127.0.0.1:11416-11425<br/>proxies on 127.0.0.1:10042"]
 
     subgraph docker["docker-network ainari-net 172.30.0.0/16, mtu 1600"]
         public["torii-public 172.30.0.10<br/>floating ip-NAT 10.0.0.x to 192.168.100.x<br/>proxies on 10042"]
-        control["miko, omamori, izakaya, ryokan, onsen, hanami"]
+        control["miko, omamori, izakaya, omikuji, isekai, ryokan, onsen, onsen-backup, hanami"]
         subgraph host1["network-namespace of torii-vmm 172.30.0.20"]
             vmm1["torii-vmm<br/>TAP-devices"]
             sakura1["sakura<br/>cloud-hypervisor"]
@@ -55,6 +55,11 @@ flowchart TB
 Beside the gateways and the sakura-hosts the setup runs `miko` (auth), `omamori` (secrets and
 public-keys), `ryokan` (images) with `onsen` (storage) and `hanami` (the api for the virtual
 machines). There is no dashboard.
+
+`isekai` orchestrates the backups and restores of virtual machines and projects. It stores its
+backups on the second onsen `onsen-backup`, which the setup-script marks as backup-target in
+ryokan, so it never gets normal images or snapshots. The passphrase-derivation of isekai is set to
+its minimum in `testing/local_stack/configs/isekai.toml`, so the tests don't wait for it.
 
 A sakura has no network of its own, because it shares the network-namespace of its gateway. Its
 address `http://sakura:10420` (and `http://sakura-2:10420`) is an alias of its gateway in the dns
@@ -162,6 +167,7 @@ The api is reachable on the host at:
 | omamori   | `http://127.0.0.1:11421` |
 | izakaya   | `http://127.0.0.1:11423` |
 | omikuji   | `http://127.0.0.1:11424` |
+| isekai    | `http://127.0.0.1:11425` |
 | torii     | `http://127.0.0.1:11419` |
 
 The sakura-hosts are only reachable over the proxies of torii at

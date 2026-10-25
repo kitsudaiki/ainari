@@ -52,6 +52,7 @@ collect_spec torii 127.0.0.1:11419 || FAILED+=(torii)
 collect_spec omamori 127.0.0.1:11421 || FAILED+=(omamori)
 collect_spec izakaya 127.0.0.1:11423 || FAILED+=(izakaya)
 collect_spec omikuji 127.0.0.1:11424 || FAILED+=(omikuji)
+collect_spec isekai 127.0.0.1:11425 || FAILED+=(isekai)
 collect_spec sakura "${SAKURA_ADDRESS}" || FAILED+=(sakura)
 
 if [ ${#FAILED[@]} -gt 0 ]; then

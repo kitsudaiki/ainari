@@ -65,6 +65,7 @@ nav = [
       "deployer/database/ryokan_db.md",
       "deployer/database/torii_db.md",
       "deployer/database/omamori_db.md",
+      "deployer/database/isekai_db.md",
     ] },
   ] },
   { "Development-Docu" = [
@@ -83,6 +84,8 @@ nav = [
       { "Sequence diagrams" = [
         "developer/sequence_diagrams/network_crypto_key_exchange.md",
         "developer/sequence_diagrams/vm_migration.md",
+        "developer/sequence_diagrams/backup_create.md",
+        "developer/sequence_diagrams/backup_restore.md",
       ] },
       "developer/test_guide.md",
       "developer/git_workflow.md",

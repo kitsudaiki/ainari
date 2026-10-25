@@ -54,6 +54,7 @@ func init() {
 	ainari_resources.Init_Quota_Commands(rootCmd)
 	ainari_resources.Init_VmType_Commands(rootCmd)
 	ainari_resources.Init_Log_Commands(rootCmd)
+	ainari_resources.Init_Backup_Commands(rootCmd)
 }
 
 func main() {

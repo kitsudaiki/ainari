@@ -12,4 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+pub mod export_project_internal_v1_0;
 pub mod get_project_resource_count_internal_v1_0;
+pub mod import_project_internal_v1_0;

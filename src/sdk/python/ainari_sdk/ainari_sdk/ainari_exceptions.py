@@ -43,6 +43,13 @@ class ConflictException(Exception):
         super().__init__(message)
 
 
+class LockedException(ConflictException):
+    """
+    The project is locked by a running backup or restore, or by an admin, so it can only be read.
+    It is a conflict as well, so it is also caught as ConflictException.
+    """
+
+
 class InternalServerErrorException(Exception):
     def __init__(self):
         super().__init__("Server internal error appeared.")

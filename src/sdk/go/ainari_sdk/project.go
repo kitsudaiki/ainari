@@ -51,6 +51,24 @@ func DeleteProject(context AccessContext, projectId string) (map[string]interfac
 	return SendDelete(context, context.MikoAddress, path, vars)
 }
 
+// LockProject locks a project manually, for example for a maintenance, so its resources can only
+// be read. A project, which is locked by a running backup or restore, is rejected with a conflict.
+func LockProject(context AccessContext, projectId, reason string) (map[string]interface{}, error) {
+	path := fmt.Sprintf("v1alpha/project/%s/lock/admin", projectId)
+	jsonBody := map[string]interface{}{
+		"reason": reason,
+	}
+	return SendPost(context, context.MikoAddress, path, jsonBody)
+}
+
+// UnlockProject removes the lock of a project, also the one of a backup or restore, for example
+// after a failed restore.
+func UnlockProject(context AccessContext, projectId string) (map[string]interface{}, error) {
+	path := fmt.Sprintf("v1alpha/project/%s/lock/admin", projectId)
+	vars := map[string]interface{}{}
+	return SendDelete(context, context.MikoAddress, path, vars)
+}
+
 // ListUsersInProject returns all users of the project of the current access-context, together
 // with the role of each user within this project.
 func ListUsersInProject(context AccessContext) (map[string]interface{}, error) {

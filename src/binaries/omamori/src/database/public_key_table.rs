@@ -242,6 +242,73 @@ pub fn count_public_keys(context: &UserContext) -> QueryResult<i64> {
     query.select(count_star()).first::<i64>(&mut *conn)
 }
 
+/// Lists all active public_keys of a project.
+///
+/// Unlike the listing for the users, it is done for the project of the path and not the one of
+/// the token, so an admin can export any project.
+///
+/// # Arguments
+///
+/// * `project` - The ID of the project
+///
+/// # Returns
+///
+/// A QueryResult containing the public_keys of the project
+pub fn list_public_keys_of_project(project: &str) -> QueryResult<Vec<PublicKeyEntry>> {
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+    use self::public_keys::dsl::*;
+
+    public_keys
+        .filter(status.eq("ACTIVE"))
+        .filter(project_id.eq(project))
+        .select(PublicKeyEntry::as_select())
+        .load(&mut *conn)
+}
+
+/// Searches a public-key by its UUID within all projects, also if it is already deleted.
+///
+/// It is used to check, if the UUID is still free, before a public-key with this UUID is imported.
+///
+/// # Arguments
+///
+/// * `entry_uuid` - The UUID of the public-key
+///
+/// # Returns
+///
+/// A QueryResult containing the public-key, or None, if the UUID was never used
+pub fn find_public_key(entry_uuid: &Uuid) -> QueryResult<Option<PublicKeyEntry>> {
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+    use self::public_keys::dsl::*;
+
+    public_keys
+        .filter(uuid.eq(entry_uuid.to_string()))
+        .select(PublicKeyEntry::as_select())
+        .first::<PublicKeyEntry>(&mut *conn)
+        .optional()
+}
+
+/// Adds a public-key to the database or replaces the existing entry with the same UUID.
+///
+/// It is used to import a public-key, so also an already deleted public-key can be restored with its
+/// original UUID, which is the primary key of the table.
+///
+/// # Arguments
+///
+/// * `entry` - The public-key to store
+///
+/// # Returns
+///
+/// A QueryResult indicating the number of rows affected by the insert operation
+pub fn put_public_key(entry: PublicKeyEntry) -> QueryResult<usize> {
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+    use self::public_keys::dsl::*;
+
+    conn.transaction(|conn| {
+        diesel::delete(public_keys.filter(uuid.eq(entry.uuid.to_string()))).execute(conn)?;
+        diesel::insert_into(public_keys).values(entry).execute(conn)
+    })
+}
+
 /// Force deletes a public-key from the database.
 ///
 /// This function marks a public-key as deleted without checking permissions.

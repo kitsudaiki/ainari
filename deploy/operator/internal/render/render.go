@@ -50,6 +50,7 @@ func Render(in Input) ([]client.Object, error) {
 		r.ryokan,
 		r.omamori,
 		r.omikuji,
+		r.isekai,
 		r.izakaya,
 		r.onsen,
 		r.sakura,

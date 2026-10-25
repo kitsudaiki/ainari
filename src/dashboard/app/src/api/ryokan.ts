@@ -16,8 +16,9 @@
 
 import { ryokanClient } from "./client";
 import type {
-    HostBasicResp,
-    HostResp,
+    HostBackupTargetUpdateReq,
+    OnsenHostBasicResp,
+    OnsenHostResp,
     ImageBasicResp,
     ImageResp,
     ImageType,
@@ -106,14 +107,28 @@ export async function getImageCount(): Promise<number> {
 //=============================================================================
 
 /** `GET /v1alpha/host/admin` */
-export async function listOnsenHosts(): Promise<HostBasicResp[]> {
+export async function listOnsenHosts(): Promise<OnsenHostBasicResp[]> {
     const resp = await ryokanClient().get("/v1alpha/host/admin");
     return resp.data.hosts;
 }
 
 /** `GET /v1alpha/host/{host_uuid}/admin` */
-export async function getOnsenHost(uuid: string): Promise<HostResp> {
+export async function getOnsenHost(uuid: string): Promise<OnsenHostResp> {
     const resp = await ryokanClient().get(`/v1alpha/host/${uuid}/admin`);
+    return resp.data;
+}
+
+/**
+ * `PUT /v1alpha/host/{host_uuid}/backup_target/admin`
+ *
+ * A backup-target only stores the backups of isekai. It can only be marked, while it stores no
+ * images or snapshots, and only be unmarked, while it stores no backups.
+ */
+export async function setOnsenHostBackupTarget(
+    uuid: string,
+    body: HostBackupTargetUpdateReq,
+): Promise<OnsenHostResp> {
+    const resp = await ryokanClient().put(`/v1alpha/host/${uuid}/backup_target/admin`, body);
     return resp.data;
 }
 

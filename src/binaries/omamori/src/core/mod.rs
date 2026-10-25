@@ -13,4 +13,5 @@
 // limitations under the License.
 
 pub mod crypto_trait;
+pub mod key_wrapping;
 pub mod simple_crypto;

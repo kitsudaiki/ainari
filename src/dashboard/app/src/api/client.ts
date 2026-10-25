@@ -21,15 +21,17 @@ import { getAuthContext } from "@/auth_context";
  * current auth-context already attached.
  *
  * @param baseURL - Base-address of the component to talk to
+ * @param token - Token to use instead of the one of the auth-context, like the token of an admin
+ *                for another project
  *
  * @returns Pre-configured axios-instance
  */
-function createClient(baseURL: string | null): AxiosInstance {
+function createClient(baseURL: string | null, token?: string): AxiosInstance {
     const authContext = getAuthContext();
 
     return axios.create({
         baseURL: baseURL ?? undefined,
-        headers: { Authorization: `Bearer ${authContext.token}` },
+        headers: { Authorization: `Bearer ${token ?? authContext.token}` },
     });
 }
 
@@ -56,6 +58,21 @@ export function omamoriClient(): AxiosInstance {
 /** Client for the omikuji, which collects the error- and audit-logs of all components. */
 export function omikujiClient(): AxiosInstance {
     return createClient(getAuthContext().omikuji_address);
+}
+
+/**
+ * Client for the isekai, which backs up and restores virtual-machines and projects.
+ *
+ * @param token - Optional token for another project, because isekai saves the project of the
+ *                token
+ */
+export function isekaiClient(token?: string): AxiosInstance {
+    return createClient(getAuthContext().isekai_address, token);
+}
+
+/** True, if isekai is deployed, so the backups can be used. */
+export function hasIsekai(): boolean {
+    return !!getAuthContext().isekai_address;
 }
 
 /**

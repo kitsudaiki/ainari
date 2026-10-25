@@ -135,6 +135,7 @@ The menu in the column **Actions** provides:
 | Start, Stop, Reboot   | change the power-state of the virtual machine                         |
 | Save snapshot         | save the root-disk of the virtual machine as new image                |
 | Restore from snapshot | reset the root-disk of the virtual machine to a snapshot              |
+| Create backup         | save the virtual machine as backup, see [Backups](#backups)           |
 | Migrate               | move the virtual machine to another host, only visible for admins     |
 | Delete                | delete the virtual machine                                            |
 
@@ -201,6 +202,24 @@ already `READY`. While an image is not ready, the list is refreshed automaticall
 image can be selected for a new virtual machine, the others are shown greyed out with their status.
 **Info** shows the details of an image and **Delete** removes it.
 
+### Backups
+
+**Storage > Backups** lists the backups of the project in the tab **BACKUPS** and their jobs in the
+tab **JOBS**. While a backup or a restore is running, the lists are refreshed automatically.
+
+- **+** creates a backup of the whole project, **Create backup** in the menu of a virtual machine
+    a backup of only this virtual machine. The project is locked, until the backup is finished,
+    so its resources can only be read meanwhile.
+- The backup is encrypted with its passphrase, which is never stored. A backup can't be restored
+    without it.
+- **Restore** calculates the plan of the restore first and shows, which resources get a new UUID,
+    which are overwritten and which are deleted, and how the quota is used afterwards. Only after
+    the plan was accepted, the backup is restored with the same options.
+- **Show jobs** shows the jobs of a backup, **Info** of a job its messages and the resources, which
+    got a new UUID by a restore.
+- **Import**, only for admins, lists the backups on a backup-target, which were copied onto it from
+    outside, for example from another deployment, and imports one of them with its passphrase.
+
 ### Networks
 
 **Network > Networks** lists the networks with their subnets. **Delete** removes a network.
@@ -235,7 +254,12 @@ These pages are only available for admins.
 
     ![Users](img/admin_user.jpg)
 
-- **Project** lists the projects. **+** creates a new project with ID and name.
+- **Project** lists the projects. **+** creates a new project with ID and name. The column
+    **Lock** shows the reason, while a project is locked by a backup, a restore or an admin.
+    **Lock / unlock** shows the details of the lock, locks a project with a reason, for example for
+    a maintenance, or removes the lock, also the one of a failed restore. **Create backup** saves
+    the whole project, also if the admin is not assigned to it, and **Restore backup** selects one
+    of the backups of the project and restores it into the project, after its plan was shown.
 
     ![Projects](img/admin_project.jpg)
 
@@ -264,6 +288,10 @@ These pages are only available for admins.
     ![Hosts](img/admin_host.jpg)
 
     ![Set host isolation](img/admin_host_isolation.jpg)
+
+    The column **Backup Target** shows, if an onsen-host only stores the backups of isekai. **Set
+    backup target** changes the flag, which is only possible, while the host stores no images or
+    snapshots, or no backups for the removal of the flag.
 
 - **Error Log** lists the newest 100 internal errors of all components, which are collected by
     omikuji, with the newest first. Every entry contains the component and the host, where the

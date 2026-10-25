@@ -362,6 +362,67 @@ pub fn list_networks_without_encryption() -> QueryResult<Vec<Uuid>> {
         .collect())
 }
 
+/// Searches a network by its UUID within all projects, also if it is already deleted.
+///
+/// It is used to check, if the UUID is still free, before a network with this UUID is imported.
+///
+/// # Arguments
+/// * `network_uuid` - The UUID of the network
+///
+/// # Returns
+/// A QueryResult containing the network, or None, if the UUID was never used
+pub fn find_network(network_uuid: &Uuid) -> QueryResult<Option<NetworkEntry>> {
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+    use self::networks::dsl::*;
+
+    networks
+        .filter(uuid.eq(network_uuid.to_string()))
+        .select(NetworkEntry::as_select())
+        .first::<NetworkEntry>(&mut *conn)
+        .optional()
+}
+
+/// Adds a network to the database or replaces the existing entry with the same UUID.
+///
+/// It is used to import a network, so also an already deleted network can be restored with its
+/// original UUID, which is the primary key of the table.
+///
+/// # Arguments
+/// * `network` - The network to store
+///
+/// # Returns
+/// A QueryResult indicating the number of rows affected by the insert operation
+pub fn put_network(network: NetworkEntry) -> QueryResult<usize> {
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+    use self::networks::dsl::*;
+
+    conn.transaction(|conn| {
+        diesel::delete(networks.filter(uuid.eq(network.uuid.to_string()))).execute(conn)?;
+        diesel::insert_into(networks).values(network).execute(conn)
+    })
+}
+
+/// Lists all active networks of a project.
+///
+/// Unlike the listing for the users, it is done for the project of the path and not the one of
+/// the token, so an admin can export any project.
+///
+/// # Arguments
+/// * `project` - The ID of the project
+///
+/// # Returns
+/// A QueryResult containing the networks of the project
+pub fn list_networks_of_project(project: &str) -> QueryResult<Vec<NetworkEntry>> {
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+    use self::networks::dsl::*;
+
+    networks
+        .filter(status.eq("ACTIVE"))
+        .filter(project_id.eq(project))
+        .select(NetworkEntry::as_select())
+        .load(&mut *conn)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

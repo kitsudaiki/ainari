@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+pub mod backup_table;
 pub mod db_handle;
 pub mod host_table;
 pub mod image_table;

@@ -24,7 +24,7 @@ use crate::config;
 use crate::core::mls::{grant_membership, is_encrypted, network_encrypted};
 use crate::core::routing::{create_overlay_route, resolve_address, torii_of_host};
 use crate::database::address_table;
-use crate::database::address_table::AddressEntry;
+use crate::database::address_table::{AddressEntry, FixedAddressError};
 use crate::database::host_table;
 use crate::database::host_table::{HostEntry, HostResources};
 use crate::database::meta_virtual_machine_table;
@@ -96,27 +96,83 @@ pub async fn reserve_virtual_machine(
         map_db_uuid_get_delete_error("vm-type", &body.vm_type_uuid, e, Some(&context))
     })?;
 
+    let request = ReserveRequest {
+        uuid: None,
+        name: body.name.clone(),
+        network_uuid: body.network_uuid,
+        number_of_cores: vm_type.number_of_cores,
+        memory_size: vm_type.amount_of_memory,
+        disk_size: body.disk_size,
+        isolated_host: body.isolated_host,
+        host_uuid: body.host_uuid,
+        internal_ip: None,
+        mac_address: None,
+    };
+    Ok(CreatedJson(reserve(&request, &context).await?))
+}
+
+/// Values of a virtual_machine, which is reserved.
+pub struct ReserveRequest {
+    /// Fixed UUID of the virtual_machine, otherwise sakura generates one
+    pub uuid: Option<Uuid>,
+    pub name: String,
+    pub network_uuid: Uuid,
+    pub number_of_cores: i32,
+    /// memory of the virtual_machine in MiB
+    pub memory_size: i64,
+    /// size of the disk of the virtual_machine in GiB
+    pub disk_size: i64,
+    /// Place the virtual_machine on a host, which is isolated for the project
+    pub isolated_host: bool,
+    /// Sakura-host, which has to run the virtual_machine, instead of a randomly selected one
+    pub host_uuid: Option<Uuid>,
+    /// Fixed internal IP-address, otherwise the next free one is used
+    pub internal_ip: Option<Ipv4Addr>,
+    /// Fixed MAC-address, otherwise the next free one is used
+    pub mac_address: Option<String>,
+}
+
+/// Reserves a new virtual_machine on one of the sakura-hosts.
+///
+/// This is shared by the reservation of the users and the internal one of other components, for
+/// example to restore a virtual_machine from a backup with its original UUID and addresses.
+///
+/// # Arguments
+/// * `request` - Values of the new virtual_machine
+/// * `context` - User context containing authentication information
+///
+/// # Returns
+/// * `Ok(VirtualMachineResp)` with the reserved virtual_machine on success
+/// * `Err(ErrorResponse)` with an appropriate error on failure
+pub async fn reserve(
+    request: &ReserveRequest,
+    context: &UserContext,
+) -> Result<VirtualMachineResp, ErrorResponse> {
     // the sakura-host expects the memory in bytes
-    let memory_size_bytes = vm_type
-        .amount_of_memory
+    let memory_size_bytes = request
+        .memory_size
         .checked_mul(1024 * 1024)
         .ok_or_else(|| {
-            ErrorResponse::BadRequest(
-                "Invalid input: amount_of_memory of vm-type is too large".to_string(),
-            )
+            ErrorResponse::BadRequest("Invalid input: memory_size is too large".to_string())
         })?;
 
-    check_quota(&context).await?;
+    // a fixed UUID is checked, before anything is allocated
+    let replace_deleted = match &request.uuid {
+        Some(uuid) => check_fixed_uuid(uuid, context)?,
+        None => false,
+    };
+
+    check_quota(context).await?;
 
     // TODO: add check if network-, image- and public-key-uuid exist
 
     let (selected_host, allocated_resources) = select_host(
-        vm_type.number_of_cores,
-        vm_type.amount_of_memory,
-        body.disk_size,
-        body.isolated_host,
-        body.host_uuid.as_ref(),
-        &context,
+        request.number_of_cores,
+        request.memory_size,
+        request.disk_size,
+        request.isolated_host,
+        request.host_uuid.as_ref(),
+        context,
     )?;
 
     // parse uuid-string
@@ -125,10 +181,10 @@ pub async fn reserve_virtual_machine(
     // give the allocated resources back to the host, if the virtual_machine can not be reserved
     let (virtual_machine_resp, proxy_uuid) = match prepare_selected_host(
         &selected_host,
-        &body,
-        vm_type.number_of_cores,
+        request,
+        request.number_of_cores,
         memory_size_bytes,
-        &context,
+        context,
     )
     .await
     {
@@ -141,25 +197,60 @@ pub async fn reserve_virtual_machine(
         }
     };
 
-    // add new virtual_machine to database
+    // the entry of a deleted virtual_machine with the same UUID is replaced
     let virtual_machine_uuid = virtual_machine_resp.uuid;
+    if replace_deleted {
+        meta_virtual_machine_table::remove_deleted_meta_virtual_machine(&virtual_machine_uuid)
+            .map_err(|e| {
+                map_db_write_error(
+                    &format!("remove deleted virtual_machine '{virtual_machine_uuid}'"),
+                    e,
+                    Some(context),
+                )
+            })?;
+    }
+
+    // add new virtual_machine to database
     meta_virtual_machine_table::add_new_meta_virtual_machine(
         &virtual_machine_uuid,
-        &body.name,
+        &request.name,
         &sakura_uuid,
         &proxy_uuid,
         &allocated_resources,
-        &context,
+        context,
     )
     .map_err(|e| {
         map_db_write_error(
             &format!("add virtual_machine with UUID '{virtual_machine_uuid}' to database"),
             e,
-            Some(&context),
+            Some(context),
         )
     })?;
 
-    Ok(CreatedJson(virtual_machine_resp))
+    Ok(virtual_machine_resp)
+}
+
+/// Checks, if a virtual_machine can be reserved with a fixed UUID.
+///
+/// # Arguments
+/// * `uuid` - The fixed UUID
+/// * `context` - User context with the project of the new virtual_machine
+///
+/// # Returns
+/// * `Ok(bool)` - The UUID can be used, true if it belongs to a deleted virtual_machine of the
+///   project, whose entry has to be replaced
+/// * `Err(ErrorResponse::Conflict)` - The UUID is used by an active virtual_machine or by another
+///   project
+fn check_fixed_uuid(uuid: &Uuid, context: &UserContext) -> Result<bool, ErrorResponse> {
+    let existing = meta_virtual_machine_table::find_meta_virtual_machine(uuid)
+        .map_err(|e| map_db_list_error("virtual_machines", e, Some(context)))?;
+    match existing {
+        None => Ok(false),
+        Some((project, status)) if project == context.project_id && status == "DELETED" => Ok(true),
+        Some(_) => Err(ErrorResponse::Conflict(format!(
+            "The UUID '{uuid}' is already used by another virtual_machine."
+        ))),
+    }
 }
 
 /// Selects the sakura-host, which runs the new virtual_machine, and allocates the resources of
@@ -313,7 +404,7 @@ fn allocate_on_any_host(
 ///
 /// # Arguments
 /// * `selected_host` - Sakura-host, which runs the new virtual_machine
-/// * `body` - Values of the new virtual_machine
+/// * `request` - Values of the new virtual_machine
 /// * `memory_size_bytes` - Memory of the new virtual_machine in bytes, as expected by sakura
 /// * `context` - User context containing authentication information
 ///
@@ -322,14 +413,14 @@ fn allocate_on_any_host(
 /// * `Err(ErrorResponse)` with an appropriate error on failure
 async fn prepare_selected_host(
     selected_host: &HostEntry,
-    body: &Json<VirtualMachineCreateReq>,
+    request: &ReserveRequest,
     number_of_cores: i32,
     memory_size_bytes: i64,
     context: &UserContext,
 ) -> Result<(VirtualMachineResp, Uuid), ErrorResponse> {
     // get the network of the virtual_machine to reserve an address within its subnet
-    let network_data = network_table::get_network(&body.network_uuid, context).map_err(|e| {
-        map_db_uuid_get_delete_error("network", &body.network_uuid, e, Some(context))
+    let network_data = network_table::get_network(&request.network_uuid, context).map_err(|e| {
+        map_db_uuid_get_delete_error("network", &request.network_uuid, e, Some(context))
     })?;
 
     // reserve internal address, MAC-address and TAP-device-name for the virtual_machine. The
@@ -337,14 +428,76 @@ async fn prepare_selected_host(
     // virtual_machine can be created on the other hosts of its network later. The tenant of the
     // network is stored with them as well: it is what keeps two networks, which use the same
     // subnet, apart in the datapath of the torii.
-    let vm_address = address_table::reserve_new_address(
+    let vm_address = address_table::reserve_fixed_address(
         &network_data.uuid,
         &network_data.subnet,
         &selected_host.address,
+        request.internal_ip.as_ref(),
+        request.mac_address.as_deref(),
         context,
     )
-    .map_err(|e| map_db_register_error("mac", e, Some(context)))?;
+    .map_err(|e| match e {
+        FixedAddressError::Conflict(msg) => ErrorResponse::Conflict(msg),
+        FixedAddressError::InvalidInput(msg) => ErrorResponse::BadRequest(msg),
+        FixedAddressError::Db(e) => map_db_register_error("mac", e, Some(context)),
+    })?;
 
+    // everything, which is prepared after the address was reserved, is removed again, if a later
+    // step fails, so a failed reservation doesn't block the address, the MAC-address or the UUID
+    // of the virtual_machine, like for the retry of a restore with other addresses
+    let mut created_on_host = None;
+    let result = finish_reservation(
+        selected_host,
+        request,
+        number_of_cores,
+        memory_size_bytes,
+        &vm_address,
+        network_data.disable_encryption,
+        &mut created_on_host,
+        context,
+    )
+    .await;
+    if result.is_err() {
+        rollback_reservation(
+            selected_host,
+            &network_data.uuid,
+            &vm_address,
+            created_on_host,
+            context,
+        )
+        .await;
+    }
+    result
+}
+
+/// Prepares the network, the entry on the sakura-host and the proxy of a new virtual_machine,
+/// whose address is already reserved.
+///
+/// # Arguments
+/// * `selected_host` - Sakura-host, which runs the new virtual_machine
+/// * `request` - Values of the new virtual_machine
+/// * `number_of_cores` - Number of cores of the new virtual_machine
+/// * `memory_size_bytes` - Memory of the new virtual_machine in bytes, as expected by sakura
+/// * `vm_address` - Reserved address of the new virtual_machine
+/// * `disable_encryption` - True, if the network of the virtual_machine is not encrypted
+/// * `created_on_host` - Set to the UUID of the virtual_machine, as soon as the sakura-host has
+///   created its entry, so a rollback knows, that it has to be deleted there
+/// * `context` - User context containing authentication information
+///
+/// # Returns
+/// * `Ok((VirtualMachineResp, Uuid))` with the new virtual_machine and the uuid of its proxy
+/// * `Err(ErrorResponse)` with an appropriate error on failure
+#[allow(clippy::too_many_arguments)]
+async fn finish_reservation(
+    selected_host: &HostEntry,
+    request: &ReserveRequest,
+    number_of_cores: i32,
+    memory_size_bytes: i64,
+    vm_address: &AddressEntry,
+    disable_encryption: bool,
+    created_on_host: &mut Option<Uuid>,
+    context: &UserContext,
+) -> Result<(VirtualMachineResp, Uuid), ErrorResponse> {
     // get endpoints from miko
     let miko_endpoint = &config::CONFIG.miko;
     let endpoints = get_endpoints(miko_endpoint, config::CONFIG.skip_tls_verification)
@@ -354,26 +507,28 @@ async fn prepare_selected_host(
     // prepare the network of the virtual_machine, so sakura can attach the virtual_machine to the
     // TAP-device, when it creates the virtual_machine later
     // a network with disabled encryption gets neither encrypted routes nor a MLS-group
-    let encrypted = network_encrypted(network_data.disable_encryption);
-    prepare_network(&endpoints, selected_host, &vm_address, encrypted, context).await?;
+    let encrypted = network_encrypted(disable_encryption);
+    prepare_network(&endpoints, selected_host, vm_address, encrypted, context).await?;
 
     // send request to the selected sakura-host to create a virtual_machine
     let mut virtual_machine_resp = virtual_machine_clients::create_virtual_machine(
         &selected_host.address,
         &context.token,
         &config::INTERNAL_API_KEY,
-        &body.name,
-        &body.network_uuid,
+        &request.name,
+        &request.network_uuid,
         number_of_cores,
         memory_size_bytes,
-        body.disk_size,
+        request.disk_size,
         &vm_address.internal_ip,
         &vm_address.tap_name,
         &vm_address.mac_address,
+        request.uuid.as_ref(),
         config::CONFIG.skip_tls_verification,
     )
     .await
     .map_err(|e| map_ainari_error_to_api_response(e, Some(context)))?;
+    *created_on_host = Some(virtual_machine_resp.uuid);
 
     // the UUID of the virtual_machine is only known now, so the address is linked with it
     // afterwards. The link is what a floating ip-address is attached by later.
@@ -408,6 +563,62 @@ async fn prepare_selected_host(
     virtual_machine_resp.memory_size /= 1024 * 1024;
 
     Ok((virtual_machine_resp, proxy_resp.uuid))
+}
+
+/// Removes everything of a failed reservation, which was prepared after the address of the
+/// virtual_machine was reserved: the entry on the sakura-host, the routes on the gateways and the
+/// address itself. Every step is done, also if an earlier one failed, and the errors are only
+/// logged, because the error of the reservation is returned.
+///
+/// # Arguments
+/// * `selected_host` - Sakura-host, which should have run the virtual_machine
+/// * `network_uuid` - Network of the virtual_machine
+/// * `vm_address` - Reserved address of the virtual_machine
+/// * `created_on_host` - UUID of the virtual_machine, if the sakura-host has already created it
+/// * `context` - User context containing authentication information
+async fn rollback_reservation(
+    selected_host: &HostEntry,
+    network_uuid: &Uuid,
+    vm_address: &AddressEntry,
+    created_on_host: Option<Uuid>,
+    context: &UserContext,
+) {
+    if let Some(virtual_machine_uuid) = created_on_host
+        && let Err(e) = virtual_machine_clients::delete_virtual_machine(
+            &selected_host.address,
+            &context.token,
+            &config::INTERNAL_API_KEY,
+            &virtual_machine_uuid,
+            config::CONFIG.skip_tls_verification,
+        )
+        .await
+    {
+        log::error!(
+            "Failed to delete virtual_machine '{virtual_machine_uuid}' of a failed reservation \
+             on host '{}': {e}",
+            selected_host.address
+        );
+    }
+
+    let endpoints = get_endpoints(&config::CONFIG.miko, config::CONFIG.skip_tls_verification).await;
+    let cleaned = match &endpoints {
+        Ok(endpoints) => super::delete_virtual_machine_v1_0::cleanup_network(
+            endpoints,
+            network_uuid,
+            vm_address.internal_ip,
+            context,
+        )
+        .await
+        .is_ok(),
+        Err(_) => false,
+    };
+    // without the gateways, the address is at least released, so it can be used again
+    if !cleaned && address_table::force_delete_address(&vm_address.uuid).is_err() {
+        log::error!(
+            "Failed to release address '{}' of a failed reservation.",
+            vm_address.internal_ip
+        );
+    }
 }
 
 /// Prepares the network of a new virtual_machine on the gateways
@@ -693,4 +904,97 @@ async fn check_quota(context: &UserContext) -> Result<(), ErrorResponse> {
 
     // If all checks pass, return Ok indicating the quota is not exceeded
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::database::db_handle;
+    use crate::database::meta_virtual_machine_table::MetaVirtualMachineEntry;
+    use ainari_common::enums::ProjectRole;
+    use chrono::Utc;
+    use diesel::prelude::*;
+    use serial_test::serial;
+
+    fn add_meta_virtual_machine(project: &str, vm_status: &str) -> Uuid {
+        let vm_uuid = Uuid::new_v4();
+        let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+        use crate::database::meta_virtual_machine_table::meta_virtual_machines::dsl::*;
+        diesel::insert_into(meta_virtual_machines)
+            .values(MetaVirtualMachineEntry {
+                uuid: vm_uuid,
+                name: "vm".to_string(),
+                sakura_host_uuid: Uuid::new_v4(),
+                proxy_uuid: Uuid::new_v4(),
+                owner_id: "test-user".to_string(),
+                project_id: project.to_string(),
+                status: vm_status.to_string(),
+                created_at: Utc::now(),
+                created_by: "test-user".to_string(),
+                updated_at: Utc::now(),
+                updated_by: "test-user".to_string(),
+                deleted_at: None,
+                deleted_by: None,
+                number_of_cores: 1,
+                memory_size: 512,
+                disk_size: 10,
+            })
+            .execute(&mut *conn)
+            .unwrap();
+        vm_uuid
+    }
+
+    #[test]
+    #[serial]
+    fn test_check_fixed_uuid() {
+        let project = format!("test-project-{}", Uuid::new_v4());
+        let context = UserContext {
+            token: "".to_string(),
+            user_id: "test-user".to_string(),
+            project_id: project.clone(),
+            is_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
+        };
+        let active = add_meta_virtual_machine(&project, "ACTIVE");
+        let deleted = add_meta_virtual_machine(&project, "DELETED");
+        let foreign = add_meta_virtual_machine("other-project", "DELETED");
+
+        // a free UUID or the one of a deleted virtual_machine of the project can be used
+        assert!(matches!(
+            check_fixed_uuid(&Uuid::new_v4(), &context),
+            Ok(false)
+        ));
+        assert!(matches!(check_fixed_uuid(&deleted, &context), Ok(true)));
+        // an active virtual_machine or another project block the UUID
+        assert!(matches!(
+            check_fixed_uuid(&active, &context),
+            Err(ErrorResponse::Conflict(_))
+        ));
+        assert!(matches!(
+            check_fixed_uuid(&foreign, &context),
+            Err(ErrorResponse::Conflict(_))
+        ));
+
+        // only the entry of the deleted virtual_machine is removed
+        for vm in [active, deleted] {
+            meta_virtual_machine_table::remove_deleted_meta_virtual_machine(&vm).unwrap();
+        }
+        assert!(
+            meta_virtual_machine_table::find_meta_virtual_machine(&active)
+                .unwrap()
+                .is_some()
+        );
+        assert!(
+            meta_virtual_machine_table::find_meta_virtual_machine(&deleted)
+                .unwrap()
+                .is_none()
+        );
+
+        let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+        use crate::database::meta_virtual_machine_table::meta_virtual_machines::dsl::*;
+        for vm_uuid in [active, foreign] {
+            let _ = diesel::delete(meta_virtual_machines.filter(uuid.eq(vm_uuid.to_string())))
+                .execute(&mut *conn);
+        }
+    }
 }

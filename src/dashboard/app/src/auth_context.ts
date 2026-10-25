@@ -28,6 +28,7 @@ import { getConfig } from "./config";
  * @property {string | null} torii_address - Full address for the Torii service (including port)
  * @property {string | null} omamori_address - Address for the Omamori service
  * @property {string | null} omikuji_address - Address for the Omikuji service, null if it is not deployed
+ * @property {string | null} isekai_address - Address for the Isekai service, null if it is not deployed
  */
 export interface AuthContext {
     token: string | null;
@@ -39,6 +40,7 @@ export interface AuthContext {
     torii_address: string | null;
     omamori_address: string | null;
     omikuji_address: string | null;
+    isekai_address: string | null;
 }
 
 /**
@@ -160,6 +162,8 @@ export async function createAuthContext(token: string) {
         omamori_address: endpoint_resp.data.omamori.public_address,
         // omikuji is optional, so a deployment without it has no or an empty endpoint for it
         omikuji_address: endpoint_resp.data.omikuji?.public_address || null,
+        // isekai is optional as well, like omikuji
+        isekai_address: endpoint_resp.data.isekai?.public_address || null,
     };
 
     // Store the complete auth context in localStorage as a JSON string
@@ -191,6 +195,7 @@ export function getAuthContext(): AuthContext {
         torii_address: null,
         omamori_address: null,
         omikuji_address: null,
+        isekai_address: null,
         ...(stored ? JSON.parse(stored) : {}), // Spread the parsed stored values
     };
 

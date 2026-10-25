@@ -1926,7 +1926,9 @@
           "MigrationPrepare",
           "MigrationImport",
           "MigrationRemove",
-          "MigrationCancel"
+          "MigrationCancel",
+          "BackupSave",
+          "BackupRestore"
         ]
       },
       "VersionResp": {

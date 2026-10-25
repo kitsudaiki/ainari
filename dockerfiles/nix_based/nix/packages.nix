@@ -272,6 +272,14 @@ in
         mariadb-connector-c
       ]
     );
+    runtime-isekai = mkRuntime "isekai" (
+      serviceLibraries
+      ++ [
+        pkgs.curl
+        pkgs.openssl
+        mariadb-connector-c
+      ]
+    );
     runtime-izakaya = mkRuntime "izakaya" (
       serviceLibraries
       ++ [

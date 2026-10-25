@@ -82,6 +82,7 @@ pub async fn register_host_internal(
         uuid: host_uuid,
         name: host_data.name,
         host_address: host_data.address,
+        is_backup_target: host_data.is_backup_target,
         created_by: host_data.created_by,
         created_at: host_data.created_at,
         updated_by: host_data.updated_by,

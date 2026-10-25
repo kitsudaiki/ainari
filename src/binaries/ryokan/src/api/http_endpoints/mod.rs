@@ -24,6 +24,7 @@ use ainari_clients::secret::{clone_secret, generate_secret, get_secret_payload};
 use ainari_common::config::Endpoint;
 use ainari_common::secret::Secret;
 
+pub mod backup;
 pub mod image;
 pub mod onsen_host;
 pub mod project;

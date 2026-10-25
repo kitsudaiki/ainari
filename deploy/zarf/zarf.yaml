@@ -153,6 +153,7 @@ components:
       - docker.io/kitsudaiki/omamori:###ZARF_PKG_TMPL_AINARI_VERSION###
       - docker.io/kitsudaiki/omikuji:###ZARF_PKG_TMPL_AINARI_VERSION###
       - docker.io/kitsudaiki/izakaya:###ZARF_PKG_TMPL_AINARI_VERSION###
+      - docker.io/kitsudaiki/isekai:###ZARF_PKG_TMPL_AINARI_VERSION###
       - docker.io/kitsudaiki/onsen:###ZARF_PKG_TMPL_AINARI_VERSION###
       - docker.io/kitsudaiki/sakura:###ZARF_PKG_TMPL_AINARI_VERSION###
       - docker.io/kitsudaiki/torii:###ZARF_PKG_TMPL_AINARI_VERSION###

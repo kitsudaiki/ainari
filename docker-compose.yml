@@ -196,6 +196,56 @@ services:
       ainari-net:
         ipv4_address: 172.30.0.5
 
+  # second onsen, which is marked as backup-target, so it only stores the backups of isekai and
+  # never normal images. The image is built once by onsen.
+  onsen-backup:
+    image: ainari/onsen:local
+    pull_policy: never
+    container_name: onsen-backup
+    restart: unless-stopped
+    environment:
+      - CONFIG_FILE=/etc/ainari/onsen.toml
+      - RUST_LOG=${RUST_LOG:-info}
+      - INTERNAL_API_KEY=${INTERNAL_API_KEY:-local-internal-api-key}
+      - ONSEN_REGISTRATION_KEY=${ONSEN_REGISTRATION_KEY:-local-onsen-registration-key}
+    volumes:
+      - ./testing/local_stack/configs/onsen_backup.toml:/etc/ainari/onsen.toml:ro
+    depends_on:
+      - miko
+      - ryokan
+      - onsen
+    networks:
+      ainari-net:
+        ipv4_address: 172.30.0.11
+
+  # orchestrator of the backups and restores
+  isekai:
+    image: ainari/isekai:local
+    build:
+      context: .
+      dockerfile: dockerfiles/debian_based/Dockerfile_services
+      target: isekai
+      args:
+        CARGO_PROFILE: local
+    container_name: isekai
+    restart: unless-stopped
+    environment:
+      - CONFIG_FILE=/etc/ainari/isekai.toml
+      - RUST_LOG=${RUST_LOG:-info}
+      - INTERNAL_API_KEY=${INTERNAL_API_KEY:-local-internal-api-key}
+    volumes:
+      - ./testing/local_stack/configs/isekai.toml:/etc/ainari/isekai.toml:ro
+    ports:
+      - "11425:11425"
+    depends_on:
+      - miko
+      - omamori
+      - ryokan
+      - hanami
+    networks:
+      ainari-net:
+        ipv4_address: 172.30.0.9
+
   hanami:
     image: ainari/hanami:local
     build:

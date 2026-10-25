@@ -15,6 +15,7 @@
 #![forbid(unsafe_code)]
 
 mod config;
+mod file_operations;
 mod ryokan_interaction;
 mod server;
 

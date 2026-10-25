@@ -118,3 +118,40 @@ pub async fn delete_floating_ip(
 
     handle_empty_response(response, "floating-ip", &floating_ip.to_string()).await
 }
+
+/// Releases a floating ip-address of a project in hanami.
+///
+/// The internal API key is sent as well, so the resource can also be deleted, while the project is
+/// locked by a restore, which prunes the project.
+///
+/// # Arguments
+///
+/// * `hanami_endpoint` - The endpoint configuration for the hanami service
+/// * `token` - The authentication token for the API
+/// * `internal_api_key` - The internal API key of the calling component
+/// * `floating_ip_uuid` - The floating ip-address to release
+/// * `insecure_client` - Whether to use an insecure (HTTP) client instead of HTTPS
+///
+/// # Returns
+///
+/// A `Result` indicating success or an `AinariError`.
+pub async fn delete_floating_ip_in_hanami(
+    hanami_endpoint: &ainari_config::Endpoint,
+    token: &String,
+    internal_api_key: &Secret,
+    floating_ip_uuid: &Uuid,
+    insecure_client: bool,
+) -> Result<(), AinariError> {
+    let address = hanami_endpoint.internal_address.clone();
+    let client = prepare_client(&address, insecure_client);
+    let url = format!("{address}/v1alpha/floating_ip/{floating_ip_uuid}");
+
+    let response = client
+        .delete(url)
+        .insert_header(("Authorization", format!("Bearer {}", token)))
+        .insert_header(("X-Internal-API-Key", internal_api_key.reveal()))
+        .send()
+        .await;
+
+    handle_empty_response(response, "floating-ip", &floating_ip_uuid.to_string()).await
+}

@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::collections::HashSet;
 use tokio::fs;
 use uuid::Uuid;
 
@@ -544,4 +545,136 @@ pub fn check_if_id_exist_in_db<T>(
     };
 
     Ok(())
+}
+
+/// Checks, that the user is allowed to access the resources of a project, which is given by the
+/// request and not by the token. Admins can access every project, all other users only the project
+/// of their token.
+///
+/// # Arguments
+///
+/// * `project_id` - The ID of the project
+/// * `context` - User-context of the request
+///
+/// # Returns
+///
+/// * `Ok(())` - The user is allowed
+/// * `Err(ErrorResponse::Forbidden)` - The project is not the one of the user
+pub fn check_project_access(project_id: &str, context: &UserContext) -> Result<(), ErrorResponse> {
+    if context.is_admin != true.to_string() && context.project_id != project_id {
+        return Err(permission_denied_response());
+    }
+    Ok(())
+}
+
+/// Checks, that no UUID is used twice within an import of resources, for example because of a
+/// wrong mapping of the UUIDs.
+///
+/// # Arguments
+///
+/// * `uuids` - The UUIDs of all imported resources
+///
+/// # Returns
+///
+/// * `Ok(())` - All UUIDs are unique
+/// * `Err(ErrorResponse::BadRequest)` - A UUID is used more than once
+pub fn check_unique_uuids<'a>(
+    uuids: impl IntoIterator<Item = &'a Uuid>,
+) -> Result<(), ErrorResponse> {
+    let mut seen = HashSet::new();
+    for uuid in uuids {
+        if !seen.insert(uuid) {
+            return Err(ErrorResponse::BadRequest(format!(
+                "UUID '{uuid}' is used more than once within the import."
+            )));
+        }
+    }
+    Ok(())
+}
+
+/// Checks, if a resource can be imported into a project under a UUID.
+///
+/// A UUID, which is used by another project, is never taken over, so an import can't change the
+/// resources of another project. An active resource of the project is only overwritten with
+/// `force`, a deleted one can always be restored.
+///
+/// # Arguments
+///
+/// * `existing` - Project and status of the entry, which already uses the UUID, if there is one
+/// * `project_id` - The project, into which the resource is imported
+/// * `force` - Overwrite an existing resource of the project
+/// * `kind` - Kind of the resource for the error-message
+/// * `uuid` - The UUID of the resource
+///
+/// # Returns
+///
+/// * `Ok(bool)` - The resource can be imported, true if an active resource is overwritten
+/// * `Err(ErrorResponse::Conflict)` - The UUID is used by another project, or by an active
+///   resource of the project without `force`
+pub fn check_import_target(
+    existing: Option<(&str, &str)>,
+    project_id: &str,
+    force: bool,
+    kind: &str,
+    uuid: &Uuid,
+) -> Result<bool, ErrorResponse> {
+    match existing {
+        None => Ok(false),
+        Some((existing_project, _)) if existing_project != project_id => {
+            Err(ErrorResponse::Conflict(format!(
+                "{kind} with UUID '{uuid}' can't be imported, because the UUID is already used by \
+                 another project."
+            )))
+        }
+        Some((_, status)) if status == "ACTIVE" && !force => Err(ErrorResponse::Conflict(format!(
+            "{kind} with UUID '{uuid}' already exists. Use 'force' to overwrite it."
+        ))),
+        // a deleted entry of the project is restored
+        Some((_, status)) => Ok(status == "ACTIVE"),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_check_unique_uuids() {
+        let (a, b) = (Uuid::new_v4(), Uuid::new_v4());
+        assert!(check_unique_uuids(&[a, b]).is_ok());
+        assert!(check_unique_uuids(&[]).is_ok());
+        assert!(matches!(
+            check_unique_uuids(&[a, b, a]),
+            Err(ErrorResponse::BadRequest(_))
+        ));
+    }
+
+    #[test]
+    fn test_check_import_target() {
+        let uuid = Uuid::new_v4();
+        let check =
+            |existing, force| check_import_target(existing, "project", force, "Secret", &uuid);
+
+        // free UUID or deleted entry of the project
+        assert!(matches!(check(None, false), Ok(false)));
+        assert!(matches!(
+            check(Some(("project", "DELETED")), false),
+            Ok(false)
+        ));
+        // active entry of the project only with force
+        assert!(matches!(
+            check(Some(("project", "ACTIVE")), false),
+            Err(ErrorResponse::Conflict(_))
+        ));
+        assert!(matches!(check(Some(("project", "ACTIVE")), true), Ok(true)));
+        // never the entry of another project
+        for status in ["ACTIVE", "DELETED"] {
+            for force in [false, true] {
+                assert!(matches!(
+                    check(Some(("other", status)), force),
+                    Err(ErrorResponse::Conflict(_))
+                ));
+            }
+        }
+    }
 }

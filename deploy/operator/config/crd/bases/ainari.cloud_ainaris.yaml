@@ -252,6 +252,108 @@ spec:
                     minimum: 0
                     type: integer
                 type: object
+              isekai:
+                default: {}
+                description: |-
+                  Orchestrator of the backups and restores of virtual machines and projects, together with the
+                  onsen, which stores the backups
+                properties:
+                  backupStorage:
+                    default: {}
+                    description: onsen, which only stores the backups and never normal
+                      images or snapshots
+                    properties:
+                      replicas:
+                        default: 1
+                        format: int32
+                        minimum: 0
+                        type: integer
+                      storageClass:
+                        default: local-path
+                        description: storage-class of the volume, overwritten by global.storageClass
+                        type: string
+                      storageSize:
+                        anyOf:
+                        - type: integer
+                        - type: string
+                        default: 10Gi
+                        description: size of the volume, which holds the root-disks
+                          and images of all backups
+                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                        x-kubernetes-int-or-string: true
+                    type: object
+                  domain:
+                    default: local-isekai
+                    description: domain of the TLSRoute
+                    type: string
+                  image:
+                    default: kitsudaiki/isekai:develop
+                    type: string
+                  imagePullPolicy:
+                    default: Always
+                    description: PullPolicy describes a policy for if/when to pull
+                      a container image
+                    type: string
+                  kdf:
+                    default: {}
+                    description: |-
+                      IsekaiKDFSpec contains the parameters of Argon2id, which derives the keys of a new backup from
+                      its passphrase. They are stored within each backup, so a change only affects new backups.
+                    properties:
+                      iterations:
+                        default: 3
+                        format: int32
+                        maximum: 16
+                        minimum: 2
+                        type: integer
+                      memoryKiB:
+                        default: 65536
+                        description: memory in KiB
+                        format: int32
+                        maximum: 2097152
+                        minimum: 19456
+                        type: integer
+                      parallelism:
+                        default: 4
+                        format: int32
+                        maximum: 16
+                        minimum: 1
+                        type: integer
+                    type: object
+                  processing:
+                    default: {}
+                    description: IsekaiProcessingSpec configures the processing of
+                      the backup- and restore-jobs.
+                    properties:
+                      maxParallelSnapshots:
+                        default: 2
+                        description: maximum number of root-disks, which are saved
+                          at the same time on one sakura-host
+                        format: int32
+                        minimum: 1
+                        type: integer
+                      numberOfWorkers:
+                        default: 4
+                        description: number of jobs, which are processed at the same
+                          time
+                        format: int32
+                        minimum: 1
+                        type: integer
+                    type: object
+                  publicAddress:
+                    description: address, which miko hands out to the clients. Derived
+                      from the domain, if empty.
+                    type: string
+                  replicas:
+                    default: 1
+                    description: |-
+                      Isekai processes its jobs itself and sets the jobs, which were active, to failed, when it
+                      starts, so it runs with at most one replica.
+                    format: int32
+                    maximum: 1
+                    minimum: 0
+                    type: integer
+                type: object
               izakaya:
                 default: {}
                 description: |-
@@ -350,21 +452,38 @@ spec:
               mysql:
                 default: {}
                 description: |-
-                  Database of miko, hanami, ryokan, omamori, izakaya and omikuji. Each of them has its own
-                  database and user on the same mysql-server, so all their replicas share their state.
+                  Database of miko, hanami, ryokan, omamori, izakaya, omikuji and isekai. Each of them has its
+                  own database and user on the same mysql-server, so all their replicas share their state.
                 properties:
                   credentialsSecret:
                     description: |-
                       Name of an existing secret with the passwords of the external server, only used if
                       'deploy' is disabled. It needs the keys 'miko_password', 'hanami_password',
-                      'ryokan_password', 'omamori_password', 'izakaya_password' and 'omikuji_password'. The
-                      passwords of a deployed server are generated by the operator.
+                      'ryokan_password', 'omamori_password', 'izakaya_password', 'omikuji_password' and
+                      'isekai_password'. The passwords of a deployed server are generated by the operator.
                     type: string
                   databases:
                     default: {}
                     description: database and user of every component
                     properties:
                       hanami:
+                        default: {}
+                        description: |-
+                          MySQLDatabaseSpec is the database and user of a component. The names are used within the
+                          init-script of the server, so they are restricted to letters, digits and underscores.
+                        properties:
+                          database:
+                            description: name of the database, the name of the component,
+                              if empty
+                            pattern: ^[a-zA-Z0-9_]+$
+                            type: string
+                          user:
+                            description: name of the user, the name of the component,
+                              if empty
+                            pattern: ^[a-zA-Z0-9_]+$
+                            type: string
+                        type: object
+                      isekai:
                         default: {}
                         description: |-
                           MySQLDatabaseSpec is the database and user of a component. The names are used within the

@@ -88,11 +88,21 @@ pub fn v1alpha_routes() -> Scope {
                         .route(get().to(get_public_key_internal_v1_0::get_public_key_internal)),
                 ),
         )
-        .service(scope("/project").service(
-            resource("/{project_id}/resource_count/internal").route(
-                get().to(
-                    get_project_resource_count_internal_v1_0::get_project_resource_count_internal,
+        .service(
+            scope("/project")
+                .service(
+                    resource("/{project_id}/resource_count/internal").route(get().to(
+                        get_project_resource_count_internal_v1_0::get_project_resource_count_internal,
+                    )),
+                )
+                // export and import send the wrap-key in the body, so both are POST
+                .service(
+                    resource("/{project_id}/export/internal")
+                        .route(post().to(export_project_internal_v1_0::export_project_internal)),
+                )
+                .service(
+                    resource("/{project_id}/import/internal")
+                        .route(post().to(import_project_internal_v1_0::import_project_internal)),
                 ),
-            ),
-        ))
+        )
 }

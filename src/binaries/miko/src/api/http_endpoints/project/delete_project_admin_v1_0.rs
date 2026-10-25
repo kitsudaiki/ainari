@@ -28,7 +28,7 @@ use ainari_common::enums::ProjectRole;
 #[api_operation(
     tag = "project",
     summary = "Delete project",
-    description = r###"Delete a project together with its quota and the assignments of its users. Only projects without any resources and without users with the role admin or member can be deleted, so nobody can create a new resource during the delete. Observers don't block the delete. The default-project of a user can not be deleted here, it is only deleted together with its user. This can only be done by an admin."###,
+    description = r###"Delete a project together with its quota and the assignments of its users. Only projects without any resources and without users with the role admin or member can be deleted, so nobody can create a new resource during the delete. Observers don't block the delete. A locked project can not be deleted. The default-project of a user can not be deleted here, it is only deleted together with its user. This can only be done by an admin."###,
     error_code = 400,
     error_code = 401,
     error_code = 404,
@@ -52,8 +52,15 @@ pub async fn delete_project_admin(
     }
 
     // check if project exist
-    project_table::get_project(&project_id, &context)
+    let project = project_table::get_project(&project_id, &context)
         .map_err(|e| map_db_id_get_delete_error("project", &project_id, e, Some(&context)))?;
+
+    // a backup or restore of the project is still running or a restore has failed
+    if project.locked_by_job.is_some() {
+        return Err(ErrorResponse::Conflict(format!(
+            "Project '{project_id}' is locked by a backup or restore and can not be deleted."
+        )));
+    }
 
     // Users, who could create resources, have to be removed or made observers first. Otherwise
     // a resource could be created between the check of the resources below and the delete.
