@@ -427,9 +427,10 @@ jobs:
           AINARI_TEST_MYSQL_DATABASE=ainari_common \
             cargo test -p ainari_common --features mysql database
 
-          # miko, hanami, omamori, omikuji and ryokan also support mysql, so their tests run a second
-          # time with their example-config switched to a database of the mysql-service of this job
-          for component in miko hanami omamori omikuji ryokan; do
+          # miko, hanami, omamori, omikuji, isekai and ryokan also support mysql, so their tests run a
+          # second time with their example-config switched to a database of the mysql-service of
+          # this job
+          for component in miko hanami omamori omikuji isekai ryokan; do
             docker exec ${{ job.services.mysql.id }} \
               mysql -u root -proot-test-password \
               -e "CREATE DATABASE ${component}; GRANT ALL ON ${component}.* TO 'ainari'@'%';"
@@ -487,6 +488,8 @@ jobs:
           - { component: "torii",       file: "Dockerfile_torii", target: "", platform: "linux/arm64", runner: "ubuntu-24.04-arm", regitry: "kitsudaiki/torii"              }
           - { component: "omamori",     file: "Dockerfile_services", target: "omamori", platform: "linux/amd64", runner: "ubuntu-24.04",     regitry: "kitsudaiki/omamori"            }
           - { component: "omamori",     file: "Dockerfile_services", target: "omamori", platform: "linux/arm64", runner: "ubuntu-24.04-arm", regitry: "kitsudaiki/omamori"            }
+          - { component: "isekai",      file: "Dockerfile_services", target: "isekai", platform: "linux/amd64", runner: "ubuntu-24.04",     regitry: "kitsudaiki/isekai"              }
+          - { component: "isekai",      file: "Dockerfile_services", target: "isekai", platform: "linux/arm64", runner: "ubuntu-24.04-arm", regitry: "kitsudaiki/isekai"              }
           - { component: "omikuji",     file: "Dockerfile_services", target: "omikuji", platform: "linux/amd64", runner: "ubuntu-24.04",     regitry: "kitsudaiki/omikuji"            }
           - { component: "omikuji",     file: "Dockerfile_services", target: "omikuji", platform: "linux/arm64", runner: "ubuntu-24.04-arm", regitry: "kitsudaiki/omikuji"            }
           - { component: "onsen",       file: "Dockerfile_services", target: "onsen", platform: "linux/amd64", runner: "ubuntu-24.04",     regitry: "kitsudaiki/onsen"              }
@@ -584,6 +587,7 @@ jobs:
           - { component: "sakura",    regitry: "kitsudaiki/sakura"           }
           - { component: "torii",     regitry: "kitsudaiki/torii"            }
           - { component: "omamori",   regitry: "kitsudaiki/omamori"          }
+          - { component: "isekai",    regitry: "kitsudaiki/isekai"           }
           - { component: "omikuji",   regitry: "kitsudaiki/omikuji"          }
           - { component: "onsen",     regitry: "kitsudaiki/onsen"            }
           - { component: "dashboard", regitry: "kitsudaiki/ainari_dashboard" }

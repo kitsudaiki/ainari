@@ -38,7 +38,7 @@ docker build -f "$DOCKERFILES/Dockerfile_build_base" -t "kitsudaiki/ainari_build
 
 # the same list is used for building and saving, so 'docker save' never references an image, which
 # was not built by this script
-SERVICES="hanami izakaya miko omamori omikuji onsen ryokan sakura"
+SERVICES="hanami isekai izakaya miko omamori omikuji onsen ryokan sakura"
 IMAGES=()
 
 for target in $SERVICES; do

@@ -42,6 +42,10 @@ pub struct Endpoints {
     /// omikuji existed, stay valid.
     #[serde(default)]
     pub omikuji: Endpoint,
+    /// Orchestrator of the backups and restores. It is optional, so the configs, which were
+    /// written before isekai existed, stay valid.
+    #[serde(default)]
+    pub isekai: Endpoint,
 }
 
 #[derive(Debug, Deserialize)]

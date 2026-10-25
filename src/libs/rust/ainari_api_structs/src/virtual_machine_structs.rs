@@ -114,6 +114,15 @@ pub struct VirtualMachineResp {
     pub updated_by: String,
 }
 
+/// Sakura-host, which runs a virtual_machine.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, ApiComponent)]
+pub struct VirtualMachineHostResp {
+    pub virtual_machine_uuid: Uuid,
+    pub host_uuid: Uuid,
+    /// Internal address of the sakura-host, where its internal endpoints are reachable
+    pub address: String,
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
 pub struct VirtualMachineBasicResp {
     pub uuid: Uuid,

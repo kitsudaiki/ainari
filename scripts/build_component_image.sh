@@ -27,7 +27,7 @@
 
 set -euo pipefail
 
-COMPONENTS="hanami miko ryokan izakaya sakura torii omamori omikuji onsen dashboard operator"
+COMPONENTS="hanami miko ryokan izakaya sakura torii omamori omikuji isekai onsen dashboard operator"
 
 usage() {
     echo "Usage: $0 <COMPONENT> [TAG]"
@@ -40,7 +40,7 @@ TAG="${2:-}"
 
 # same mapping as the matrix of the job 'docker_build' of the CI
 case "$COMPONENT" in
-    hanami|miko|ryokan|izakaya|sakura|omamori|omikuji|onsen)
+    hanami|miko|ryokan|izakaya|sakura|omamori|omikuji|isekai|onsen)
         FILE="Dockerfile_services"; TARGET="$COMPONENT"; REGISTRY="kitsudaiki/$COMPONENT" ;;
     torii)
         FILE="Dockerfile_torii";     TARGET="";           REGISTRY="kitsudaiki/torii" ;;

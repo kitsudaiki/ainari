@@ -59,6 +59,9 @@ pub fn v1alpha_routes() -> Scope {
                         .route(get().to(get_virtual_machine_v1_0::get_virtual_machine))
                         .route(delete().to(delete_virtual_machine_v1_0::delete_virtual_machine)),
                 )
+                .service(resource("/{virtual_machine_uuid}/host/internal").route(get().to(
+                    get_virtual_machine_host_internal_v1_0::get_virtual_machine_host_internal,
+                )))
                 .service(resource("/{virtual_machine_uuid}/migrate/admin").route(
                     post().to(migrate_virtual_machine_admin_v1_0::migrate_virtual_machine_admin),
                 )),

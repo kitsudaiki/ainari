@@ -65,6 +65,7 @@ nav = [
       "deployer/database/ryokan_db.md",
       "deployer/database/torii_db.md",
       "deployer/database/omamori_db.md",
+      "deployer/database/isekai_db.md",
     ] },
   ] },
   { "Development-Docu" = [

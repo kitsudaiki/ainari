@@ -93,6 +93,10 @@ pub async fn get_endpoints(
                             public_address: deserialized.omikuji.public_address,
                             internal_address: deserialized.omikuji.internal_address,
                         },
+                        isekai: ainari_config::Endpoint {
+                            public_address: deserialized.isekai.public_address,
+                            internal_address: deserialized.isekai.internal_address,
+                        },
                     };
 
                     Ok(endpoints)

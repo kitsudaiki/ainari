@@ -1,0 +1,29 @@
+# Config of isekai for the local docker-compose setup.
+debug = true
+log_path = "/var/log"
+database_type = "sqlite"
+skip_tls_verification = true
+
+[api]
+public_ip = "0.0.0.0"
+public_port = 11425
+internal_ip = "0.0.0.0"
+internal_port = 10425
+
+# the project-lock and the export and import of the projects are internal endpoints of miko
+[miko]
+address = "http://miko:11417"
+internal_address = "http://miko:10417"
+
+[sqlite]
+file_path = "/etc/ainari/isekai_db"
+
+[processing]
+number_of_workers = 2
+max_parallel_snapshots = 1
+
+# the minimum of the parameters, so the local tests don't wait for the key-derivation
+[kdf]
+memory_kib = 19456
+iterations = 2
+parallelism = 1

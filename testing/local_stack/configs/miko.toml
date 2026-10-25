@@ -44,3 +44,7 @@ internal_address = "http://izakaya:10423"
 [endpoints.omikuji]
 public_address = "http://127.0.0.1:11424"
 internal_address = "http://omikuji:10424"
+
+[endpoints.isekai]
+public_address = "http://127.0.0.1:11425"
+internal_address = "http://isekai:10425"

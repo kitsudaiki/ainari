@@ -315,6 +315,51 @@ pub async fn read_backup_file(
     })
 }
 
+/// Gets the size and the sha256 of a file within a backup.
+///
+/// # Arguments
+///
+/// * `ryokan_endpoint` - The endpoint configuration for the Ryokan service
+/// * `token` - The authentication token for the API
+/// * `internal_api_key` - The internal API key for accessing protected endpoints
+/// * `backup_uuid` - The backup, which contains the file
+/// * `path` - Path of the file relative to the directory of the backup
+/// * `insecure_client` - Whether to use an insecure (HTTP) client instead of HTTPS
+///
+/// # Returns
+///
+/// A `Result` containing the size and checksum of the file, or an `AinariError`.
+pub async fn get_backup_file_info(
+    ryokan_endpoint: &ainari_config::Endpoint,
+    token: &String,
+    internal_api_key: &Secret,
+    backup_uuid: &Uuid,
+    path: &str,
+    insecure_client: bool,
+) -> Result<BackupFileInfoResp, AinariError> {
+    let address = ryokan_endpoint.internal_address.clone();
+    let client = prepare_client(&address, insecure_client);
+    let url = format!("{address}/v1alpha/backup/{backup_uuid}/file_info/internal");
+
+    let query = BackupFileQuery {
+        path: path.to_owned(),
+    };
+    let request = client
+        .get(url)
+        .query(&query)
+        .map_err(|e| AinariError::internal(format!("Failed to build query of backup-file: {e}")))?;
+
+    // the onsen reads the whole file for its checksum, which takes its time for large disks
+    let response = request
+        .timeout(std::time::Duration::from_secs(COPY_TIMEOUT_SECONDS))
+        .insert_header(("Authorization", format!("Bearer {}", token)))
+        .insert_header(("X-Internal-API-Key", internal_api_key.reveal()))
+        .send()
+        .await;
+
+    handle_response::<BackupFileInfoResp>(response, "backup", &backup_uuid.to_string()).await
+}
+
 /// Requests the target in ryokan, where the root-disk of a virtual_machine is uploaded into the
 /// package of a backup.
 ///

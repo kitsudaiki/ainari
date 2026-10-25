@@ -32,4 +32,8 @@ pub struct EndpontsResp {
     pub izakaya: EndpointField,
     #[serde(default)]
     pub omikuji: EndpointField,
+    /// Orchestrator of the backups and restores. It is optional, so the clients still understand
+    /// a miko, which doesn't know isekai yet.
+    #[serde(default)]
+    pub isekai: EndpointField,
 }

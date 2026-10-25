@@ -16,6 +16,7 @@ pub mod copy_backup_file_internal_v1_0;
 pub mod create_backup_internal_v1_0;
 pub mod delete_backup_internal_v1_0;
 pub mod finalize_backup_internal_v1_0;
+pub mod get_backup_file_info_internal_v1_0;
 pub mod get_backup_internal_v1_0;
 pub mod list_backup_internal_v1_0;
 pub mod prepare_backup_disk_internal_v1_0;

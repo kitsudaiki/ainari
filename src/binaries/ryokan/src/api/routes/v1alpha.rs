@@ -96,6 +96,9 @@ pub fn v1alpha_routes() -> Scope {
                             put().to(write_backup_file_internal_v1_0::write_backup_file_internal),
                         ),
                 )
+                .service(resource("/{backup_uuid}/file_info/internal").route(
+                    get().to(get_backup_file_info_internal_v1_0::get_backup_file_info_internal),
+                ))
                 .service(
                     resource("/{backup_uuid}/copy/internal").route(
                         post().to(copy_backup_file_internal_v1_0::copy_backup_file_internal),

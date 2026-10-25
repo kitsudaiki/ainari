@@ -51,6 +51,9 @@ pub struct ApiValidationConfig {
     /// a user. For services, whose internal endpoints are also called by background-jobs of other
     /// services, which act without a user.
     pub internal_endpoints_without_token: bool,
+    /// Writes to locked projects are not rejected. For services, which manage the lock of the
+    /// projects themselves, so their users can still handle the job, which holds the lock.
+    pub ignore_project_lock: bool,
 }
 
 impl ApiValidationConfig {
@@ -79,6 +82,7 @@ impl ApiValidationConfig {
             skip_tls_verification,
             internal_endpoints_port: None,
             internal_endpoints_without_token: false,
+            ignore_project_lock: false,
         }
     }
 
@@ -112,6 +116,20 @@ impl ApiValidationConfig {
     /// The config without the token-check for the internal endpoints
     pub fn authorize_internal_endpoints_by_api_key(mut self) -> Self {
         self.internal_endpoints_without_token = true;
+        self
+    }
+
+    /// Doesn't reject the writes of users to locked projects.
+    ///
+    /// For services, which set and check the lock of the projects themselves, so the requests of
+    /// their users must still reach them, while a project is locked, like the deletion of a
+    /// backup, whose job has failed.
+    ///
+    /// # Returns
+    ///
+    /// The config without the check of the project-lock
+    pub fn ignore_project_lock(mut self) -> Self {
+        self.ignore_project_lock = true;
         self
     }
 }
@@ -212,7 +230,9 @@ pub async fn authorization_middleware(
     }
     if !skip_token_check {
         let project_locked = check_auth_header(&req, api_validation_config).await?;
-        check_project_lock(&req, api_validation_config, project_locked)?;
+        if !api_validation_config.ignore_project_lock {
+            check_project_lock(&req, api_validation_config, project_locked)?;
+        }
     }
     //else {
     //    log::debug!("skip token-check");
@@ -523,6 +543,7 @@ mod tests {
             skip_tls_verification: false,
             internal_endpoints_port: None,
             internal_endpoints_without_token: false,
+            ignore_project_lock: false,
         }
         .restrict_internal_endpoints(internal_port);
 
@@ -576,6 +597,7 @@ mod tests {
             skip_tls_verification: false,
             internal_endpoints_port: None,
             internal_endpoints_without_token: false,
+            ignore_project_lock: false,
         }
         .restrict_internal_endpoints(internal_port)
         .authorize_internal_endpoints_by_api_key();
@@ -682,7 +704,9 @@ mod tests {
             skip_tls_verification: false,
             internal_endpoints_port: None,
             internal_endpoints_without_token: false,
+            ignore_project_lock: false,
         };
+        let ignoring_config = config.clone().ignore_project_lock();
         let server = HttpServer::new(move || {
             App::new()
                 .app_data(web::Data::new(config.clone()))
@@ -698,6 +722,21 @@ mod tests {
         let handle = server.handle();
         actix_rt::spawn(server);
 
+        let ignoring_service = TcpListener::bind("127.0.0.1:0").unwrap();
+        let ignoring_port = ignoring_service.local_addr().unwrap().port();
+        let ignoring_server = HttpServer::new(move || {
+            App::new()
+                .app_data(web::Data::new(ignoring_config.clone()))
+                .wrap(from_fn(authorization_middleware))
+                .route("/v1alpha/vm", web::post().to(HttpResponse::Ok))
+        })
+        .workers(1)
+        .listen(ignoring_service)
+        .unwrap()
+        .run();
+        let ignoring_handle = ignoring_server.handle();
+        actix_rt::spawn(ignoring_server);
+
         let results = actix_web::rt::task::spawn_blocking(move || {
             let locked = "Authorization: Bearer locked\r\n";
             let unlocked = "Authorization: Bearer unlocked\r\n";
@@ -711,11 +750,19 @@ mod tests {
                 request_status(port, "POST", "/v1alpha/vm", wrong_key),
                 request_status(port, "POST", "/v1alpha/vm", unlocked),
                 request_status(port, "POST", "/v1alpha/vm", "Authorization: Bearer x\r\n"),
+                request_status(ignoring_port, "POST", "/v1alpha/vm", locked),
+                request_status(
+                    ignoring_port,
+                    "POST",
+                    "/v1alpha/vm",
+                    "Authorization: Bearer x\r\n",
+                ),
             )
         })
         .await
         .unwrap();
         handle.stop(true).await;
+        ignoring_handle.stop(true).await;
         miko_handle.stop(true).await;
 
         // a locked project can still be read
@@ -730,5 +777,9 @@ mod tests {
         assert_eq!(results.5, 200);
         // an invalid token is still rejected first
         assert_eq!(results.6, 401);
+        // a service, which handles the lock itself, gets the writes to a locked project, but
+        // still checks the token
+        assert_eq!(results.7, 200);
+        assert_eq!(results.8, 401);
     }
 }

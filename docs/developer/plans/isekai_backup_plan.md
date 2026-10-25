@@ -150,6 +150,9 @@ onsen about the bundles, so isekai doesn't need a wireguard-tunnel):
   into the bundle (only `CREATING`)
 - `GET    /v1alpha/backup/{backup_uuid}/file/internal` – reads a metadata-file or the manifest
   from the bundle (only `READY`)
+- `GET    /v1alpha/backup/{backup_uuid}/file_info/internal?path=…` – size and sha256 of a file of
+  the bundle over `GetFileInfo` (only `CREATING` and `READY`). Isekai uses it for the disks and
+  images in the manifest and to check them again before a restore.
 - `POST   /v1alpha/backup/{backup_uuid}/disk/internal` `{ vm_uuid }` – returns the onsen-address
   and the path `disks/<vm_uuid>.enc` for the upload of a root-disk by sakura (only `CREATING`).
   The disk is no image, so no entry in the `images`-table is created.
@@ -250,6 +253,9 @@ onsen about the bundles, so isekai doesn't need a wireguard-tunnel):
   (from isekai and between the components during the restore) are not blocked. This way the
   lock is checked in one central place and doesn't have to be implemented in every endpoint.
   `GET`, `HEAD` and `OPTIONS` count as reading requests. The clients map `423` to `Conflict`.
+  Isekai disables this check for itself (`ApiValidationConfig::ignore_project_lock`), because it
+  sets and checks the lock itself, so a user can still delete a backup or repeat a restore, while
+  the project is locked by a failed job.
   Miko itself is not blocked, because its own middleware handles only the user- and
   admin-management, and a user must still be able to renew the token or change the passphrase.
 - Calls of the components between each other, which don't go to internal endpoints, send the
@@ -305,6 +311,8 @@ onsen about the bundles, so isekai doesn't need a wireguard-tunnel):
   `internal_ip` and `mac_address`. A taken UUID (active VM or other project) or address is
   rejected with `409`, the UUID of a deleted VM of the project is used again. Both reservations
   share one function (`reserve`).
+- `GET /v1alpha/virtual_machine/{uuid}/host/internal` – the sakura-host of a VM with its internal
+  address, so isekai can call the internal endpoints of sakura for the VM directly.
 - Torii-state is not restored explicitly. It results from the restored networks/VMs, like after
   `host_restore`.
 

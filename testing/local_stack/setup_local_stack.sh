@@ -196,6 +196,44 @@ else
     echo "WARNING: no default route found on the host, so the virtual machines have no internet."
 fi
 
+# ---------------------------------------------------------------------------------------------
+# mark the second onsen as backup-target, so isekai stores the backups there
+# ---------------------------------------------------------------------------------------------
+MIKO_ADDRESS="http://127.0.0.1:11417"
+RYOKAN_ADDRESS="http://127.0.0.1:11416"
+BACKUP_ONSEN_ADDRESS="http://onsen-backup:50051"
+
+mark_backup_target() {
+    local token host_uuid
+    token="$(curl -sf -X POST "$MIKO_ADDRESS/v1alpha/token" \
+        -d "token_format=jwt" -d "grant_type=client_credentials" \
+        -d "client_id=${AINARI_USER:-asdf}" -d "client_secret=${AINARI_PASSPHRASE:-asdfasdf}" \
+        | python3 -c 'import json, sys; print(json.load(sys.stdin)["access_token"])')" || return 1
+    host_uuid="$(curl -sf -H "Authorization: Bearer $token" "$RYOKAN_ADDRESS/v1alpha/host/admin" \
+        | python3 -c 'import json, sys
+hosts = json.load(sys.stdin)["hosts"]
+print(next(h["uuid"] for h in hosts if h["host_address"] == sys.argv[1]))' \
+        "$BACKUP_ONSEN_ADDRESS")" || return 1
+    curl -sf -X PUT -H "Authorization: Bearer $token" -H "Content-Type: application/json" \
+        -d '{"is_backup_target": true}' \
+        "$RYOKAN_ADDRESS/v1alpha/host/$host_uuid/backup_target/admin" > /dev/null
+}
+
+echo "Marking $BACKUP_ONSEN_ADDRESS as backup-target ..."
+# the onsen registers itself in ryokan shortly after its start
+BACKUP_TARGET_MARKED=false
+for _ in $(seq 1 60); do
+    if mark_backup_target 2> /dev/null; then
+        BACKUP_TARGET_MARKED=true
+        break
+    fi
+    sleep 2
+done
+if [ "$BACKUP_TARGET_MARKED" != true ]; then
+    echo "WARNING: $BACKUP_ONSEN_ADDRESS could not be marked as backup-target, so isekai can't"
+    echo "         create backups."
+fi
+
 echo ""
 echo "The stack is up. The api is reachable at:"
 echo "    miko     http://127.0.0.1:11417"
@@ -204,6 +242,7 @@ echo "    ryokan   http://127.0.0.1:11416"
 echo "    omamori  http://127.0.0.1:11421"
 echo "    izakaya  http://127.0.0.1:11423"
 echo "    omikuji  http://127.0.0.1:11424"
+echo "    isekai   http://127.0.0.1:11425"
 echo "    torii    http://127.0.0.1:11419"
 echo ""
 echo "Every virtual machine is reachable over the proxy https://<vm-uuid>.$PROXY_DOMAIN:10042,"
