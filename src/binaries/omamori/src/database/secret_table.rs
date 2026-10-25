@@ -19,6 +19,7 @@ use uuid::Uuid;
 
 use crate::database::db_handle;
 
+use ainari_api_structs::secret_structs::SECRET_OWNER_BACKUP;
 use ainari_api_structs::user_context::UserContext;
 use ainari_common::enums;
 use ainari_common::objects::*;
@@ -231,7 +232,9 @@ pub fn count_secrets(context: &UserContext) -> QueryResult<i64> {
 /// Counts the number of secrets of a whole project.
 ///
 /// Unlike `count_secrets`, the secrets of all users of the project are counted, because the quota,
-/// which is checked with this number, belongs to the project.
+/// which is checked with this number, belongs to the project. The secrets of backups are not
+/// counted, because they belong to the backups, which can outlive the project, so they neither
+/// count to the quota nor block the deletion of the project.
 ///
 /// # Arguments
 ///
@@ -247,8 +250,76 @@ pub fn count_secrets_of_project(project: &str) -> QueryResult<i64> {
     secrets
         .filter(status.eq("ACTIVE"))
         .filter(project_id.eq(project))
+        .filter(owned_by.ne(SECRET_OWNER_BACKUP))
         .select(count_star())
         .first::<i64>(&mut *conn)
+}
+
+/// Lists all active secrets of a project.
+///
+/// Unlike the listing for the users, it is done for the project of the path and not the one of
+/// the token, so an admin can export any project.
+///
+/// # Arguments
+///
+/// * `project` - The ID of the project
+///
+/// # Returns
+///
+/// A QueryResult containing the secrets of the project
+pub fn list_secrets_of_project(project: &str) -> QueryResult<Vec<SecretEntry>> {
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+    use self::secrets::dsl::*;
+
+    secrets
+        .filter(status.eq("ACTIVE"))
+        .filter(project_id.eq(project))
+        .select(SecretEntry::as_select())
+        .load(&mut *conn)
+}
+
+/// Searches a secret by its UUID within all projects, also if it is already deleted.
+///
+/// It is used to check, if the UUID is still free, before a secret with this UUID is imported.
+///
+/// # Arguments
+///
+/// * `entry_uuid` - The UUID of the secret
+///
+/// # Returns
+///
+/// A QueryResult containing the secret, or None, if the UUID was never used
+pub fn find_secret(entry_uuid: &Uuid) -> QueryResult<Option<SecretEntry>> {
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+    use self::secrets::dsl::*;
+
+    secrets
+        .filter(uuid.eq(entry_uuid.to_string()))
+        .select(SecretEntry::as_select())
+        .first::<SecretEntry>(&mut *conn)
+        .optional()
+}
+
+/// Adds a secret to the database or replaces the existing entry with the same UUID.
+///
+/// It is used to import a secret, so also an already deleted secret can be restored with its
+/// original UUID, which is the primary key of the table.
+///
+/// # Arguments
+///
+/// * `entry` - The secret to store
+///
+/// # Returns
+///
+/// A QueryResult indicating the number of rows affected by the insert operation
+pub fn put_secret(entry: SecretEntry) -> QueryResult<usize> {
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+    use self::secrets::dsl::*;
+
+    conn.transaction(|conn| {
+        diesel::delete(secrets.filter(uuid.eq(entry.uuid.to_string()))).execute(conn)?;
+        diesel::insert_into(secrets).values(entry).execute(conn)
+    })
 }
 
 /// Deletes a secret from the database
@@ -715,5 +786,46 @@ mod tests {
         hard_delete_secret(&uuid1);
         hard_delete_secret(&uuid2);
         hard_delete_secret(&uuid3);
+    }
+
+    #[test]
+    #[serial]
+    fn test_backup_secrets_are_not_counted() {
+        let project = "test-backup-secret-project";
+        let context = UserContext {
+            token: "".to_string(),
+            user_id: "test-user".to_string(),
+            project_id: project.to_string(),
+            is_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
+        };
+        let user_secret = Uuid::new_v4();
+        let image_secret = Uuid::new_v4();
+        let backup_secret = Uuid::new_v4();
+        add_new_secret(&user_secret, "user-secret", "user", None, &context).unwrap();
+        add_new_secret(
+            &image_secret,
+            "image-secret",
+            "image",
+            Some(Uuid::new_v4()),
+            &context,
+        )
+        .unwrap();
+        add_new_secret(
+            &backup_secret,
+            "backup-secret",
+            SECRET_OWNER_BACKUP,
+            Some(Uuid::new_v4()),
+            &context,
+        )
+        .unwrap();
+
+        // the secret of the backup neither counts to the quota nor blocks the project-deletion
+        assert_eq!(count_secrets_of_project(project).unwrap(), 2);
+        assert!(get_secret(&backup_secret, &context).is_ok());
+
+        hard_delete_secret(&user_secret);
+        hard_delete_secret(&image_secret);
+        hard_delete_secret(&backup_secret);
     }
 }

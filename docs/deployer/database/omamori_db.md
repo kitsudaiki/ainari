@@ -12,19 +12,33 @@ below are the ones of the SQLite-database; the MySQL-database uses `INT` for `IN
 
 Metadata of secrets. The secret itself is stored encrypted in `simple_crypto`.
 
-| field      | type         | is primary | constraints |
-| ---------- | ------------ | ---------- | ----------- |
-| uuid       | VARCHAR(40)  | x          |             |
-| name       | VARCHAR(256) |            |             |
-| owner_id   | VARCHAR(256) |            |             |
-| project_id | VARCHAR(256) |            |             |
-| status     | VARCHAR(8)   |            |             |
-| created_at | VARCHAR(64)  |            |             |
-| created_by | VARCHAR(256) |            |             |
-| updated_at | VARCHAR(64)  |            |             |
-| updated_by | VARCHAR(256) |            |             |
-| deleted_at | VARCHAR(64)  |            |             |
-| deleted_by | VARCHAR(256) |            |             |
+`owned_by` is the kind of owner of the secret and `resource_uuid` the owning resource, if the secret
+doesn't belong to a user:
+
+| owned_by | meaning                                                                                  |
+| -------- | ---------------------------------------------------------------------------------------- |
+| `user`   | created by a user over the public api, can only be deleted there                         |
+| `image`  | encrypts the file of an image or snapshot of ryokan                                      |
+| `backup` | encrypts a disk within a backup; doesn't count to the quota and doesn't block the deletion of the project, because a backup can outlive its project |
+
+Secrets, which are owned by a resource, can only be deleted over the internal api together with
+their resource.
+
+| field         | type         | is primary | constraints               |
+| ------------- | ------------ | ---------- | ------------------------- |
+| uuid          | VARCHAR(40)  | x          |                           |
+| name          | VARCHAR(256) |            |                           |
+| owned_by      | VARCHAR(64)  |            | `NOT NULL DEFAULT 'user'` |
+| resource_uuid | VARCHAR(40)  |            |                           |
+| owner_id      | VARCHAR(256) |            |                           |
+| project_id    | VARCHAR(256) |            |                           |
+| status        | VARCHAR(8)   |            |                           |
+| created_at    | VARCHAR(64)  |            |                           |
+| created_by    | VARCHAR(256) |            |                           |
+| updated_at    | VARCHAR(64)  |            |                           |
+| updated_by    | VARCHAR(256) |            |                           |
+| deleted_at    | VARCHAR(64)  |            |                           |
+| deleted_by    | VARCHAR(256) |            |                           |
 
 ## simple_crypto
 

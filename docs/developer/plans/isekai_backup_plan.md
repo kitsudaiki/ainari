@@ -244,14 +244,24 @@ onsen about the bundles, so isekai doesn't need a wireguard-tunnel):
 
 ### 4.5 omamori
 
-- `POST /v1alpha/project/{project_id}/export/internal` with `{ wrap_key }` – returns all secrets of
-  the project with the payload wrapped by `wrap_key` (AES-256-GCM, new nonce per secret) and the
-  public-keys. The plain payload never leaves omamori.
+- `POST /v1alpha/project/{project_id}/export/internal` with `{ wrap_key, backup_uuid }` – returns
+  all secrets of the project with the payload wrapped by `wrap_key` (AES-256-GCM, new nonce per
+  secret, the UUID of the secret as additional data) and the public-keys. The plain payload never
+  leaves omamori. Secrets with `owned_by = "backup"` are only exported for the backup
+  `backup_uuid`, never the ones of other backups.
 - `POST /v1alpha/project/{project_id}/import/internal` with `{ wrap_key, secrets, public_keys,
   force, id_map }` – unwraps the payloads and stores them encrypted with its own key (`simple_crypto`).
+    - All payloads are unwrapped and all conflicts are checked first, so a wrong `wrap_key`
+      (`400`) or a conflict (`409`) changes nothing.
+    - `id_map` is applied to the UUIDs of the secrets and public-keys and to the `resource_uuid`
+      of the secrets. A UUID, which is used by another project, is always a conflict, also with
+      `force`. An active resource of the project is only overwritten with `force`, a deleted one
+      is restored with its UUID.
+    - The quota is not checked by the import, but by isekai before the restore.
 - `generate_secret_internal` gets `owned_by = "backup"` for the secrets of the disks inside a
   backup, which can't be deleted by the user. Isekai creates them for each disk and deletes them
-  together with the backup.
+  together with the backup. They don't count to the secret-quota and don't block the deletion of
+  the project, because a backup can outlive its project (scenario 6 in chapter 7).
 - The `wrap_key` is only transmitted over the internal TLS-connection with the internal API-key
   and is never logged or stored.
 
@@ -546,7 +556,7 @@ Each phase is **exactly one commit**, which can be reviewed on its own. Rules fo
 | #   | Commit                                                           | Content                                                                                                                        |
 | --- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
 | D1  | `feat(miko): add internal export and import of projects`         | Project + quota, `force` overwrites name and (only for admins) quota. No users/mappings.                                       |
-| D2  | `feat(omamori): add owner-type backup for secrets`               | `owned_by = "backup"`, not deletable by users, like the internal secrets of images.                                           |
+| D2  | `feat(omamori): add owner-type backup for secrets`               | `owned_by = "backup"`, not deletable by users, like the internal secrets of images; not counted in the quota or the project-deletion-check. |
 | D3  | `feat(omamori): add internal export of project-secrets`          | Payloads wrapped with `wrap_key`, public-keys; test that no plain payload is in the response and that `wrap_key` isn't logged. |
 | D4  | `feat(omamori): add internal import of project-secrets`          | Unwrap → re-encrypt with `simple_crypto`; `force`; `id_map`. Round-trip-test with D3.                                          |
 | D5  | `feat(ryokan): add internal export and import of image-metadata` | Images and snapshots of the project (backups are not part of it), `force`, `id_map` for the references to secrets.             |

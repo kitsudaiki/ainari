@@ -66,3 +66,16 @@ pub struct PublicKeyInternalResp {
     pub updated_at: DateTime<Utc>,
     pub updated_by: String,
 }
+
+/// Public-key, like it is exported from omamori into a backup. The fingerprint is not part of it,
+/// because it is calculated from the key again, when it is imported.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, ApiComponent, Validate)]
+pub struct OmamoriPublicKeyExport {
+    /// UUID of the public-key at the time of the backup
+    pub uuid: Uuid,
+    #[validate(length(min = 1, max = 255))]
+    pub name: String,
+    /// the ssh-public-key in its one-line openssh-representation
+    #[validate(length(min = 8, max = 4096))]
+    pub public_key: String,
+}

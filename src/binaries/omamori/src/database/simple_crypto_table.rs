@@ -83,6 +83,33 @@ pub fn add_secret(secret: SimpleCryptoEntry) -> QueryResult<usize> {
         .execute(&mut *conn)
 }
 
+/// Stores the encrypted payload of a secret and replaces an already existing payload with the
+/// same UUID, which happens, when a secret is imported with its original UUID again.
+///
+/// # Arguments
+///
+/// * `uuid` - The UUID of the secret
+/// * `encrypted_payload` - The encrypted payload
+///
+/// # Returns
+///
+/// A QueryResult indicating the number of rows affected by the insert operation
+pub fn put_simple_crypto_data(uuid: &Uuid, encrypted_payload: &str) -> QueryResult<usize> {
+    let entry = SimpleCryptoEntry {
+        secret_uuid: *uuid,
+        encrypted_secret: encrypted_payload.to_owned(),
+    };
+
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+    use self::simple_crypto::dsl::*;
+    conn.transaction(|conn| {
+        diesel::delete(simple_crypto.filter(secret_uuid.eq(uuid.to_string()))).execute(conn)?;
+        diesel::insert_into(simple_crypto)
+            .values(entry)
+            .execute(conn)
+    })
+}
+
 /// Retrieves a secret from the simple_crypto table by its UUID
 ///
 /// # Arguments
