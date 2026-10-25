@@ -13,6 +13,7 @@
 // limitations under the License.
 
 pub mod auth;
+pub mod backup;
 pub mod endpoints;
 pub mod floating_ip;
 pub mod host;
@@ -97,9 +98,36 @@ pub async fn handle_response<T>(
 where
     T: serde::de::DeserializeOwned,
 {
+    handle_response_with_limit(response, obj, uuid, DEFAULT_RESPONSE_LIMIT).await
+}
+
+/// Maximum size of the body of a response in bytes, which is accepted by `handle_response`.
+pub const DEFAULT_RESPONSE_LIMIT: usize = 2 * 1024 * 1024;
+
+/// Handles an API response like `handle_response`, but accepts a body up to the given size.
+///
+/// # Arguments
+///
+/// * `response` - The response from the API call.
+/// * `obj` - A string describing the type of object being requested.
+/// * `uuid` - An optional UUID for the object being requested.
+/// * `limit` - Maximum size of the body of the response in bytes.
+///
+/// # Returns
+///
+/// A `Result` containing the deserialized object or an error.
+pub async fn handle_response_with_limit<T>(
+    response: Result<awc::ClientResponse<Decompress<Payload>>, SendRequestError>,
+    obj: &str,
+    uuid: &str,
+    limit: usize,
+) -> Result<T, AinariError>
+where
+    T: serde::de::DeserializeOwned,
+{
     match response {
         Ok(mut resp) => {
-            let body_str = match resp.body().await {
+            let body_str = match resp.body().limit(limit).await {
                 Ok(body) => String::from_utf8_lossy(&body).into_owned(),
                 Err(e) => {
                     log::error!("Error while getting token-validation-body: {e}");

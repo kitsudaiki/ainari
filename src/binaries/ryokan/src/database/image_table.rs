@@ -211,6 +211,25 @@ pub fn count_images_on_onsen(conn: &mut DbConnection, address: &str) -> QueryRes
         .first::<i64>(conn)
 }
 
+/// Checks, if an image with this UUID was ever registered, in any project and also if it is
+/// already deleted.
+///
+/// # Arguments
+/// * `image_uuid` - The UUID of the image
+///
+/// # Returns
+/// * `QueryResult<bool>` - True, if the UUID is already used
+pub fn is_uuid_taken(image_uuid: &Uuid) -> QueryResult<bool> {
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+    use self::images::dsl::*;
+
+    images
+        .filter(uuid.eq(image_uuid.to_string()))
+        .select(count_star())
+        .first::<i64>(&mut *conn)
+        .map(|count| count > 0)
+}
+
 /// Retrieves an image from the database.
 ///
 /// This function fetches an image by its UUID, applying appropriate filters
@@ -609,11 +628,17 @@ mod tests {
         };
 
         hard_delete_image(&uuid1);
+        assert!(!is_uuid_taken(&uuid1).unwrap());
 
         add_image(image).unwrap();
+        assert!(is_uuid_taken(&uuid1).unwrap());
         let _ = delete_image(&uuid1, &context);
         let result = get_image(&uuid1, &context);
         assert!(result.is_err());
+        // also a deleted image keeps its UUID
+        assert!(is_uuid_taken(&uuid1).unwrap());
+
+        hard_delete_image(&uuid1);
     }
 
     #[test]

@@ -15,6 +15,7 @@
 #![forbid(unsafe_code)]
 
 pub mod auth_structs;
+pub mod backup_structs;
 pub mod common_structs;
 pub mod endpoints_structs;
 pub mod file_structs;

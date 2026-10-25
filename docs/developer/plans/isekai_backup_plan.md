@@ -132,9 +132,11 @@ Lifecycle of the package (`backup_status`):
 - `ERROR`: the bundle is incomplete or inconsistent (e.g. finalize found a missing manifest). It
   can only be deleted.
 
-State-check and state-change run in one transaction, so e.g. a write can't happen into a bundle,
-which is finalized at the same time. Backups don't count to the image-quota and don't appear in
-`list_image` / `get_image`, because they are in their own table.
+Every state-change is a conditional update in the database, so of two concurrent changes (e.g.
+finalize and delete of the same bundle) only one can succeed. The files themselves are written by
+isekai and sakura, which only write into a bundle of their own running job. Backups don't count to
+the image-quota and don't appear in `list_image` / `get_image`, because they are in their own
+table.
 
 New internal endpoints for isekai and sakura (ryokan is the only component, which talks with the
 onsen about the bundles, so isekai doesn't need a wireguard-tunnel):

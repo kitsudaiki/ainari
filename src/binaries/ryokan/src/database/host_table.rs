@@ -17,6 +17,7 @@ use diesel::dsl::count_star;
 use diesel::prelude::*;
 use uuid::Uuid;
 
+use crate::database::backup_table;
 use crate::database::db_handle;
 use crate::database::image_table;
 
@@ -235,10 +236,10 @@ pub fn list_hosts(_: &UserContext) -> QueryResult<Vec<HostEntry>> {
 
 /// Marks an onsen-host as backup-target or removes the mark (admin function).
 ///
-/// A host can only be marked, while no image or snapshot is stored on it. The check and the
-/// update run in one transaction, so no image can be added to the host in between. Removing the
-/// mark is always possible here, the check for remaining backups on the host is done by the
-/// caller over the onsen.
+/// A host can only be marked, while no image or snapshot is stored on it, and only be unmarked,
+/// while no backup is registered on it. The check and the update run in one transaction, so no
+/// image or backup can be added to the host in between. Backups, which were copied onto the host,
+/// but are not registered, are checked by the caller over the onsen.
 ///
 /// # Arguments
 ///
@@ -249,7 +250,8 @@ pub fn list_hosts(_: &UserContext) -> QueryResult<Vec<HostEntry>> {
 /// # Returns
 ///
 /// * `Ok(true)` if the host was updated
-/// * `Ok(false)` if the host can not be marked, because images are stored on it
+/// * `Ok(false)` if the host can not be marked, because images are stored on it, or can not be
+///   unmarked, because backups are registered on it
 /// * `Err(enums::DbError)` if the host doesn't exist or the update failed
 pub fn set_backup_target(
     host_uuid: &Uuid,
@@ -264,6 +266,7 @@ pub fn set_backup_target(
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::hosts::dsl::*;
 
+    let host = *host_uuid;
     let host_uuid = host_uuid.to_string();
 
     let result = conn.transaction::<_, diesel::result::Error, _>(|conn| {
@@ -273,6 +276,9 @@ pub fn set_backup_target(
             .first::<String>(conn)?;
 
         if backup_target && image_table::count_images_on_onsen(conn, &host_address)? > 0 {
+            return Ok(false);
+        }
+        if !backup_target && backup_table::count_backups_on_host(conn, &host)? > 0 {
             return Ok(false);
         }
 
@@ -316,6 +322,33 @@ pub fn is_backup_target_address(conn: &mut DbConnection, onsen_address: &str) ->
         .filter(
             address
                 .eq(onsen_address)
+                .and(status.eq("ACTIVE"))
+                .and(is_backup_target.eq(true)),
+        )
+        .select(count_star())
+        .first::<i64>(conn)
+        .map(|count| count > 0)
+}
+
+/// Checks, if a host is an active backup-target.
+///
+/// It takes the already locked connection, so it can be used within the transaction of another
+/// table.
+///
+/// # Arguments
+///
+/// * `conn` - The locked database-connection
+/// * `host` - UUID of the onsen-host
+///
+/// # Returns
+///
+/// * `QueryResult<bool>` - True, if the host is active and a backup-target
+pub fn is_backup_target_host(conn: &mut DbConnection, host: &Uuid) -> QueryResult<bool> {
+    use self::hosts::dsl::*;
+
+    hosts
+        .filter(
+            uuid.eq(host.to_string())
                 .and(status.eq("ACTIVE"))
                 .and(is_backup_target.eq(true)),
         )
@@ -763,6 +796,59 @@ mod tests {
         ));
 
         hard_delete_images_on(&host.address);
+        hard_delete_host(&host.uuid);
+    }
+
+    #[test]
+    #[serial]
+    fn test_unset_backup_target_with_backups() {
+        let context = admin_context();
+        let host = add_test_host();
+        assert!(matches!(
+            set_backup_target(&host.uuid, true, &context),
+            Ok(true)
+        ));
+        {
+            let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+            assert!(is_backup_target_host(&mut conn, &host.uuid).unwrap());
+            assert!(!is_backup_target_host(&mut conn, &Uuid::new_v4()).unwrap());
+        }
+
+        // a host with a registered backup can not be unmarked
+        let backup_uuid = Uuid::new_v4();
+        backup_table::add_new_backup(&backup_uuid, &host.uuid, "project", None, &context).unwrap();
+        assert!(matches!(
+            set_backup_target(&host.uuid, false, &context),
+            Ok(false)
+        ));
+        assert!(is_marked(&host.uuid));
+
+        // after the backup was deleted, it can
+        use ainari_api_structs::backup_structs::BackupStatus;
+        assert!(
+            backup_table::change_backup_status(
+                &backup_uuid,
+                &[BackupStatus::Creating],
+                BackupStatus::Deleting,
+                None,
+                &context,
+            )
+            .is_ok()
+        );
+        assert!(backup_table::delete_backup(&backup_uuid, &context).is_ok());
+        assert!(matches!(
+            set_backup_target(&host.uuid, false, &context),
+            Ok(true)
+        ));
+        let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+        assert!(!is_backup_target_host(&mut conn, &host.uuid).unwrap());
+        {
+            use crate::database::backup_table::backups::dsl::*;
+            let _ = diesel::delete(backups.filter(uuid.eq(backup_uuid.to_string())))
+                .execute(&mut *conn);
+        }
+        drop(conn);
+
         hard_delete_host(&host.uuid);
     }
 

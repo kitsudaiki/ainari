@@ -49,7 +49,9 @@ pub async fn set_backup_target_admin(
     let host_data = host_table::get_host(&host_uuid, &context)
         .map_err(|e| map_db_uuid_get_delete_error("onsen-host", &host_uuid, e, Some(&context)))?;
 
-    // the backups are only known by the onsen itself, so it is asked directly
+    // backups, which were copied onto the host, but are not registered yet, are only known by
+    // the onsen itself, so it is asked directly. The registered backups are checked together
+    // with the update.
     if !body.is_backup_target
         && host_data.is_backup_target
         && has_backups(&host_data.address, &context).await?
@@ -64,10 +66,17 @@ pub async fn set_backup_target_admin(
     // update the mark in the database
     let changed = host_table::set_backup_target(&host_uuid, body.is_backup_target, &context)
         .map_err(|e| map_db_uuid_get_delete_error("onsen-host", &host_uuid, e, Some(&context)))?;
-    if !changed {
+    if !changed && body.is_backup_target {
         return Err(ErrorResponse::Conflict(format!(
             "Onsen-host with UUID '{}' can not be marked as backup-target, because images or \
              snapshots are stored on it.",
+            *host_uuid
+        )));
+    }
+    if !changed {
+        return Err(ErrorResponse::Conflict(format!(
+            "Onsen-host with UUID '{}' can not be unmarked as backup-target, because backups \
+             are still registered on it.",
             *host_uuid
         )));
     }

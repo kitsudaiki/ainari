@@ -4648,6 +4648,7 @@ dependencies = [
  "ainari_files",
  "apistos",
  "apistos-schemars",
+ "base64 0.23.1",
  "bytes",
  "chrono",
  "diesel",

@@ -42,6 +42,7 @@ futures = "0.3"
 bytes = "1"
 uuid = { version = "1.23.1", features = ["serde", "fast-rng", "v4"] }
 sanitize-filename = "0.6"
+base64 = "0.23"
 
 [dev-dependencies]
 serial_test = "4"

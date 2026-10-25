@@ -15,8 +15,8 @@ Onsen-hosts, which registered themselves at ryokan and store the image-files.
 `is_backup_target` marks a host, which an admin reserved for backups. Such a host never stores
 normal images or snapshots: it is skipped by the host-selection for new images and adding an image
 on it is rejected. A host can only be marked, while no image is stored on it, and only be unmarked,
-while its directory `backups/` is empty. In the SQLite-database the column is at the end of the
-table, because SQLite can only append new columns.
+while no backup is registered on it in `backups` and its directory `backups/` is empty. In the
+SQLite-database the column is at the end of the table, because SQLite can only append new columns.
 
 | field            | type         | is primary | constraints                    |
 | ---------------- | ------------ | ---------- | ------------------------------ |
@@ -79,3 +79,45 @@ secret.
 | updated_by    | VARCHAR(256) |            |                                |
 | deleted_at    | VARCHAR(64)  |            |                                |
 | deleted_by    | VARCHAR(256) |            |                                |
+
+## backups
+
+Backups, whose package is stored as one directory `backups/<uuid>` on a backup-target
+(`host_uuid`). A package consists of multiple files (manifest, metadata, disks and images), but
+ryokan only tracks the package as a whole and never its single files, so it stays consistent.
+Name, kind and the other metadata of a backup are stored by isekai, which uses the same UUID.
+
+`backup_status` is the state of the package. It defines, which operations are allowed on its files.
+Every change of the state is a conditional update, so of two concurrent changes, like sealing and
+deleting the same package, only one succeeds.
+
+| backup_status | meaning                                                                                     |
+| ------------- | ------------------------------------------------------------------------------------------- |
+| `CREATING`    | the backup is created, files can only be written into the package in this state             |
+| `READY`       | the package is complete and sealed, so it is read only. Its files can be read and copied.   |
+| `DELETING`    | the package is deleted as a whole. A failed deletion stays in this state and is repeatable. |
+| `ERROR`       | the package is incomplete, for example because it has no manifest, and can only be deleted |
+
+`file_count`, `total_size` and `manifest_sha256` are read from the backup-target, when the package
+is sealed, so a later change of the files can be detected. A package, which was copied onto a
+backup-target from outside, is registered directly as `READY` with these values. Also a deleted
+backup keeps its UUID, because the UUID names the directory of the package.
+
+| field           | type         | is primary | constraints          |
+| --------------- | ------------ | ---------- | -------------------- |
+| uuid            | VARCHAR(40)  | x          |                      |
+| host_uuid       | VARCHAR(40)  |            | `NOT NULL`           |
+| directory_path  | TEXT         |            | `NOT NULL`           |
+| backup_status   | VARCHAR(16)  |            | `NOT NULL`           |
+| file_count      | INTEGER      |            | `NOT NULL DEFAULT 0` |
+| total_size      | BIGINT       |            | `NOT NULL DEFAULT 0` |
+| manifest_sha256 | VARCHAR(64)  |            |                      |
+| owner_id        | VARCHAR(256) |            |                      |
+| project_id      | VARCHAR(256) |            |                      |
+| status          | VARCHAR(8)   |            |                      |
+| created_at      | VARCHAR(64)  |            |                      |
+| created_by      | VARCHAR(256) |            |                      |
+| updated_at      | VARCHAR(64)  |            |                      |
+| updated_by      | VARCHAR(256) |            |                      |
+| deleted_at      | VARCHAR(64)  |            |                      |
+| deleted_by      | VARCHAR(256) |            |                      |

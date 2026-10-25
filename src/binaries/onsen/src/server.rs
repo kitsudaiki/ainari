@@ -348,3 +348,96 @@ pub async fn run_server() -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ainari_clients::onsen_file_transfer::{
+        copy_file, delete_directory, download_data, upload_data,
+    };
+    use ainari_common::error::AinariError;
+    use tokio::net::TcpListener;
+    use tonic::transport::server::TcpIncoming;
+    use uuid::Uuid;
+
+    /// Starts an onsen on a free local port and returns its address.
+    async fn start_onsen() -> String {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = format!("http://{}", listener.local_addr().unwrap());
+        tokio::spawn(async move {
+            Server::builder()
+                .add_service(DataServiceServer::new(OnsenServer))
+                .serve_with_incoming(TcpIncoming::from(listener))
+                .await
+                .unwrap();
+        });
+        address
+    }
+
+    #[tokio::test]
+    async fn test_copy_file_between_onsens() {
+        tokio::fs::create_dir_all(&config::CONFIG.storage.location)
+            .await
+            .unwrap();
+        let source = start_onsen().await;
+        let target = start_onsen().await;
+        let dir = format!("test-copy-{}", Uuid::new_v4());
+        let source_path = format!("{dir}/source.bin");
+        let target_path = format!("{dir}/copy/target.bin");
+
+        // the content spans multiple chunks
+        let content: Vec<u8> = (0..CHUNK_SIZE * 2 + 123).map(|i| (i % 251) as u8).collect();
+        upload_data(&source, &source_path, content.clone())
+            .await
+            .unwrap();
+
+        let copied = copy_file(&source, &source_path, &target, &target_path)
+            .await
+            .unwrap();
+        assert_eq!(copied, content.len() as u64);
+        let copy = download_data(&target, &target_path, content.len())
+            .await
+            .unwrap();
+        assert_eq!(copy, content);
+
+        // a file, which is larger than allowed, is not read into memory
+        assert!(matches!(
+            download_data(&target, &target_path, content.len() - 1).await,
+            Err(AinariError::InvalidInput(_))
+        ));
+
+        // a missing source leaves no file on the target
+        let missing_target = format!("{dir}/copy/missing.bin");
+        assert!(matches!(
+            copy_file(
+                &source,
+                &format!("{dir}/missing.bin"),
+                &target,
+                &missing_target
+            )
+            .await,
+            Err(AinariError::NotFound(_))
+        ));
+        assert!(matches!(
+            download_data(&target, &missing_target, 10).await,
+            Err(AinariError::NotFound(_))
+        ));
+
+        // an empty file is copied as well
+        upload_data(&source, &source_path, vec![]).await.unwrap();
+        assert_eq!(
+            copy_file(&source, &source_path, &target, &target_path)
+                .await
+                .unwrap(),
+            0
+        );
+        assert!(
+            download_data(&target, &target_path, 10)
+                .await
+                .unwrap()
+                .is_empty()
+        );
+
+        delete_directory(&source, &dir).await.unwrap();
+    }
+}

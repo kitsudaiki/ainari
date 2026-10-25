@@ -12,10 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use actix_web::web::JsonConfig;
 use apistos::web::{Scope, delete, get, post, put, resource, scope};
 
 use ainari_api::endpoints::*;
+use ainari_api_structs::backup_structs::MAX_BACKUP_FILE_MESSAGE_SIZE;
 
+use crate::api::http_endpoints::backup::*;
 use crate::api::http_endpoints::image::*;
 use crate::api::http_endpoints::onsen_host::*;
 use crate::api::http_endpoints::project::*;
@@ -72,6 +75,50 @@ pub fn v1alpha_routes() -> Scope {
                     resource("/{host_uuid}/backup_target/admin")
                         .route(put().to(set_backup_target_admin_v1_0::set_backup_target_admin)),
                 ),
+        )
+        .service(
+            scope("/backup")
+                .service(
+                    resource("/internal")
+                        .route(post().to(create_backup_internal_v1_0::create_backup_internal))
+                        .route(get().to(list_backup_internal_v1_0::list_backup_internal)),
+                )
+                // registered before "/{backup_uuid}/internal", which would match it as well
+                .service(
+                    resource("/register/internal")
+                        .route(post().to(register_backup_internal_v1_0::register_backup_internal)),
+                )
+                .service(
+                    resource("/{backup_uuid}/file/internal")
+                        .app_data(JsonConfig::default().limit(MAX_BACKUP_FILE_MESSAGE_SIZE))
+                        .route(get().to(read_backup_file_internal_v1_0::read_backup_file_internal))
+                        .route(
+                            put().to(write_backup_file_internal_v1_0::write_backup_file_internal),
+                        ),
+                )
+                .service(
+                    resource("/{backup_uuid}/copy/internal").route(
+                        post().to(copy_backup_file_internal_v1_0::copy_backup_file_internal),
+                    ),
+                )
+                .service(resource("/{backup_uuid}/disk/internal").route(
+                    post().to(prepare_backup_disk_internal_v1_0::prepare_backup_disk_internal),
+                ))
+                .service(
+                    resource("/{backup_uuid}/internal")
+                        .route(get().to(get_backup_internal_v1_0::get_backup_internal))
+                        .route(delete().to(delete_backup_internal_v1_0::delete_backup_internal)),
+                )
+                .service(
+                    resource("/{backup_uuid}/finalize/internal")
+                        .route(post().to(finalize_backup_internal_v1_0::finalize_backup_internal)),
+                ),
+        )
+        .service(
+            scope("/backup_target")
+                .service(resource("/{host_uuid}/scan/internal").route(
+                    get().to(scan_backup_target_internal_v1_0::scan_backup_target_internal),
+                )),
         )
         .service(scope("/project").service(
             resource("/{project_id}/resource_count/internal").route(

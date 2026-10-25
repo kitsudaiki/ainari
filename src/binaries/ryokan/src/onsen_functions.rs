@@ -66,6 +66,91 @@ pub fn select_onsen(context: &UserContext) -> Result<HostEntry, ErrorResponse> {
     Ok(selected_host)
 }
 
+/// Selects the backup-target, on which a new backup is stored.
+///
+/// Like for images, the host is picked randomly out of all registered backup-targets, so neither
+/// the free space nor the load of the hosts is taken into account yet.
+///
+/// # Arguments
+///
+/// * `context` - User-context of the request
+///
+/// # Returns
+///
+/// * `Ok(HostEntry)` - The selected backup-target.
+/// * `Err(ErrorResponse::Conflict)` - No backup-target is registered.
+/// * `Err(ErrorResponse::InternalError)` - The hosts could not be read.
+pub fn select_backup_target(context: &UserContext) -> Result<HostEntry, ErrorResponse> {
+    let hosts = host_table::list_hosts(context).map_err(|e| {
+        ainari_api::report_internal_error!(
+            Some(context),
+            "Failed to get list of hosts form database: '{e}'"
+        );
+        ErrorResponse::InternalError("Internal Error".to_string())
+    })?;
+
+    pick_backup_host(&hosts).ok_or_else(|| {
+        ErrorResponse::Conflict("No onsen-host is marked as backup-target.".to_string())
+    })
+}
+
+/// A file within a directory of an onsen.
+#[derive(Debug, PartialEq, Clone)]
+pub struct RemoteFile {
+    /// Path of the file relative to the listed directory
+    pub path: String,
+    /// Size of the file in bytes
+    pub size: u64,
+}
+
+/// Lists all files within a directory of an onsen, including the files of its subdirectories.
+///
+/// # Arguments
+///
+/// * `onsen_address` - Address of the onsen-host
+/// * `dir_path` - Path of the directory relative to the storage-location of the onsen
+///
+/// # Returns
+///
+/// * `Ok(Vec<RemoteFile>)` - All files with their path relative to `dir_path`, sorted by path.
+/// * `Err(AinariError::NotFound)` - The directory doesn't exist.
+/// * `Err(AinariError)` - The onsen could not be asked.
+pub async fn list_files_recursive(
+    onsen_address: &str,
+    dir_path: &str,
+) -> Result<Vec<RemoteFile>, AinariError> {
+    let mut files = Vec::new();
+    // relative paths of the directories, which still have to be listed
+    let mut pending = vec![String::new()];
+
+    while let Some(relative_dir) = pending.pop() {
+        let full_path = join_path(dir_path, &relative_dir);
+        for entry in onsen_file_transfer::list_directory(onsen_address, &full_path).await? {
+            let relative_path = join_path(&relative_dir, &entry.name);
+            if entry.is_dir {
+                pending.push(relative_path);
+            } else {
+                files.push(RemoteFile {
+                    path: relative_path,
+                    size: entry.size,
+                });
+            }
+        }
+    }
+    files.sort_by(|a, b| a.path.cmp(&b.path));
+
+    Ok(files)
+}
+
+/// Joins two parts of a relative path, where the first one can be empty.
+fn join_path(base: &str, name: &str) -> String {
+    if base.is_empty() {
+        name.to_owned()
+    } else {
+        format!("{base}/{name}")
+    }
+}
+
 /// Checks, if backups are stored on an onsen-host.
 ///
 /// # Arguments
@@ -119,6 +204,22 @@ fn pick_image_host(hosts: &[HostEntry]) -> Option<HostEntry> {
         .map(|host| (*host).clone())
 }
 
+/// Picks a random host out of the given hosts, which is a backup-target.
+///
+/// # Arguments
+///
+/// * `hosts` - The available hosts
+///
+/// # Returns
+///
+/// The picked host, or None, if there is no backup-target.
+fn pick_backup_host(hosts: &[HostEntry]) -> Option<HostEntry> {
+    let backup_hosts: Vec<&HostEntry> = hosts.iter().filter(|h| h.is_backup_target).collect();
+    backup_hosts
+        .choose(&mut rand::rng())
+        .map(|host| (*host).clone())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -163,6 +264,27 @@ mod tests {
         let not_found = AinariError::NotFound("missing".to_string());
         assert!(!is_listing_not_empty(Err(not_found)).unwrap());
         assert!(is_listing_not_empty(Err(AinariError::internal("broken"))).is_err());
+    }
+
+    #[test]
+    fn test_pick_backup_host() {
+        let backup_host = host(true);
+        let hosts = vec![host(false), backup_host.clone(), host(false)];
+        for _ in 0..50 {
+            assert_eq!(pick_backup_host(&hosts).unwrap().uuid, backup_host.uuid);
+        }
+        assert!(pick_backup_host(&[]).is_none());
+        assert!(pick_backup_host(&[host(false)]).is_none());
+    }
+
+    #[test]
+    fn test_join_path() {
+        assert_eq!(join_path("", "manifest.json"), "manifest.json");
+        assert_eq!(
+            join_path("metadata", "miko.json.enc"),
+            "metadata/miko.json.enc"
+        );
+        assert_eq!(join_path("backups/x", "disks"), "backups/x/disks");
     }
 
     #[test]

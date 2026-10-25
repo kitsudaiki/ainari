@@ -27,6 +27,8 @@ use tonic::{Code, Request, Status};
 // use std::fs;
 
 use async_stream::stream;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::{Arc, Mutex};
 use tokio::fs::File;
 use tokio::fs::OpenOptions;
 use tokio::io::AsyncReadExt;
@@ -237,6 +239,211 @@ fn status_to_error(action: &str, status: Status) -> AinariError {
         Code::InvalidArgument => AinariError::InvalidInput(msg),
         _ => AinariError::internal(msg),
     }
+}
+
+/// Uploads data from memory as file to a remote server using gRPC streaming.
+///
+/// An existing file with the same path is overwritten.
+///
+/// # Arguments
+///
+/// * `onsen_address` - The address of the remote server.
+/// * `remote_file_path` - The path where the file will be stored on the remote server.
+/// * `data` - The content of the file.
+///
+/// # Returns
+///
+/// * `Result<(), AinariError>` - Ok if the upload is successful, otherwise an AinariError.
+pub async fn upload_data(
+    onsen_address: &str,
+    remote_file_path: &str,
+    data: Vec<u8>,
+) -> Result<(), AinariError> {
+    let remote_file_path = remote_file_path.to_owned();
+    let outbound = stream! {
+        let mut counter: i64 = 0;
+        for chunk in data.chunks(CHUNK_SIZE) {
+            yield DataChunk {
+                remote_file_path: remote_file_path.clone(),
+                chunk: chunk.to_vec(),
+                chunk_number: counter,
+                eof: false,
+            };
+            counter += 1;
+        }
+        yield DataChunk {
+            remote_file_path: remote_file_path.clone(),
+            chunk: vec![],
+            chunk_number: counter,
+            eof: true,
+        };
+    };
+
+    connect(onsen_address)
+        .await?
+        .upload_file(Request::new(outbound))
+        .await
+        .map_err(|e| status_to_error("upload file", e))?;
+
+    Ok(())
+}
+
+/// Downloads a file from a remote server into memory using gRPC streaming.
+///
+/// # Arguments
+///
+/// * `onsen_address` - The address of the remote server.
+/// * `remote_file_path` - The path to the file on the remote server.
+/// * `max_size` - Maximum size of the file in bytes, so a large file can't fill the memory.
+///
+/// # Returns
+///
+/// * `Result<Vec<u8>, AinariError>` - The content of the file, `NotFound`, if the file doesn't
+///   exist, `InvalidInput`, if the file is larger than `max_size`, otherwise an AinariError.
+pub async fn download_data(
+    onsen_address: &str,
+    remote_file_path: &str,
+    max_size: usize,
+) -> Result<Vec<u8>, AinariError> {
+    let req = DownloadRequest {
+        remote_file_path: remote_file_path.to_owned(),
+    };
+    let mut stream = connect(onsen_address)
+        .await?
+        .download_file(Request::new(req))
+        .await
+        .map_err(|e| status_to_error("download file", e))?
+        .into_inner();
+
+    let mut data = Vec::new();
+    loop {
+        let chunk = stream
+            .message()
+            .await
+            .map_err(|e| status_to_error("download file", e))?
+            .ok_or_else(|| {
+                AinariError::internal(format!(
+                    "Download of file '{remote_file_path}' ended before the end of the file"
+                ))
+            })?;
+        if data.len() + chunk.chunk.len() > max_size {
+            return Err(AinariError::InvalidInput(format!(
+                "File '{remote_file_path}' is larger than {max_size} bytes"
+            )));
+        }
+        data.extend_from_slice(&chunk.chunk);
+        if chunk.eof {
+            return Ok(data);
+        }
+    }
+}
+
+/// Copies a file from one remote server to another using gRPC streaming, without storing it
+/// locally.
+///
+/// The download-stream of the source is passed chunk by chunk into the upload-stream of the
+/// target, so also large files are never held in memory. The target only reports, that the
+/// upload-stream has ended, not if the file is complete, so the end of the source is checked
+/// here: if the download fails or ends before the end of the file, the incomplete target-file is
+/// deleted again. An existing target-file with the same path is overwritten.
+///
+/// # Arguments
+///
+/// * `source_address` - The address of the remote server, which stores the file.
+/// * `source_path` - The path of the file on the source.
+/// * `target_address` - The address of the remote server, where the file is copied to.
+/// * `target_path` - The path of the copy on the target.
+///
+/// # Returns
+///
+/// * `Result<u64, AinariError>` - The number of copied bytes, `NotFound`, if the source-file
+///   doesn't exist, otherwise an AinariError.
+pub async fn copy_file(
+    source_address: &str,
+    source_path: &str,
+    target_address: &str,
+    target_path: &str,
+) -> Result<u64, AinariError> {
+    let mut target = connect(target_address).await?;
+    let req = DownloadRequest {
+        remote_file_path: source_path.to_owned(),
+    };
+    let mut source = connect(source_address)
+        .await?
+        .download_file(Request::new(req))
+        .await
+        .map_err(|e| status_to_error("download file", e))?
+        .into_inner();
+
+    // the stream can't return an error, so the result of the download is shared with it
+    let download_error: Arc<Mutex<Option<AinariError>>> = Arc::new(Mutex::new(None));
+    let is_complete = Arc::new(AtomicBool::new(false));
+    let copied_bytes = Arc::new(AtomicU64::new(0));
+
+    let outbound = {
+        let download_error = download_error.clone();
+        let is_complete = is_complete.clone();
+        let copied_bytes = copied_bytes.clone();
+        let target_path = target_path.to_owned();
+        stream! {
+            let mut counter: i64 = 0;
+            loop {
+                match source.message().await {
+                    Ok(Some(chunk)) => {
+                        copied_bytes.fetch_add(chunk.chunk.len() as u64, Ordering::Relaxed);
+                        let eof = chunk.eof;
+                        yield DataChunk {
+                            remote_file_path: target_path.clone(),
+                            chunk: chunk.chunk,
+                            chunk_number: counter,
+                            eof,
+                        };
+                        counter += 1;
+                        if eof {
+                            is_complete.store(true, Ordering::Relaxed);
+                            break;
+                        }
+                    }
+                    // the source ended the stream before the end of the file
+                    Ok(None) => break,
+                    Err(e) => {
+                        let error = status_to_error("download file", e);
+                        *download_error.lock().expect("mutex poisoned") = Some(error);
+                        break;
+                    }
+                }
+            }
+        }
+    };
+
+    let upload_result = target
+        .upload_file(Request::new(outbound))
+        .await
+        .map_err(|e| status_to_error("upload file", e));
+
+    let download_error = download_error.lock().expect("mutex poisoned").take();
+    let result = match (upload_result, download_error) {
+        (_, Some(e)) => Err(e),
+        (Err(e), None) => Err(e),
+        (Ok(_), None) if !is_complete.load(Ordering::Relaxed) => Err(AinariError::internal(
+            format!("Download of file '{source_path}' ended before the end of the file"),
+        )),
+        (Ok(_), None) => Ok(copied_bytes.load(Ordering::Relaxed)),
+    };
+
+    if result.is_err() {
+        // the onsen accepts the deletion of a file, which doesn't exist
+        let req = DeleteRequest {
+            remote_file_path: target_path.to_owned(),
+        };
+        if let Err(e) = target.delete_file(Request::new(req)).await {
+            log::error!(
+                "Failed to delete incomplete copy '{target_path}' on onsen '{target_address}': {e}"
+            );
+        }
+    }
+
+    result
 }
 
 /// Lists the direct entries of a directory on a remote server using gRPC.
