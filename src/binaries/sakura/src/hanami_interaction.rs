@@ -34,7 +34,7 @@ use ainari_hardware::memory::get_total_memory_amount;
 /// 1. Creates a Tokio runtime for asynchronous operations
 /// 2. Retrieves system endpoints from Miko
 /// 3. Gathers information about the host system (name, cpu-threads, memory and disk-space)
-/// 4. Collects UUIDs of deleted virtual_machines from the database
+/// 4. Collects UUIDs of the existing virtual_machines from the database
 /// 5. Registers the host with Hanami using the collected information
 ///
 /// # Errors
@@ -94,24 +94,16 @@ pub fn register_host() -> Result<(), AinariError> {
         "available for virtual machines: cpu-threads: {number_of_cores}, memory: {memory_size} MiB, disk: {disk_space} GiB"
     );
 
-    // Retrieve list of deleted virtual_machines from the database
-    let deleted_virtual_machines = match virtual_machine_table::list_deleted_virtual_machines() {
-        Ok(virtual_machines) => virtual_machines,
-        Err(e) => {
-            log::error!("Failed to get list of virtual_machines form database: '{e}'");
-            return Err(AinariError::internal(format!(
-                "Failed to get list of virtual_machines form database: '{e}'"
-            )));
-        }
+    // hanami syncs its virtual_machines of the host with the ones, which exist on the host
+    let virtual_machines = virtual_machine_table::list_all_virtual_machines().map_err(|e| {
+        log::error!("Failed to get list of virtual_machines from database: '{e}'");
+        AinariError::internal(format!(
+            "Failed to get list of virtual_machines from database: '{e}'"
+        ))
+    })?;
+    let virtual_machine_uuids = UuidList {
+        list: virtual_machines.iter().map(|vm| vm.uuid).collect(),
     };
-
-    // Prepare a list of UUIDs for deleted virtual_machines
-    let mut resp = UuidList { list: Vec::new() };
-
-    // Convert each virtual_machine UUID to the required format
-    for virtual_machine in deleted_virtual_machines {
-        resp.list.push(virtual_machine.uuid);
-    }
 
     // Register the host with Hanami service
     local.block_on(&rt, async {
@@ -121,7 +113,7 @@ pub fn register_host() -> Result<(), AinariError> {
             &host_name,
             &config::CONFIG.address,
             config::CONFIG.external_address.as_deref(),
-            resp,
+            virtual_machine_uuids,
             &config::SAKURA_REGISTRATION_KEY,
             number_of_cores,
             memory_size,

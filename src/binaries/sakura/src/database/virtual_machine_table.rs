@@ -271,20 +271,19 @@ pub fn get_virtual_machine(
     }
 }
 
-/// Lists all deleted virtual_machines from the database
+/// Lists all active virtual_machines of the host without any filter by user or project.
+///
+/// It is used to report the virtual_machines of the host to hanami, when the host registers.
 ///
 /// # Returns
-/// * `Ok(Vec<VirtualMachineEntry>)` with the list of deleted virtual_machines on success
+/// * `Ok(Vec<VirtualMachineEntry>)` with the list of active virtual_machines on success
 /// * `Err` with an appropriate error on failure
-pub fn list_deleted_virtual_machines() -> QueryResult<Vec<VirtualMachineEntry>> {
+pub fn list_all_virtual_machines() -> QueryResult<Vec<VirtualMachineEntry>> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::virtual_machines::dsl::*;
 
-    // Create a query to find all virtual_machines with "DELETED" status
-    let query = virtual_machines.filter(status.eq("DELETED")).into_boxed();
-
-    // Execute the query and return the results
-    query
+    virtual_machines
+        .filter(status.eq("ACTIVE"))
         .select(VirtualMachineEntry::as_select())
         .load(&mut *conn)
 }
@@ -870,10 +869,10 @@ mod tests {
         // a soft-deleted entry still blocks the uuid
         assert!(add_new_virtual_machine(new_virtual_machine(), &context).is_err());
 
-        // a removed virtual_machine is not reported to hanami as deleted ...
+        // a removed virtual_machine is not reported to hanami anymore ...
         assert!(remove_virtual_machine(&uuid1).is_ok());
-        let deleted = list_deleted_virtual_machines().unwrap();
-        assert!(deleted.iter().all(|entry| entry.uuid != uuid1));
+        let existing = list_all_virtual_machines().unwrap();
+        assert!(existing.iter().all(|entry| entry.uuid != uuid1));
 
         // ... and its uuid can be used again, for example by a migration back to this host
         add_new_virtual_machine(new_virtual_machine(), &context).unwrap();

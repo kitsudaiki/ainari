@@ -43,7 +43,9 @@ pub struct SakuraHostCreateReq {
     #[serde(default)]
     #[validate(length(min = 4, max = 127))]
     pub external_address: Option<String>,
-    pub deleted_uuids: UuidList,
+    /// UUIDs of all virtual-machines, which exist on the host. Hanami removes its entries of
+    /// virtual-machines of the host, which are not in this list.
+    pub virtual_machine_uuids: UuidList,
     #[validate(length(min = 4, max = 127))]
     pub registration_key: Secret,
     /// number of cpu-threads of the host

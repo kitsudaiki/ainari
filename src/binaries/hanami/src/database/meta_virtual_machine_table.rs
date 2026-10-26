@@ -309,38 +309,50 @@ pub fn set_host_of_meta_virtual_machine(
     }
 }
 
-/// Force deletes a meta virtual_machine from the database.
+/// Deletes all active meta virtual_machines of a sakura-host, which don't exist on the host
+/// anymore.
 ///
-/// This function marks a meta virtual_machine as deleted without checking permissions.
-/// It's intended for system-level operations where permission checks are not required.
+/// It is used to sync the meta virtual_machines with the virtual_machines, which the host reports
+/// at its registration, so it doesn't check any permissions.
 ///
 /// # Arguments
-/// * `meta_virtual_machine_uuid` - The UUID of the meta virtual_machine to delete
+/// * `host_uuid` - The UUID of the sakura-host
+/// * `existing_uuids` - The UUIDs of the virtual_machines, which exist on the host
 ///
 /// # Returns
-/// A Result indicating success or an error
-pub fn force_delete_meta_virtual_machine(
-    meta_virtual_machine_uuid: &Uuid,
-) -> Result<(), enums::DbError> {
+/// A QueryResult containing the deleted meta virtual_machines
+pub fn delete_missing_meta_virtual_machines_of_host(
+    host_uuid: &Uuid,
+    existing_uuids: &[Uuid],
+) -> QueryResult<Vec<MetaVirtualMachineEntry>> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::meta_virtual_machines::dsl::*;
-    match diesel::update(
-        meta_virtual_machines.filter(uuid.eq(meta_virtual_machine_uuid.to_string())),
-    )
-    .set((
-        status.eq("DELETED"),
-        deleted_at.eq(Utc::now().to_rfc3339()),
-        deleted_by.eq("HOST_INIT"),
-    ))
-    .execute(&mut *conn)
-    {
-        Ok(_) => Ok(()),
-        Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
-        Err(e) => {
-            log::error!("Database-error: {e:?}");
-            Err(enums::DbError::InternalError)
+
+    let existing_uuids: Vec<String> = existing_uuids.iter().map(Uuid::to_string).collect();
+    conn.transaction(|conn| {
+        let missing = meta_virtual_machines
+            .filter(
+                sakura_host_uuid
+                    .eq(host_uuid.to_string())
+                    .and(status.eq("ACTIVE"))
+                    .and(uuid.ne_all(&existing_uuids)),
+            )
+            .select(MetaVirtualMachineEntry::as_select())
+            .load::<MetaVirtualMachineEntry>(conn)?;
+        if missing.is_empty() {
+            return Ok(missing);
         }
-    }
+
+        let missing_uuids: Vec<String> = missing.iter().map(|vm| vm.uuid.to_string()).collect();
+        diesel::update(meta_virtual_machines.filter(uuid.eq_any(&missing_uuids)))
+            .set((
+                status.eq("DELETED"),
+                deleted_at.eq(Utc::now().to_rfc3339()),
+                deleted_by.eq("HOST_INIT"),
+            ))
+            .execute(conn)?;
+        Ok(missing)
+    })
 }
 
 /// Deletes a meta virtual_machine from the database.
@@ -705,13 +717,73 @@ mod tests {
         assert_eq!(retrieved.updated_by, "admin");
 
         // a deleted virtual_machine is not moved anymore
-        assert!(force_delete_meta_virtual_machine(&uuid1).is_ok());
+        let deleted = delete_missing_meta_virtual_machines_of_host(&new_host_uuid, &[]).unwrap();
+        assert_eq!(deleted.len(), 1);
         assert!(matches!(
             set_host_of_meta_virtual_machine(&uuid1, &old_host_uuid, &context),
             Err(enums::DbError::NotFound)
         ));
 
         hard_delete_meta_virtual_machine(&uuid1);
+    }
+
+    #[test]
+    #[serial]
+    fn test_delete_missing_meta_virtual_machines_of_host() {
+        let (kept, missing, other) = (Uuid::new_v4(), Uuid::new_v4(), Uuid::new_v4());
+        let (host_uuid, other_host_uuid) = (Uuid::new_v4(), Uuid::new_v4());
+        let entry = |vm_uuid: Uuid, vm_host_uuid: Uuid| MetaVirtualMachineEntry {
+            uuid: vm_uuid,
+            name: "test-virtual_machine".to_string(),
+            sakura_host_uuid: vm_host_uuid,
+            proxy_uuid: Uuid::new_v4(),
+            owner_id: "test-user".to_string(),
+            project_id: "test-project".to_string(),
+            status: "ACTIVE".to_string(),
+            created_at: Utc::now(),
+            created_by: "test-user".to_string(),
+            updated_at: Utc::now(),
+            updated_by: "test-user".to_string(),
+            deleted_at: None,
+            deleted_by: None,
+            number_of_cores: 2,
+            memory_size: 2048,
+            disk_size: 10,
+        };
+        for (vm_uuid, vm_host_uuid) in [
+            (kept, host_uuid),
+            (missing, host_uuid),
+            (other, other_host_uuid),
+        ] {
+            hard_delete_meta_virtual_machine(&vm_uuid);
+            add_meta_virtual_machine(entry(vm_uuid, vm_host_uuid)).unwrap();
+        }
+
+        // only the virtual_machine of the host, which is not reported by the host, is deleted
+        let deleted = delete_missing_meta_virtual_machines_of_host(&host_uuid, &[kept]).unwrap();
+        assert_eq!(deleted.len(), 1);
+        assert_eq!(deleted[0].uuid, missing);
+        assert_eq!(deleted[0].number_of_cores, 2);
+        assert_eq!(
+            find_meta_virtual_machine(&missing).unwrap().unwrap().1,
+            "DELETED"
+        );
+        assert_eq!(
+            find_meta_virtual_machine(&kept).unwrap().unwrap().1,
+            "ACTIVE"
+        );
+        assert_eq!(
+            find_meta_virtual_machine(&other).unwrap().unwrap().1,
+            "ACTIVE"
+        );
+
+        // an already deleted virtual_machine is not returned again
+        let deleted = delete_missing_meta_virtual_machines_of_host(&host_uuid, &[kept]).unwrap();
+        assert!(deleted.is_empty());
+
+        for vm_uuid in [kept, missing, other] {
+            hard_delete_meta_virtual_machine(&vm_uuid);
+        }
     }
 
     #[test]

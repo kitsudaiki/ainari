@@ -30,6 +30,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - license check
     - go-linter
     - docker-scout check
+- when sakura restarts, now the list of existing VMs instead of deleted VMs is send to hanami 
+  to sync the database of hanami
 
 ### Changed
 
