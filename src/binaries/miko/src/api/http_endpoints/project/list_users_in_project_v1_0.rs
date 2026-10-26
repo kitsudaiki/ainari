@@ -32,7 +32,7 @@ use ainari_api_structs::user_context::UserContext;
 pub async fn list_users_in_project(
     context: UserContext,
 ) -> Result<Json<ProjectMemberListResp>, ErrorResponse> {
-    // get all active assignments of the project of the token from database
+    // get all assignments of the project of the token from database
     let mappings = user_project_mapping_table::list_mappings_of_project(&context.project_id)
         .map_err(|e| map_db_list_error("project members", e, Some(&context)))?;
 

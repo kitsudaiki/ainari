@@ -91,7 +91,7 @@ pub async fn delete_backup(
         }
     }
 
-    backup_table::delete_backup(&backup_uuid, &context)
+    backup_table::delete_backup(&backup_uuid)
         .map_err(|e| map_db_uuid_get_delete_error("backup", &backup_uuid, e, Some(&context)))?;
 
     Ok(NoContent)

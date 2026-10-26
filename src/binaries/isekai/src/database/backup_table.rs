@@ -34,13 +34,10 @@ table! {
         ainari_version -> Varchar,
         secret_uuids -> Text,
         owner_id -> Varchar,
-        status -> Varchar,
         created_at -> Varchar,
         created_by -> Varchar,
         updated_at -> Varchar,
         updated_by -> Varchar,
-        deleted_at -> Nullable<Varchar>,
-        deleted_by -> Nullable<Varchar>,
     }
 }
 
@@ -69,16 +66,12 @@ pub struct BackupEntry {
     #[diesel(serialize_as = DbVecString, deserialize_as = DbVecString)]
     pub secret_uuids: Vec<String>,
     pub owner_id: String,
-    pub status: String,
     #[diesel(serialize_as = DbDateTime, deserialize_as = DbDateTime)]
     pub created_at: DateTime<Utc>,
     pub created_by: String,
     #[diesel(serialize_as = DbDateTime, deserialize_as = DbDateTime)]
     pub updated_at: DateTime<Utc>,
     pub updated_by: String,
-    #[diesel(serialize_as = DbOptDateTime, deserialize_as = DbOptDateTime)]
-    pub deleted_at: Option<DateTime<Utc>>,
-    pub deleted_by: Option<String>,
 }
 
 impl BackupEntry {
@@ -149,20 +142,17 @@ pub fn add_new_backup(
         ainari_version: ainari_version(),
         secret_uuids: Vec::new(),
         owner_id: context.user_id.clone(),
-        status: "ACTIVE".to_string(),
         created_at: now,
         created_by: context.user_id.clone(),
         updated_at: now,
         updated_by: context.user_id.clone(),
-        deleted_at: None,
-        deleted_by: None,
     })
 }
 
 /// Adds a backup, which was created by another deployment and is imported, in the state `READY`.
 ///
-/// An entry of a deleted backup with the same UUID is replaced, so a package can be imported again,
-/// after its entry was deleted.
+/// A deleted backup is removed from the table, so a package can be imported again, after its
+/// entry was deleted.
 ///
 /// # Arguments
 ///
@@ -198,42 +188,15 @@ pub fn add_imported_backup(
         // the secrets of the disks are only part of the backup itself
         secret_uuids: Vec::new(),
         owner_id: context.user_id.clone(),
-        status: "ACTIVE".to_string(),
         created_at: now,
         created_by: context.user_id.clone(),
         updated_at: now,
         updated_by: context.user_id.clone(),
-        deleted_at: None,
-        deleted_by: None,
     };
-    replace_deleted_backup(entry)
+    add_backup(entry)
 }
 
-/// Adds a backup and removes an entry of a deleted backup with the same UUID before.
-///
-/// # Arguments
-///
-/// * `entry` - The backup to insert
-///
-/// # Returns
-///
-/// A QueryResult indicating the number of rows affected
-fn replace_deleted_backup(entry: BackupEntry) -> QueryResult<usize> {
-    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
-    use self::backups::dsl::*;
-    let backup_uuid = entry.uuid;
-    conn.transaction(|conn| {
-        diesel::delete(
-            backups
-                .filter(uuid.eq(backup_uuid.to_string()))
-                .filter(status.ne("ACTIVE")),
-        )
-        .execute(conn)?;
-        diesel::insert_into(backups).values(entry).execute(conn)
-    })
-}
-
-/// Checks, if a backup is known, which is not deleted, independent of its project.
+/// Checks, if a backup is known, independent of its project.
 ///
 /// # Arguments
 ///
@@ -248,7 +211,6 @@ pub fn is_known(backup_uuid: &Uuid) -> QueryResult<bool> {
 
     backups
         .filter(uuid.eq(backup_uuid.to_string()))
-        .filter(status.eq("ACTIVE"))
         .select(uuid)
         .first::<String>(&mut *conn)
         .optional()
@@ -283,8 +245,7 @@ pub fn add_backup(entry: BackupEntry) -> QueryResult<usize> {
 
 /// Retrieves a backup from the database.
 ///
-/// Only backups, which are not deleted, are returned. Users, which are not admin, only see the
-/// backups of their own project.
+/// Users, which are not admin, only see the backups of their own project.
 ///
 /// # Arguments
 ///
@@ -302,7 +263,7 @@ pub fn get_backup(
     use self::backups::dsl::*;
 
     let mut query = backups
-        .filter(uuid.eq(backup_uuid.to_string()).and(status.eq("ACTIVE")))
+        .filter(uuid.eq(backup_uuid.to_string()))
         .into_boxed();
 
     if context.is_admin != true.to_string() {
@@ -339,7 +300,7 @@ pub fn list_backups(
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::backups::dsl::*;
 
-    let mut query = backups.filter(status.eq("ACTIVE")).into_boxed();
+    let mut query = backups.into_boxed();
 
     if context.is_admin != true.to_string() {
         query = query.filter(project_id.eq(context.project_id.clone()));
@@ -464,32 +425,20 @@ pub fn add_backup_secret(backup_uuid: &Uuid, secret_uuid: &Uuid) -> Result<(), e
     }
 }
 
-/// Marks a backup as deleted.
+/// Deletes a backup.
 ///
 /// # Arguments
 ///
 /// * `backup_uuid` - The UUID of the backup
-/// * `context` - The user context of the user, who deletes the backup
 ///
 /// # Returns
 ///
 /// Ok, if the backup was deleted, `NotFound`, if it doesn't exist
-pub fn delete_backup(backup_uuid: &Uuid, context: &UserContext) -> Result<(), enums::DbError> {
+pub fn delete_backup(backup_uuid: &Uuid) -> Result<(), enums::DbError> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::backups::dsl::*;
 
-    match diesel::update(
-        backups
-            .filter(uuid.eq(backup_uuid.to_string()))
-            .filter(status.eq("ACTIVE")),
-    )
-    .set((
-        status.eq("DELETED"),
-        deleted_at.eq(Utc::now().to_rfc3339()),
-        deleted_by.eq(context.user_id.clone()),
-    ))
-    .execute(&mut *conn)
-    {
+    match diesel::delete(backups.filter(uuid.eq(backup_uuid.to_string()))).execute(&mut *conn) {
         Ok(0) => Err(enums::DbError::NotFound),
         Ok(_) => Ok(()),
         Err(e) => {
@@ -510,16 +459,12 @@ pub fn fail_unfinished_backups() -> QueryResult<usize> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::backups::dsl::*;
 
-    diesel::update(
-        backups
-            .filter(status.eq("ACTIVE"))
-            .filter(backup_state.eq(BackupStatus::Creating.to_string())),
-    )
-    .set((
-        backup_state.eq(BackupStatus::Error.to_string()),
-        updated_at.eq(Utc::now().to_rfc3339()),
-    ))
-    .execute(&mut *conn)
+    diesel::update(backups.filter(backup_state.eq(BackupStatus::Creating.to_string())))
+        .set((
+            backup_state.eq(BackupStatus::Error.to_string()),
+            updated_at.eq(Utc::now().to_rfc3339()),
+        ))
+        .execute(&mut *conn)
 }
 
 #[cfg(test)]
@@ -650,13 +595,13 @@ mod tests {
         let listed = list_backups(&context, Some("test-list-other")).unwrap();
         assert!(listed.is_empty());
 
-        assert!(delete_backup(&uuid1, &context).is_ok());
+        assert!(delete_backup(&uuid1).is_ok());
         assert!(matches!(
             get_backup(&uuid1, &context),
             Err(enums::DbError::NotFound)
         ));
         assert!(matches!(
-            delete_backup(&uuid1, &context),
+            delete_backup(&uuid1),
             Err(enums::DbError::NotFound)
         ));
 
@@ -688,7 +633,7 @@ mod tests {
         assert_eq!(entry.project_id, "old-project");
         assert_eq!(entry.ainari_version, "0.21.0");
 
-        // an active backup can't be imported twice, but a deleted one again
+        // an existing backup can't be imported twice, but a deleted one again
         let again = |name| {
             add_imported_backup(
                 &backup_uuid,
@@ -701,7 +646,7 @@ mod tests {
             )
         };
         assert!(again("twice").is_err());
-        assert!(delete_backup(&backup_uuid, &admin).is_ok());
+        assert!(delete_backup(&backup_uuid).is_ok());
         assert!(!is_known(&backup_uuid).unwrap());
         again("again").unwrap();
         assert_eq!(expect_entry(get_backup(&backup_uuid, &admin)).name, "again");

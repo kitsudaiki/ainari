@@ -43,8 +43,7 @@ again. The `wrap_key` is only used for this request and is never stored or logge
 The resources keep their UUIDs, unless the `id_map` gives them a new one, which is also applied to
 the resources, which own the secrets. A UUID, which is used by another project, is rejected with
 `409`. An existing secret or public-key of the project with the same UUID is rejected with `409`,
-unless `force` is set, which overwrites it. A deleted one is restored. All conflicts are checked,
-before anything is changed. The quota of the project is not checked here. Users, which are not
+unless `force` is set, which overwrites it. All conflicts are checked, before anything is changed. The quota of the project is not checked here. Users, which are not
 admin, can only import into their own project.
 
 This is an internal call, which is protected by the internal api-key."###,
@@ -102,9 +101,9 @@ pub async fn import_project_internal(
     for uuid in &secret_uuids {
         let existing = secret_table::find_secret(uuid)
             .map_err(|e| map_db_list_error("secrets", e, Some(&context)))?
-            .map(|secret| (secret.project_id, secret.status));
+            .map(|secret| secret.project_id);
         overwritten_secrets.push(check_import_target(
-            existing.as_ref().map(|(p, st)| (p.as_str(), st.as_str())),
+            existing.as_deref(),
             &project_id,
             body.force,
             "Secret",
@@ -115,9 +114,9 @@ pub async fn import_project_internal(
     for uuid in &public_key_uuids {
         let existing = public_key_table::find_public_key(uuid)
             .map_err(|e| map_db_list_error("public-keys", e, Some(&context)))?
-            .map(|public_key| (public_key.project_id, public_key.status));
+            .map(|public_key| public_key.project_id);
         overwritten_public_keys.push(check_import_target(
-            existing.as_ref().map(|(p, st)| (p.as_str(), st.as_str())),
+            existing.as_deref(),
             &project_id,
             body.force,
             "Public-key",
@@ -141,13 +140,10 @@ pub async fn import_project_internal(
             resource_uuid: secret.resource_uuid.as_ref().map(new_uuid),
             owner_id: context.user_id.clone(),
             project_id: project_id.clone(),
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: context.user_id.clone(),
             updated_at: Utc::now(),
             updated_by: context.user_id.clone(),
-            deleted_at: None,
-            deleted_by: None,
         })
         .map_err(|e| {
             map_db_write_error(
@@ -182,13 +178,10 @@ pub async fn import_project_internal(
             fingerprint,
             owner_id: context.user_id.clone(),
             project_id: project_id.clone(),
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: context.user_id.clone(),
             updated_at: Utc::now(),
             updated_by: context.user_id.clone(),
-            deleted_at: None,
-            deleted_by: None,
         })
         .map_err(|e| {
             map_db_write_error(
@@ -341,7 +334,7 @@ mod tests {
         );
         assert_eq!(payload_of(&secret), "payload");
 
-        // a deleted secret is restored with its UUID, also without force
+        // a deleted secret is imported again with its UUID, also without force
         assert!(secret_table::delete_secret(&secret, &context).is_ok());
         SimpleCrypto::new().delete(&secret).unwrap();
         exported.public_keys.clear();
@@ -349,10 +342,7 @@ mod tests {
             .await
             .unwrap();
         assert!(!resp.secrets[0].overwritten);
-        assert_eq!(
-            secret_table::find_secret(&secret).unwrap().unwrap().status,
-            "ACTIVE"
-        );
+        assert!(secret_table::find_secret(&secret).unwrap().is_some());
         assert_eq!(payload_of(&secret), "payload");
 
         delete_project_entries(&project);

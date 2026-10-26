@@ -61,7 +61,7 @@ pub async fn remove_user_from_project_admin(
     user_table::get_user(user_id, &context)
         .map_err(|e| map_db_id_get_delete_error("user", user_id, e, Some(&context)))?;
 
-    // mark mapping as deleted in database
+    // delete mapping from database
     user_project_mapping_table::delete_mapping(&project_id, user_id, &context).map_err(
         |e| match e {
             DbError::NotFound => ErrorResponse::NotFound(format!(

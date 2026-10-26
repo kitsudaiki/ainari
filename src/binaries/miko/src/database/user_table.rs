@@ -41,13 +41,10 @@ table! {
         is_admin -> Varchar,
         pw_hash -> Varchar,
         salt -> Varchar,
-        status -> Varchar,
         created_at -> Varchar,
         created_by -> Varchar,
         updated_at -> Varchar,
         updated_by -> Varchar,
-        deleted_at -> Nullable<Varchar>,
-        deleted_by -> Nullable<Varchar>,
     }
 }
 
@@ -64,16 +61,12 @@ pub struct UserEntry {
     pub is_admin: String,
     pub pw_hash: String,
     pub salt: String,
-    pub status: String,
     #[diesel(serialize_as = DbDateTime, deserialize_as = DbDateTime)]
     pub created_at: DateTime<Utc>,
     pub created_by: String,
     #[diesel(serialize_as = DbDateTime, deserialize_as = DbDateTime)]
     pub updated_at: DateTime<Utc>,
     pub updated_by: String,
-    #[diesel(serialize_as = DbOptDateTime, deserialize_as = DbOptDateTime)]
-    pub deleted_at: Option<DateTime<Utc>>,
-    pub deleted_by: Option<String>,
 }
 
 /// Initializes the first admin user in the system.
@@ -175,7 +168,6 @@ pub fn add_new_user(
     }
 
     // check if user alredy exist in the database
-    // The same id is allowed multiple times in the table, but only one time active.
     if get_user(user_id, context).is_ok() {
         return Err(diesel::result::Error::DatabaseError(
             DatabaseErrorKind::UniqueViolation,
@@ -195,13 +187,10 @@ pub fn add_new_user(
         is_admin: is_admin.to_string(),
         pw_hash,
         salt,
-        status: "ACTIVE".to_string(),
         created_at: Utc::now(),
         created_by: context.user_id.clone(),
         updated_at: Utc::now(),
         updated_by: context.user_id.clone(),
-        deleted_at: None,
-        deleted_by: None,
     };
 
     // rollback the default-project, if the user itself could not be written
@@ -318,7 +307,7 @@ pub fn upgrade_passphrase_hash(
 
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::users::dsl::*;
-    match diesel::update(users.filter(id.eq(user_id).and(status.eq("ACTIVE"))))
+    match diesel::update(users.filter(id.eq(user_id)))
         .set((pw_hash.eq(new_pw_hash), salt.eq(new_salt)))
         .execute(&mut *conn)
     {
@@ -360,7 +349,7 @@ pub fn update_passphrase(
 
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::users::dsl::*;
-    match diesel::update(users.filter(id.eq(user_id).and(status.eq("ACTIVE"))))
+    match diesel::update(users.filter(id.eq(user_id)))
         .set((
             pw_hash.eq(new_pw_hash),
             salt.eq(new_salt),
@@ -398,7 +387,7 @@ pub fn add_user(user: UserEntry) -> QueryResult<usize> {
 
 /// Retrieves an authenticated user from the database.
 ///
-/// This function fetches a user by their ID, ensuring the user is active.
+/// This function fetches a user by their ID.
 /// Unlike get_user, this function doesn't check for admin privileges.
 ///
 /// # Arguments
@@ -413,7 +402,7 @@ pub fn get_auth_user(user_id: &String) -> Result<UserEntry, enums::DbError> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::users::dsl::*;
     match users
-        .filter(id.eq(user_id).and(status.eq("ACTIVE")))
+        .filter(id.eq(user_id))
         .select(UserEntry::as_select())
         .first::<UserEntry>(&mut *conn)
     {
@@ -428,7 +417,7 @@ pub fn get_auth_user(user_id: &String) -> Result<UserEntry, enums::DbError> {
 
 /// Retrieves a user from the database with admin privileges check.
 ///
-/// This function fetches a user by their ID, ensuring the user is active.
+/// This function fetches a user by their ID.
 /// The caller must have admin privileges to retrieve user information.
 ///
 /// # Arguments
@@ -448,7 +437,7 @@ pub fn get_user(user_id: &String, context: &UserContext) -> Result<UserEntry, en
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::users::dsl::*;
     match users
-        .filter(id.eq(user_id).and(status.eq("ACTIVE")))
+        .filter(id.eq(user_id))
         .select(UserEntry::as_select())
         .first::<UserEntry>(&mut *conn)
     {
@@ -461,9 +450,8 @@ pub fn get_user(user_id: &String, context: &UserContext) -> Result<UserEntry, en
     }
 }
 
-/// Lists all active users in the system.
+/// Lists all users in the system.
 ///
-/// This function retrieves all users with an "ACTIVE" status.
 /// Only users with admin privileges can list all users.
 ///
 /// # Arguments
@@ -482,15 +470,11 @@ pub fn list_users(context: &UserContext) -> QueryResult<Vec<UserEntry>> {
 
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::users::dsl::*;
-    users
-        .filter(status.eq("ACTIVE"))
-        .select(UserEntry::as_select())
-        .load(&mut *conn)
+    users.select(UserEntry::as_select()).load(&mut *conn)
 }
 
 /// Deletes a user from the system.
 ///
-/// This function marks a user as "DELETED" in the database.
 /// Only users with admin privileges can delete other users.
 ///
 /// # Arguments
@@ -514,10 +498,7 @@ pub fn delete_user(user_id: &String, context: &UserContext) -> Result<(), enums:
 
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::users::dsl::*;
-    match diesel::update(users.filter(id.eq(user_id)))
-        .set(status.eq("DELETED"))
-        .execute(&mut *conn)
-    {
+    match diesel::delete(users.filter(id.eq(user_id))).execute(&mut *conn) {
         Ok(_) => Ok(()),
         Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
         Err(e) => {
@@ -558,13 +539,10 @@ mod tests {
             is_admin: true.to_string(),
             pw_hash: "hash123".to_string(),
             salt: "salt123".to_string(),
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
         };
 
         hard_delete_user(&user.id);
@@ -576,11 +554,8 @@ mod tests {
             assert_eq!(retrieved_user.is_admin, user.is_admin);
             assert_eq!(retrieved_user.pw_hash, user.pw_hash);
             assert_eq!(retrieved_user.salt, user.salt);
-            assert_eq!(retrieved_user.status, user.status);
             assert_eq!(retrieved_user.created_by, user.created_by);
             assert_eq!(retrieved_user.updated_by, user.updated_by);
-            assert_eq!(retrieved_user.deleted_at, user.deleted_at);
-            assert_eq!(retrieved_user.deleted_by, user.deleted_by);
         };
 
         let _ = delete_user(&user.id, &context);
@@ -606,13 +581,10 @@ mod tests {
             is_admin: true.to_string(),
             pw_hash: "hash123".to_string(),
             salt: "salt123".to_string(),
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
         };
 
         let user2 = UserEntry {
@@ -621,13 +593,10 @@ mod tests {
             is_admin: false.to_string(),
             pw_hash: "hash456".to_string(),
             salt: "salt456".to_string(),
-            status: "DELETED".to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
         };
 
         hard_delete_user(&user1.id);
@@ -635,6 +604,7 @@ mod tests {
 
         add_user(user1.clone()).unwrap();
         add_user(user2.clone()).unwrap();
+        assert!(delete_user(&user2.id, &context).is_ok());
 
         let users = list_users(&context).unwrap();
         assert_eq!(users.len(), 1);
@@ -662,13 +632,10 @@ mod tests {
             is_admin: true.to_string(),
             pw_hash: "hash123".to_string(),
             salt: "salt123".to_string(),
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
         };
 
         hard_delete_user(&user.id);
@@ -754,13 +721,10 @@ mod tests {
             is_admin: false.to_string(),
             pw_hash: old_pw_hash,
             salt: old_salt,
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
         };
         add_user(user).unwrap();
         let user = get_auth_user(&user_id).ok().expect("user not found");
@@ -816,13 +780,10 @@ mod tests {
             is_admin: false.to_string(),
             pw_hash: sha256_hash(&format!("{}{legacy_salt}", passphrase.reveal())),
             salt: legacy_salt,
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
         };
         add_user(user).unwrap();
         let user = get_auth_user(&user_id).ok().expect("user not found");

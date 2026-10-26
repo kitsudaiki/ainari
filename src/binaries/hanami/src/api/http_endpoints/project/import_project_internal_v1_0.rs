@@ -212,10 +212,12 @@ fn check_network(
 ) -> Result<bool, ErrorResponse> {
     let existing = network_table::find_network(uuid)
         .map_err(|e| map_db_list_error("networks", e, Some(context)))?;
+    // a deleted network of the project is restored, so it is handled like a free UUID
     let overwritten = check_import_target(
         existing
             .as_ref()
-            .map(|n| (n.project_id.as_str(), n.status.as_str())),
+            .filter(|n| n.status == "ACTIVE" || n.project_id != context.project_id)
+            .map(|n| n.project_id.as_str()),
         &context.project_id,
         force,
         "Network",

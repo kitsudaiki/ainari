@@ -131,13 +131,10 @@ mod tests {
             ainari_version: "0.22.0".to_string(),
             secret_uuids: Vec::new(),
             owner_id: "user".to_string(),
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "user".to_string(),
             updated_at: Utc::now(),
             updated_by: "user".to_string(),
-            deleted_at: None,
-            deleted_by: None,
         };
         let mut package = BackupResp {
             uuid: entry.uuid,

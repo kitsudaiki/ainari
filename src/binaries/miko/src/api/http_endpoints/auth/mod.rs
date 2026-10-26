@@ -146,13 +146,10 @@ mod tests {
             is_admin: is_admin.to_string(),
             pw_hash: String::new(),
             salt: String::new(),
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
         }
     }
 

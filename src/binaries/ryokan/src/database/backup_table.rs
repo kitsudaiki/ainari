@@ -39,13 +39,10 @@ table! {
         manifest_sha256 -> Nullable<Varchar>,
         owner_id -> Varchar,
         project_id -> Varchar,
-        status -> Varchar,
         created_at -> Varchar,
         created_by -> Varchar,
         updated_at -> Varchar,
         updated_by -> Varchar,
-        deleted_at -> Nullable<Varchar>,
-        deleted_by -> Nullable<Varchar>,
     }
 }
 
@@ -76,8 +73,6 @@ pub struct BackupEntry {
     pub owner_id: String,
     /// ID of the project this backup belongs to
     pub project_id: String,
-    /// Status of the entry (e.g., "ACTIVE", "DELETED")
-    pub status: String,
     /// Timestamp when the backup was created
     #[diesel(serialize_as = DbDateTime, deserialize_as = DbDateTime)]
     pub created_at: DateTime<Utc>,
@@ -88,11 +83,6 @@ pub struct BackupEntry {
     pub updated_at: DateTime<Utc>,
     /// ID of the user who last updated the backup
     pub updated_by: String,
-    /// Timestamp when the backup was deleted (if applicable)
-    #[diesel(serialize_as = DbOptDateTime, deserialize_as = DbOptDateTime)]
-    pub deleted_at: Option<DateTime<Utc>>,
-    /// ID of the user who deleted the backup (if applicable)
-    pub deleted_by: Option<String>,
 }
 
 /// Summary of the files of a complete package, which is stored, when the package is sealed.
@@ -181,13 +171,10 @@ pub fn add_new_backup(
         manifest_sha256: package.map(|p| p.manifest_sha256.clone()),
         owner_id: context.user_id.clone(),
         project_id: project.to_owned(),
-        status: "ACTIVE".to_string(),
         created_at: Utc::now(),
         created_by: context.user_id.clone(),
         updated_at: Utc::now(),
         updated_by: context.user_id.clone(),
-        deleted_at: None,
-        deleted_by: None,
     };
 
     add_backup(backup)
@@ -213,7 +200,7 @@ pub fn add_backup(backup: BackupEntry) -> QueryResult<BackupAddResult> {
         if !host_table::is_backup_target_host(conn, &backup.host_uuid)? {
             return Ok(BackupAddResult::NoBackupTarget);
         }
-        // also deleted backups block their UUID, because the UUID names the directory
+        // the UUID names the directory, so it can only be used by one backup
         let existing = backups
             .filter(uuid.eq(backup.uuid.to_string()))
             .select(count_star())
@@ -226,7 +213,7 @@ pub fn add_backup(backup: BackupEntry) -> QueryResult<BackupAddResult> {
     })
 }
 
-/// Checks, if a backup with this UUID was ever registered, also if it is already deleted.
+/// Checks, if a backup with this UUID is registered.
 ///
 /// # Arguments
 ///
@@ -266,7 +253,7 @@ pub fn get_backup(
     use self::backups::dsl::*;
 
     let mut query = backups
-        .filter(uuid.eq(backup_uuid.to_string()).and(status.eq("ACTIVE")))
+        .filter(uuid.eq(backup_uuid.to_string()))
         .into_boxed();
 
     if context.is_admin != true.to_string() {
@@ -300,7 +287,7 @@ pub fn list_backups(context: &UserContext, project: Option<&str>) -> QueryResult
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::backups::dsl::*;
 
-    let mut query = backups.filter(status.eq("ACTIVE")).into_boxed();
+    let mut query = backups.into_boxed();
 
     if context.is_admin != true.to_string() {
         query = query.filter(project_id.eq(context.project_id.clone()));
@@ -312,7 +299,7 @@ pub fn list_backups(context: &UserContext, project: Option<&str>) -> QueryResult
     query.select(BackupEntry::as_select()).load(&mut *conn)
 }
 
-/// Counts the active backups, which are stored on a backup-target.
+/// Counts the backups, which are stored on a backup-target.
 ///
 /// It takes the already locked connection, so it can be used within the transaction of another
 /// table.
@@ -324,12 +311,11 @@ pub fn list_backups(context: &UserContext, project: Option<&str>) -> QueryResult
 ///
 /// # Returns
 ///
-/// * `QueryResult<i64>` - The number of active backups on the host
+/// * `QueryResult<i64>` - The number of backups on the host
 pub fn count_backups_on_host(conn: &mut DbConnection, host: &Uuid) -> QueryResult<i64> {
     use self::backups::dsl::*;
 
     backups
-        .filter(status.eq("ACTIVE"))
         .filter(host_uuid.eq(host.to_string()))
         .select(count_star())
         .first::<i64>(conn)
@@ -372,7 +358,6 @@ pub fn change_backup_status(
     let expected: Vec<&str> = expected.iter().map(BackupStatus::as_str).collect();
     let target = backups.filter(
         uuid.eq(backup_uuid.to_string())
-            .and(status.eq("ACTIVE"))
             .and(backup_status.eq_any(expected)),
     );
     let result = match package {
@@ -433,18 +418,12 @@ pub fn delete_backup(
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::backups::dsl::*;
 
-    match diesel::update(
+    match diesel::delete(
         backups.filter(
             uuid.eq(backup_uuid.to_string())
-                .and(status.eq("ACTIVE"))
                 .and(backup_status.eq(BackupStatus::Deleting.as_str())),
         ),
     )
-    .set((
-        status.eq("DELETED"),
-        deleted_at.eq(Utc::now().to_rfc3339()),
-        deleted_by.eq(context.user_id.clone()),
-    ))
     .execute(&mut *conn)
     {
         Ok(0) => Ok(StatusChange::WrongStatus),
@@ -490,14 +469,11 @@ mod tests {
             uuid: Uuid::new_v4(),
             name: "onsen".to_string(),
             address: format!("http://{}:50051", Uuid::new_v4()),
-            status: "ACTIVE".to_string(),
             is_backup_target,
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
         };
         host_table::add_host(host.clone()).unwrap();
         host
@@ -681,8 +657,8 @@ mod tests {
             ),
             Err(enums::DbError::NotFound)
         ));
-        // the UUID stays blocked after the deletion
-        assert!(is_registered(&backup_uuid).unwrap());
+        // the UUID is free again after the deletion
+        assert!(!is_registered(&backup_uuid).unwrap());
 
         hard_delete(&backup_uuid, &host.uuid);
     }

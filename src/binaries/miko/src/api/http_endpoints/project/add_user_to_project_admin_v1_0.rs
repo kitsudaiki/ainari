@@ -56,7 +56,7 @@ pub async fn add_user_to_project_admin(
     project_table::get_project(&project_id, &context)
         .map_err(|e| map_db_id_get_delete_error("project", &project_id, e, Some(&context)))?;
 
-    // add new mapping to database. The unique index of the table rejects a second active mapping
+    // add new mapping to database. The unique index of the table rejects a second mapping
     // of the same pair, so this doesn't have to be checked before.
     user_project_mapping_table::add_new_mapping(&project_id, user_id, body.project_role, &context)
         .map_err(|e| match e {

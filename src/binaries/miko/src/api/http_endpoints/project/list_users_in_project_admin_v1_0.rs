@@ -37,7 +37,7 @@ pub async fn list_users_in_project_admin(
     // validate request
     check_admin_context(&context)?;
 
-    // get all active assignments of the project from database
+    // get all assignments of the project from database
     let mappings = user_project_mapping_table::list_mappings_of_project(&project_id)
         .map_err(|e| map_db_list_error("project members", e, Some(&context)))?;
 

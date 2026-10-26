@@ -595,12 +595,12 @@ pub fn check_unique_uuids<'a>(
 /// Checks, if a resource can be imported into a project under a UUID.
 ///
 /// A UUID, which is used by another project, is never taken over, so an import can't change the
-/// resources of another project. An active resource of the project is only overwritten with
-/// `force`, a deleted one can always be restored.
+/// resources of another project. An existing resource of the project is only overwritten with
+/// `force`.
 ///
 /// # Arguments
 ///
-/// * `existing` - Project and status of the entry, which already uses the UUID, if there is one
+/// * `existing` - Project of the entry, which already uses the UUID, if there is one
 /// * `project_id` - The project, into which the resource is imported
 /// * `force` - Overwrite an existing resource of the project
 /// * `kind` - Kind of the resource for the error-message
@@ -608,11 +608,11 @@ pub fn check_unique_uuids<'a>(
 ///
 /// # Returns
 ///
-/// * `Ok(bool)` - The resource can be imported, true if an active resource is overwritten
-/// * `Err(ErrorResponse::Conflict)` - The UUID is used by another project, or by an active
+/// * `Ok(bool)` - The resource can be imported, true if an existing resource is overwritten
+/// * `Err(ErrorResponse::Conflict)` - The UUID is used by another project, or by an existing
 ///   resource of the project without `force`
 pub fn check_import_target(
-    existing: Option<(&str, &str)>,
+    existing: Option<&str>,
     project_id: &str,
     force: bool,
     kind: &str,
@@ -620,17 +620,16 @@ pub fn check_import_target(
 ) -> Result<bool, ErrorResponse> {
     match existing {
         None => Ok(false),
-        Some((existing_project, _)) if existing_project != project_id => {
+        Some(existing_project) if existing_project != project_id => {
             Err(ErrorResponse::Conflict(format!(
                 "{kind} with UUID '{uuid}' can't be imported, because the UUID is already used by \
                  another project."
             )))
         }
-        Some((_, status)) if status == "ACTIVE" && !force => Err(ErrorResponse::Conflict(format!(
+        Some(_) if !force => Err(ErrorResponse::Conflict(format!(
             "{kind} with UUID '{uuid}' already exists. Use 'force' to overwrite it."
         ))),
-        // a deleted entry of the project is restored
-        Some((_, status)) => Ok(status == "ACTIVE"),
+        Some(_) => Ok(true),
     }
 }
 
@@ -655,26 +654,20 @@ mod tests {
         let check =
             |existing, force| check_import_target(existing, "project", force, "Secret", &uuid);
 
-        // free UUID or deleted entry of the project
+        // free UUID
         assert!(matches!(check(None, false), Ok(false)));
+        // existing entry of the project only with force
         assert!(matches!(
-            check(Some(("project", "DELETED")), false),
-            Ok(false)
-        ));
-        // active entry of the project only with force
-        assert!(matches!(
-            check(Some(("project", "ACTIVE")), false),
+            check(Some("project"), false),
             Err(ErrorResponse::Conflict(_))
         ));
-        assert!(matches!(check(Some(("project", "ACTIVE")), true), Ok(true)));
+        assert!(matches!(check(Some("project"), true), Ok(true)));
         // never the entry of another project
-        for status in ["ACTIVE", "DELETED"] {
-            for force in [false, true] {
-                assert!(matches!(
-                    check(Some(("other", status)), force),
-                    Err(ErrorResponse::Conflict(_))
-                ));
-            }
+        for force in [false, true] {
+            assert!(matches!(
+                check(Some("other"), force),
+                Err(ErrorResponse::Conflict(_))
+            ));
         }
     }
 }
