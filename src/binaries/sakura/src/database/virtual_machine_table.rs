@@ -576,6 +576,39 @@ pub fn remove_deleted_virtual_machine(virtual_machine_uuid: &Uuid) -> QueryResul
     .execute(&mut *conn)
 }
 
+/// Adds a virtual_machine entry to the database and replaces a deleted virtual_machine of the
+/// same project with the same UUID within the same transaction.
+///
+/// It is used to import a migrated virtual_machine, which was deleted on this host before, for
+/// example while it was restored from a backup onto another host. An active virtual_machine is
+/// never replaced, so its UUID still results in a unique-violation.
+///
+/// # Arguments
+/// * `virtual_machine` - The virtual_machine entry to insert
+///
+/// # Returns
+/// * `Ok(usize)` with the number of rows inserted on success
+/// * `Err` with an appropriate error on failure
+pub fn add_virtual_machine_replacing_deleted(
+    virtual_machine: VirtualMachineEntry,
+) -> QueryResult<usize> {
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+    use self::virtual_machines::dsl::*;
+    conn.transaction(|conn| {
+        diesel::delete(
+            virtual_machines.filter(
+                uuid.eq(virtual_machine.uuid.to_string())
+                    .and(status.eq("DELETED"))
+                    .and(project_id.eq(virtual_machine.project_id.clone())),
+            ),
+        )
+        .execute(conn)?;
+        diesel::insert_into(virtual_machines)
+            .values(virtual_machine)
+            .execute(conn)
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -881,6 +914,75 @@ mod tests {
         // removing a virtual_machine, which doesn't exist, is not an error
         assert!(remove_virtual_machine(&uuid1).is_ok());
         assert!(remove_virtual_machine(&uuid1).is_ok());
+    }
+
+    #[test]
+    #[serial]
+    fn test_add_virtual_machine_replacing_deleted() {
+        let uuid1 = Uuid::new_v4();
+        let context = UserContext {
+            token: "".to_string(),
+            user_id: "test-user".to_string(),
+            project_id: "test-project".to_string(),
+            is_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
+        };
+        let entry = |project: &str| VirtualMachineEntry {
+            uuid: uuid1,
+            name: "Alice".to_string(),
+            vm_state: VirtualMachineState::Migrating.to_string(),
+            number_of_cores: 2,
+            memory_size: 4096,
+            disk_size: 10,
+            image_uuid: Uuid::new_v4(),
+            public_key_uuid: Uuid::new_v4(),
+            network_uuid: Uuid::new_v4(),
+            internal_ip: Ipv4Addr::new(192, 168, 100, 2),
+            root_disk_path: None,
+            seed_path: "".to_string(),
+            tap_name: "tap-vm".to_string(),
+            mac_address: "02:00:00:00:00:42".to_string(),
+            owner_id: "test-user".to_string(),
+            project_id: project.to_string(),
+            status: "ACTIVE".to_string(),
+            created_at: Utc::now(),
+            created_by: "admin".to_string(),
+            updated_at: Utc::now(),
+            updated_by: "admin".to_string(),
+            deleted_at: None,
+            deleted_by: None,
+        };
+
+        hard_delete_virtual_machine(&uuid1);
+
+        // an active virtual_machine is never replaced
+        add_virtual_machine(entry("test-project")).unwrap();
+        assert!(matches!(
+            add_virtual_machine_replacing_deleted(entry("test-project")),
+            Err(diesel::result::Error::DatabaseError(
+                diesel::result::DatabaseErrorKind::UniqueViolation,
+                _
+            ))
+        ));
+
+        // a deleted virtual_machine of another project still blocks the uuid
+        assert!(delete_virtual_machine(&uuid1, &context).is_ok());
+        assert!(add_virtual_machine_replacing_deleted(entry("other-project")).is_err());
+        assert_eq!(
+            find_virtual_machine_status(&uuid1).unwrap().as_deref(),
+            Some("DELETED")
+        );
+
+        // a deleted virtual_machine of the same project is replaced
+        add_virtual_machine_replacing_deleted(entry("test-project")).unwrap();
+        let replaced = get_virtual_machine(&uuid1, &context)
+            .ok()
+            .expect("virtual_machine not found");
+        assert_eq!(replaced.status, "ACTIVE");
+        assert_eq!(replaced.vm_state, "MIGRATING");
+        assert_eq!(replaced.deleted_at, None);
+
+        hard_delete_virtual_machine(&uuid1);
     }
 
     #[test]

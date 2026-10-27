@@ -193,7 +193,7 @@ pub fn get_proxy(proxy_uuid: &Uuid, context: &UserContext) -> Result<ProxyEntry,
 ///
 /// # Returns
 /// * `QueryResult<bool>` true, if the UUID can't be used for a new proxy
-pub fn proxy_uuid_in_use(proxy_uuid: &Uuid, context: &UserContext) -> QueryResult<bool> {
+pub fn is_proxy_uuid_in_use(proxy_uuid: &Uuid, context: &UserContext) -> QueryResult<bool> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::proxys::dsl::*;
 
@@ -390,7 +390,7 @@ mod tests {
 
     #[test]
     #[serial]
-    fn test_proxy_uuid_in_use() {
+    fn test_is_proxy_uuid_in_use() {
         let proxy_uuid = Uuid::new_v4();
         let member = UserContext {
             token: "".to_string(),
@@ -406,16 +406,16 @@ mod tests {
         };
 
         hard_delete_proxy(&proxy_uuid);
-        assert!(!proxy_uuid_in_use(&proxy_uuid, &member).unwrap());
+        assert!(!is_proxy_uuid_in_use(&proxy_uuid, &member).unwrap());
 
         add_new_proxy(&proxy_uuid, "10.0.0.1:443", &proxy_uuid, &member).unwrap();
-        assert!(proxy_uuid_in_use(&proxy_uuid, &member).unwrap());
-        assert!(proxy_uuid_in_use(&proxy_uuid, &other_project).unwrap());
+        assert!(is_proxy_uuid_in_use(&proxy_uuid, &member).unwrap());
+        assert!(is_proxy_uuid_in_use(&proxy_uuid, &other_project).unwrap());
 
         // a deleted proxy only blocks its uuid for other projects
         assert!(delete_proxy(&proxy_uuid, &member).is_ok());
-        assert!(!proxy_uuid_in_use(&proxy_uuid, &member).unwrap());
-        assert!(proxy_uuid_in_use(&proxy_uuid, &other_project).unwrap());
+        assert!(!is_proxy_uuid_in_use(&proxy_uuid, &member).unwrap());
+        assert!(is_proxy_uuid_in_use(&proxy_uuid, &other_project).unwrap());
 
         // the virtual_machine of the deleted proxy is restored with its uuid, so the deleted
         // proxy is replaced

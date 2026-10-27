@@ -72,20 +72,24 @@ pub async fn import_virtual_machine_internal(
     .await
     .map_err(|e| map_ainari_error_to_api_response(e, Some(&context)))?;
 
-    virtual_machine_table::add_virtual_machine(imported_entry(description, &context)).map_err(
-        |e| match e {
-            DieselError::DatabaseError(DatabaseErrorKind::UniqueViolation, _) => {
-                ErrorResponse::Conflict(format!(
-                    "Virtual_machine '{virtual_machine_uuid}' already exists on this host."
-                ))
-            }
-            e => map_db_write_error(
-                &format!("add imported virtual_machine '{virtual_machine_uuid}' to database"),
-                e,
-                Some(&context),
-            ),
-        },
-    )?;
+    // a deleted entry of the virtual_machine on this host, for example after it was restored from
+    // a backup onto another host, would block its UUID
+    virtual_machine_table::add_virtual_machine_replacing_deleted(imported_entry(
+        description,
+        &context,
+    ))
+    .map_err(|e| match e {
+        DieselError::DatabaseError(DatabaseErrorKind::UniqueViolation, _) => {
+            ErrorResponse::Conflict(format!(
+                "Virtual_machine '{virtual_machine_uuid}' already exists on this host."
+            ))
+        }
+        e => map_db_write_error(
+            &format!("add imported virtual_machine '{virtual_machine_uuid}' to database"),
+            e,
+            Some(&context),
+        ),
+    })?;
 
     let task_description = format!(
         "Import virtual machine with UUID {virtual_machine_uuid} from {}",

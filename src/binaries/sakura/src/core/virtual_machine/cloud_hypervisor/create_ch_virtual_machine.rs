@@ -153,8 +153,106 @@ async fn create_and_boot_vm(uuid: &Uuid, context: &UserContext) -> Result<VmHand
     })
 }
 
-/// Time, which a new cloud-hypervisor process gets to create its API-socket
+/// Time, which a new cloud-hypervisor process gets to answer on its API-socket
 const VMM_SOCKET_TIMEOUT: Duration = Duration::from_secs(10);
+/// Time between two checks, if a new cloud-hypervisor process answers on its API-socket
+const VMM_SOCKET_POLL_INTERVAL: Duration = Duration::from_millis(100);
+/// Number of starts of a cloud-hypervisor process, which exits before its API-socket is ready
+const VMM_SPAWN_ATTEMPTS: u32 = 3;
+/// Time before a cloud-hypervisor process is started again, after the last one exited early
+const VMM_SPAWN_RETRY_DELAY: Duration = Duration::from_secs(1);
+
+/// Result of the wait for the API-socket of a new cloud-hypervisor process
+enum VmmStart {
+    /// The process answers on its API-socket
+    Ready,
+    /// The process exited, before it answered
+    Exited(std::process::ExitStatus),
+}
+
+/// Starts a new cloud-hypervisor process and waits, until it answers on its API-socket
+///
+/// The socket-file alone is no sign, that the process accepts connections yet. After the guest
+/// of a previous process powered itself off, like for a reboot, the previous process removes its
+/// API-socket, before it is completely gone, so the new process can exit early, because the
+/// socket is still in use. Such a process is started again.
+///
+/// # Arguments
+/// * `uuid` - Unique identifier of the virtual_machine
+/// * `socket_path` - Path of the API-socket of the new process
+/// * `client` - Client of the API-socket
+///
+/// # Returns
+/// * `Ok(Child)` with the process, which answers on its API-socket
+/// * `Err(AinariError)` if the process could not be started or didn't answer in time
+async fn spawn_ready_vmm(
+    uuid: &Uuid,
+    socket_path: &str,
+    client: &SocketBasedApiClient,
+) -> Result<std::process::Child, AinariError> {
+    for attempt in 1..=VMM_SPAWN_ATTEMPTS {
+        let _ = fs::remove_file(socket_path);
+        let mut child = Command::new(&config::CONFIG.hypervisor.binary_path)
+            .arg("--api-socket")
+            .arg(socket_path)
+            .spawn()
+            .map_err(|e| AinariError::internal(format!("Failed to spawn VMM: {e}")))?;
+
+        match wait_for_vmm_api(&mut child, socket_path, client).await {
+            Ok(VmmStart::Ready) => return Ok(child),
+            Ok(VmmStart::Exited(status)) => {
+                log::warn!(
+                    "VMM of VM {uuid} exited with {status} before its API-socket was ready \
+                     (attempt {attempt}/{VMM_SPAWN_ATTEMPTS})"
+                );
+                tokio::time::sleep(VMM_SPAWN_RETRY_DELAY).await;
+            }
+            Err(e) => {
+                // the process would stay without a virtual_machine otherwise
+                let _ = child.kill();
+                let _ = child.wait();
+                return Err(e);
+            }
+        }
+    }
+
+    Err(AinariError::internal(format!(
+        "VMM of VM {uuid} exited {VMM_SPAWN_ATTEMPTS} times before its API-socket was ready"
+    )))
+}
+
+/// Waits, until a new cloud-hypervisor process answers on its API-socket or exits
+///
+/// # Arguments
+/// * `child` - The new process
+/// * `socket_path` - Path of the API-socket of the process
+/// * `client` - Client of the API-socket
+///
+/// # Returns
+/// * `Ok(VmmStart)` if the process answers or exited
+/// * `Err(AinariError)` if it didn't answer within `VMM_SOCKET_TIMEOUT`
+async fn wait_for_vmm_api(
+    child: &mut std::process::Child,
+    socket_path: &str,
+    client: &SocketBasedApiClient,
+) -> Result<VmmStart, AinariError> {
+    let deadline = Instant::now() + VMM_SOCKET_TIMEOUT;
+    loop {
+        if let Ok(Some(status)) = child.try_wait() {
+            return Ok(VmmStart::Exited(status));
+        }
+        if Path::new(socket_path).exists() && client.vmm_ping_get().await.is_ok() {
+            return Ok(VmmStart::Ready);
+        }
+        if Instant::now() >= deadline {
+            return Err(AinariError::internal(format!(
+                "VMM didn't answer on its API-socket '{socket_path}' within {}s",
+                VMM_SOCKET_TIMEOUT.as_secs()
+            )));
+        }
+        tokio::time::sleep(VMM_SOCKET_POLL_INTERVAL).await;
+    }
+}
 
 /// Starts a new cloud-hypervisor process and creates the virtual_machine in it, without booting
 /// it
@@ -179,22 +277,9 @@ pub(super) async fn spawn_vmm_with_vm(
     root_disk_path: &str,
     seed_path: &str,
 ) -> Result<(SocketBasedApiClient, u32), AinariError> {
-    // start cloud-hypervisor process, which is controlled via its API-socket
     let socket_path = super::vm_socket_path(uuid);
-    let _ = fs::remove_file(&socket_path);
-    let mut child = Command::new(&config::CONFIG.hypervisor.binary_path)
-        .arg("--api-socket")
-        .arg(&socket_path)
-        .spawn()
-        .map_err(|e| AinariError::internal(format!("Failed to spawn VMM: {e}")))?;
-
-    // the process creates its API-socket shortly after its start
-    let deadline = Instant::now() + VMM_SOCKET_TIMEOUT;
-    while !Path::new(&socket_path).exists() && Instant::now() < deadline {
-        tokio::time::sleep(Duration::from_millis(100)).await;
-    }
-
     let client = socket_based_api_client(&socket_path);
+    let mut child = spawn_ready_vmm(uuid, &socket_path, &client).await?;
     let vm_config = build_vm_config(uuid, virtual_machine_data, root_disk_path, seed_path);
 
     log::info!(
