@@ -38,6 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - write-requests to a locked project are rejected with `423 Locked` by all components
 - updated dashboard-styling
 - synced go-versions used in the repo to version 1.26.10
+- mac-addresses and internal-ip addresses are now choosen random and not by counting up
 
 ### Fixed
 

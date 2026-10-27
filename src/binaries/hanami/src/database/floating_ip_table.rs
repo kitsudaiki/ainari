@@ -35,13 +35,10 @@ table! {
         floating_ip_addr -> Varchar,
         owner_id -> Varchar,
         project_id -> Varchar,
-        status -> Varchar,
         created_at -> Varchar,
         created_by -> Varchar,
         updated_at -> Varchar,
         updated_by -> Varchar,
-        deleted_at -> Nullable<Varchar>,
-        deleted_by -> Nullable<Varchar>,
     }
 }
 
@@ -66,16 +63,12 @@ pub struct FloatingIpEntry {
     pub floating_ip_addr: Ipv4Addr,
     pub owner_id: String,
     pub project_id: String,
-    pub status: String,
     #[diesel(serialize_as = DbDateTime, deserialize_as = DbDateTime)]
     pub created_at: DateTime<Utc>,
     pub created_by: String,
     #[diesel(serialize_as = DbDateTime, deserialize_as = DbDateTime)]
     pub updated_at: DateTime<Utc>,
     pub updated_by: String,
-    #[diesel(serialize_as = DbOptDateTime, deserialize_as = DbOptDateTime)]
-    pub deleted_at: Option<DateTime<Utc>>,
-    pub deleted_by: Option<String>,
 }
 
 /// Errors, which can occur while reserving a floating IP-address.
@@ -106,15 +99,14 @@ impl From<enums::DbError> for FloatingIpReserveError {
 /// The new entry is not attached to any virtual_machine, so its network and its internal
 /// IP-address are not set. They are set later by `attach_floating_ip`.
 ///
-/// Floating IP-addresses are unique across all ACTIVE entries of the whole table and not only
-/// within a network. Deleted entries don't block their floating IP-address, so it can be reused.
-/// The reservation is done by inserting the new entry, so the floating IP-address can not
-/// be taken by another request. The status is set to "ACTIVE" and timestamps are set to the
-/// current time.
+/// Floating IP-addresses are unique across the whole table and not only within a network. The
+/// floating IP-address of a deleted entry can be reused. The reservation is done by inserting the
+/// new entry, so the floating IP-address can not be taken by another request. The timestamps are
+/// set to the current time.
 ///
 /// If a floating IP-address is requested, it is only reserved, if it is within the range of the
-/// CIDR and not already used by an ACTIVE entry. Otherwise the new floating IP-address is the highest
-/// floating IP-address of all ACTIVE entries within the range of the CIDR increased by one. If another request was faster, the
+/// CIDR and not already used. Otherwise the new floating IP-address is the highest floating
+/// IP-address within the range of the CIDR increased by one. If another request was faster, the
 /// floating IP-address is increased again until the reservation was successful.
 ///
 /// # Arguments
@@ -217,13 +209,10 @@ fn reserve_floating_ip_from(
             floating_ip_addr,
             owner_id: context.user_id.clone(),
             project_id: context.project_id.clone(),
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: context.user_id.clone(),
             updated_at: Utc::now(),
             updated_by: context.user_id.clone(),
-            deleted_at: None,
-            deleted_by: None,
         };
 
         match add_floating_ip(floating_ip) {
@@ -248,10 +237,9 @@ fn reserve_floating_ip_from(
 
 /// Gets the highest floating IP-address within a range from the database.
 ///
-/// The whole table is taken into account, because floating IP-addresses are unique across all
-/// ACTIVE entries of the whole table. Only ACTIVE entries are taken into account, because deleted
-/// entries don't block their floating IP-address. The IP-addresses are compared numerically, because the
-/// alphabetical order of the strings is not the numeric order (`10.0.0.10` < `10.0.0.9`).
+/// The whole table is taken into account, because floating IP-addresses are unique across the
+/// whole table. The IP-addresses are compared numerically, because the alphabetical order of the
+/// strings is not the numeric order (`10.0.0.10` < `10.0.0.9`).
 ///
 /// # Arguments
 /// * `first_floating_ip` - Numeric value of the first IP-address of the range
@@ -268,7 +256,6 @@ fn get_highest_floating_ip(
         use self::floating_ips::dsl::*;
 
         floating_ips
-            .filter(status.eq("ACTIVE"))
             .select(floating_ip_addr)
             .load::<String>(&mut *conn)
             .map_err(|e| {
@@ -327,10 +314,7 @@ pub fn get_floating_ip(
     use self::floating_ips::dsl::*;
 
     let mut query = floating_ips
-        .filter(
-            uuid.eq(floating_ip_uuid.to_string())
-                .and(status.eq("ACTIVE")),
-        )
+        .filter(uuid.eq(floating_ip_uuid.to_string()))
         .into_boxed();
 
     // Apply permission-based filtering
@@ -366,7 +350,7 @@ pub fn list_floating_ips(context: &UserContext) -> QueryResult<Vec<FloatingIpEnt
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::floating_ips::dsl::*;
 
-    let mut query = floating_ips.filter(status.eq("ACTIVE")).into_boxed();
+    let mut query = floating_ips.into_boxed();
 
     // Apply permission-based filtering
     if context.is_admin != true.to_string() {
@@ -393,7 +377,6 @@ pub fn count_floating_ips_of_project(project: &str) -> QueryResult<i64> {
     use self::floating_ips::dsl::*;
 
     floating_ips
-        .filter(status.eq("ACTIVE"))
         .filter(project_id.eq(project))
         .select(count_star())
         .first::<i64>(&mut *conn)
@@ -401,7 +384,7 @@ pub fn count_floating_ips_of_project(project: &str) -> QueryResult<i64> {
 
 /// Force deletes a meta floating_ip_addr from the database.
 ///
-/// This function marks a meta floating_ip_addr as deleted without checking permissions.
+/// This function removes a meta floating_ip_addr without checking permissions.
 /// It's intended for system-level operations where permission checks are not required.
 ///
 /// # Arguments
@@ -413,12 +396,7 @@ pub fn count_floating_ips_of_project(project: &str) -> QueryResult<i64> {
 pub fn force_delete_floating_ip(floating_ip_uuid: &Uuid) -> Result<(), enums::DbError> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::floating_ips::dsl::*;
-    match diesel::update(floating_ips.filter(uuid.eq(floating_ip_uuid.to_string())))
-        .set((
-            status.eq("DELETED"),
-            deleted_at.eq(Utc::now().to_rfc3339()),
-            deleted_by.eq("HOST_INIT"),
-        ))
+    match diesel::delete(floating_ips.filter(uuid.eq(floating_ip_uuid.to_string())))
         .execute(&mut *conn)
     {
         Ok(_) => Ok(()),
@@ -432,7 +410,7 @@ pub fn force_delete_floating_ip(floating_ip_uuid: &Uuid) -> Result<(), enums::Db
 
 /// Deletes a meta floating_ip_addr from the database.
 ///
-/// This function marks a meta floating_ip_addr as deleted after verifying that the user has permission to delete it.
+/// This function removes a meta floating_ip_addr after verifying that the user has permission to delete it.
 /// It first checks if the floating_ip_addr exists and if the user has the necessary permissions.
 ///
 /// # Arguments
@@ -455,12 +433,7 @@ pub fn delete_floating_ip(
 
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::floating_ips::dsl::*;
-    match diesel::update(floating_ips.filter(uuid.eq(floating_ip_uuid.to_string())))
-        .set((
-            status.eq("DELETED"),
-            deleted_at.eq(Utc::now().to_rfc3339()),
-            deleted_by.eq(context.user_id.clone()),
-        ))
+    match diesel::delete(floating_ips.filter(uuid.eq(floating_ip_uuid.to_string())))
         .execute(&mut *conn)
     {
         Ok(_) => Ok(()),
@@ -527,7 +500,6 @@ pub fn attach_floating_ip(
         diesel::update(
             floating_ips.filter(
                 uuid.eq(floating_ip_uuid.to_string())
-                    .and(status.eq("ACTIVE"))
                     .and(internal_ip_addr.is_null()),
             ),
         )
@@ -619,8 +591,7 @@ pub fn get_floating_ip_by_internal_ip(
         .filter(
             network_uuid
                 .eq(vm_network_uuid.to_string())
-                .and(internal_ip_addr.eq(vm_internal_ip.to_string()))
-                .and(status.eq("ACTIVE")),
+                .and(internal_ip_addr.eq(vm_internal_ip.to_string())),
         )
         .select(FloatingIpEntry::as_select())
         .first::<FloatingIpEntry>(&mut *conn)
@@ -633,7 +604,7 @@ pub fn get_floating_ip_by_internal_ip(
 
 /// Deletes all meta floating_ips from the database.
 ///
-/// This function marks all active meta floating_ips as deleted without checking permissions.
+/// This function removes all meta floating_ips without checking permissions.
 /// It's intended for system-level operations where permission checks are not required.
 ///
 /// # Returns
@@ -642,14 +613,7 @@ pub fn get_floating_ip_by_internal_ip(
 pub fn delete_all_floating_ip() -> Result<(), enums::DbError> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::floating_ips::dsl::*;
-    match diesel::update(floating_ips.filter(status.eq("ACTIVE")))
-        .set((
-            status.eq("DELETED"),
-            deleted_at.eq(Utc::now().to_rfc3339()),
-            deleted_by.eq("AINARI_START"),
-        ))
-        .execute(&mut *conn)
-    {
+    match diesel::delete(floating_ips).execute(&mut *conn) {
         Ok(_) => Ok(()),
         Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
         Err(e) => {
@@ -674,7 +638,6 @@ pub fn list_floating_ips_of_project(project: &str) -> QueryResult<Vec<FloatingIp
     use self::floating_ips::dsl::*;
 
     floating_ips
-        .filter(status.eq("ACTIVE"))
         .filter(project_id.eq(project))
         .select(FloatingIpEntry::as_select())
         .load(&mut *conn)
@@ -735,13 +698,12 @@ mod tests {
             .execute(&mut *conn);
     }
 
-    /// Builds a FloatingIpEntry for the tests with the given identity and status.
+    /// Builds a FloatingIpEntry for the tests with the given identity.
     fn new_entry(
         entry_uuid: &Uuid,
         entry_network_uuid: &Uuid,
         entry_owner_id: &str,
         entry_project_id: &str,
-        entry_status: &str,
     ) -> FloatingIpEntry {
         FloatingIpEntry {
             uuid: *entry_uuid,
@@ -751,13 +713,10 @@ mod tests {
             floating_ip_addr: next_floating_ip(),
             owner_id: entry_owner_id.to_string(),
             project_id: entry_project_id.to_string(),
-            status: entry_status.to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
         }
     }
 
@@ -811,7 +770,6 @@ mod tests {
         assert_eq!(retrieved.internal_ip_addr, None);
         assert_eq!(retrieved.floating_ip_addr, floating_ip1);
         assert_eq!(retrieved.owner_id, "test-user");
-        assert_eq!(retrieved.status, "ACTIVE");
 
         // floating IP-addresses are unique within the whole table, so another network gets the next one
         let (uuid2, floating_ip2) =
@@ -841,20 +799,8 @@ mod tests {
         let network_uuid1 = Uuid::new_v4();
         let network_uuid2 = Uuid::new_v4();
 
-        let entry1 = new_entry(
-            &uuid1,
-            &network_uuid1,
-            "test-user",
-            "test-project",
-            "ACTIVE",
-        );
-        let mut entry2 = new_entry(
-            &uuid2,
-            &network_uuid2,
-            "test-user",
-            "test-project",
-            "ACTIVE",
-        );
+        let entry1 = new_entry(&uuid1, &network_uuid1, "test-user", "test-project");
+        let mut entry2 = new_entry(&uuid2, &network_uuid2, "test-user", "test-project");
         entry2.floating_ip_addr = entry1.floating_ip_addr;
 
         hard_delete_floating_ip(&uuid1);
@@ -870,71 +816,30 @@ mod tests {
 
     #[test]
     #[serial]
-    fn test_duplicate_floating_ip_addr_of_deleted_entries() {
+    fn test_floating_ip_addr_is_free_after_deletion() {
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
-        let uuid3 = Uuid::new_v4();
-        let uuid4 = Uuid::new_v4();
         let network_uuid1 = Uuid::new_v4();
         let context = new_context("test-user", "test-project", false, ProjectRole::Member);
 
-        let entry1 = new_entry(
-            &uuid1,
-            &network_uuid1,
-            "test-user",
-            "test-project",
-            "DELETED",
-        );
+        let entry1 = new_entry(&uuid1, &network_uuid1, "test-user", "test-project");
         let floating_ip = entry1.floating_ip_addr;
-        let mut entry2 = new_entry(
-            &uuid2,
-            &network_uuid1,
-            "test-user",
-            "test-project",
-            "DELETED",
-        );
+        let mut entry2 = new_entry(&uuid2, &network_uuid1, "test-user", "test-project");
         entry2.floating_ip_addr = floating_ip;
-        let mut entry3 = new_entry(
-            &uuid3,
-            &network_uuid1,
-            "test-user",
-            "test-project",
-            "ACTIVE",
-        );
-        entry3.floating_ip_addr = floating_ip;
-        let mut entry4 = new_entry(
-            &uuid4,
-            &network_uuid1,
-            "test-user",
-            "test-project",
-            "ACTIVE",
-        );
-        entry4.floating_ip_addr = floating_ip;
 
-        for entry_uuid in [&uuid1, &uuid2, &uuid3, &uuid4] {
+        for entry_uuid in [&uuid1, &uuid2] {
             hard_delete_floating_ip(entry_uuid);
         }
 
-        // deleted entries can share a floating IP-address with each other and with one ACTIVE entry
+        // the floating IP-address must be unique ...
         add_floating_ip(entry1).unwrap();
+        assert!(add_floating_ip(entry2.clone()).is_err());
+
+        // ... and after deleting the entry, it can be used again
+        assert!(delete_floating_ip(&uuid1, &context).is_ok());
         add_floating_ip(entry2).unwrap();
-        add_floating_ip(entry3).unwrap();
-        // but not with a second ACTIVE entry
-        assert!(add_floating_ip(entry4).is_err());
 
-        // after deleting the ACTIVE entry, the floating IP-address can be used again
-        assert!(delete_floating_ip(&uuid3, &context).is_ok());
-        let mut entry4 = new_entry(
-            &uuid4,
-            &network_uuid1,
-            "test-user",
-            "test-project",
-            "ACTIVE",
-        );
-        entry4.floating_ip_addr = floating_ip;
-        add_floating_ip(entry4).unwrap();
-
-        for entry_uuid in [&uuid1, &uuid2, &uuid3, &uuid4] {
+        for entry_uuid in [&uuid1, &uuid2] {
             hard_delete_floating_ip(entry_uuid);
         }
     }
@@ -945,7 +850,6 @@ mod tests {
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
         let uuid3 = Uuid::new_v4();
-        let uuid4 = Uuid::new_v4();
         let network_uuid1 = Uuid::new_v4();
         let network_uuid2 = Uuid::new_v4();
 
@@ -954,52 +858,23 @@ mod tests {
         let last = u32::from(Ipv4Addr::new(192, 0, 2, 254));
 
         // alphabetically "192.0.2.9" would be higher than "192.0.2.10"
-        let mut entry1 = new_entry(
-            &uuid1,
-            &network_uuid1,
-            "test-user",
-            "test-project",
-            "ACTIVE",
-        );
+        let mut entry1 = new_entry(&uuid1, &network_uuid1, "test-user", "test-project");
         entry1.floating_ip_addr = Ipv4Addr::new(192, 0, 2, 9);
-        let mut entry2 = new_entry(
-            &uuid2,
-            &network_uuid2,
-            "test-user",
-            "test-project",
-            "ACTIVE",
-        );
+        let mut entry2 = new_entry(&uuid2, &network_uuid2, "test-user", "test-project");
         entry2.floating_ip_addr = Ipv4Addr::new(192, 0, 2, 10);
-        // deleted, so it is ignored
-        let mut entry4 = new_entry(
-            &uuid4,
-            &network_uuid2,
-            "test-user",
-            "test-project",
-            "DELETED",
-        );
-        entry4.floating_ip_addr = Ipv4Addr::new(192, 0, 2, 20);
         // outside of the range, so it is ignored
-        let mut entry3 = new_entry(
-            &uuid3,
-            &network_uuid1,
-            "test-user",
-            "test-project",
-            "ACTIVE",
-        );
+        let mut entry3 = new_entry(&uuid3, &network_uuid1, "test-user", "test-project");
         entry3.floating_ip_addr = Ipv4Addr::new(192, 0, 3, 50);
 
         hard_delete_floating_ip(&uuid1);
         hard_delete_floating_ip(&uuid2);
         hard_delete_floating_ip(&uuid3);
-        hard_delete_floating_ip(&uuid4);
 
         assert!(matches!(get_highest_floating_ip(first, last), Ok(None)));
 
         add_floating_ip(entry1).unwrap();
         add_floating_ip(entry2).unwrap();
         add_floating_ip(entry3).unwrap();
-        add_floating_ip(entry4).unwrap();
 
         assert!(matches!(
             get_highest_floating_ip(first, last),
@@ -1009,7 +884,6 @@ mod tests {
         hard_delete_floating_ip(&uuid1);
         hard_delete_floating_ip(&uuid2);
         hard_delete_floating_ip(&uuid3);
-        hard_delete_floating_ip(&uuid4);
     }
 
     #[test]
@@ -1022,21 +896,9 @@ mod tests {
 
         // simulate other requests in another network, which already reserved the first two addresses
         let base = u32::from(Ipv4Addr::new(192, 0, 2, 100));
-        let mut taken1 = new_entry(
-            &uuid1,
-            &network_uuid2,
-            "other-user",
-            "other-project",
-            "ACTIVE",
-        );
+        let mut taken1 = new_entry(&uuid1, &network_uuid2, "other-user", "other-project");
         taken1.floating_ip_addr = Ipv4Addr::from(base);
-        let mut taken2 = new_entry(
-            &uuid2,
-            &network_uuid2,
-            "other-user",
-            "other-project",
-            "ACTIVE",
-        );
+        let mut taken2 = new_entry(&uuid2, &network_uuid2, "other-user", "other-project");
         taken2.floating_ip_addr = Ipv4Addr::from(base + 1);
 
         hard_delete_floating_ip(&uuid1);
@@ -1087,7 +949,7 @@ mod tests {
             requested
         );
 
-        // already used by an ACTIVE entry, also in another network
+        // already used by another entry, also in another network
         let result = add_new_floating_ip(FLOATING_IP_NAME, Some(&requested), cidr, &context);
         assert_eq!(result, Err(FloatingIpReserveError::AlreadyUsed));
 
@@ -1131,13 +993,7 @@ mod tests {
         let network_uuid1 = Uuid::new_v4();
         let context = new_context("test-user", "test-project", false, ProjectRole::Member);
 
-        let entry = new_entry(
-            &uuid1,
-            &network_uuid1,
-            "test-user",
-            "test-project",
-            "ACTIVE",
-        );
+        let entry = new_entry(&uuid1, &network_uuid1, "test-user", "test-project");
 
         hard_delete_floating_ip(&uuid1);
 
@@ -1150,13 +1006,10 @@ mod tests {
         assert_eq!(retrieved.floating_ip_addr, entry.floating_ip_addr);
         assert_eq!(retrieved.owner_id, entry.owner_id);
         assert_eq!(retrieved.project_id, entry.project_id);
-        assert_eq!(retrieved.status, entry.status);
         assert_eq!(retrieved.created_at, entry.created_at);
         assert_eq!(retrieved.created_by, entry.created_by);
         assert_eq!(retrieved.updated_at, entry.updated_at);
         assert_eq!(retrieved.updated_by, entry.updated_by);
-        assert_eq!(retrieved.deleted_at, entry.deleted_at);
-        assert_eq!(retrieved.deleted_by, entry.deleted_by);
 
         hard_delete_floating_ip(&uuid1);
     }
@@ -1180,20 +1033,8 @@ mod tests {
         let network_uuid1 = Uuid::new_v4();
         let context = new_context("test-user", "test-project", false, ProjectRole::Member);
 
-        let entry1 = new_entry(
-            &uuid1,
-            &network_uuid1,
-            "test-user",
-            "test-project",
-            "ACTIVE",
-        );
-        let entry2 = new_entry(
-            &uuid2,
-            &network_uuid1,
-            "test-user",
-            "test-project",
-            "DELETED",
-        );
+        let entry1 = new_entry(&uuid1, &network_uuid1, "test-user", "test-project");
+        let entry2 = new_entry(&uuid2, &network_uuid1, "test-user", "test-project");
         let floating_ip1 = entry1.floating_ip_addr;
         let internal_ip1 = entry1.internal_ip_addr;
 
@@ -1202,8 +1043,9 @@ mod tests {
 
         add_floating_ip(entry1).unwrap();
         add_floating_ip(entry2).unwrap();
+        assert!(delete_floating_ip(&uuid2, &context).is_ok());
 
-        // only the ACTIVE entry is listed
+        // the deleted entry is not listed anymore
         let entries = list_floating_ips(&context).unwrap();
         assert_eq!(entries.len(), 1);
         assert_eq!(entries[0].uuid, uuid1);
@@ -1221,13 +1063,7 @@ mod tests {
         let network_uuid1 = Uuid::new_v4();
         let context = new_context("test-user", "test-project", false, ProjectRole::Member);
 
-        let entry = new_entry(
-            &uuid1,
-            &network_uuid1,
-            "test-user",
-            "test-project",
-            "ACTIVE",
-        );
+        let entry = new_entry(&uuid1, &network_uuid1, "test-user", "test-project");
 
         hard_delete_floating_ip(&uuid1);
 
@@ -1247,13 +1083,7 @@ mod tests {
         let context = new_context("test-user", "test-project", false, ProjectRole::Member);
 
         // the entry belongs to another project, so only the force-delete can remove it
-        let entry = new_entry(
-            &uuid1,
-            &network_uuid1,
-            "other-user",
-            "other-project",
-            "ACTIVE",
-        );
+        let entry = new_entry(&uuid1, &network_uuid1, "other-user", "other-project");
 
         hard_delete_floating_ip(&uuid1);
 
@@ -1273,20 +1103,8 @@ mod tests {
         let network_uuid1 = Uuid::new_v4();
         let context = new_context("test-user", "test-project", true, ProjectRole::Member);
 
-        let entry1 = new_entry(
-            &uuid1,
-            &network_uuid1,
-            "test-user",
-            "test-project",
-            "ACTIVE",
-        );
-        let entry2 = new_entry(
-            &uuid2,
-            &network_uuid1,
-            "other-user",
-            "other-project",
-            "ACTIVE",
-        );
+        let entry1 = new_entry(&uuid1, &network_uuid1, "test-user", "test-project");
+        let entry2 = new_entry(&uuid2, &network_uuid1, "other-user", "other-project");
 
         hard_delete_floating_ip(&uuid1);
         hard_delete_floating_ip(&uuid2);
@@ -1311,29 +1129,11 @@ mod tests {
         let network_uuid1 = Uuid::new_v4();
         let context = new_context("test-user", "test-project", false, ProjectRole::Member);
 
-        let entry1 = new_entry(
-            &uuid1,
-            &network_uuid1,
-            "test-user",
-            "test-project",
-            "ACTIVE",
-        );
+        let entry1 = new_entry(&uuid1, &network_uuid1, "test-user", "test-project");
         // entries of other projects are not counted
-        let entry2 = new_entry(
-            &uuid2,
-            &network_uuid1,
-            "test-user",
-            "other-project",
-            "ACTIVE",
-        );
+        let entry2 = new_entry(&uuid2, &network_uuid1, "test-user", "other-project");
         // entries of other users of the same project are counted as well
-        let entry3 = new_entry(
-            &uuid3,
-            &network_uuid1,
-            "other-user",
-            "test-project",
-            "ACTIVE",
-        );
+        let entry3 = new_entry(&uuid3, &network_uuid1, "other-user", "test-project");
 
         hard_delete_floating_ip(&uuid1);
         hard_delete_floating_ip(&uuid2);
@@ -1361,27 +1161,9 @@ mod tests {
         let uuid3 = Uuid::new_v4();
         let network_uuid1 = Uuid::new_v4();
 
-        let entry1 = new_entry(
-            &uuid1,
-            &network_uuid1,
-            "test-user-42",
-            "test_permissions_1",
-            "ACTIVE",
-        );
-        let entry2 = new_entry(
-            &uuid2,
-            &network_uuid1,
-            "test-user-43",
-            "test_permissions_1",
-            "ACTIVE",
-        );
-        let entry3 = new_entry(
-            &uuid3,
-            &network_uuid1,
-            "test-user-44",
-            "test_permissions_2",
-            "ACTIVE",
-        );
+        let entry1 = new_entry(&uuid1, &network_uuid1, "test-user-42", "test_permissions_1");
+        let entry2 = new_entry(&uuid2, &network_uuid1, "test-user-43", "test_permissions_1");
+        let entry3 = new_entry(&uuid3, &network_uuid1, "test-user-44", "test_permissions_2");
 
         hard_delete_floating_ip(&uuid1);
         hard_delete_floating_ip(&uuid2);

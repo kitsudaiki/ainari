@@ -135,8 +135,8 @@ pub async fn resolve_filter_target(
 /// * `context` - User context containing authentication information
 ///
 /// # Returns
-/// * `Ok(NetworkFilterEntry)` with the stored filter, which is marked as deleted, if both
-///   include-lists are empty now
+/// * `Ok(NetworkFilterEntry)` with the stored filter, which is removed, if both include-lists are
+///   empty now
 /// * `Err(ErrorResponse)` if the filter could not be stored
 pub fn store_network_filter(
     virtual_machine_uuid: &Uuid,

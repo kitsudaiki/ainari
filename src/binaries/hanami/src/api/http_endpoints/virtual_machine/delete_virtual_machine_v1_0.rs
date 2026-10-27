@@ -234,8 +234,8 @@ async fn detach_floating_ip_of_virtual_machine(
 /// the deleted virtual_machine was the last one of that network on this host, because the other
 /// virtual_machines of the host still use them.
 ///
-/// The entry of the address-table is marked as deleted at the end, so the address, the
-/// MAC-address and the name of the TAP-device can be used again.
+/// The entry of the address-table is removed, so the address, the MAC-address and the name of the
+/// TAP-device can be used again.
 ///
 /// # Arguments
 /// * `endpoints` - Endpoints of the components, which contains the torii reachable from outside
@@ -265,7 +265,7 @@ pub(super) async fn cleanup_network(
         }
     };
 
-    // the entry is marked as deleted first, so the addresses of the network, which are read
+    // the entry is removed first, so the addresses of the network, which are read
     // afterwards, are the virtual_machines, which keep their routes
     address_table::delete_address(&address.uuid, context)
         .map_err(|e| map_db_uuid_get_delete_error("address", &address.uuid, e, Some(context)))?;

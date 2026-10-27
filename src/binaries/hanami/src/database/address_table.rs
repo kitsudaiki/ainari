@@ -19,12 +19,11 @@ use diesel::result::DatabaseErrorKind;
 use std::net::Ipv4Addr;
 use uuid::Uuid;
 
-use crate::database::{assignable_ip_range, db_handle, is_unique_violation_of};
+use crate::database::{assignable_ip_range, db_handle, is_unique_violation_of, network_table};
 
 use ainari_api_structs::user_context::UserContext;
 use ainari_common::enums;
 use ainari_common::objects::*;
-use torii_common::VNI_MAX;
 
 /// Prefix of all generated MAC-addresses. The `02` marks them as locally administered
 /// unicast addresses, so they can not collide with vendor-assigned addresses.
@@ -35,6 +34,10 @@ const FIRST_MAC_ADDRESS: u64 = 0x02_00_00_00_00_01;
 
 /// Numeric value of the last possible MAC-address `02:ff:ff:ff:ff:ff`.
 const LAST_MAC_ADDRESS: u64 = 0x02_ff_ff_ff_ff_ff;
+
+/// Number of random MAC-addresses, which are checked for a new address, before the reservation
+/// gives up.
+const MAC_ADDRESS_ATTEMPTS: u32 = 100;
 
 /// Prefix of all generated tap-device names.
 const TAP_NAME_PREFIX: &str = "tap-";
@@ -50,6 +53,10 @@ const FIRST_TAP_NUMBER: u32 = 1;
 /// Counter of the last possible tap-device name `tap-99999999`.
 const LAST_TAP_NUMBER: u32 = 99_999_999;
 
+/// Number of random tap-device names, which are checked for a new address, before the
+/// reservation gives up.
+const TAP_NUMBER_ATTEMPTS: u32 = 100;
+
 // Define the schema for addresses table
 table! {
     addresses (uuid) {
@@ -63,13 +70,10 @@ table! {
         virtual_machine_uuid -> Nullable<Varchar>,
         owner_id -> Varchar,
         project_id -> Varchar,
-        status -> Varchar,
         created_at -> Varchar,
         created_by -> Varchar,
         updated_at -> Varchar,
         updated_by -> Varchar,
-        deleted_at -> Nullable<Varchar>,
-        deleted_by -> Nullable<Varchar>,
     }
 }
 
@@ -105,94 +109,21 @@ pub struct AddressEntry {
     pub virtual_machine_uuid: Option<Uuid>,
     pub owner_id: String,
     pub project_id: String,
-    pub status: String,
     #[diesel(serialize_as = DbDateTime, deserialize_as = DbDateTime)]
     pub created_at: DateTime<Utc>,
     pub created_by: String,
     #[diesel(serialize_as = DbDateTime, deserialize_as = DbDateTime)]
     pub updated_at: DateTime<Utc>,
     pub updated_by: String,
-    #[diesel(serialize_as = DbOptDateTime, deserialize_as = DbOptDateTime)]
-    pub deleted_at: Option<DateTime<Utc>>,
-    pub deleted_by: Option<String>,
-}
-
-/// Gets the tenant, which the addresses of a network live in.
-///
-/// All addresses of a network share one VNI, so the first entry of the network answers the
-/// question. Deleted entries are taken into account on purpose: a network keeps its tenant,
-/// also while none of its virtual_machines is alive, so an address, which is added later, lands
-/// in the same tenant as the floating ip-addresses, which are still registered for it.
-///
-/// # Arguments
-/// * `address_network_uuid` - The UUID of the network
-///
-/// # Returns
-/// A Result containing the VNI of the network, or None if the network never had an address
-pub fn get_vni_of_network(address_network_uuid: &Uuid) -> Result<Option<u32>, enums::DbError> {
-    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
-    use self::addresses::dsl::*;
-
-    addresses
-        .filter(network_uuid.eq(address_network_uuid.to_string()))
-        .select(vni)
-        .first::<i32>(&mut *conn)
-        .optional()
-        .map(|found| found.map(|found| found as u32))
-        .map_err(|e| {
-            log::error!("Database-error: {e:?}");
-            enums::DbError::InternalError
-        })
-}
-
-/// Picks the tenant of a network, assigning a new one if the network has none yet.
-///
-/// Tenants are handed out per network and start at 1, because `VNI_DEFAULT` (0) is the shared
-/// tenant of the uplink and of everything, which was never placed into a tenant of its own.
-/// A new tenant is the highest one currently in use increased by one; a tenant of a deleted
-/// network is not reused, so no route, which is still lying around somewhere, can be
-/// mistaken for a route of the new network.
-///
-/// # Arguments
-/// * `address_network_uuid` - The UUID of the network, which the address belongs to
-///
-/// # Returns
-/// A Result containing the VNI the address has to be created in, or a DbError
-fn vni_for_network(address_network_uuid: &Uuid) -> Result<u32, enums::DbError> {
-    if let Some(existing) = get_vni_of_network(address_network_uuid)? {
-        return Ok(existing);
-    }
-
-    let highest = {
-        let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
-        use self::addresses::dsl::*;
-
-        addresses
-            .select(diesel::dsl::max(vni))
-            .first::<Option<i32>>(&mut *conn)
-            .map_err(|e| {
-                log::error!("Database-error: {e:?}");
-                enums::DbError::InternalError
-            })?
-    };
-
-    let next = highest.unwrap_or(0) as u32 + 1;
-    if next > VNI_MAX {
-        log::error!("No free VNI left below the 24 bit limit of a VXLAN-header");
-        return Err(enums::DbError::InternalError);
-    }
-
-    Ok(next)
 }
 
 /// Reserves a new MAC-address, a new tap-device name and a new internal IP-address by adding a new entry.
 ///
-/// The new MAC-address and the new tap-device name are the highest ones of all ACTIVE entries
-/// increased by one, and the new internal IP-address is the highest internal IP-address of all ACTIVE
-/// entries within the same network increased by one. Deleted entries don't block their values, so
-/// they can be reused. The reservation is done by inserting the new entry, so none of them can be
-/// taken by another request. If another request was faster, the conflicting value is increased again until the
-/// reservation was successful.
+/// The new MAC-address and the new tap-device name are random ones, which no other entry uses,
+/// and the new internal IP-address is the highest internal IP-address of all entries within the
+/// same network increased by one. The values of deleted entries can be reused. The reservation
+/// is done by inserting the new entry, so none of them can be taken by another request. If another
+/// request was faster, the conflicting value is picked again until the reservation was successful.
 ///
 /// # Arguments
 /// * `network_uuid` - The UUID of the network the address belongs to
@@ -204,7 +135,6 @@ fn vni_for_network(address_network_uuid: &Uuid) -> Result<u32, enums::DbError> {
 ///
 /// # Returns
 /// A Result containing the new entry with the reserved values, or a DbError if the reservation failed
-#[allow(dead_code)]
 pub fn reserve_new_address(
     network_uuid: &Uuid,
     internal_cidr: &str,
@@ -224,26 +154,9 @@ pub fn reserve_new_address(
         }
     };
 
-    let highest_mac_address = get_highest_mac_address().map_err(|e| {
-        log::error!("Database-error: {e:?}");
-        enums::DbError::InternalError
-    })?;
+    let first_mac_candidate = find_free_mac_address()?;
 
-    let first_mac_candidate = match highest_mac_address {
-        Some(highest) => match mac_address_to_number(&highest) {
-            Some(number) => number + 1,
-            None => {
-                log::error!("Invalid MAC-address '{highest}' in the database");
-                return Err(enums::DbError::InternalError);
-            }
-        },
-        None => FIRST_MAC_ADDRESS,
-    };
-
-    let first_tap_candidate = match get_highest_tap_number()? {
-        Some(highest) => highest + 1,
-        None => FIRST_TAP_NUMBER,
-    };
+    let first_tap_candidate = find_free_tap_number()?;
 
     // start behind the highest internal IP-address, but never below the range of the CIDR
     let first_ip_candidate = match get_highest_internal_ip(network_uuid)? {
@@ -251,9 +164,9 @@ pub fn reserve_new_address(
         None => first_internal_ip,
     };
 
-    // every address of a network lives in the same tenant, so the first address of a network
-    // is the one, which opens it
-    let vni = vni_for_network(network_uuid)?;
+    // every address of a network lives in the tenant of the network, which the first address
+    // of the network assigns
+    let vni = network_table::get_or_assign_vni(network_uuid)?;
 
     reserve_address_from(
         first_mac_candidate,
@@ -319,15 +232,19 @@ pub fn reserve_predefined_address(
     if context.is_read_only() {
         return Err(PredefinedAddressError::Db(enums::DbError::PermissionDenied));
     }
+
+    // check if ip is in range
     let Some((first_internal_ip, last_internal_ip)) = assignable_ip_range(internal_cidr) else {
         log::error!("Invalid or too small CIDR '{internal_cidr}' for internal IP-addresses");
         return Err(PredefinedAddressError::Db(enums::DbError::InternalError));
     };
+
     let db_error = |e: diesel::result::Error| {
         log::error!("Database-error: {e:?}");
         PredefinedAddressError::Db(enums::DbError::InternalError)
     };
 
+    // IP-address
     let ip_candidate = match predefined_ip {
         Some(ip) => {
             let number = u32::from(*ip);
@@ -348,6 +265,8 @@ pub fn reserve_predefined_address(
             None => first_internal_ip,
         },
     };
+
+    // MAC-address
     let mac_candidate = match predefined_mac {
         Some(mac) => {
             let number = mac_address_to_number(mac)
@@ -364,18 +283,10 @@ pub fn reserve_predefined_address(
             }
             number
         }
-        None => match get_highest_mac_address().map_err(db_error)? {
-            Some(highest) => mac_address_to_number(&highest)
-                .map(|number| number + 1)
-                .ok_or(PredefinedAddressError::Db(enums::DbError::InternalError))?,
-            None => FIRST_MAC_ADDRESS,
-        },
+        None => find_free_mac_address().map_err(PredefinedAddressError::Db)?,
     };
-    let tap_candidate = match get_highest_tap_number().map_err(PredefinedAddressError::Db)? {
-        Some(highest) => highest + 1,
-        None => FIRST_TAP_NUMBER,
-    };
-    let vni = vni_for_network(network_uuid).map_err(PredefinedAddressError::Db)?;
+    let tap_candidate = find_free_tap_number().map_err(PredefinedAddressError::Db)?;
+    let vni = network_table::get_or_assign_vni(network_uuid).map_err(PredefinedAddressError::Db)?;
 
     reserve_address_from(
         mac_candidate,
@@ -406,7 +317,6 @@ fn is_internal_ip_used(address_network_uuid: &Uuid, ip: &Ipv4Addr) -> QueryResul
     addresses
         .filter(network_uuid.eq(address_network_uuid.to_string()))
         .filter(internal_ip.eq(ip.to_string()))
-        .filter(status.eq("ACTIVE"))
         .select(count_star())
         .first::<i64>(&mut *conn)
         .map(|count| count > 0)
@@ -418,7 +328,6 @@ fn is_mac_address_used(address_mac: &str) -> QueryResult<bool> {
     use self::addresses::dsl::*;
     addresses
         .filter(mac_address.eq(address_mac))
-        .filter(status.eq("ACTIVE"))
         .select(count_star())
         .first::<i64>(&mut *conn)
         .map(|count| count > 0)
@@ -427,9 +336,11 @@ fn is_mac_address_used(address_mac: &str) -> QueryResult<bool> {
 /// Tries to reserve MAC-addresses, tap-device names and internal IP-addresses, beginning with the
 /// given ones, until the reservation was successful.
 ///
-/// If the insert fails, because the MAC-address, the tap-device name or the internal IP-address was already reserved
-/// by another request in the meantime, the conflicting value is increased and the reservation is
-/// tried again. If only the UUID was in conflict, a new UUID is generated in the next try.
+/// If the insert fails, because the MAC-address, the tap-device name or the internal IP-address
+/// was already reserved by another request in the meantime, the reservation is tried again: a
+/// conflicting MAC-address is replaced by a new random one, a conflicting tap-device name or
+/// internal IP-address is increased. If only the UUID was in conflict, a new UUID is generated in
+/// the next try.
 ///
 /// # Arguments
 /// * `first_mac_candidate` - Numeric value of the first MAC-address to try
@@ -500,8 +411,9 @@ fn reserve_address_from(
                     );
                     return Err(enums::DbError::InternalError);
                 }
+                // a MAC-address is not counted up, but picked randomly again
                 if mac_taken {
-                    mac_candidate += 1;
+                    mac_candidate = find_free_mac_address()?;
                 }
                 if is_unique_violation_of(message, "addresses", "tap_name") {
                     tap_candidate += 1;
@@ -518,11 +430,10 @@ fn reserve_address_from(
     }
 }
 
-/// Gets the highest internal IP-address of all ACTIVE entries within a network from the database.
+/// Gets the highest internal IP-address of all entries within a network from the database.
 ///
-/// Deleted entries are not taken into account, because they don't block their internal
-/// IP-address. The IP-addresses are compared numerically, because the alphabetical order
-/// of the strings is not the numeric order (`10.0.0.10` < `10.0.0.9`).
+/// The IP-addresses are compared numerically, because the alphabetical order of the strings is not
+/// the numeric order (`10.0.0.10` < `10.0.0.9`).
 ///
 /// # Arguments
 /// * `address_network_uuid` - The UUID of the network
@@ -537,11 +448,7 @@ fn get_highest_internal_ip(
         use self::addresses::dsl::*;
 
         addresses
-            .filter(
-                network_uuid
-                    .eq(address_network_uuid.to_string())
-                    .and(status.eq("ACTIVE")),
-            )
+            .filter(network_uuid.eq(address_network_uuid.to_string()))
             .select(internal_ip)
             .load::<String>(&mut *conn)
             .map_err(|e| {
@@ -595,39 +502,30 @@ fn number_to_mac_address(number: u64) -> String {
     )
 }
 
-/// Gets the highest generated MAC-address of all ACTIVE entries from the database.
+/// Picks a random MAC-address with the prefix `02:`, which is not used by another entry.
 ///
-/// Deleted entries are not taken into account, because they don't block their MAC-address.
-///
-/// # Returns
-/// A QueryResult containing the highest MAC-address, or None if there is no ACTIVE generated MAC-address
-fn get_highest_mac_address() -> QueryResult<Option<String>> {
-    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
-    use self::addresses::dsl::*;
-
-    addresses
-        .filter(
-            mac_address
-                .like(format!("{MAC_ADDRESS_PREFIX}%"))
-                .and(status.eq("ACTIVE")),
-        )
-        .select(mac_address)
-        .order(mac_address.desc())
-        .first::<String>(&mut *conn)
-        .optional()
-}
-
-/// Converts a tap-device name like `tap-00000042` into its counter.
+/// Up to `MAC_ADDRESS_ATTEMPTS` random MAC-addresses are checked one after another and the first
+/// free one is taken. The MAC-address is only
+/// checked, so another request can still take it, before it is inserted, which
+/// `reserve_address_from` handles.
 ///
 /// # Returns
-/// The counter, or None if the name was not generated in this format
-fn tap_name_to_number(name: &str) -> Option<u32> {
-    let digits = name.strip_prefix(TAP_NAME_PREFIX)?;
-    if digits.len() != TAP_NAME_DIGITS || !digits.bytes().all(|b| b.is_ascii_digit()) {
-        return None;
+/// A Result containing the numeric value of the free MAC-address, or a DbError if none of the
+/// checked MAC-addresses was free
+fn find_free_mac_address() -> Result<u64, enums::DbError> {
+    for _ in 0..MAC_ADDRESS_ATTEMPTS {
+        let candidate = rand::random_range(FIRST_MAC_ADDRESS..=LAST_MAC_ADDRESS);
+        let used = is_mac_address_used(&number_to_mac_address(candidate)).map_err(|e| {
+            log::error!("Database-error: {e:?}");
+            enums::DbError::InternalError
+        })?;
+        if !used {
+            return Ok(candidate);
+        }
     }
 
-    digits.parse::<u32>().ok()
+    log::error!("No free MAC-address found within {MAC_ADDRESS_ATTEMPTS} random attempts");
+    Err(enums::DbError::InternalError)
 }
 
 /// Converts a counter into a tap-device name like `tap-00000042`.
@@ -635,42 +533,46 @@ fn number_to_tap_name(number: u32) -> String {
     format!("{TAP_NAME_PREFIX}{number:0width$}", width = TAP_NAME_DIGITS)
 }
 
-/// Gets the counter of the highest generated tap-device name of all ACTIVE entries from the database.
+/// Picks a random tap-device name, which is not used by another entry.
 ///
-/// Deleted entries are not taken into account, because they don't block their tap-device name.
-/// Names, which were not generated in the format `tap-00000042`, are ignored.
+/// Up to `TAP_NUMBER_ATTEMPTS` random counters are checked one after another and the first free
+/// one is taken. The name is only checked, so
+/// another request can still take it, before it is inserted, which `reserve_address_from` handles.
 ///
 /// # Returns
-/// A Result containing the highest counter, or None if there is no ACTIVE generated tap-device name
-fn get_highest_tap_number() -> Result<Option<u32>, enums::DbError> {
-    let tap_names = {
-        let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
-        use self::addresses::dsl::*;
+/// A Result containing the counter of the free tap-device name, or a DbError if none of the
+/// checked names was free
+fn find_free_tap_number() -> Result<u32, enums::DbError> {
+    for _ in 0..TAP_NUMBER_ATTEMPTS {
+        let candidate = rand::random_range(FIRST_TAP_NUMBER..=LAST_TAP_NUMBER);
+        let used = is_tap_name_used(&number_to_tap_name(candidate)).map_err(|e| {
+            log::error!("Database-error: {e:?}");
+            enums::DbError::InternalError
+        })?;
+        if !used {
+            return Ok(candidate);
+        }
+    }
 
-        addresses
-            .filter(
-                tap_name
-                    .like(format!("{TAP_NAME_PREFIX}%"))
-                    .and(status.eq("ACTIVE")),
-            )
-            .select(tap_name)
-            .load::<String>(&mut *conn)
-            .map_err(|e| {
-                log::error!("Database-error: {e:?}");
-                enums::DbError::InternalError
-            })?
-    };
+    log::error!("No free tap-device name found within {TAP_NUMBER_ATTEMPTS} random attempts");
+    Err(enums::DbError::InternalError)
+}
 
-    Ok(tap_names
-        .iter()
-        .filter_map(|name| tap_name_to_number(name))
-        .max())
+/// Checks, if a tap-device name is used by an active address.
+fn is_tap_name_used(name: &str) -> QueryResult<bool> {
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+    use self::addresses::dsl::*;
+    addresses
+        .filter(tap_name.eq(name))
+        .select(count_star())
+        .first::<i64>(&mut *conn)
+        .map(|count| count > 0)
 }
 
 /// Adds a new address to the database.
 ///
 /// This function creates a new AddressEntry with a new UUID and the provided parameters and inserts
-/// it into the database. The status is set to "ACTIVE" and timestamps are set to the current time.
+/// it into the database. The timestamps are set to the current time.
 ///
 /// # Arguments
 /// * `mac_address` - The MAC-address of the new entry
@@ -709,13 +611,10 @@ pub fn add_new_address(
         virtual_machine_uuid: None,
         owner_id: context.user_id.clone(),
         project_id: context.project_id.clone(),
-        status: "ACTIVE".to_string(),
         created_at: Utc::now(),
         created_by: context.user_id.clone(),
         updated_at: Utc::now(),
         updated_by: context.user_id.clone(),
-        deleted_at: None,
-        deleted_by: None,
     };
 
     add_address(address.clone())?;
@@ -755,7 +654,7 @@ pub fn get_address(address_uuid: &Uuid) -> Result<AddressEntry, enums::DbError> 
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::addresses::dsl::*;
 
-    let query = addresses.filter(uuid.eq(address_uuid.to_string()).and(status.eq("ACTIVE")));
+    let query = addresses.filter(uuid.eq(address_uuid.to_string()));
 
     match query
         .select(AddressEntry::as_select())
@@ -820,14 +719,12 @@ pub fn set_host_of_address(
 ) -> Result<(), enums::DbError> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::addresses::dsl::*;
-    match diesel::update(
-        addresses.filter(uuid.eq(address_uuid.to_string()).and(status.eq("ACTIVE"))),
-    )
-    .set((
-        host_address.eq(new_host_address),
-        updated_at.eq(Utc::now().to_rfc3339()),
-    ))
-    .execute(&mut *conn)
+    match diesel::update(addresses.filter(uuid.eq(address_uuid.to_string())))
+        .set((
+            host_address.eq(new_host_address),
+            updated_at.eq(Utc::now().to_rfc3339()),
+        ))
+        .execute(&mut *conn)
     {
         Ok(0) => Err(enums::DbError::NotFound),
         Ok(_) => Ok(()),
@@ -854,11 +751,7 @@ pub fn get_address_of_virtual_machine(
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::addresses::dsl::*;
 
-    let query = addresses.filter(
-        virtual_machine_uuid
-            .eq(address_virtual_machine_uuid.to_string())
-            .and(status.eq("ACTIVE")),
-    );
+    let query = addresses.filter(virtual_machine_uuid.eq(address_virtual_machine_uuid.to_string()));
 
     match query
         .select(AddressEntry::as_select())
@@ -875,9 +768,8 @@ pub fn get_address_of_virtual_machine(
 
 /// Retrieves the address of a virtual_machine by its internal IP-address within a network.
 ///
-/// Only active addresses are returned, because a deleted entry doesn't belong to a running
-/// virtual_machine any more. The internal IP-address is unique within a network, so there is at
-/// most one entry. There is no permission-based filtering.
+/// The internal IP-address is unique within a network, so there is at most one entry. There is
+/// no permission-based filtering.
 ///
 /// # Arguments
 /// * `address_network_uuid` - The UUID of the network of the virtual_machine
@@ -895,8 +787,7 @@ pub fn get_address_by_internal_ip(
     let query = addresses.filter(
         network_uuid
             .eq(address_network_uuid.to_string())
-            .and(internal_ip.eq(address_internal_ip.to_string()))
-            .and(status.eq("ACTIVE")),
+            .and(internal_ip.eq(address_internal_ip.to_string())),
     );
 
     match query
@@ -922,10 +813,7 @@ pub fn list_addresses() -> QueryResult<Vec<AddressEntry>> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::addresses::dsl::*;
 
-    addresses
-        .filter(status.eq("ACTIVE"))
-        .select(AddressEntry::as_select())
-        .load(&mut *conn)
+    addresses.select(AddressEntry::as_select()).load(&mut *conn)
 }
 
 /// Lists all active addresses within a network.
@@ -945,11 +833,7 @@ pub fn list_addresses_of_network(address_network_uuid: &Uuid) -> QueryResult<Vec
     use self::addresses::dsl::*;
 
     addresses
-        .filter(
-            network_uuid
-                .eq(address_network_uuid.to_string())
-                .and(status.eq("ACTIVE")),
-        )
+        .filter(network_uuid.eq(address_network_uuid.to_string()))
         .select(AddressEntry::as_select())
         .load(&mut *conn)
 }
@@ -969,7 +853,7 @@ pub fn count_addresses(context: &UserContext) -> QueryResult<i64> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::addresses::dsl::*;
 
-    let mut query = addresses.filter(status.eq("ACTIVE")).into_boxed();
+    let mut query = addresses.into_boxed();
 
     // Apply permission-based filtering
     query = query.filter(project_id.eq(context.project_id.clone()));
@@ -980,7 +864,7 @@ pub fn count_addresses(context: &UserContext) -> QueryResult<i64> {
 
 /// Force deletes an address from the database.
 ///
-/// This function marks an address as deleted without checking permissions.
+/// This function removes an address without checking permissions.
 /// It's intended for system-level operations where permission checks are not required.
 ///
 /// # Arguments
@@ -992,14 +876,7 @@ pub fn count_addresses(context: &UserContext) -> QueryResult<i64> {
 pub fn force_delete_address(address_uuid: &Uuid) -> Result<(), enums::DbError> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::addresses::dsl::*;
-    match diesel::update(addresses.filter(uuid.eq(address_uuid.to_string())))
-        .set((
-            status.eq("DELETED"),
-            deleted_at.eq(Utc::now().to_rfc3339()),
-            deleted_by.eq("HOST_INIT"),
-        ))
-        .execute(&mut *conn)
-    {
+    match diesel::delete(addresses.filter(uuid.eq(address_uuid.to_string()))).execute(&mut *conn) {
         Ok(_) => Ok(()),
         Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
         Err(e) => {
@@ -1011,7 +888,7 @@ pub fn force_delete_address(address_uuid: &Uuid) -> Result<(), enums::DbError> {
 
 /// Deletes an address from the database.
 ///
-/// This function marks an address as deleted after verifying that it exists.
+/// This function removes an address after verifying that it exists.
 ///
 /// # Arguments
 /// * `address_uuid` - The UUID of the address to delete
@@ -1031,14 +908,7 @@ pub fn delete_address(address_uuid: &Uuid, context: &UserContext) -> Result<(), 
 
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::addresses::dsl::*;
-    match diesel::update(addresses.filter(uuid.eq(address_uuid.to_string())))
-        .set((
-            status.eq("DELETED"),
-            deleted_at.eq(Utc::now().to_rfc3339()),
-            deleted_by.eq(context.user_id.clone()),
-        ))
-        .execute(&mut *conn)
-    {
+    match diesel::delete(addresses.filter(uuid.eq(address_uuid.to_string()))).execute(&mut *conn) {
         Ok(_) => Ok(()),
         Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
         Err(e) => {
@@ -1050,7 +920,7 @@ pub fn delete_address(address_uuid: &Uuid, context: &UserContext) -> Result<(), 
 
 /// Deletes all addresses from the database.
 ///
-/// This function marks all active addresses as deleted without checking permissions.
+/// This function removes all addresses without checking permissions.
 /// It's intended for system-level operations where permission checks are not required.
 ///
 /// # Returns
@@ -1059,14 +929,7 @@ pub fn delete_address(address_uuid: &Uuid, context: &UserContext) -> Result<(), 
 pub fn delete_all_addresses() -> Result<(), enums::DbError> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::addresses::dsl::*;
-    match diesel::update(addresses.filter(status.eq("ACTIVE")))
-        .set((
-            status.eq("DELETED"),
-            deleted_at.eq(Utc::now().to_rfc3339()),
-            deleted_by.eq("AINARI_START"),
-        ))
-        .execute(&mut *conn)
-    {
+    match diesel::delete(addresses).execute(&mut *conn) {
         Ok(_) => Ok(()),
         Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
         Err(e) => {
@@ -1098,6 +961,19 @@ mod tests {
     const MAC_2: &str = "02:00:00:00:10:02";
     const MAC_3: &str = "02:00:00:00:10:03";
 
+    /// Converts a tap-device name like `tap-00000042` into its counter.
+    ///
+    /// # Returns
+    /// The counter, or None if the name was not generated in this format
+    fn tap_name_to_number(name: &str) -> Option<u32> {
+        let digits = name.strip_prefix(TAP_NAME_PREFIX)?;
+        if digits.len() != TAP_NAME_DIGITS || !digits.bytes().all(|b| b.is_ascii_digit()) {
+            return None;
+        }
+
+        digits.parse::<u32>().ok()
+    }
+
     /// Counter of the tap-device names in the retry-tests, which is not used by other test-entries.
     const TEST_TAP_BASE: u32 = 90_000_000;
 
@@ -1124,7 +1000,7 @@ mod tests {
     }
 
     /// Builds a unique tap-device name for a test-entry out of the last two octets of its MAC-address,
-    /// because the tap-device names have to be unique across the ACTIVE entries.
+    /// because the tap-device names have to be unique.
     fn tap_name_of(entry_mac_address: &str) -> String {
         let number = mac_address_to_number(entry_mac_address).unwrap();
         number_to_tap_name((number & 0xffff) as u32)
@@ -1138,14 +1014,13 @@ mod tests {
         let _ = diesel::delete(addresses.filter(tap_name.eq(name))).execute(&mut *conn);
     }
 
-    /// Builds an AddressEntry for the tests with the given identity and status.
+    /// Builds an AddressEntry for the tests with the given identity.
     fn new_entry(
         entry_uuid: &Uuid,
         entry_mac_address: &str,
         entry_network_uuid: &Uuid,
         entry_owner_id: &str,
         entry_project_id: &str,
-        entry_status: &str,
     ) -> AddressEntry {
         AddressEntry {
             uuid: *entry_uuid,
@@ -1158,14 +1033,28 @@ mod tests {
             virtual_machine_uuid: None,
             owner_id: entry_owner_id.to_string(),
             project_id: entry_project_id.to_string(),
-            status: entry_status.to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
         }
+    }
+
+    /// Adds a network, because a reservation takes the tenant of its network. It lives in a
+    /// project of its own, so it is not counted by the tests of the networks.
+    fn add_test_network(network_uuid: &Uuid) {
+        let context = new_context(
+            "test-user",
+            "test-address-network",
+            false,
+            ProjectRole::Member,
+        );
+        network_table::add_new_network(network_uuid, "test-network", TEST_CIDR, false, &context)
+            .unwrap();
+    }
+
+    fn remove_test_network(network_uuid: &Uuid) {
+        let _ = network_table::force_delete_network(network_uuid);
     }
 
     /// Builds a UserContext for the tests.
@@ -1198,31 +1087,13 @@ mod tests {
         assert!(matches!(result, Err(enums::DbError::NotFound)));
     }
 
-    /// Reads an entry independent of its status.
-    fn get_entry_of_any_status(address_uuid: &Uuid) -> AddressEntry {
-        use self::addresses::dsl::*;
-        let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
-        addresses
-            .filter(uuid.eq(address_uuid.to_string()))
-            .select(AddressEntry::as_select())
-            .first::<AddressEntry>(&mut *conn)
-            .unwrap()
-    }
-
     #[test]
     #[serial]
     fn test_add_get_address() {
         let uuid1 = Uuid::new_v4();
         let network_uuid1 = Uuid::new_v4();
 
-        let entry = new_entry(
-            &uuid1,
-            MAC_1,
-            &network_uuid1,
-            "test-user",
-            "test-project",
-            "ACTIVE",
-        );
+        let entry = new_entry(&uuid1, MAC_1, &network_uuid1, "test-user", "test-project");
 
         hard_delete_mac_address(MAC_1);
 
@@ -1236,13 +1107,10 @@ mod tests {
         assert_eq!(retrieved.network_uuid, entry.network_uuid);
         assert_eq!(retrieved.owner_id, entry.owner_id);
         assert_eq!(retrieved.project_id, entry.project_id);
-        assert_eq!(retrieved.status, entry.status);
         assert_eq!(retrieved.created_at, entry.created_at);
         assert_eq!(retrieved.created_by, entry.created_by);
         assert_eq!(retrieved.updated_at, entry.updated_at);
         assert_eq!(retrieved.updated_by, entry.updated_by);
-        assert_eq!(retrieved.deleted_at, entry.deleted_at);
-        assert_eq!(retrieved.deleted_by, entry.deleted_by);
 
         hard_delete_address(&uuid1);
     }
@@ -1278,7 +1146,6 @@ mod tests {
         assert_eq!(retrieved.host_address, TEST_HOST_ADDRESS);
         assert_eq!(retrieved.owner_id, "test-user");
         assert_eq!(retrieved.project_id, "test-project");
-        assert_eq!(retrieved.status, "ACTIVE");
 
         hard_delete_address(&uuid1);
     }
@@ -1286,58 +1153,23 @@ mod tests {
     #[test]
     #[serial]
     fn test_add_duplicate_mac_address() {
-        let uuid1 = Uuid::new_v4();
-        let uuid2 = Uuid::new_v4();
         let uuid3 = Uuid::new_v4();
         let uuid4 = Uuid::new_v4();
         let network_uuid1 = Uuid::new_v4();
         let network_uuid2 = Uuid::new_v4();
         let context = new_context("test-user", "test-project", false, ProjectRole::Member);
 
-        let deleted1 = new_entry(
-            &uuid1,
-            MAC_1,
-            &network_uuid1,
-            "test-user",
-            "test-project",
-            "DELETED",
-        );
-        let deleted2 = new_entry(
-            &uuid2,
-            MAC_1,
-            &network_uuid1,
-            "test-user",
-            "test-project",
-            "DELETED",
-        );
-        let active1 = new_entry(
-            &uuid3,
-            MAC_1,
-            &network_uuid1,
-            "test-user",
-            "test-project",
-            "ACTIVE",
-        );
+        let active1 = new_entry(&uuid3, MAC_1, &network_uuid1, "test-user", "test-project");
         // other network, so only the MAC-address is in conflict
-        let active2 = new_entry(
-            &uuid4,
-            MAC_1,
-            &network_uuid2,
-            "test-user",
-            "test-project",
-            "ACTIVE",
-        );
+        let active2 = new_entry(&uuid4, MAC_1, &network_uuid2, "test-user", "test-project");
 
         hard_delete_mac_address(MAC_1);
 
-        // deleted entries can share a MAC-address with each other and with one ACTIVE entry
-        add_address(deleted1).unwrap();
-        add_address(deleted2).unwrap();
+        // the MAC-address must be unique ...
         add_address(active1).unwrap();
-        // but not with a second ACTIVE entry
         assert!(add_address(active2.clone()).is_err());
 
-        // after deleting the ACTIVE entry, the MAC-address can be used again
+        // ... and after deleting the entry, it can be used again
         assert!(delete_address(&uuid3, &context).is_ok());
         add_address(active2).unwrap();
 
@@ -1353,33 +1185,10 @@ mod tests {
         let network_uuid1 = Uuid::new_v4();
         let context = new_context("test-user", "test-project", false, ProjectRole::Member);
 
-        let active1 = new_entry(
-            &uuid1,
-            MAC_1,
-            &network_uuid1,
-            "test-user",
-            "test-project",
-            "ACTIVE",
-        );
+        let active1 = new_entry(&uuid1, MAC_1, &network_uuid1, "test-user", "test-project");
         // other MAC-address and internal IP-address, so only the tap-device name is in conflict
-        let mut active2 = new_entry(
-            &uuid2,
-            MAC_2,
-            &network_uuid1,
-            "test-user",
-            "test-project",
-            "ACTIVE",
-        );
+        let mut active2 = new_entry(&uuid2, MAC_2, &network_uuid1, "test-user", "test-project");
         active2.tap_name = active1.tap_name.clone();
-        let mut deleted = new_entry(
-            &uuid3,
-            MAC_3,
-            &network_uuid1,
-            "test-user",
-            "test-project",
-            "DELETED",
-        );
-        deleted.tap_name = active1.tap_name.clone();
 
         hard_delete_mac_address(MAC_1);
         hard_delete_mac_address(MAC_2);
@@ -1387,12 +1196,10 @@ mod tests {
         hard_delete_tap_name(&active1.tap_name);
 
         add_address(active1).unwrap();
-        // the tap-device name must be unique across the ACTIVE entries ...
+        // the tap-device name must be unique ...
         assert!(add_address(active2.clone()).is_err());
-        // ... but can be shared with deleted entries
-        add_address(deleted).unwrap();
 
-        // after deleting the ACTIVE entry, the tap-device name can be used again
+        // ... and after deleting the entry, it can be used again
         assert!(delete_address(&uuid1, &context).is_ok());
         add_address(active2).unwrap();
 
@@ -1416,60 +1223,32 @@ mod tests {
 
     #[test]
     #[serial]
-    fn test_get_highest_tap_number() {
+    fn test_find_free_tap_number() {
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
-        let uuid3 = Uuid::new_v4();
         let network_uuid1 = Uuid::new_v4();
 
-        // the highest possible values, so no other entries of the table are higher
-        let mut active = new_entry(
-            &uuid1,
-            MAC_1,
-            &network_uuid1,
-            "test-user",
-            "test-project",
-            "ACTIVE",
-        );
-        active.tap_name = number_to_tap_name(LAST_TAP_NUMBER - 10);
-        // deleted, so it is ignored
-        let mut deleted = new_entry(
-            &uuid2,
-            MAC_2,
-            &network_uuid1,
-            "test-user",
-            "test-project",
-            "DELETED",
-        );
-        deleted.tap_name = number_to_tap_name(LAST_TAP_NUMBER - 1);
-        // not generated, so it is ignored
-        let mut other_format = new_entry(
-            &uuid3,
-            MAC_3,
-            &network_uuid1,
-            "test-user",
-            "test-project",
-            "ACTIVE",
-        );
-        other_format.tap_name = "tap-vm".to_string();
+        let mut active = new_entry(&uuid1, MAC_1, &network_uuid1, "test-user", "test-project");
+        active.tap_name = number_to_tap_name(TEST_TAP_BASE);
 
         hard_delete_mac_address(MAC_1);
-        hard_delete_mac_address(MAC_2);
-        hard_delete_mac_address(MAC_3);
-        for name in [&active.tap_name, &deleted.tap_name, &other_format.tap_name] {
-            hard_delete_tap_name(name);
+        hard_delete_tap_name(&active.tap_name);
+        add_address(active.clone()).unwrap();
+
+        // only an existing entry blocks its tap-device name
+        assert!(is_tap_name_used(&active.tap_name).unwrap());
+        assert!(!is_tap_name_used(&number_to_tap_name(TEST_TAP_BASE + 1)).unwrap());
+
+        // the picked tap-device names are within the range and free
+        for _ in 0..20 {
+            let number = find_free_tap_number()
+                .ok()
+                .expect("no free tap-device name found");
+            assert!((FIRST_TAP_NUMBER..=LAST_TAP_NUMBER).contains(&number));
+            assert!(!is_tap_name_used(&number_to_tap_name(number)).unwrap());
         }
 
-        add_address(active).unwrap();
-        add_address(deleted).unwrap();
-        add_address(other_format).unwrap();
-
-        assert!(matches!(
-            get_highest_tap_number(),
-            Ok(Some(number)) if number == LAST_TAP_NUMBER - 10
-        ));
-
-        for entry_uuid in [&uuid1, &uuid2, &uuid3] {
+        for entry_uuid in [&uuid1, &uuid2] {
             hard_delete_address(entry_uuid);
         }
     }
@@ -1501,6 +1280,8 @@ mod tests {
         let network_uuid1 = Uuid::new_v4();
         let network_uuid2 = Uuid::new_v4();
         let context = new_context("test-user", "test-project", false, ProjectRole::Member);
+        add_test_network(&network_uuid1);
+        add_test_network(&network_uuid2);
 
         // the first address of a new network gets the first internal IP-address
         let first = expect_entry(reserve_new_address(
@@ -1524,21 +1305,17 @@ mod tests {
             &context,
         ));
         assert_ne!(second.uuid, first.uuid);
-        assert_eq!(
-            mac_address_to_number(&second.mac_address),
-            mac_address_to_number(&first.mac_address).map(|number| number + 1)
-        );
-        assert_eq!(
-            tap_name_to_number(&second.tap_name),
-            tap_name_to_number(&first.tap_name).map(|number| number + 1)
-        );
+        // the MAC-address and the tap-device name are random free ones
+        assert_ne!(second.mac_address, first.mac_address);
+        assert!(tap_name_to_number(&second.tap_name).is_some());
+        assert_ne!(second.tap_name, first.tap_name);
         assert_eq!(
             u32::from(second.internal_ip),
             u32::from(first.internal_ip) + 1
         );
 
-        // deleted entries don't block their values, so the MAC-address, the tap-device name
-        // and the internal IP-address are reused within a new entry
+        // the values of a deleted entry can be used again, so the internal IP-address is reused
+        // within a new entry
         assert!(delete_address(&second.uuid, &context).is_ok());
         let reused = expect_entry(reserve_new_address(
             &network_uuid1,
@@ -1547,11 +1324,12 @@ mod tests {
             &context,
         ));
         assert_ne!(reused.uuid, second.uuid);
-        assert_eq!(reused.mac_address, second.mac_address);
-        assert_eq!(reused.tap_name, second.tap_name);
+        assert_ne!(reused.mac_address, first.mac_address);
+        assert_ne!(reused.tap_name, first.tap_name);
         assert_eq!(reused.internal_ip, second.internal_ip);
 
-        // internal IP-addresses are counted per network, MAC-addresses and tap-device names globally
+        // internal IP-addresses are counted per network, MAC-addresses and tap-device names are
+        // unique globally
         let third = expect_entry(reserve_new_address(
             &network_uuid2,
             TEST_CIDR,
@@ -1559,18 +1337,14 @@ mod tests {
             &context,
         ));
         assert_eq!(third.internal_ip, FIRST_TEST_IP);
-        assert_eq!(
-            mac_address_to_number(&third.mac_address),
-            mac_address_to_number(&reused.mac_address).map(|number| number + 1)
-        );
-        assert_eq!(
-            tap_name_to_number(&third.tap_name),
-            tap_name_to_number(&reused.tap_name).map(|number| number + 1)
-        );
+        assert!(![&first.mac_address, &reused.mac_address].contains(&&third.mac_address));
+        assert!(![&first.tap_name, &reused.tap_name].contains(&&third.tap_name));
 
         for entry_uuid in [&first.uuid, &second.uuid, &reused.uuid, &third.uuid] {
             hard_delete_address(entry_uuid);
         }
+        remove_test_network(&network_uuid1);
+        remove_test_network(&network_uuid2);
     }
 
     #[test]
@@ -1590,16 +1364,10 @@ mod tests {
         let uuid1 = Uuid::new_v4();
         let network_uuid1 = Uuid::new_v4();
         let context = new_context("test-user", "test-project", false, ProjectRole::Member);
+        add_test_network(&network_uuid1);
 
         // an existing address below the range of the CIDR doesn't move the start of the range
-        let mut below = new_entry(
-            &uuid1,
-            MAC_1,
-            &network_uuid1,
-            "test-user",
-            "test-project",
-            "ACTIVE",
-        );
+        let mut below = new_entry(&uuid1, MAC_1, &network_uuid1, "test-user", "test-project");
         below.internal_ip = Ipv4Addr::new(10, 0, 0, 5);
         hard_delete_mac_address(MAC_1);
         add_address(below).unwrap();
@@ -1619,6 +1387,7 @@ mod tests {
 
         hard_delete_address(&uuid1);
         hard_delete_address(&first.uuid);
+        remove_test_network(&network_uuid1);
     }
 
     #[test]
@@ -1630,34 +1399,10 @@ mod tests {
         let network_uuid1 = Uuid::new_v4();
 
         // alphabetically "10.0.0.9" would be higher than "10.0.0.10"
-        let mut entry1 = new_entry(
-            &uuid1,
-            MAC_1,
-            &network_uuid1,
-            "test-user",
-            "test-project",
-            "ACTIVE",
-        );
+        let mut entry1 = new_entry(&uuid1, MAC_1, &network_uuid1, "test-user", "test-project");
         entry1.internal_ip = Ipv4Addr::new(10, 0, 0, 9);
-        let mut entry2 = new_entry(
-            &uuid2,
-            MAC_2,
-            &network_uuid1,
-            "test-user",
-            "test-project",
-            "ACTIVE",
-        );
+        let mut entry2 = new_entry(&uuid2, MAC_2, &network_uuid1, "test-user", "test-project");
         entry2.internal_ip = Ipv4Addr::new(10, 0, 0, 10);
-        // deleted, so it is ignored
-        let mut entry3 = new_entry(
-            &uuid3,
-            MAC_3,
-            &network_uuid1,
-            "test-user",
-            "test-project",
-            "DELETED",
-        );
-        entry3.internal_ip = Ipv4Addr::new(10, 0, 0, 20);
 
         hard_delete_mac_address(MAC_1);
         hard_delete_mac_address(MAC_2);
@@ -1667,7 +1412,6 @@ mod tests {
 
         add_address(entry1).unwrap();
         add_address(entry2).unwrap();
-        add_address(entry3).unwrap();
 
         assert!(matches!(
             get_highest_internal_ip(&network_uuid1),
@@ -1681,42 +1425,30 @@ mod tests {
 
     #[test]
     #[serial]
-    fn test_get_highest_mac_address() {
+    fn test_find_free_mac_address() {
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
         let network_uuid1 = Uuid::new_v4();
 
-        // the highest possible values, so no other entries of the table are higher
-        let active_mac = "02:ff:ff:ff:ff:f0";
-        let deleted_mac = "02:ff:ff:ff:ff:fe";
-        let active = new_entry(
-            &uuid1,
-            active_mac,
-            &network_uuid1,
-            "test-user",
-            "test-project",
-            "ACTIVE",
-        );
-        // deleted, so it is ignored
-        let deleted = new_entry(
-            &uuid2,
-            deleted_mac,
-            &network_uuid1,
-            "test-user",
-            "test-project",
-            "DELETED",
-        );
-
-        hard_delete_mac_address(active_mac);
-        hard_delete_mac_address(deleted_mac);
-
+        let active = new_entry(&uuid1, MAC_1, &network_uuid1, "test-user", "test-project");
+        hard_delete_mac_address(MAC_1);
+        hard_delete_mac_address(MAC_2);
         add_address(active).unwrap();
-        add_address(deleted).unwrap();
 
-        assert_eq!(
-            get_highest_mac_address().unwrap().as_deref(),
-            Some(active_mac)
-        );
+        // only an existing entry blocks its MAC-address
+        assert!(is_mac_address_used(MAC_1).unwrap());
+        assert!(!is_mac_address_used(MAC_2).unwrap());
+
+        // the picked MAC-addresses are within the range of the prefix and free
+        for _ in 0..20 {
+            let number = find_free_mac_address()
+                .ok()
+                .expect("no free MAC-address found");
+            assert!((FIRST_MAC_ADDRESS..=LAST_MAC_ADDRESS).contains(&number));
+            let mac = number_to_mac_address(number);
+            assert!(mac.starts_with(MAC_ADDRESS_PREFIX));
+            assert!(!is_mac_address_used(&mac).unwrap());
+        }
 
         hard_delete_address(&uuid1);
         hard_delete_address(&uuid2);
@@ -1728,59 +1460,26 @@ mod tests {
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
         let uuid3 = Uuid::new_v4();
-        let uuid4 = Uuid::new_v4();
         let network_uuid1 = Uuid::new_v4();
         let network_uuid2 = Uuid::new_v4();
 
-        let entry1 = new_entry(
-            &uuid1,
-            MAC_1,
-            &network_uuid1,
-            "test-user",
-            "test-project",
-            "ACTIVE",
-        );
-        let mut entry2 = new_entry(
-            &uuid2,
-            MAC_2,
-            &network_uuid1,
-            "test-user",
-            "test-project",
-            "ACTIVE",
-        );
+        let entry1 = new_entry(&uuid1, MAC_1, &network_uuid1, "test-user", "test-project");
+        let mut entry2 = new_entry(&uuid2, MAC_2, &network_uuid1, "test-user", "test-project");
         entry2.internal_ip = entry1.internal_ip;
-        let mut entry3 = new_entry(
-            &uuid3,
-            MAC_3,
-            &network_uuid2,
-            "test-user",
-            "test-project",
-            "ACTIVE",
-        );
+        let mut entry3 = new_entry(&uuid3, MAC_3, &network_uuid2, "test-user", "test-project");
         entry3.internal_ip = entry1.internal_ip;
-        let mut entry4 = new_entry(
-            &uuid4,
-            MAC_2,
-            &network_uuid1,
-            "test-user",
-            "test-project",
-            "DELETED",
-        );
-        entry4.internal_ip = entry1.internal_ip;
 
         hard_delete_mac_address(MAC_1);
         hard_delete_mac_address(MAC_2);
         hard_delete_mac_address(MAC_3);
 
         add_address(entry1).unwrap();
-        // the internal IP-address must be unique across the ACTIVE entries within a network ...
+        // the internal IP-address must be unique within a network ...
         assert!(add_address(entry2).is_err());
         // ... but can be used again in another network
         assert!(add_address(entry3).is_ok());
-        // ... and by deleted entries
-        assert!(add_address(entry4).is_ok());
 
-        for entry_uuid in [&uuid1, &uuid2, &uuid3, &uuid4] {
+        for entry_uuid in [&uuid1, &uuid2, &uuid3] {
             hard_delete_address(entry_uuid);
         }
     }
@@ -1794,12 +1493,12 @@ mod tests {
         let network_uuid2 = Uuid::new_v4();
         let context = new_context("test-user", "test-project", false, ProjectRole::Member);
 
-        // simulate other requests in another network, which already reserved the first two MAC-addresses
+        // simulate other requests in another network, which already reserved the first
+        // MAC-address to try and the one behind it
         let base = mac_address_to_number(MAC_1).unwrap();
         let taken_1 = number_to_mac_address(base);
         let taken_2 = number_to_mac_address(base + 1);
-        let expected = number_to_mac_address(base + 2);
-        for mac in [&taken_1, &taken_2, &expected] {
+        for mac in [&taken_1, &taken_2] {
             hard_delete_mac_address(mac);
         }
         add_address(new_entry(
@@ -1808,7 +1507,6 @@ mod tests {
             &network_uuid2,
             "other-user",
             "other-project",
-            "ACTIVE",
         ))
         .unwrap();
         add_address(new_entry(
@@ -1817,7 +1515,6 @@ mod tests {
             &network_uuid2,
             "other-user",
             "other-project",
-            "ACTIVE",
         ))
         .unwrap();
 
@@ -1834,7 +1531,9 @@ mod tests {
             TEST_HOST_ADDRESS,
             &context,
         ));
-        assert_eq!(reserved.mac_address, expected);
+        // the MAC-address is not counted up, but a new random one is picked
+        assert!(![&taken_1, &taken_2].contains(&&reserved.mac_address));
+        assert!(reserved.mac_address.starts_with(MAC_ADDRESS_PREFIX));
         // only the MAC-address was in conflict, so the other values were not increased
         assert_eq!(reserved.tap_name, number_to_tap_name(TEST_TAP_BASE));
         assert_eq!(reserved.internal_ip, FIRST_TEST_IP);
@@ -1856,14 +1555,7 @@ mod tests {
         let context = new_context("test-user", "test-project", false, ProjectRole::Member);
 
         // simulate another request, which already reserved the first internal IP-address
-        let mut other = new_entry(
-            &uuid1,
-            MAC_2,
-            &network_uuid1,
-            "other-user",
-            "other-project",
-            "ACTIVE",
-        );
+        let mut other = new_entry(&uuid1, MAC_2, &network_uuid1, "other-user", "other-project");
         other.internal_ip = FIRST_TEST_IP;
 
         let base = mac_address_to_number(MAC_1).unwrap();
@@ -1903,23 +1595,9 @@ mod tests {
         let context = new_context("test-user", "test-project", false, ProjectRole::Member);
 
         // simulate other requests in another network, which already reserved the first two tap-device names
-        let mut taken1 = new_entry(
-            &uuid1,
-            MAC_2,
-            &network_uuid2,
-            "other-user",
-            "other-project",
-            "ACTIVE",
-        );
+        let mut taken1 = new_entry(&uuid1, MAC_2, &network_uuid2, "other-user", "other-project");
         taken1.tap_name = number_to_tap_name(TEST_TAP_BASE);
-        let mut taken2 = new_entry(
-            &uuid2,
-            MAC_3,
-            &network_uuid2,
-            "other-user",
-            "other-project",
-            "ACTIVE",
-        );
+        let mut taken2 = new_entry(&uuid2, MAC_3, &network_uuid2, "other-user", "other-project");
         taken2.tap_name = number_to_tap_name(TEST_TAP_BASE + 1);
 
         let base = mac_address_to_number(MAC_1).unwrap();
@@ -2014,30 +1692,17 @@ mod tests {
         let uuid2 = Uuid::new_v4();
         let network_uuid1 = Uuid::new_v4();
 
-        let entry1 = new_entry(
-            &uuid1,
-            MAC_1,
-            &network_uuid1,
-            "test-user",
-            "test-project",
-            "ACTIVE",
-        );
-        let entry2 = new_entry(
-            &uuid2,
-            MAC_2,
-            &network_uuid1,
-            "test-user",
-            "test-project",
-            "DELETED",
-        );
+        let entry1 = new_entry(&uuid1, MAC_1, &network_uuid1, "test-user", "test-project");
+        let entry2 = new_entry(&uuid2, MAC_2, &network_uuid1, "test-user", "test-project");
 
         hard_delete_mac_address(MAC_1);
         hard_delete_mac_address(MAC_2);
 
         add_address(entry1).unwrap();
         add_address(entry2).unwrap();
+        assert!(force_delete_address(&uuid2).is_ok());
 
-        // only the ACTIVE entry is listed
+        // the deleted entry is not listed anymore
         let entries: Vec<AddressEntry> = list_addresses()
             .unwrap()
             .into_iter()
@@ -2060,23 +1725,9 @@ mod tests {
         let network_uuid1 = Uuid::new_v4();
         let network_uuid2 = Uuid::new_v4();
 
-        let entry1 = new_entry(
-            &uuid1,
-            MAC_1,
-            &network_uuid1,
-            "test-user",
-            "test-project",
-            "ACTIVE",
-        );
+        let entry1 = new_entry(&uuid1, MAC_1, &network_uuid1, "test-user", "test-project");
         // the same internal address within another network
-        let mut entry2 = new_entry(
-            &uuid2,
-            MAC_2,
-            &network_uuid2,
-            "test-user",
-            "test-project",
-            "ACTIVE",
-        );
+        let mut entry2 = new_entry(&uuid2, MAC_2, &network_uuid2, "test-user", "test-project");
         entry2.internal_ip = internal_ip_of(MAC_1);
 
         hard_delete_mac_address(MAC_1);
@@ -2120,33 +1771,12 @@ mod tests {
         let network_uuid2 = Uuid::new_v4();
 
         // the virtual_machine of the second host of the same network ...
-        let mut entry1 = new_entry(
-            &uuid1,
-            MAC_1,
-            &network_uuid1,
-            "test-user",
-            "test-project",
-            "ACTIVE",
-        );
+        let mut entry1 = new_entry(&uuid1, MAC_1, &network_uuid1, "test-user", "test-project");
         entry1.host_address = "http://sakura-2:11420".to_string();
         // ... a deleted one, which has no routes any more ...
-        let entry2 = new_entry(
-            &uuid2,
-            MAC_2,
-            &network_uuid1,
-            "test-user",
-            "test-project",
-            "DELETED",
-        );
+        let entry2 = new_entry(&uuid2, MAC_2, &network_uuid1, "test-user", "test-project");
         // ... and one of another network, which is not connected to the first one
-        let entry3 = new_entry(
-            &uuid3,
-            MAC_3,
-            &network_uuid2,
-            "test-user",
-            "test-project",
-            "ACTIVE",
-        );
+        let entry3 = new_entry(&uuid3, MAC_3, &network_uuid2, "test-user", "test-project");
 
         hard_delete_mac_address(MAC_1);
         hard_delete_mac_address(MAC_2);
@@ -2155,6 +1785,7 @@ mod tests {
         add_address(entry1).unwrap();
         add_address(entry2).unwrap();
         add_address(entry3).unwrap();
+        assert!(force_delete_address(&uuid2).is_ok());
 
         let entries = list_addresses_of_network(&network_uuid1).unwrap();
         assert_eq!(entries.len(), 1);
@@ -2177,26 +1808,13 @@ mod tests {
         let network_uuid1 = Uuid::new_v4();
         let context = new_context("test-user", "test-project", false, ProjectRole::Member);
 
-        let entry = new_entry(
-            &uuid1,
-            MAC_1,
-            &network_uuid1,
-            "test-user",
-            "test-project",
-            "ACTIVE",
-        );
+        let entry = new_entry(&uuid1, MAC_1, &network_uuid1, "test-user", "test-project");
 
         hard_delete_mac_address(MAC_1);
 
         add_address(entry).unwrap();
         assert!(delete_address(&uuid1, &context).is_ok());
         assert_not_found(get_address(&uuid1));
-
-        // the entry is only marked as deleted
-        let deleted = get_entry_of_any_status(&uuid1);
-        assert_eq!(deleted.status, "DELETED");
-        assert!(deleted.deleted_at.is_some());
-        assert_eq!(deleted.deleted_by.as_deref(), Some("test-user"));
 
         // deleting it again fails
         assert!(matches!(
@@ -2205,14 +1823,7 @@ mod tests {
         ));
 
         // the MAC-address and the internal IP-address can be used again by a new entry
-        let entry = new_entry(
-            &uuid2,
-            MAC_1,
-            &network_uuid1,
-            "test-user",
-            "test-project",
-            "ACTIVE",
-        );
+        let entry = new_entry(&uuid2, MAC_1, &network_uuid1, "test-user", "test-project");
         add_address(entry).unwrap();
 
         hard_delete_address(&uuid1);
@@ -2226,14 +1837,7 @@ mod tests {
         let network_uuid1 = Uuid::new_v4();
 
         // the force-delete works without a user context
-        let entry = new_entry(
-            &uuid1,
-            MAC_1,
-            &network_uuid1,
-            "other-user",
-            "other-project",
-            "ACTIVE",
-        );
+        let entry = new_entry(&uuid1, MAC_1, &network_uuid1, "other-user", "other-project");
 
         hard_delete_mac_address(MAC_1);
 
@@ -2241,7 +1845,6 @@ mod tests {
         assert!(force_delete_address(&uuid1).is_ok());
 
         assert_not_found(get_address(&uuid1));
-        assert_eq!(get_entry_of_any_status(&uuid1).status, "DELETED");
 
         hard_delete_address(&uuid1);
     }
@@ -2253,22 +1856,8 @@ mod tests {
         let uuid2 = Uuid::new_v4();
         let network_uuid1 = Uuid::new_v4();
 
-        let entry1 = new_entry(
-            &uuid1,
-            MAC_1,
-            &network_uuid1,
-            "test-user",
-            "test-project",
-            "ACTIVE",
-        );
-        let entry2 = new_entry(
-            &uuid2,
-            MAC_2,
-            &network_uuid1,
-            "other-user",
-            "other-project",
-            "ACTIVE",
-        );
+        let entry1 = new_entry(&uuid1, MAC_1, &network_uuid1, "test-user", "test-project");
+        let entry2 = new_entry(&uuid2, MAC_2, &network_uuid1, "other-user", "other-project");
 
         hard_delete_mac_address(MAC_1);
         hard_delete_mac_address(MAC_2);
@@ -2279,8 +1868,6 @@ mod tests {
         assert!(delete_all_addresses().is_ok());
 
         assert_eq!(list_addresses().unwrap().len(), 0);
-        assert_eq!(get_entry_of_any_status(&uuid1).status, "DELETED");
-        assert_eq!(get_entry_of_any_status(&uuid2).status, "DELETED");
 
         hard_delete_address(&uuid1);
         hard_delete_address(&uuid2);
@@ -2295,31 +1882,10 @@ mod tests {
         let network_uuid1 = Uuid::new_v4();
         let context = new_context("test-user", "test-project", false, ProjectRole::Member);
 
-        let entry1 = new_entry(
-            &uuid1,
-            MAC_1,
-            &network_uuid1,
-            "test-user",
-            "test-project",
-            "ACTIVE",
-        );
-        let entry2 = new_entry(
-            &uuid2,
-            MAC_2,
-            &network_uuid1,
-            "test-user",
-            "test-project",
-            "ACTIVE",
-        );
+        let entry1 = new_entry(&uuid1, MAC_1, &network_uuid1, "test-user", "test-project");
+        let entry2 = new_entry(&uuid2, MAC_2, &network_uuid1, "test-user", "test-project");
         // entries of other owners are not counted
-        let entry3 = new_entry(
-            &uuid3,
-            MAC_3,
-            &network_uuid1,
-            "other-user",
-            "test-project",
-            "ACTIVE",
-        );
+        let entry3 = new_entry(&uuid3, MAC_3, &network_uuid1, "other-user", "test-project");
 
         hard_delete_mac_address(MAC_1);
         hard_delete_mac_address(MAC_2);
@@ -2350,7 +1916,6 @@ mod tests {
             &network_uuid1,
             "test-user-42",
             "test_project_1",
-            "ACTIVE",
         );
         let entry2 = new_entry(
             &uuid2,
@@ -2358,7 +1923,6 @@ mod tests {
             &network_uuid1,
             "test-user-43",
             "test_project_1",
-            "ACTIVE",
         );
         let entry3 = new_entry(
             &uuid3,
@@ -2366,7 +1930,6 @@ mod tests {
             &network_uuid1,
             "test-user-44",
             "test_project_2",
-            "ACTIVE",
         );
 
         hard_delete_mac_address(MAC_1);
@@ -2407,14 +1970,7 @@ mod tests {
         let virtual_machine_uuid1 = Uuid::new_v4();
         let context = new_context("test-user", "test-project", false, ProjectRole::Member);
 
-        let entry = new_entry(
-            &uuid1,
-            MAC_1,
-            &network_uuid1,
-            "test-user",
-            "test-project",
-            "ACTIVE",
-        );
+        let entry = new_entry(&uuid1, MAC_1, &network_uuid1, "test-user", "test-project");
 
         hard_delete_mac_address(MAC_1);
         add_address(entry).unwrap();
@@ -2441,14 +1997,7 @@ mod tests {
         let network_uuid1 = Uuid::new_v4();
         let context = new_context("test-user", "test-project", false, ProjectRole::Member);
 
-        let entry = new_entry(
-            &uuid1,
-            MAC_1,
-            &network_uuid1,
-            "test-user",
-            "test-project",
-            "ACTIVE",
-        );
+        let entry = new_entry(&uuid1, MAC_1, &network_uuid1, "test-user", "test-project");
 
         hard_delete_mac_address(MAC_1);
         add_address(entry).unwrap();
@@ -2493,6 +2042,7 @@ mod tests {
     fn test_reserve_predefined_address() {
         let network = Uuid::new_v4();
         let context = predefined_context();
+        add_test_network(&network);
         let cidr = "10.20.0.0/24";
         let ip = Ipv4Addr::new(10, 20, 0, 50);
         let mac = "02:aa:bb:cc:dd:01";
@@ -2554,5 +2104,6 @@ mod tests {
         assert_ne!(address.mac_address, mac);
 
         hard_delete_network_addresses(&network);
+        remove_test_network(&network);
     }
 }

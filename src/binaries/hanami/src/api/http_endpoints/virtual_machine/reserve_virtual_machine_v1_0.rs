@@ -157,10 +157,9 @@ pub async fn reserve(
         })?;
 
     // a predefined UUID is checked, before anything is allocated
-    let replace_deleted = match &request.uuid {
-        Some(uuid) => check_predefined_uuid(uuid, context)?,
-        None => false,
-    };
+    if let Some(uuid) = &request.uuid {
+        check_predefined_uuid(uuid, context)?;
+    }
 
     check_quota(context).await?;
 
@@ -197,18 +196,7 @@ pub async fn reserve(
         }
     };
 
-    // the entry of a deleted virtual_machine with the same UUID is replaced
     let virtual_machine_uuid = virtual_machine_resp.uuid;
-    if replace_deleted {
-        meta_virtual_machine_table::remove_deleted_meta_virtual_machine(&virtual_machine_uuid)
-            .map_err(|e| {
-                map_db_write_error(
-                    &format!("remove deleted virtual_machine '{virtual_machine_uuid}'"),
-                    e,
-                    Some(context),
-                )
-            })?;
-    }
 
     // add new virtual_machine to database
     meta_virtual_machine_table::add_new_meta_virtual_machine(
@@ -236,21 +224,20 @@ pub async fn reserve(
 /// * `uuid` - The predefined UUID
 /// * `context` - User context with the project of the new virtual_machine
 ///
+/// The UUID of a deleted virtual_machine is free again for every project.
+///
 /// # Returns
-/// * `Ok(bool)` - The UUID can be used, true if it belongs to a deleted virtual_machine of the
-///   project, whose entry has to be replaced
-/// * `Err(ErrorResponse::Conflict)` - The UUID is used by an active virtual_machine or by another
-///   project
-fn check_predefined_uuid(uuid: &Uuid, context: &UserContext) -> Result<bool, ErrorResponse> {
-    let existing = meta_virtual_machine_table::find_meta_virtual_machine(uuid)
+/// * `Ok(())` - The UUID can be used
+/// * `Err(ErrorResponse::Conflict)` - The UUID is used by another virtual_machine
+fn check_predefined_uuid(uuid: &Uuid, context: &UserContext) -> Result<(), ErrorResponse> {
+    let exists = meta_virtual_machine_table::meta_virtual_machine_exists(uuid)
         .map_err(|e| map_db_list_error("virtual_machines", e, Some(context)))?;
-    match existing {
-        None => Ok(false),
-        Some((project, status)) if project == context.project_id && status == "DELETED" => Ok(true),
-        Some(_) => Err(ErrorResponse::Conflict(format!(
+    if exists {
+        return Err(ErrorResponse::Conflict(format!(
             "The UUID '{uuid}' is already used by another virtual_machine."
-        ))),
+        )));
     }
+    Ok(())
 }
 
 /// Selects the sakura-host, which runs the new virtual_machine, and allocates the resources of
@@ -916,7 +903,7 @@ mod tests {
     use diesel::prelude::*;
     use serial_test::serial;
 
-    fn add_meta_virtual_machine(project: &str, vm_status: &str) -> Uuid {
+    fn add_meta_virtual_machine(project: &str) -> Uuid {
         let vm_uuid = Uuid::new_v4();
         let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
         use crate::database::meta_virtual_machine_table::meta_virtual_machines::dsl::*;
@@ -928,13 +915,10 @@ mod tests {
                 proxy_uuid: Uuid::new_v4(),
                 owner_id: "test-user".to_string(),
                 project_id: project.to_string(),
-                status: vm_status.to_string(),
                 created_at: Utc::now(),
                 created_by: "test-user".to_string(),
                 updated_at: Utc::now(),
                 updated_by: "test-user".to_string(),
-                deleted_at: None,
-                deleted_by: None,
                 number_of_cores: 1,
                 memory_size: 512,
                 disk_size: 10,
@@ -955,49 +939,27 @@ mod tests {
             is_admin: false.to_string(),
             project_role: ProjectRole::Member.to_string(),
         };
-        let active = add_meta_virtual_machine(&project, "ACTIVE");
-        let deleted = add_meta_virtual_machine(&project, "DELETED");
-        let foreign = add_meta_virtual_machine("other-project", "DELETED");
+        let own = add_meta_virtual_machine(&project);
+        let foreign = add_meta_virtual_machine("other-project");
 
-        // a free UUID or the one of a deleted virtual_machine of the project can be used
-        assert!(matches!(
-            check_predefined_uuid(&Uuid::new_v4(), &context),
-            Ok(false)
-        ));
-        assert!(matches!(
-            check_predefined_uuid(&deleted, &context),
-            Ok(true)
-        ));
-        // an active virtual_machine or another project block the UUID
-        assert!(matches!(
-            check_predefined_uuid(&active, &context),
-            Err(ErrorResponse::Conflict(_))
-        ));
-        assert!(matches!(
-            check_predefined_uuid(&foreign, &context),
-            Err(ErrorResponse::Conflict(_))
-        ));
-
-        // only the entry of the deleted virtual_machine is removed
-        for vm in [active, deleted] {
-            meta_virtual_machine_table::remove_deleted_meta_virtual_machine(&vm).unwrap();
+        // a free UUID can be used
+        assert!(check_predefined_uuid(&Uuid::new_v4(), &context).is_ok());
+        // an existing virtual_machine blocks its UUID, independent of its project
+        for vm in [own, foreign] {
+            assert!(matches!(
+                check_predefined_uuid(&vm, &context),
+                Err(ErrorResponse::Conflict(_))
+            ));
         }
-        assert!(
-            meta_virtual_machine_table::find_meta_virtual_machine(&active)
-                .unwrap()
-                .is_some()
-        );
-        assert!(
-            meta_virtual_machine_table::find_meta_virtual_machine(&deleted)
-                .unwrap()
-                .is_none()
-        );
+
+        // the UUID of a deleted virtual_machine is free again for every project
+        assert!(meta_virtual_machine_table::delete_meta_virtual_machine(&own, &context).is_ok());
+        assert!(check_predefined_uuid(&own, &context).is_ok());
+        assert!(!meta_virtual_machine_table::meta_virtual_machine_exists(&own).unwrap());
 
         let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
         use crate::database::meta_virtual_machine_table::meta_virtual_machines::dsl::*;
-        for vm_uuid in [active, foreign] {
-            let _ = diesel::delete(meta_virtual_machines.filter(uuid.eq(vm_uuid.to_string())))
-                .execute(&mut *conn);
-        }
+        let _ = diesel::delete(meta_virtual_machines.filter(uuid.eq(foreign.to_string())))
+            .execute(&mut *conn);
     }
 }

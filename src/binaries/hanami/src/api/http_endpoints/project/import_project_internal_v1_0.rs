@@ -137,14 +137,13 @@ pub async fn import_project_internal(
             subnet: network.subnet.clone(),
             owner_id: context.user_id.clone(),
             project_id: project_id.clone(),
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: context.user_id.clone(),
             updated_at: Utc::now(),
             updated_by: context.user_id.clone(),
-            deleted_at: None,
-            deleted_by: None,
             disable_encryption: network.disable_encryption,
+            // an overwritten network keeps its tenant, a new one gets it with its first address
+            vni: None,
         })
         .map_err(|e| {
             map_db_write_error(
@@ -212,12 +211,8 @@ fn check_network(
 ) -> Result<bool, ErrorResponse> {
     let existing = network_table::find_network(uuid)
         .map_err(|e| map_db_list_error("networks", e, Some(context)))?;
-    // a deleted network of the project is restored, so it is handled like a free UUID
     let overwritten = check_import_target(
-        existing
-            .as_ref()
-            .filter(|n| n.status == "ACTIVE" || n.project_id != context.project_id)
-            .map(|n| n.project_id.as_str()),
+        existing.as_ref().map(|n| n.project_id.as_str()),
         &context.project_id,
         force,
         "Network",
@@ -478,14 +473,12 @@ mod tests {
             subnet: subnet.to_string(),
             owner_id: "test-user".to_string(),
             project_id: project.to_string(),
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "test-user".to_string(),
             updated_at: Utc::now(),
             updated_by: "test-user".to_string(),
-            deleted_at: None,
-            deleted_by: None,
             disable_encryption: false,
+            vni: None,
         }
     }
 
@@ -503,13 +496,10 @@ mod tests {
                     proxy_uuid: Uuid::new_v4(),
                     owner_id: "test-user".to_string(),
                     project_id: project.to_string(),
-                    status: "ACTIVE".to_string(),
                     created_at: Utc::now(),
                     created_by: "test-user".to_string(),
                     updated_at: Utc::now(),
                     updated_by: "test-user".to_string(),
-                    deleted_at: None,
-                    deleted_by: None,
                     number_of_cores: 2,
                     memory_size: 2048,
                     disk_size: 20,
@@ -530,13 +520,10 @@ mod tests {
                 virtual_machine_uuid: Some(vm_uuid),
                 owner_id: "test-user".to_string(),
                 project_id: project.to_string(),
-                status: "ACTIVE".to_string(),
                 created_at: Utc::now(),
                 created_by: "test-user".to_string(),
                 updated_at: Utc::now(),
                 updated_by: "test-user".to_string(),
-                deleted_at: None,
-                deleted_by: None,
             })
             .execute(&mut *conn)
             .unwrap();
@@ -553,13 +540,10 @@ mod tests {
             floating_ip_addr: ip,
             owner_id: "test-user".to_string(),
             project_id: project.to_string(),
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "test-user".to_string(),
             updated_at: Utc::now(),
             updated_by: "test-user".to_string(),
-            deleted_at: None,
-            deleted_by: None,
         })
         .unwrap();
         uuid
@@ -641,13 +625,10 @@ mod tests {
             ports: "22".to_string(),
             owner_id: "test-user".to_string(),
             project_id: project.clone(),
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "test-user".to_string(),
             updated_at: Utc::now(),
             updated_by: "test-user".to_string(),
-            deleted_at: None,
-            deleted_by: None,
         })
         .unwrap();
         let attached =

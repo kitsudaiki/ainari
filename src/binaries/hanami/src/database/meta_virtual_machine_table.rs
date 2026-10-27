@@ -33,13 +33,10 @@ table! {
         proxy_uuid -> Varchar,
         owner_id -> Varchar,
         project_id -> Varchar,
-        status -> Varchar,
         created_at -> Varchar,
         created_by -> Varchar,
         updated_at -> Varchar,
         updated_by -> Varchar,
-        deleted_at -> Nullable<Varchar>,
-        deleted_by -> Nullable<Varchar>,
         number_of_cores -> BigInt,
         memory_size -> BigInt,
         disk_size -> BigInt,
@@ -60,16 +57,12 @@ pub struct MetaVirtualMachineEntry {
     pub proxy_uuid: Uuid,
     pub owner_id: String,
     pub project_id: String,
-    pub status: String,
     #[diesel(serialize_as = DbDateTime, deserialize_as = DbDateTime)]
     pub created_at: DateTime<Utc>,
     pub created_by: String,
     #[diesel(serialize_as = DbDateTime, deserialize_as = DbDateTime)]
     pub updated_at: DateTime<Utc>,
     pub updated_by: String,
-    #[diesel(serialize_as = DbOptDateTime, deserialize_as = DbOptDateTime)]
-    pub deleted_at: Option<DateTime<Utc>>,
-    pub deleted_by: Option<String>,
     /// Number of cpu-cores of the virtual_machine
     pub number_of_cores: i64,
     /// Memory of the virtual_machine in MiB
@@ -81,7 +74,7 @@ pub struct MetaVirtualMachineEntry {
 /// Adds a new meta virtual_machine to the database.
 ///
 /// This function creates a new MetaVirtualMachineEntry with the provided parameters and inserts it into the database.
-/// The status is set to "ACTIVE" and timestamps are set to the current time.
+/// The timestamps are set to the current time.
 ///
 /// # Arguments
 /// * `meta_virtual_machine_uuid` - The unique identifier for the meta virtual_machine
@@ -113,13 +106,10 @@ pub fn add_new_meta_virtual_machine(
         proxy_uuid: *proxy_uuid,
         owner_id: context.user_id.clone(),
         project_id: context.project_id.clone(),
-        status: "ACTIVE".to_string(),
         created_at: Utc::now(),
         created_by: context.user_id.clone(),
         updated_at: Utc::now(),
         updated_by: context.user_id.clone(),
-        deleted_at: None,
-        deleted_by: None,
         number_of_cores: resources.number_of_cores,
         memory_size: resources.memory_size,
         disk_size: resources.disk_space,
@@ -166,10 +156,7 @@ pub fn get_meta_virtual_machine(
     use self::meta_virtual_machines::dsl::*;
 
     let mut query = meta_virtual_machines
-        .filter(
-            uuid.eq(meta_virtual_machine_uuid.to_string())
-                .and(status.eq("ACTIVE")),
-        )
+        .filter(uuid.eq(meta_virtual_machine_uuid.to_string()))
         .into_boxed();
 
     // Apply permission-based filtering
@@ -207,9 +194,7 @@ pub fn list_meta_virtual_machines(
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::meta_virtual_machines::dsl::*;
 
-    let mut query = meta_virtual_machines
-        .filter(status.eq("ACTIVE"))
-        .into_boxed();
+    let mut query = meta_virtual_machines.into_boxed();
 
     // Apply permission-based filtering
     if context.is_admin != true.to_string() {
@@ -235,9 +220,7 @@ pub fn count_meta_virtual_machines(context: &UserContext) -> QueryResult<i64> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::meta_virtual_machines::dsl::*;
 
-    let mut query = meta_virtual_machines
-        .filter(status.eq("ACTIVE"))
-        .into_boxed();
+    let mut query = meta_virtual_machines.into_boxed();
 
     // Apply permission-based filtering
     query = query.filter(project_id.eq(context.project_id.clone()));
@@ -263,7 +246,6 @@ pub fn count_meta_virtual_machines_of_project(project: &str) -> QueryResult<i64>
     use self::meta_virtual_machines::dsl::*;
 
     meta_virtual_machines
-        .filter(status.eq("ACTIVE"))
         .filter(project_id.eq(project))
         .select(count_star())
         .first::<i64>(&mut *conn)
@@ -288,10 +270,7 @@ pub fn set_host_of_meta_virtual_machine(
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::meta_virtual_machines::dsl::*;
     match diesel::update(
-        meta_virtual_machines.filter(
-            uuid.eq(meta_virtual_machine_uuid.to_string())
-                .and(status.eq("ACTIVE")),
-        ),
+        meta_virtual_machines.filter(uuid.eq(meta_virtual_machine_uuid.to_string())),
     )
     .set((
         sakura_host_uuid.eq(new_sakura_host_uuid.to_string()),
@@ -334,7 +313,6 @@ pub fn delete_missing_meta_virtual_machines_of_host(
             .filter(
                 sakura_host_uuid
                     .eq(host_uuid.to_string())
-                    .and(status.eq("ACTIVE"))
                     .and(uuid.ne_all(&existing_uuids)),
             )
             .select(MetaVirtualMachineEntry::as_select())
@@ -344,20 +322,14 @@ pub fn delete_missing_meta_virtual_machines_of_host(
         }
 
         let missing_uuids: Vec<String> = missing.iter().map(|vm| vm.uuid.to_string()).collect();
-        diesel::update(meta_virtual_machines.filter(uuid.eq_any(&missing_uuids)))
-            .set((
-                status.eq("DELETED"),
-                deleted_at.eq(Utc::now().to_rfc3339()),
-                deleted_by.eq("HOST_INIT"),
-            ))
-            .execute(conn)?;
+        diesel::delete(meta_virtual_machines.filter(uuid.eq_any(&missing_uuids))).execute(conn)?;
         Ok(missing)
     })
 }
 
 /// Deletes a meta virtual_machine from the database.
 ///
-/// This function marks a meta virtual_machine as deleted after verifying that the user has permission to delete it.
+/// This function removes a meta virtual_machine after verifying that the user has permission to delete it.
 /// It first checks if the virtual_machine exists and if the user has the necessary permissions.
 ///
 /// # Arguments
@@ -380,14 +352,9 @@ pub fn delete_meta_virtual_machine(
 
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::meta_virtual_machines::dsl::*;
-    match diesel::update(
+    match diesel::delete(
         meta_virtual_machines.filter(uuid.eq(meta_virtual_machine_uuid.to_string())),
     )
-    .set((
-        status.eq("DELETED"),
-        deleted_at.eq(Utc::now().to_rfc3339()),
-        deleted_by.eq(context.user_id.clone()),
-    ))
     .execute(&mut *conn)
     {
         Ok(_) => Ok(()),
@@ -401,7 +368,7 @@ pub fn delete_meta_virtual_machine(
 
 /// Deletes all meta virtual_machines from the database.
 ///
-/// This function marks all active meta virtual_machines as deleted without checking permissions.
+/// This function removes all meta virtual_machines without checking permissions.
 /// It's intended for system-level operations where permission checks are not required.
 ///
 /// # Returns
@@ -410,14 +377,7 @@ pub fn delete_meta_virtual_machine(
 pub fn delete_all_meta_virtual_machine() -> Result<(), enums::DbError> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::meta_virtual_machines::dsl::*;
-    match diesel::update(meta_virtual_machines.filter(status.eq("ACTIVE")))
-        .set((
-            status.eq("DELETED"),
-            deleted_at.eq(Utc::now().to_rfc3339()),
-            deleted_by.eq("AINARI_START"),
-        ))
-        .execute(&mut *conn)
-    {
+    match diesel::delete(meta_virtual_machines).execute(&mut *conn) {
         Ok(_) => Ok(()),
         Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
         Err(e) => {
@@ -427,7 +387,7 @@ pub fn delete_all_meta_virtual_machine() -> Result<(), enums::DbError> {
     }
 }
 
-/// Searches a virtual_machine by its UUID within all projects, also if it is already deleted.
+/// Checks, if a virtual_machine with the UUID exists within any project.
 ///
 /// It is used to check, if a predefined UUID is still free, before a virtual_machine with this
 /// UUID is reserved.
@@ -436,40 +396,16 @@ pub fn delete_all_meta_virtual_machine() -> Result<(), enums::DbError> {
 /// * `virtual_machine_uuid` - The UUID of the virtual_machine
 ///
 /// # Returns
-/// A QueryResult containing project and status of the virtual_machine, or None, if the UUID was
-/// never used
-pub fn find_meta_virtual_machine(
-    virtual_machine_uuid: &Uuid,
-) -> QueryResult<Option<(String, String)>> {
+/// A QueryResult containing true, if the UUID is used by a virtual_machine
+pub fn meta_virtual_machine_exists(virtual_machine_uuid: &Uuid) -> QueryResult<bool> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::meta_virtual_machines::dsl::*;
 
     meta_virtual_machines
         .filter(uuid.eq(virtual_machine_uuid.to_string()))
-        .select((project_id, status))
-        .first::<(String, String)>(&mut *conn)
-        .optional()
-}
-
-/// Removes the entry of a deleted virtual_machine, so its UUID can be used again, for example to
-/// restore it from a backup. Active virtual_machines are never removed.
-///
-/// # Arguments
-/// * `virtual_machine_uuid` - The UUID of the deleted virtual_machine
-///
-/// # Returns
-/// A QueryResult with the number of removed entries
-pub fn remove_deleted_meta_virtual_machine(virtual_machine_uuid: &Uuid) -> QueryResult<usize> {
-    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
-    use self::meta_virtual_machines::dsl::*;
-
-    diesel::delete(
-        meta_virtual_machines.filter(
-            uuid.eq(virtual_machine_uuid.to_string())
-                .and(status.eq("DELETED")),
-        ),
-    )
-    .execute(&mut *conn)
+        .select(count_star())
+        .first::<i64>(&mut *conn)
+        .map(|count| count > 0)
 }
 
 /// Lists all active meta virtual machines of a project.
@@ -489,7 +425,6 @@ pub fn list_meta_virtual_machines_of_project(
     use self::meta_virtual_machines::dsl::*;
 
     meta_virtual_machines
-        .filter(status.eq("ACTIVE"))
         .filter(project_id.eq(project))
         .select(MetaVirtualMachineEntry::as_select())
         .load(&mut *conn)
@@ -535,13 +470,10 @@ mod tests {
             proxy_uuid: proxy_uuid1,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
             number_of_cores: 2,
             memory_size: 2048,
             disk_size: 10,
@@ -576,24 +508,12 @@ mod tests {
                     meta_virtual_machine.project_id
                 );
                 assert_eq!(
-                    retrieved_meta_virtual_machine.status,
-                    meta_virtual_machine.status
-                );
-                assert_eq!(
                     retrieved_meta_virtual_machine.created_by,
                     meta_virtual_machine.created_by
                 );
                 assert_eq!(
                     retrieved_meta_virtual_machine.updated_by,
                     meta_virtual_machine.updated_by
-                );
-                assert_eq!(
-                    retrieved_meta_virtual_machine.deleted_at,
-                    meta_virtual_machine.deleted_at
-                );
-                assert_eq!(
-                    retrieved_meta_virtual_machine.deleted_by,
-                    meta_virtual_machine.deleted_by
                 );
             }
             Err(_) => {
@@ -630,13 +550,10 @@ mod tests {
             proxy_uuid: proxy_uuid1,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
             number_of_cores: 2,
             memory_size: 2048,
             disk_size: 10,
@@ -649,13 +566,10 @@ mod tests {
             proxy_uuid: proxy_uuid1,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
-            status: "DELETED".to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
             number_of_cores: 2,
             memory_size: 2048,
             disk_size: 10,
@@ -666,6 +580,8 @@ mod tests {
 
         add_meta_virtual_machine(meta_virtual_machine1).unwrap();
         add_meta_virtual_machine(meta_virtual_machine2).unwrap();
+        // a deleted virtual_machine is not listed anymore
+        hard_delete_meta_virtual_machine(&uuid2);
         let meta_virtual_machines = list_meta_virtual_machines(&context).unwrap();
         assert_eq!(meta_virtual_machines.len(), 1);
         hard_delete_meta_virtual_machine(&uuid1);
@@ -694,13 +610,10 @@ mod tests {
             proxy_uuid: Uuid::new_v4(),
             owner_id: "test-user".to_string(),
             project_id: "test-project".to_string(),
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "test-user".to_string(),
             updated_at: Utc::now(),
             updated_by: "test-user".to_string(),
-            deleted_at: None,
-            deleted_by: None,
             number_of_cores: 2,
             memory_size: 2048,
             disk_size: 10,
@@ -739,13 +652,10 @@ mod tests {
             proxy_uuid: Uuid::new_v4(),
             owner_id: "test-user".to_string(),
             project_id: "test-project".to_string(),
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "test-user".to_string(),
             updated_at: Utc::now(),
             updated_by: "test-user".to_string(),
-            deleted_at: None,
-            deleted_by: None,
             number_of_cores: 2,
             memory_size: 2048,
             disk_size: 10,
@@ -764,18 +674,9 @@ mod tests {
         assert_eq!(deleted.len(), 1);
         assert_eq!(deleted[0].uuid, missing);
         assert_eq!(deleted[0].number_of_cores, 2);
-        assert_eq!(
-            find_meta_virtual_machine(&missing).unwrap().unwrap().1,
-            "DELETED"
-        );
-        assert_eq!(
-            find_meta_virtual_machine(&kept).unwrap().unwrap().1,
-            "ACTIVE"
-        );
-        assert_eq!(
-            find_meta_virtual_machine(&other).unwrap().unwrap().1,
-            "ACTIVE"
-        );
+        assert!(!meta_virtual_machine_exists(&missing).unwrap());
+        assert!(meta_virtual_machine_exists(&kept).unwrap());
+        assert!(meta_virtual_machine_exists(&other).unwrap());
 
         // an already deleted virtual_machine is not returned again
         let deleted = delete_missing_meta_virtual_machines_of_host(&host_uuid, &[kept]).unwrap();
@@ -811,13 +712,10 @@ mod tests {
             proxy_uuid: proxy_uuid1,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
             number_of_cores: 2,
             memory_size: 2048,
             disk_size: 10,
@@ -858,13 +756,10 @@ mod tests {
             proxy_uuid: proxy_uuid1,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
             number_of_cores: 2,
             memory_size: 2048,
             disk_size: 10,
@@ -877,13 +772,10 @@ mod tests {
             proxy_uuid: proxy_uuid1,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
             number_of_cores: 2,
             memory_size: 2048,
             disk_size: 10,
@@ -896,13 +788,10 @@ mod tests {
             proxy_uuid: proxy_uuid1,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
             number_of_cores: 2,
             memory_size: 2048,
             disk_size: 10,
@@ -941,13 +830,10 @@ mod tests {
             proxy_uuid: proxy_uuid1,
             owner_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
             number_of_cores: 2,
             memory_size: 2048,
             disk_size: 10,
@@ -960,13 +846,10 @@ mod tests {
             proxy_uuid: proxy_uuid1,
             owner_id: "test-user-43".to_string(),
             project_id: "test_permissions_1".to_string(),
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
             number_of_cores: 2,
             memory_size: 2048,
             disk_size: 10,
@@ -979,13 +862,10 @@ mod tests {
             proxy_uuid: proxy_uuid1,
             owner_id: "test-user-44".to_string(),
             project_id: "test_permissions_2".to_string(),
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
             number_of_cores: 2,
             memory_size: 2048,
             disk_size: 10,
