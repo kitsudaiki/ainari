@@ -30,13 +30,10 @@ table! {
         virtual_machine_uuid -> Varchar,
         owner_id -> Varchar,
         project_id -> Varchar,
-        status -> Varchar,
         created_at -> Varchar,
         created_by -> Varchar,
         updated_at -> Varchar,
         updated_by -> Varchar,
-        deleted_at -> Nullable<Varchar>,
-        deleted_by -> Nullable<Varchar>,
     }
 }
 
@@ -49,13 +46,10 @@ table! {
 /// * `virtual_machine_uuid` - UUID of the virtual_machine this proxy is associated with
 /// * `owner_id` - User ID of the proxy owner
 /// * `project_id` - Project ID the proxy belongs to
-/// * `status` - Current status of the proxy (ACTIVE, DELETED, etc.)
 /// * `created_at` - Timestamp when the proxy was created
 /// * `created_by` - User ID who created the proxy
 /// * `updated_at` - Timestamp when the proxy was last updated
 /// * `updated_by` - User ID who last updated the proxy
-/// * `deleted_at` - Timestamp when the proxy was deleted (nullable)
-/// * `deleted_by` - User ID who deleted the proxy (nullable)
 #[derive(Insertable, Queryable, Selectable, Debug, PartialEq, Clone)]
 #[diesel(table_name = proxys)]
 pub struct ProxyEntry {
@@ -66,16 +60,12 @@ pub struct ProxyEntry {
     pub virtual_machine_uuid: Uuid,
     pub owner_id: String,
     pub project_id: String,
-    pub status: String,
     #[diesel(serialize_as = DbDateTime, deserialize_as = DbDateTime)]
     pub created_at: DateTime<Utc>,
     pub created_by: String,
     #[diesel(serialize_as = DbDateTime, deserialize_as = DbDateTime)]
     pub updated_at: DateTime<Utc>,
     pub updated_by: String,
-    #[diesel(serialize_as = DbOptDateTime, deserialize_as = DbOptDateTime)]
-    pub deleted_at: Option<DateTime<Utc>>,
-    pub deleted_by: Option<String>,
 }
 
 /// Adds a new proxy entry to the database with default values for a newly created proxy.
@@ -110,40 +100,16 @@ pub fn add_new_proxy(
         virtual_machine_uuid: *virtual_machine_uuid,
         owner_id: context.user_id.clone(),
         project_id: context.project_id.clone(),
-        status: "ACTIVE".to_string(),
         created_at: Utc::now(),
         created_by: context.user_id.clone(),
         updated_at: Utc::now(),
         updated_by: context.user_id.clone(),
-        deleted_at: None,
-        deleted_by: None,
     };
 
-    add_proxy_replacing_deleted(proxy)
-}
-
-/// Adds a proxy entry to the database and replaces a deleted proxy of the same project with the
-/// same UUID within the same transaction.
-///
-/// # Arguments
-/// * `proxy` - The ProxyEntry to be added
-///
-/// # Returns
-/// * `QueryResult<usize>` indicating the number of added rows
-fn add_proxy_replacing_deleted(proxy: ProxyEntry) -> QueryResult<usize> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
-    use self::proxys::dsl::*;
-    conn.transaction(|conn| {
-        diesel::delete(
-            proxys.filter(
-                uuid.eq(proxy.uuid.to_string())
-                    .and(status.eq("DELETED"))
-                    .and(project_id.eq(proxy.project_id.clone())),
-            ),
-        )
-        .execute(conn)?;
-        diesel::insert_into(proxys).values(proxy).execute(conn)
-    })
+    diesel::insert_into(proxys::table)
+        .values(proxy)
+        .execute(&mut *conn)
 }
 
 /// Retrieves a proxy entry from the database based on its UUID and user context.
@@ -159,9 +125,7 @@ pub fn get_proxy(proxy_uuid: &Uuid, context: &UserContext) -> Result<ProxyEntry,
     use self::proxys::dsl::*;
 
     // Start building the query with basic filtering for active proxies
-    let mut query = proxys
-        .filter(uuid.eq(proxy_uuid.to_string()).and(status.eq("ACTIVE")))
-        .into_boxed();
+    let mut query = proxys.filter(uuid.eq(proxy_uuid.to_string())).into_boxed();
 
     // Apply additional filters based on user permissions
     if context.is_admin != true.to_string() {
@@ -181,30 +145,22 @@ pub fn get_proxy(proxy_uuid: &Uuid, context: &UserContext) -> Result<ProxyEntry,
     }
 }
 
-/// Checks, if the UUID can't be used for a new proxy of a project.
+/// Checks, if the UUID is used by a proxy of any project.
 ///
-/// The UUID is used by an active proxy or by a proxy of another project, also if that one is
-/// already marked as deleted. A deleted proxy of the same project doesn't block its UUID, because
-/// it is replaced by the new proxy (see `add_new_proxy`).
+/// The UUID of a deleted proxy is free again, for example for a virtual_machine, which is
+/// restored from a backup with its UUID.
 ///
 /// # Arguments
 /// * `proxy_uuid` - UUID of the proxy
-/// * `context` - User context with the project of the new proxy
 ///
 /// # Returns
 /// * `QueryResult<bool>` true, if the UUID can't be used for a new proxy
-pub fn is_proxy_uuid_in_use(proxy_uuid: &Uuid, context: &UserContext) -> QueryResult<bool> {
+pub fn is_proxy_uuid_in_use(proxy_uuid: &Uuid) -> QueryResult<bool> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::proxys::dsl::*;
 
     diesel::select(diesel::dsl::exists(
-        proxys.filter(
-            uuid.eq(proxy_uuid.to_string()).and(
-                status
-                    .eq("ACTIVE")
-                    .or(project_id.ne(context.project_id.clone())),
-            ),
-        ),
+        proxys.filter(uuid.eq(proxy_uuid.to_string())),
     ))
     .get_result(&mut *conn)
 }
@@ -221,7 +177,7 @@ pub fn list_proxys(context: &UserContext) -> QueryResult<Vec<ProxyEntry>> {
     use self::proxys::dsl::*;
 
     // Start building the query with basic filtering for active proxies
-    let mut query = proxys.filter(status.eq("ACTIVE")).into_boxed();
+    let mut query = proxys.into_boxed();
 
     // Apply additional filters based on user permissions
     if context.is_admin != true.to_string() {
@@ -274,7 +230,7 @@ pub fn update_proxy_target(
     get_proxy(proxy_uuid, context)
 }
 
-/// Marks a proxy as deleted in the database.
+/// Deletes a proxy from the database.
 ///
 /// # Arguments
 /// * `proxy_uuid` - UUID of the proxy to delete
@@ -293,14 +249,7 @@ pub fn delete_proxy(proxy_uuid: &Uuid, context: &UserContext) -> Result<(), enum
 
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::proxys::dsl::*;
-    match diesel::update(proxys.filter(uuid.eq(proxy_uuid.to_string())))
-        .set((
-            status.eq("DELETED"),
-            deleted_at.eq(Utc::now().to_rfc3339()),
-            deleted_by.eq(context.user_id.clone()),
-        ))
-        .execute(&mut *conn)
-    {
+    match diesel::delete(proxys.filter(uuid.eq(proxy_uuid.to_string()))).execute(&mut *conn) {
         Ok(_) => Ok(()),
         Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
         Err(e) => {
@@ -354,13 +303,10 @@ mod tests {
             virtual_machine_uuid: virtual_machine_uuid1,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
         };
 
         hard_delete_proxy(&proxy_uuid1);
@@ -374,11 +320,8 @@ mod tests {
                     retrieved_proxy.virtual_machine_uuid,
                     proxy.virtual_machine_uuid
                 );
-                assert_eq!(retrieved_proxy.status, proxy.status);
                 assert_eq!(retrieved_proxy.created_by, proxy.created_by);
                 assert_eq!(retrieved_proxy.updated_by, proxy.updated_by);
-                assert_eq!(retrieved_proxy.deleted_at, proxy.deleted_at);
-                assert_eq!(retrieved_proxy.deleted_by, proxy.deleted_by);
             }
             Err(_) => {
                 assert_eq!(true, false);
@@ -400,32 +343,21 @@ mod tests {
             project_role: ProjectRole::Member.to_string(),
         };
 
-        let other_project = UserContext {
-            project_id: "other-project".to_string(),
-            ..member.clone()
-        };
-
         hard_delete_proxy(&proxy_uuid);
-        assert!(!is_proxy_uuid_in_use(&proxy_uuid, &member).unwrap());
+        assert!(!is_proxy_uuid_in_use(&proxy_uuid).unwrap());
 
         add_new_proxy(&proxy_uuid, "10.0.0.1:443", &proxy_uuid, &member).unwrap();
-        assert!(is_proxy_uuid_in_use(&proxy_uuid, &member).unwrap());
-        assert!(is_proxy_uuid_in_use(&proxy_uuid, &other_project).unwrap());
+        assert!(is_proxy_uuid_in_use(&proxy_uuid).unwrap());
+        // an existing proxy is never replaced
+        assert!(add_new_proxy(&proxy_uuid, "10.0.0.3:443", &proxy_uuid, &member).is_err());
 
-        // a deleted proxy only blocks its uuid for other projects
+        // the uuid of a deleted proxy is free again, so the virtual_machine of the deleted proxy
+        // can be restored with its uuid
         assert!(delete_proxy(&proxy_uuid, &member).is_ok());
-        assert!(!is_proxy_uuid_in_use(&proxy_uuid, &member).unwrap());
-        assert!(is_proxy_uuid_in_use(&proxy_uuid, &other_project).unwrap());
-
-        // the virtual_machine of the deleted proxy is restored with its uuid, so the deleted
-        // proxy is replaced
+        assert!(!is_proxy_uuid_in_use(&proxy_uuid).unwrap());
         add_new_proxy(&proxy_uuid, "10.0.0.2:443", &proxy_uuid, &member).unwrap();
         let proxy = get_proxy(&proxy_uuid, &member).ok().unwrap();
-        assert_eq!(proxy.status, "ACTIVE");
         assert_eq!(proxy.target_address, "10.0.0.2:443");
-
-        // an active proxy is never replaced
-        assert!(add_new_proxy(&proxy_uuid, "10.0.0.3:443", &proxy_uuid, &member).is_err());
 
         hard_delete_proxy(&proxy_uuid);
     }
@@ -501,13 +433,10 @@ mod tests {
             virtual_machine_uuid: virtual_machine_uuid1,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
         };
 
         let proxy2 = ProxyEntry {
@@ -516,13 +445,10 @@ mod tests {
             virtual_machine_uuid: virtual_machine_uuid1,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
-            status: "DELETED".to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
         };
 
         hard_delete_proxy(&proxy_uuid1);
@@ -530,6 +456,8 @@ mod tests {
 
         add_proxy(proxy1).unwrap();
         add_proxy(proxy2).unwrap();
+        // a deleted proxy is not listed anymore
+        hard_delete_proxy(&proxy_uuid2);
         let proxys = list_proxys(&context).unwrap();
         assert_eq!(proxys.len(), 1);
         hard_delete_proxy(&proxy_uuid1);
@@ -559,13 +487,10 @@ mod tests {
             virtual_machine_uuid: virtual_machine_uuid1,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
         };
 
         hard_delete_proxy(&proxy_uuid1);
@@ -591,13 +516,10 @@ mod tests {
             virtual_machine_uuid: virtual_machine_uuid1,
             owner_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
         };
 
         let proxy2 = ProxyEntry {
@@ -606,13 +528,10 @@ mod tests {
             virtual_machine_uuid: virtual_machine_uuid1,
             owner_id: "test-user-43".to_string(),
             project_id: "test_permissions_1".to_string(),
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
         };
 
         let proxy3 = ProxyEntry {
@@ -621,13 +540,10 @@ mod tests {
             virtual_machine_uuid: virtual_machine_uuid1,
             owner_id: "test-user-44".to_string(),
             project_id: "test_permissions_2".to_string(),
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
         };
 
         hard_delete_proxy(&proxy_uuid1);

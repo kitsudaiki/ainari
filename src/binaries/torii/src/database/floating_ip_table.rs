@@ -35,13 +35,10 @@ table! {
         vni -> Integer,
         owner_id -> Varchar,
         project_id -> Varchar,
-        status -> Varchar,
         created_at -> Varchar,
         created_by -> Varchar,
         updated_at -> Varchar,
         updated_by -> Varchar,
-        deleted_at -> Nullable<Varchar>,
-        deleted_by -> Nullable<Varchar>,
     }
 }
 
@@ -57,13 +54,10 @@ table! {
 /// * `vni` - Tenant of the internal address
 /// * `owner_id` - User ID of the floating IP owner
 /// * `project_id` - Project ID the floating IP belongs to
-/// * `status` - Current status of the floating IP (ACTIVE, DELETED, etc.)
 /// * `created_at` - Timestamp when the floating IP was created
 /// * `created_by` - User ID who created the floating IP
 /// * `updated_at` - Timestamp when the floating IP was last updated
 /// * `updated_by` - User ID who last updated the floating IP
-/// * `deleted_at` - Timestamp when the floating IP was deleted (nullable)
-/// * `deleted_by` - User ID who deleted the floating IP (nullable)
 #[derive(Insertable, Queryable, Selectable, Debug, PartialEq, Clone)]
 #[diesel(table_name = floating_ips)]
 pub struct FloatingIpEntry {
@@ -80,22 +74,18 @@ pub struct FloatingIpEntry {
     pub vni: u32,
     pub owner_id: String,
     pub project_id: String,
-    pub status: String,
     #[diesel(serialize_as = DbDateTime, deserialize_as = DbDateTime)]
     pub created_at: DateTime<Utc>,
     pub created_by: String,
     #[diesel(serialize_as = DbDateTime, deserialize_as = DbDateTime)]
     pub updated_at: DateTime<Utc>,
     pub updated_by: String,
-    #[diesel(serialize_as = DbOptDateTime, deserialize_as = DbOptDateTime)]
-    pub deleted_at: Option<DateTime<Utc>>,
-    pub deleted_by: Option<String>,
 }
 
 /// Persists a registered floating IP.
 ///
-/// A floating IP is unique, so an already persisted entry for the same address is marked as
-/// deleted and replaced within one transaction. This keeps the database in line with the
+/// A floating IP is unique, so an already persisted entry for the same address is
+/// removed and replaced within one transaction. This keeps the database in line with the
 /// datapath, where a repeated registration of the same address simply overwrites the old one.
 ///
 /// # Arguments
@@ -124,18 +114,15 @@ pub fn set_floating_ip(
         vni: req.vni,
         owner_id: context.user_id.clone(),
         project_id: context.project_id.clone(),
-        status: "ACTIVE".to_string(),
         created_at: Utc::now(),
         created_by: context.user_id.clone(),
         updated_at: Utc::now(),
         updated_by: context.user_id.clone(),
-        deleted_at: None,
-        deleted_by: None,
     };
 
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     conn.transaction(|conn| {
-        delete_floating_ip_in(conn, &req.floating_ip, context)?;
+        delete_floating_ip_in(conn, &req.floating_ip)?;
         use self::floating_ips::dsl::*;
         diesel::insert_into(floating_ips)
             .values(entry)
@@ -152,18 +139,17 @@ pub fn list_floating_ips() -> QueryResult<Vec<FloatingIpEntry>> {
     use self::floating_ips::dsl::*;
 
     let mut entries = floating_ips
-        .filter(status.eq("ACTIVE"))
         .select(FloatingIpEntry::as_select())
         .load(&mut *conn)?;
     entries.sort_by_key(|entry| entry.created_at);
     Ok(entries)
 }
 
-/// Marks a floating IP as deleted in the database.
+/// Deletes a floating IP from the database.
 ///
 /// # Arguments
 /// * `ip` - The public address of the floating IP
-/// * `context` - User context to record who performed the deletion
+/// * `context` - User context, which is checked for the permission to delete
 ///
 /// # Returns
 /// * `Result<(), enums::DbError>` indicating success or failure
@@ -174,7 +160,7 @@ pub fn delete_floating_ip(ip: &Ipv4Addr, context: &UserContext) -> Result<(), en
     }
 
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
-    match delete_floating_ip_in(&mut conn, ip, context) {
+    match delete_floating_ip_in(&mut conn, ip) {
         Ok(0) => Err(enums::DbError::NotFound),
         Ok(_) => Ok(()),
         Err(e) => {
@@ -184,28 +170,20 @@ pub fn delete_floating_ip(ip: &Ipv4Addr, context: &UserContext) -> Result<(), en
     }
 }
 
-/// Marks the active entry of a floating IP as deleted on an already locked connection.
+/// Deletes the entry of a floating IP on an already locked connection.
 ///
 /// # Arguments
 /// * `conn` - The locked database connection
 /// * `ip` - The public address of the floating IP
-/// * `context` - User context to record who performed the deletion
 ///
 /// # Returns
 /// * `QueryResult<usize>` with the number of deleted entries
 fn delete_floating_ip_in(
     conn: &mut diesel::sqlite::SqliteConnection,
     ip: &Ipv4Addr,
-    context: &UserContext,
 ) -> QueryResult<usize> {
     use self::floating_ips::dsl::*;
-    diesel::update(floating_ips.filter(floating_ip.eq(ip.to_string()).and(status.eq("ACTIVE"))))
-        .set((
-            status.eq("DELETED"),
-            deleted_at.eq(Utc::now().to_rfc3339()),
-            deleted_by.eq(context.user_id.clone()),
-        ))
-        .execute(conn)
+    diesel::delete(floating_ips.filter(floating_ip.eq(ip.to_string()))).execute(conn)
 }
 
 #[cfg(test)]
