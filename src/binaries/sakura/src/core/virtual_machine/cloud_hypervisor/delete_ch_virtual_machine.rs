@@ -32,8 +32,8 @@ use crate::database::virtual_machine_table;
 ///
 /// The cloud-hypervisor process of the virtual_machine is stopped, all of its files, like the
 /// boot-disk, the cloud-init seed-image, the API-socket and the serial-log, are removed and at
-/// the end it is marked as deleted in the database. The database-entry is changed last, because
-/// hanami watches it to know, when the virtual_machine is really gone.
+/// the end it is removed from the database. The database-entry is removed last, because hanami
+/// watches it to know, when the virtual_machine is really gone.
 ///
 /// # Arguments
 /// * `uuid` - Unique identifier of the virtual_machine to delete

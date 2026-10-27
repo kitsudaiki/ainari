@@ -27,8 +27,7 @@ use crate::database::virtual_machine_table::VirtualMachineState;
 ///
 /// This is the source after a successful migration, or the target after a failed one. Only a
 /// virtual_machine, which is frozen for its migration or whose import failed, can be removed, so
-/// a running virtual_machine is never removed by mistake. Unlike a normal deletion, no deleted
-/// database-entry is kept (see `virtual_machine_table::remove_virtual_machine`).
+/// a running virtual_machine is never removed by mistake.
 ///
 /// # Arguments
 /// * `uuid` - Unique identifier of the virtual_machine

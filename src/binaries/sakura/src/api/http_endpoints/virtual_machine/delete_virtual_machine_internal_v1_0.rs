@@ -32,8 +32,8 @@ use ainari_api_structs::user_context::UserContext;
     summary = "Delete virtual_machine",
     description = r###"Create a new task, which deletes the virtual_machine.
 
-The task stops the virtual_machine, removes all of its files from the host and marks it as
-deleted in the database afterwards. So the virtual_machine can still be read, until the task
+The task stops the virtual_machine, removes all of its files from the host and removes it from
+the database afterwards. So the virtual_machine can still be read, until the task
 is finished."###,
     error_code = 400,
     error_code = 401,

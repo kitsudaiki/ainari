@@ -15,6 +15,7 @@
 use std::net::Ipv4Addr;
 
 use chrono::{DateTime, Utc};
+use diesel::dsl::count_star;
 use diesel::prelude::*;
 use uuid::Uuid;
 
@@ -43,13 +44,10 @@ table! {
         mac_address -> Varchar,
         owner_id -> Varchar,
         project_id -> Varchar,
-        status -> Varchar,
         created_at -> Varchar,
         created_by -> Varchar,
         updated_at -> Varchar,
         updated_by -> Varchar,
-        deleted_at -> Nullable<Varchar>,
-        deleted_by -> Nullable<Varchar>,
     }
 }
 
@@ -79,16 +77,12 @@ pub struct VirtualMachineEntry {
     pub mac_address: String,
     pub owner_id: String,
     pub project_id: String,
-    pub status: String,
     #[diesel(serialize_as = DbDateTime, deserialize_as = DbDateTime)]
     pub created_at: DateTime<Utc>,
     pub created_by: String,
     #[diesel(serialize_as = DbDateTime, deserialize_as = DbDateTime)]
     pub updated_at: DateTime<Utc>,
     pub updated_by: String,
-    #[diesel(serialize_as = DbOptDateTime, deserialize_as = DbOptDateTime)]
-    pub deleted_at: Option<DateTime<Utc>>,
-    pub deleted_by: Option<String>,
 }
 
 /// Allowed values of the `vm_state` column of a virtual_machine
@@ -199,13 +193,10 @@ pub fn add_new_virtual_machine(
         mac_address: new_virtual_machine.mac_address,
         owner_id: context.user_id.clone(),
         project_id: context.project_id.clone(),
-        status: "ACTIVE".to_string(),
         created_at: Utc::now(),
         created_by: context.user_id.clone(),
         updated_at: Utc::now(),
         updated_by: context.user_id.clone(),
-        deleted_at: None,
-        deleted_by: None,
     };
 
     // Insert the virtual_machine into the database
@@ -246,10 +237,7 @@ pub fn get_virtual_machine(
 
     // Build the query with appropriate filters based on user permissions
     let mut query = virtual_machines
-        .filter(
-            uuid.eq(virtual_machine_uuid.to_string())
-                .and(status.eq("ACTIVE")),
-        )
+        .filter(uuid.eq(virtual_machine_uuid.to_string()))
         .into_boxed();
 
     // Apply project and ownership filters for non-admin users
@@ -283,7 +271,6 @@ pub fn list_all_virtual_machines() -> QueryResult<Vec<VirtualMachineEntry>> {
     use self::virtual_machines::dsl::*;
 
     virtual_machines
-        .filter(status.eq("ACTIVE"))
         .select(VirtualMachineEntry::as_select())
         .load(&mut *conn)
 }
@@ -301,7 +288,7 @@ pub fn list_virtual_machines(context: &UserContext) -> QueryResult<Vec<VirtualMa
     use self::virtual_machines::dsl::*;
 
     // Build the query with appropriate filters based on user permissions
-    let mut query = virtual_machines.filter(status.eq("ACTIVE")).into_boxed();
+    let mut query = virtual_machines.into_boxed();
 
     // Apply project and ownership filters for non-admin users
     if context.is_admin != true.to_string() {
@@ -461,7 +448,7 @@ pub fn update_virtual_machine_state(
     }
 }
 
-/// Marks a specific virtual_machine as deleted in the database
+/// Deletes a specific virtual_machine from the database
 ///
 /// # Arguments
 /// * `virtual_machine_uuid` - Unique identifier of the virtual_machine to delete
@@ -485,13 +472,7 @@ pub fn delete_virtual_machine(
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::virtual_machines::dsl::*;
 
-    // Update the virtual_machine's status to "DELETED" and set the deletion timestamp and user
-    match diesel::update(virtual_machines.filter(uuid.eq(virtual_machine_uuid.to_string())))
-        .set((
-            status.eq("DELETED"),
-            deleted_at.eq(Utc::now().to_rfc3339()),
-            deleted_by.eq(context.user_id.clone()),
-        ))
+    match diesel::delete(virtual_machines.filter(uuid.eq(virtual_machine_uuid.to_string())))
         .execute(&mut *conn)
     {
         Ok(_) => Ok(()),
@@ -503,13 +484,11 @@ pub fn delete_virtual_machine(
     }
 }
 
-/// Removes a virtual_machine completely from the database, also if it is marked as deleted
+/// Removes a virtual_machine from the database without a permission-check
 ///
-/// Unlike `delete_virtual_machine`, no deleted entry is kept. This is required for a
-/// virtual_machine, which was migrated to another host or whose migration to this host failed:
-/// the deleted entries are reported to hanami with the next registration of this host, which
-/// would delete the virtual_machine, which still exists on the other host. It also allows to
-/// migrate the virtual_machine back to this host later, which requires its UUID again.
+/// Unlike `delete_virtual_machine`, it needs no user context. It is used for a virtual_machine,
+/// which was migrated to another host or whose migration to this host failed, so it can be
+/// migrated back to this host later with its UUID.
 ///
 /// # Arguments
 /// * `virtual_machine_uuid` - Unique identifier of the virtual_machine to remove
@@ -530,7 +509,7 @@ pub fn remove_virtual_machine(virtual_machine_uuid: &Uuid) -> Result<(), enums::
         })
 }
 
-/// Searches a virtual_machine by its UUID, also if it is already deleted.
+/// Checks, if a virtual_machine with the UUID exists on this host.
 ///
 /// It is used to check, if a predefined UUID is still free, before a virtual_machine with this
 /// UUID is reserved.
@@ -541,72 +520,16 @@ pub fn remove_virtual_machine(virtual_machine_uuid: &Uuid) -> Result<(), enums::
 ///
 /// # Returns
 ///
-/// A QueryResult containing the status of the virtual_machine, or None, if the UUID was never used
-pub fn find_virtual_machine_status(virtual_machine_uuid: &Uuid) -> QueryResult<Option<String>> {
+/// A QueryResult containing true, if the UUID is used by a virtual_machine
+pub fn virtual_machine_exists(virtual_machine_uuid: &Uuid) -> QueryResult<bool> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::virtual_machines::dsl::*;
 
     virtual_machines
         .filter(uuid.eq(virtual_machine_uuid.to_string()))
-        .select(status)
-        .first::<String>(&mut *conn)
-        .optional()
-}
-
-/// Removes the entry of a deleted virtual_machine, so its UUID can be used again, for example to
-/// restore it from a backup. Active virtual_machines are never removed.
-///
-/// # Arguments
-///
-/// * `virtual_machine_uuid` - The UUID of the deleted virtual_machine
-///
-/// # Returns
-///
-/// A QueryResult with the number of removed entries
-pub fn remove_deleted_virtual_machine(virtual_machine_uuid: &Uuid) -> QueryResult<usize> {
-    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
-    use self::virtual_machines::dsl::*;
-
-    diesel::delete(
-        virtual_machines.filter(
-            uuid.eq(virtual_machine_uuid.to_string())
-                .and(status.eq("DELETED")),
-        ),
-    )
-    .execute(&mut *conn)
-}
-
-/// Adds a virtual_machine entry to the database and replaces a deleted virtual_machine of the
-/// same project with the same UUID within the same transaction.
-///
-/// It is used to import a migrated virtual_machine, which was deleted on this host before, for
-/// example while it was restored from a backup onto another host. An active virtual_machine is
-/// never replaced, so its UUID still results in a unique-violation.
-///
-/// # Arguments
-/// * `virtual_machine` - The virtual_machine entry to insert
-///
-/// # Returns
-/// * `Ok(usize)` with the number of rows inserted on success
-/// * `Err` with an appropriate error on failure
-pub fn add_virtual_machine_replacing_deleted(
-    virtual_machine: VirtualMachineEntry,
-) -> QueryResult<usize> {
-    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
-    use self::virtual_machines::dsl::*;
-    conn.transaction(|conn| {
-        diesel::delete(
-            virtual_machines.filter(
-                uuid.eq(virtual_machine.uuid.to_string())
-                    .and(status.eq("DELETED"))
-                    .and(project_id.eq(virtual_machine.project_id.clone())),
-            ),
-        )
-        .execute(conn)?;
-        diesel::insert_into(virtual_machines)
-            .values(virtual_machine)
-            .execute(conn)
-    })
+        .select(count_star())
+        .first::<i64>(&mut *conn)
+        .map(|count| count > 0)
 }
 
 #[cfg(test)]
@@ -651,13 +574,10 @@ mod tests {
             mac_address: "02:00:00:00:00:42".to_string(),
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
         };
 
         hard_delete_virtual_machine(&uuid1);
@@ -714,7 +634,6 @@ mod tests {
                     retrieved_virtual_machine.project_id,
                     virtual_machine.project_id
                 );
-                assert_eq!(retrieved_virtual_machine.status, virtual_machine.status);
                 assert_eq!(
                     retrieved_virtual_machine.created_by,
                     virtual_machine.created_by
@@ -722,14 +641,6 @@ mod tests {
                 assert_eq!(
                     retrieved_virtual_machine.updated_by,
                     virtual_machine.updated_by
-                );
-                assert_eq!(
-                    retrieved_virtual_machine.deleted_at,
-                    virtual_machine.deleted_at
-                );
-                assert_eq!(
-                    retrieved_virtual_machine.deleted_by,
-                    virtual_machine.deleted_by
                 );
             }
             Err(_) => {
@@ -773,13 +684,10 @@ mod tests {
             mac_address: "02:00:00:00:00:42".to_string(),
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
         };
 
         let virtual_machine2 = VirtualMachineEntry {
@@ -799,13 +707,10 @@ mod tests {
             mac_address: "02:00:00:00:00:42".to_string(),
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
-            status: "DELETED".to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: Some(Utc::now()),
-            deleted_by: Some("admin".to_string()),
         };
 
         hard_delete_virtual_machine(&uuid1);
@@ -813,6 +718,8 @@ mod tests {
 
         add_virtual_machine(virtual_machine1).unwrap();
         add_virtual_machine(virtual_machine2).unwrap();
+        // a deleted virtual_machine is not listed anymore
+        assert!(delete_virtual_machine(&uuid2, &context).is_ok());
         let virtual_machines = list_virtual_machines(&context).unwrap();
         assert_eq!(virtual_machines.len(), 1);
         hard_delete_virtual_machine(&uuid1);
@@ -851,13 +758,10 @@ mod tests {
             mac_address: "02:00:00:00:00:42".to_string(),
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
         };
 
         hard_delete_virtual_machine(&uuid1);
@@ -898,8 +802,7 @@ mod tests {
         };
 
         add_new_virtual_machine(new_virtual_machine(), &context).unwrap();
-        let _ = delete_virtual_machine(&uuid1, &context);
-        // a soft-deleted entry still blocks the uuid
+        // the uuid is unique
         assert!(add_new_virtual_machine(new_virtual_machine(), &context).is_err());
 
         // a removed virtual_machine is not reported to hanami anymore ...
@@ -918,7 +821,7 @@ mod tests {
 
     #[test]
     #[serial]
-    fn test_add_virtual_machine_replacing_deleted() {
+    fn test_delete_frees_the_uuid() {
         let uuid1 = Uuid::new_v4();
         let context = UserContext {
             token: "".to_string(),
@@ -927,7 +830,7 @@ mod tests {
             is_admin: false.to_string(),
             project_role: ProjectRole::Member.to_string(),
         };
-        let entry = |project: &str| VirtualMachineEntry {
+        let entry = || VirtualMachineEntry {
             uuid: uuid1,
             name: "Alice".to_string(),
             vm_state: VirtualMachineState::Migrating.to_string(),
@@ -943,44 +846,31 @@ mod tests {
             tap_name: "tap-vm".to_string(),
             mac_address: "02:00:00:00:00:42".to_string(),
             owner_id: "test-user".to_string(),
-            project_id: project.to_string(),
-            status: "ACTIVE".to_string(),
+            project_id: "test-project".to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
         };
 
         hard_delete_virtual_machine(&uuid1);
 
-        // an active virtual_machine is never replaced
-        add_virtual_machine(entry("test-project")).unwrap();
+        // an existing virtual_machine blocks its uuid
+        add_virtual_machine(entry()).unwrap();
+        assert!(virtual_machine_exists(&uuid1).unwrap());
         assert!(matches!(
-            add_virtual_machine_replacing_deleted(entry("test-project")),
+            add_virtual_machine(entry()),
             Err(diesel::result::Error::DatabaseError(
                 diesel::result::DatabaseErrorKind::UniqueViolation,
                 _
             ))
         ));
 
-        // a deleted virtual_machine of another project still blocks the uuid
+        // the deletion removes the entry, so the uuid can be used again, for example by the
+        // migration of a virtual_machine, which was restored onto another host
         assert!(delete_virtual_machine(&uuid1, &context).is_ok());
-        assert!(add_virtual_machine_replacing_deleted(entry("other-project")).is_err());
-        assert_eq!(
-            find_virtual_machine_status(&uuid1).unwrap().as_deref(),
-            Some("DELETED")
-        );
-
-        // a deleted virtual_machine of the same project is replaced
-        add_virtual_machine_replacing_deleted(entry("test-project")).unwrap();
-        let replaced = get_virtual_machine(&uuid1, &context)
-            .ok()
-            .expect("virtual_machine not found");
-        assert_eq!(replaced.status, "ACTIVE");
-        assert_eq!(replaced.vm_state, "MIGRATING");
-        assert_eq!(replaced.deleted_at, None);
+        assert!(!virtual_machine_exists(&uuid1).unwrap());
+        add_virtual_machine(entry()).unwrap();
 
         hard_delete_virtual_machine(&uuid1);
     }
@@ -1063,13 +953,10 @@ mod tests {
             mac_address: "02:00:00:00:00:42".to_string(),
             owner_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
         };
 
         let virtual_machine2 = VirtualMachineEntry {
@@ -1089,13 +976,10 @@ mod tests {
             mac_address: "02:00:00:00:00:42".to_string(),
             owner_id: "test-user-43".to_string(),
             project_id: "test_permissions_1".to_string(),
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
         };
 
         let virtual_machine3 = VirtualMachineEntry {
@@ -1115,13 +999,10 @@ mod tests {
             mac_address: "02:00:00:00:00:42".to_string(),
             owner_id: "test-user-44".to_string(),
             project_id: "test_permissions_2".to_string(),
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
         };
 
         hard_delete_virtual_machine(&uuid1);

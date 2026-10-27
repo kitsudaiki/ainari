@@ -45,27 +45,15 @@ pub async fn reserve_virtual_machine_internal(
     body.validate()
         .map_err(|e| ErrorResponse::BadRequest(format!("Invalid input: {e}")))?;
 
-    // a predefined UUID, for example of a restored virtual_machine, can only replace a deleted one
+    // a predefined UUID, for example of a restored virtual_machine, must not be in use
     let virtual_machine_uuid = match body.uuid {
         Some(uuid) => {
-            match virtual_machine_table::find_virtual_machine_status(&uuid)
-                .map_err(|e| map_db_list_error("virtual_machines", e, Some(&context)))?
-            {
-                Some(status) if status != "DELETED" => {
-                    return Err(ErrorResponse::Conflict(format!(
-                        "Virtual_machine with UUID '{uuid}' already exists."
-                    )));
-                }
-                Some(_) => {
-                    virtual_machine_table::remove_deleted_virtual_machine(&uuid).map_err(|e| {
-                        map_db_write_error(
-                            &format!("remove deleted virtual_machine '{uuid}'"),
-                            e,
-                            Some(&context),
-                        )
-                    })?;
-                }
-                None => {}
+            let exists = virtual_machine_table::virtual_machine_exists(&uuid)
+                .map_err(|e| map_db_list_error("virtual_machines", e, Some(&context)))?;
+            if exists {
+                return Err(ErrorResponse::Conflict(format!(
+                    "Virtual_machine with UUID '{uuid}' already exists."
+                )));
             }
             uuid
         }
