@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use chrono::{DateTime, Utc};
-use diesel::dsl::count_star;
 use diesel::prelude::*;
 use uuid::Uuid;
 
@@ -220,14 +219,14 @@ pub fn update_vm_type(
 /// # Returns
 ///
 /// A QueryResult containing the count of vm_types as an i64
-#[allow(dead_code)]
+#[cfg(test)]
 pub fn count_vm_types_of_project(project: &str) -> QueryResult<i64> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::vm_types::dsl::*;
 
     vm_types
         .filter(project_id.eq(project))
-        .select(count_star())
+        .select(diesel::dsl::count_star())
         .first::<i64>(&mut *conn)
 }
 

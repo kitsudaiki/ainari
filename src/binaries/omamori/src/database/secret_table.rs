@@ -181,7 +181,6 @@ pub fn get_secret(
 /// # Returns
 ///
 /// A QueryResult containing a vector of SecretEntry objects
-#[allow(dead_code)]
 pub fn list_secrets(context: &UserContext) -> QueryResult<Vec<SecretEntry>> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::secrets::dsl::*;

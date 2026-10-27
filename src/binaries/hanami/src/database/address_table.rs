@@ -630,7 +630,6 @@ pub fn add_new_address(
 ///
 /// # Returns
 /// A QueryResult indicating the number of rows affected
-#[allow(dead_code)]
 pub fn add_address(address: AddressEntry) -> QueryResult<usize> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::addresses::dsl::*;
@@ -649,7 +648,6 @@ pub fn add_address(address: AddressEntry) -> QueryResult<usize> {
 ///
 /// # Returns
 /// A Result containing the AddressEntry if found, or a DbError if not found or an error occurs
-#[allow(dead_code)]
 pub fn get_address(address_uuid: &Uuid) -> Result<AddressEntry, enums::DbError> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::addresses::dsl::*;
@@ -848,7 +846,7 @@ pub fn list_addresses_of_network(address_network_uuid: &Uuid) -> QueryResult<Vec
 ///
 /// # Returns
 /// A QueryResult containing the count of addresses as an i64
-#[allow(dead_code)]
+#[cfg(test)]
 pub fn count_addresses(context: &UserContext) -> QueryResult<i64> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::addresses::dsl::*;
@@ -872,7 +870,6 @@ pub fn count_addresses(context: &UserContext) -> QueryResult<i64> {
 ///
 /// # Returns
 /// A Result indicating success or an error
-#[allow(dead_code)]
 pub fn force_delete_address(address_uuid: &Uuid) -> Result<(), enums::DbError> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::addresses::dsl::*;
@@ -896,7 +893,6 @@ pub fn force_delete_address(address_uuid: &Uuid) -> Result<(), enums::DbError> {
 ///
 /// # Returns
 /// A Result indicating success or an error
-#[allow(dead_code)]
 pub fn delete_address(address_uuid: &Uuid, context: &UserContext) -> Result<(), enums::DbError> {
     // observers without admin-privileges are only allowed to read
     if context.is_read_only() {
@@ -925,7 +921,7 @@ pub fn delete_address(address_uuid: &Uuid, context: &UserContext) -> Result<(), 
 ///
 /// # Returns
 /// A Result indicating success or an error
-#[allow(dead_code)]
+#[cfg(test)]
 pub fn delete_all_addresses() -> Result<(), enums::DbError> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::addresses::dsl::*;

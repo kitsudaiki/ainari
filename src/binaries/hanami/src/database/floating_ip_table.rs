@@ -345,7 +345,6 @@ pub fn get_floating_ip(
 ///
 /// # Returns
 /// A QueryResult containing a vector of FloatingIpEntry objects
-#[allow(dead_code)]
 pub fn list_floating_ips(context: &UserContext) -> QueryResult<Vec<FloatingIpEntry>> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::floating_ips::dsl::*;
@@ -392,7 +391,6 @@ pub fn count_floating_ips_of_project(project: &str) -> QueryResult<i64> {
 ///
 /// # Returns
 /// A Result indicating success or an error
-#[allow(dead_code)]
 pub fn force_delete_floating_ip(floating_ip_uuid: &Uuid) -> Result<(), enums::DbError> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::floating_ips::dsl::*;
@@ -609,7 +607,7 @@ pub fn get_floating_ip_by_internal_ip(
 ///
 /// # Returns
 /// A Result indicating success or an error
-#[allow(dead_code)]
+#[cfg(test)]
 pub fn delete_all_floating_ip() -> Result<(), enums::DbError> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::floating_ips::dsl::*;

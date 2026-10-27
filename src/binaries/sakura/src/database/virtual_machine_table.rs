@@ -364,7 +364,6 @@ pub fn set_virtual_machine_image(
 /// # Returns
 /// * `Ok(())` on success
 /// * `Err(enums::DbError)` with an appropriate error on failure
-#[allow(dead_code)]
 pub fn update_virtual_machine(
     virtual_machine_uuid: &Uuid,
     new_image_uuid: &Uuid,

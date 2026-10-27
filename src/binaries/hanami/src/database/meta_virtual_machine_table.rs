@@ -187,7 +187,6 @@ pub fn get_meta_virtual_machine(
 ///
 /// # Returns
 /// A QueryResult containing a vector of MetaVirtualMachineEntry objects
-#[allow(dead_code)]
 pub fn list_meta_virtual_machines(
     context: &UserContext,
 ) -> QueryResult<Vec<MetaVirtualMachineEntry>> {

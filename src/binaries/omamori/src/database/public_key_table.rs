@@ -168,7 +168,6 @@ pub fn get_public_key(
 ///
 /// # Returns
 /// A QueryResult containing a vector of PublicKeyEntry objects
-#[allow(dead_code)]
 pub fn list_public_keys(context: &UserContext) -> QueryResult<Vec<PublicKeyEntry>> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::public_keys::dsl::*;
@@ -214,7 +213,7 @@ pub fn count_public_keys_of_project(project: &str) -> QueryResult<i64> {
 ///
 /// # Returns
 /// A QueryResult containing the count of public-keys as an i64
-#[allow(dead_code)]
+#[cfg(test)]
 pub fn count_public_keys(context: &UserContext) -> QueryResult<i64> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::public_keys::dsl::*;
@@ -303,7 +302,7 @@ pub fn put_public_key(entry: PublicKeyEntry) -> QueryResult<usize> {
 ///
 /// # Returns
 /// A Result indicating success or an error
-#[allow(dead_code)]
+#[cfg(test)]
 pub fn force_delete_public_key(public_key_uuid: &Uuid) -> Result<(), enums::DbError> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::public_keys::dsl::*;
@@ -363,7 +362,7 @@ pub fn delete_public_key(
 ///
 /// # Returns
 /// A Result indicating success or an error
-#[allow(dead_code)]
+#[cfg(test)]
 pub fn delete_all_public_key() -> Result<(), enums::DbError> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::public_keys::dsl::*;

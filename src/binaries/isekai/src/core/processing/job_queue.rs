@@ -43,7 +43,7 @@ impl JobQueue {
     }
 
     /// Returns the number of jobs, which wait in the queue.
-    #[allow(dead_code)]
+    #[cfg(test)]
     pub fn len(&self) -> usize {
         self.queue.len()
     }

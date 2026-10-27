@@ -179,7 +179,6 @@ pub fn get_network(
 ///
 /// # Returns
 /// A QueryResult containing a vector of NetworkEntry objects
-#[allow(dead_code)]
 pub fn list_networks(context: &UserContext) -> QueryResult<Vec<NetworkEntry>> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::networks::dsl::*;
@@ -226,7 +225,7 @@ pub fn count_networks_of_project(project: &str) -> QueryResult<i64> {
 ///
 /// # Returns
 /// A Result indicating success or an error
-#[allow(dead_code)]
+#[cfg(test)]
 pub fn force_delete_network(network_uuid: &Uuid) -> Result<(), enums::DbError> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::networks::dsl::*;

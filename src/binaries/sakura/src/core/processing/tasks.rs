@@ -236,7 +236,6 @@ pub struct Task {
     /// Type of the resource, which the task acts on.
     pub resource_type: TaskResourceType,
     /// Human-readable description of the task.
-    #[allow(dead_code)]
     pub description: String,
 
     /// The concrete work of the task together with everything it needs for it.

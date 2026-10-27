@@ -170,9 +170,7 @@ pub fn clone_simple_crypto_data(source_uuid: &Uuid, new_uuid: &Uuid) -> Result<(
 /// # Returns
 ///
 /// A QueryResult containing a vector of all SimpleCryptoEntry objects in the table
-///
-/// Note: This function is marked as #[allow(dead_code)] as it might not be used in the current implementation.
-#[allow(dead_code)]
+#[cfg(test)]
 pub fn list_simple_crypto() -> QueryResult<Vec<SimpleCryptoEntry>> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::simple_crypto::dsl::*;
