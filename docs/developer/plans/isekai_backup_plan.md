@@ -316,7 +316,7 @@ onsen about the bundles, so isekai doesn't need a wireguard-tunnel):
   The old address is only a preference. A VM, which already has a floating-ip, keeps it, so the
   import can be repeated.
 - `POST /v1alpha/virtual_machine/internal` – reservation of a VM by isekai. Like the public
-  reservation, but with cores and memory instead of a vm-type and optional fixed `uuid`,
+  reservation, but with cores and memory instead of a vm-type and optional predefined `uuid`,
   `internal_ip` and `mac_address`. A taken UUID (active VM or other project) or address is
   rejected with `409`, the UUID of a deleted VM of the project is used again. Both reservations
   share one function (`reserve`).

@@ -45,7 +45,7 @@ pub async fn reserve_virtual_machine_internal(
     body.validate()
         .map_err(|e| ErrorResponse::BadRequest(format!("Invalid input: {e}")))?;
 
-    // a fixed UUID, for example of a restored virtual_machine, can only replace a deleted one
+    // a predefined UUID, for example of a restored virtual_machine, can only replace a deleted one
     let virtual_machine_uuid = match body.uuid {
         Some(uuid) => {
             match virtual_machine_table::find_virtual_machine_status(&uuid)
@@ -172,7 +172,7 @@ mod tests {
 
     #[actix_rt::test]
     #[serial]
-    async fn test_reserve_with_fixed_uuid_and_export() {
+    async fn test_reserve_with_predefined_uuid_and_export() {
         let vm = Uuid::new_v4();
         let resp = reserve_virtual_machine_internal(Json(request(Some(vm))), context())
             .await

@@ -429,8 +429,8 @@ pub fn delete_all_meta_virtual_machine() -> Result<(), enums::DbError> {
 
 /// Searches a virtual_machine by its UUID within all projects, also if it is already deleted.
 ///
-/// It is used to check, if a fixed UUID is still free, before a virtual_machine with this UUID is
-/// reserved.
+/// It is used to check, if a predefined UUID is still free, before a virtual_machine with this
+/// UUID is reserved.
 ///
 /// # Arguments
 /// * `virtual_machine_uuid` - The UUID of the virtual_machine

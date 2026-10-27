@@ -24,7 +24,7 @@ use crate::config;
 use crate::core::mls::{grant_membership, is_encrypted, network_encrypted};
 use crate::core::routing::{create_overlay_route, resolve_address, torii_of_host};
 use crate::database::address_table;
-use crate::database::address_table::{AddressEntry, FixedAddressError};
+use crate::database::address_table::{AddressEntry, PredefinedAddressError};
 use crate::database::host_table;
 use crate::database::host_table::{HostEntry, HostResources};
 use crate::database::meta_virtual_machine_table;
@@ -113,7 +113,7 @@ pub async fn reserve_virtual_machine(
 
 /// Values of a virtual_machine, which is reserved.
 pub struct ReserveRequest {
-    /// Fixed UUID of the virtual_machine, otherwise sakura generates one
+    /// Predefined UUID of the virtual_machine, otherwise sakura generates one
     pub uuid: Option<Uuid>,
     pub name: String,
     pub network_uuid: Uuid,
@@ -126,9 +126,9 @@ pub struct ReserveRequest {
     pub isolated_host: bool,
     /// Sakura-host, which has to run the virtual_machine, instead of a randomly selected one
     pub host_uuid: Option<Uuid>,
-    /// Fixed internal IP-address, otherwise the next free one is used
+    /// Predefined internal IP-address, otherwise the next free one is used
     pub internal_ip: Option<Ipv4Addr>,
-    /// Fixed MAC-address, otherwise the next free one is used
+    /// Predefined MAC-address, otherwise the next free one is used
     pub mac_address: Option<String>,
 }
 
@@ -156,9 +156,9 @@ pub async fn reserve(
             ErrorResponse::BadRequest("Invalid input: memory_size is too large".to_string())
         })?;
 
-    // a fixed UUID is checked, before anything is allocated
+    // a predefined UUID is checked, before anything is allocated
     let replace_deleted = match &request.uuid {
-        Some(uuid) => check_fixed_uuid(uuid, context)?,
+        Some(uuid) => check_predefined_uuid(uuid, context)?,
         None => false,
     };
 
@@ -230,10 +230,10 @@ pub async fn reserve(
     Ok(virtual_machine_resp)
 }
 
-/// Checks, if a virtual_machine can be reserved with a fixed UUID.
+/// Checks, if a virtual_machine can be reserved with a predefined UUID.
 ///
 /// # Arguments
-/// * `uuid` - The fixed UUID
+/// * `uuid` - The predefined UUID
 /// * `context` - User context with the project of the new virtual_machine
 ///
 /// # Returns
@@ -241,7 +241,7 @@ pub async fn reserve(
 ///   project, whose entry has to be replaced
 /// * `Err(ErrorResponse::Conflict)` - The UUID is used by an active virtual_machine or by another
 ///   project
-fn check_fixed_uuid(uuid: &Uuid, context: &UserContext) -> Result<bool, ErrorResponse> {
+fn check_predefined_uuid(uuid: &Uuid, context: &UserContext) -> Result<bool, ErrorResponse> {
     let existing = meta_virtual_machine_table::find_meta_virtual_machine(uuid)
         .map_err(|e| map_db_list_error("virtual_machines", e, Some(context)))?;
     match existing {
@@ -428,7 +428,7 @@ async fn prepare_selected_host(
     // virtual_machine can be created on the other hosts of its network later. The tenant of the
     // network is stored with them as well: it is what keeps two networks, which use the same
     // subnet, apart in the datapath of the torii.
-    let vm_address = address_table::reserve_fixed_address(
+    let vm_address = address_table::reserve_predefined_address(
         &network_data.uuid,
         &network_data.subnet,
         &selected_host.address,
@@ -437,9 +437,9 @@ async fn prepare_selected_host(
         context,
     )
     .map_err(|e| match e {
-        FixedAddressError::Conflict(msg) => ErrorResponse::Conflict(msg),
-        FixedAddressError::InvalidInput(msg) => ErrorResponse::BadRequest(msg),
-        FixedAddressError::Db(e) => map_db_register_error("mac", e, Some(context)),
+        PredefinedAddressError::Conflict(msg) => ErrorResponse::Conflict(msg),
+        PredefinedAddressError::InvalidInput(msg) => ErrorResponse::BadRequest(msg),
+        PredefinedAddressError::Db(e) => map_db_register_error("mac", e, Some(context)),
     })?;
 
     // everything, which is prepared after the address was reserved, is removed again, if a later
@@ -946,7 +946,7 @@ mod tests {
 
     #[test]
     #[serial]
-    fn test_check_fixed_uuid() {
+    fn test_check_predefined_uuid() {
         let project = format!("test-project-{}", Uuid::new_v4());
         let context = UserContext {
             token: "".to_string(),
@@ -961,17 +961,20 @@ mod tests {
 
         // a free UUID or the one of a deleted virtual_machine of the project can be used
         assert!(matches!(
-            check_fixed_uuid(&Uuid::new_v4(), &context),
+            check_predefined_uuid(&Uuid::new_v4(), &context),
             Ok(false)
         ));
-        assert!(matches!(check_fixed_uuid(&deleted, &context), Ok(true)));
+        assert!(matches!(
+            check_predefined_uuid(&deleted, &context),
+            Ok(true)
+        ));
         // an active virtual_machine or another project block the UUID
         assert!(matches!(
-            check_fixed_uuid(&active, &context),
+            check_predefined_uuid(&active, &context),
             Err(ErrorResponse::Conflict(_))
         ));
         assert!(matches!(
-            check_fixed_uuid(&foreign, &context),
+            check_predefined_uuid(&foreign, &context),
             Err(ErrorResponse::Conflict(_))
         ));
 

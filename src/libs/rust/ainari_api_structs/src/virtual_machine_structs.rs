@@ -62,7 +62,7 @@ pub struct VirtualMachineInternalCreateReq {
 
 /// Reservation of a virtual_machine by another component, for example to restore it from a
 /// backup. Unlike `VirtualMachineCreateReq` the resources are given directly instead of a vm-type,
-/// and the UUID and the addresses can be fixed.
+/// and the UUID and the addresses can be predefined.
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
 pub struct VirtualMachineReserveInternalReq {
     /// UUID of the virtual_machine. Without it, a new UUID is generated.
