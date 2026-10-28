@@ -2592,7 +2592,7 @@
           }
         }
       },
-      "HanamiFloatingIpExport": {
+      "FloatingIpExport": {
         "description": "Floating ip-address, like it is exported from hanami into a backup. It is allocated again from the pool of the target on restore, so the address is only a preference.",
         "type": "object",
         "required": [
@@ -2623,7 +2623,7 @@
           }
         }
       },
-      "HanamiNetworkExport": {
+      "NetworkExport": {
         "description": "Network, like it is exported from hanami into a backup.",
         "type": "object",
         "required": [
@@ -2653,7 +2653,7 @@
           }
         }
       },
-      "HanamiNetworkFilterExport": {
+      "NetworkFilterExport": {
         "description": "Packet filter of one direction of a virtual_machine, like it is exported from hanami into a backup.",
         "type": "object",
         "required": [
@@ -2701,19 +2701,19 @@
           "floating_ips": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/HanamiFloatingIpExport"
+              "$ref": "#/components/schemas/FloatingIpExport"
             }
           },
           "network_filters": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/HanamiNetworkFilterExport"
+              "$ref": "#/components/schemas/NetworkFilterExport"
             }
           },
           "networks": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/HanamiNetworkExport"
+              "$ref": "#/components/schemas/NetworkExport"
             }
           },
           "virtual_machines": {
@@ -2733,7 +2733,7 @@
             "default": [],
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/HanamiFloatingIpExport"
+              "$ref": "#/components/schemas/FloatingIpExport"
             }
           },
           "force": {
@@ -2754,14 +2754,14 @@
             "default": [],
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/HanamiNetworkFilterExport"
+              "$ref": "#/components/schemas/NetworkFilterExport"
             }
           },
           "networks": {
             "default": [],
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/HanamiNetworkExport"
+              "$ref": "#/components/schemas/NetworkExport"
             }
           }
         }

@@ -24,9 +24,10 @@ use crate::database::secret_table;
 
 use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
-use ainari_api_structs::project_structs::*;
-use ainari_api_structs::public_key_structs::OmamoriPublicKeyExport;
-use ainari_api_structs::secret_structs::{OmamoriSecretExport, SECRET_OWNER_BACKUP};
+use ainari_api_structs::exports::{
+    OmamoriProjectExport, OmamoriProjectExportReq, PublicKeyExport, SecretExport,
+};
+use ainari_api_structs::secret_structs::SECRET_OWNER_BACKUP;
 use ainari_api_structs::user_context::UserContext;
 
 #[api_operation(
@@ -72,7 +73,7 @@ pub async fn export_project_internal(
         let wrapped_payload = wrap_payload(&payload, &wrap_key, &secret.uuid)
             .map_err(|e| map_ainari_error_to_api_response(e, Some(&context)))?;
 
-        exported_secrets.push(OmamoriSecretExport {
+        exported_secrets.push(SecretExport {
             uuid: secret.uuid,
             name: secret.name,
             owned_by: secret.owned_by,
@@ -85,7 +86,7 @@ pub async fn export_project_internal(
         .map_err(|e| map_db_list_error("public-keys", e, Some(&context)))?;
     let exported_public_keys = public_keys
         .into_iter()
-        .map(|public_key| OmamoriPublicKeyExport {
+        .map(|public_key| PublicKeyExport {
             uuid: public_key.uuid,
             name: public_key.name,
             public_key: public_key.public_key,

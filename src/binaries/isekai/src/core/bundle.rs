@@ -18,8 +18,7 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use ainari_api_structs::image_structs::RyokanImageExport;
-use ainari_api_structs::virtual_machine_structs::SakuraVirtualMachineExport;
+use ainari_api_structs::exports::{ImageExport, SakuraVirtualMachineExport};
 use ainari_common::encryption::{decrypt_bytes, encrypt_bytes};
 use ainari_common::error::AinariError;
 
@@ -98,7 +97,7 @@ pub struct SakuraMetadata {
 /// Content of the metadata-file of ryokan.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
 pub struct RyokanMetadata {
-    pub images: Vec<RyokanImageExport>,
+    pub images: Vec<ImageExport>,
     /// true, if the files of the images are part of the backup under `images/`
     pub files_included: bool,
 }
@@ -186,7 +185,7 @@ mod tests {
 
     fn metadata() -> RyokanMetadata {
         RyokanMetadata {
-            images: vec![RyokanImageExport {
+            images: vec![ImageExport {
                 uuid: Uuid::new_v4(),
                 name: "image".to_string(),
                 file_type: "qcow2".to_string(),

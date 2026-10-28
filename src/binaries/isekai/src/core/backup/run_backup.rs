@@ -16,9 +16,9 @@ use chrono::Utc;
 
 use ainari_api_structs::backup_structs::BackupStatus;
 use ainari_clients::backup as backup_clients;
-use ainari_clients::network::export_project_networks;
-use ainari_clients::project::export_project;
-use ainari_clients::secret::export_project_secrets;
+use ainari_clients::exports::export_project;
+use ainari_clients::exports::export_project_networks;
+use ainari_clients::exports::export_project_secrets;
 use ainari_common::error::AinariError;
 
 use super::backup_files::{delete_backup_content, file_info, write_metadata};

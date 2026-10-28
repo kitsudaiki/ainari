@@ -32,10 +32,10 @@ use crate::database::network_table::{self, NetworkEntry};
 
 use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
-use ainari_api_structs::floating_ip_structs::HanamiFloatingIpExport;
-use ainari_api_structs::network_filter_structs::HanamiNetworkFilterExport;
-use ainari_api_structs::network_structs::*;
-use ainari_api_structs::project_structs::ImportedResource;
+use ainari_api_structs::exports::{FloatingIpExport, NetworkExport, NetworkFilterExport};
+use ainari_api_structs::imports::{
+    HanamiProjectImportReq, HanamiProjectImportResp, ImportedResource,
+};
 use ainari_api_structs::user_context::UserContext;
 use ainari_clients::network_filter as network_filter_clients;
 
@@ -204,7 +204,7 @@ pub async fn import_project_internal(
 /// * `Err(ErrorResponse::Conflict)` - The UUID can't be used, or the subnet or the encryption of
 ///   a network, which is used by virtual_machines, would change
 fn check_network(
-    network: &HanamiNetworkExport,
+    network: &NetworkExport,
     uuid: &Uuid,
     force: bool,
     context: &UserContext,
@@ -282,7 +282,7 @@ fn check_virtual_machine(
 /// * `Ok(())` - The filter is applied and stored
 /// * `Err(ErrorResponse)` - The torii or the database failed
 async fn import_network_filter(
-    filter: &HanamiNetworkFilterExport,
+    filter: &NetworkFilterExport,
     virtual_machine_uuid: &Uuid,
     replace: bool,
     context: &UserContext,
@@ -368,7 +368,7 @@ async fn import_network_filter(
 /// * `Ok(Uuid)` - The UUID of the new or already attached floating ip-address
 /// * `Err(ErrorResponse)` - No floating ip-address is free or the attach failed
 async fn import_floating_ip(
-    floating_ip: &HanamiFloatingIpExport,
+    floating_ip: &FloatingIpExport,
     virtual_machine_uuid: Option<&Uuid>,
     context: &UserContext,
 ) -> Result<Uuid, ErrorResponse> {
@@ -445,6 +445,7 @@ mod tests {
     use crate::database::floating_ip_table::FloatingIpEntry;
     use crate::database::meta_virtual_machine_table::MetaVirtualMachineEntry;
     use crate::database::network_filter_table::NetworkFilterEntry;
+    use ainari_api_structs::exports::HanamiProjectExport;
     use ainari_api_structs::network_filter_structs::FilterDirection;
     use ainari_common::enums::ProjectRole;
     use diesel::prelude::*;
@@ -742,14 +743,14 @@ mod tests {
         let project = new_project();
         let network = Uuid::new_v4();
         let exported = HanamiProjectExport {
-            networks: vec![HanamiNetworkExport {
+            networks: vec![NetworkExport {
                 uuid: network,
                 name: "network".to_string(),
                 subnet: "192.168.40.0/24".to_string(),
                 disable_encryption: false,
             }],
             virtual_machines: vec![],
-            network_filters: vec![HanamiNetworkFilterExport {
+            network_filters: vec![NetworkFilterExport {
                 virtual_machine_uuid: Uuid::new_v4(),
                 direction: FilterDirection::Egress,
                 ip_ranges: vec!["10.0.0.0/8".parse().unwrap()],
@@ -784,7 +785,7 @@ mod tests {
         let taken = Ipv4Addr::new(10, 0, 0, 212);
         add_floating_ip(&project, None, taken);
         let user = context(&project, false, ProjectRole::Admin);
-        let floating = |uuid, ip, virtual_machine_uuid| HanamiFloatingIpExport {
+        let floating = |uuid, ip, virtual_machine_uuid| FloatingIpExport {
             uuid,
             name: "restored".to_string(),
             floating_ip: ip,

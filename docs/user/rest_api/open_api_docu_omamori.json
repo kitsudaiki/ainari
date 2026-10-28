@@ -1170,13 +1170,13 @@
           "public_keys": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/OmamoriPublicKeyExport"
+              "$ref": "#/components/schemas/PublicKeyExport"
             }
           },
           "secrets": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/OmamoriSecretExport"
+              "$ref": "#/components/schemas/SecretExport"
             }
           }
         }
@@ -1230,13 +1230,13 @@
           "public_keys": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/OmamoriPublicKeyExport"
+              "$ref": "#/components/schemas/PublicKeyExport"
             }
           },
           "secrets": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/OmamoriSecretExport"
+              "$ref": "#/components/schemas/SecretExport"
             }
           },
           "wrap_key": {
@@ -1275,7 +1275,7 @@
           }
         }
       },
-      "OmamoriPublicKeyExport": {
+      "PublicKeyExport": {
         "description": "Public-key, like it is exported from omamori into a backup. The fingerprint is not part of it, because it is calculated from the key again, when it is imported.",
         "type": "object",
         "required": [
@@ -1302,7 +1302,7 @@
           }
         }
       },
-      "OmamoriSecretExport": {
+      "SecretExport": {
         "description": "Secret, like it is exported from omamori into a backup. The payload never leaves the omamori in plain text, but is wrapped with the wrap-key of the backup.",
         "type": "object",
         "required": [

@@ -99,16 +99,3 @@ pub struct FloatingIpPath {
     /// The floating IPv4 address
     pub ip: Ipv4Addr,
 }
-
-/// Floating ip-address, like it is exported from hanami into a backup. It is allocated again from
-/// the pool of the target on restore, so the address is only a preference.
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, ApiComponent, Validate)]
-pub struct HanamiFloatingIpExport {
-    /// UUID of the floating ip-address at the time of the backup
-    pub uuid: Uuid,
-    #[validate(length(min = 1, max = 255))]
-    pub name: String,
-    pub floating_ip: Ipv4Addr,
-    /// virtual_machine, which the floating ip-address was attached to
-    pub virtual_machine_uuid: Option<Uuid>,
-}

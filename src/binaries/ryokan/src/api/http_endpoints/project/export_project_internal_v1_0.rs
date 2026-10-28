@@ -20,7 +20,7 @@ use crate::database::image_table;
 
 use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
-use ainari_api_structs::image_structs::{RyokanImageExport, RyokanProjectExport};
+use ainari_api_structs::exports::{ImageExport, RyokanProjectExport};
 use ainari_api_structs::user_context::UserContext;
 
 #[api_operation(
@@ -51,7 +51,7 @@ pub async fn export_project_internal(
     Ok(Json(RyokanProjectExport {
         images: images
             .into_iter()
-            .map(|image| RyokanImageExport {
+            .map(|image| ImageExport {
                 uuid: image.uuid,
                 name: image.name,
                 file_type: image.file_type,

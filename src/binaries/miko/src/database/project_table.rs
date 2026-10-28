@@ -20,7 +20,8 @@ use uuid::Uuid;
 use crate::database::db_handle;
 use crate::database::quota_table;
 
-use ainari_api_structs::project_structs::{MikoQuotaExport, ProjectLock};
+use ainari_api_structs::exports::QuotaExport;
+use ainari_api_structs::project_structs::ProjectLock;
 use ainari_api_structs::user_context::UserContext;
 use ainari_common::enums;
 use ainari_common::objects::*;
@@ -90,7 +91,7 @@ pub fn add_new_project(
 }
 
 /// Default quota of a new project, which is created over the api.
-const DEFAULT_QUOTA: MikoQuotaExport = MikoQuotaExport {
+const DEFAULT_QUOTA: QuotaExport = QuotaExport {
     max_virtual_machine: 10,
     max_image: 10,
     max_secret: 10,
@@ -116,7 +117,7 @@ const DEFAULT_QUOTA: MikoQuotaExport = MikoQuotaExport {
 pub fn add_new_project_with_quota(
     project_id: &String,
     project_name: &str,
-    quota: &MikoQuotaExport,
+    quota: &QuotaExport,
     context: &UserContext,
 ) -> QueryResult<usize> {
     // observers without admin-privileges are only allowed to read

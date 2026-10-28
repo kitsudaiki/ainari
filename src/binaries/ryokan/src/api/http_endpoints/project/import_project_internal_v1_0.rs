@@ -25,10 +25,10 @@ use crate::database::image_table::{self, ImageEntry};
 
 use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
-use ainari_api_structs::image_structs::{
-    ImageStatus, RyokanProjectImportReq, RyokanProjectImportResp,
+use ainari_api_structs::image_structs::ImageStatus;
+use ainari_api_structs::imports::{
+    ImportedResource, RyokanProjectImportReq, RyokanProjectImportResp,
 };
-use ainari_api_structs::project_structs::ImportedResource;
 use ainari_api_structs::user_context::UserContext;
 
 /// Directory on the onsen, which contains the files of the images.
@@ -204,9 +204,8 @@ mod tests {
     use crate::api::http_endpoints::project::export_project_internal_v1_0::export_project_internal;
     use crate::database::db_handle;
     use crate::database::host_table::HostEntry;
-    use ainari_api_structs::image_structs::{
-        RyokanImageExport, RyokanImageImport, RyokanProjectExport,
-    };
+    use ainari_api_structs::exports::{ImageExport, RyokanProjectExport};
+    use ainari_api_structs::imports::RyokanImageImport;
     use ainari_common::enums::ProjectRole;
     use diesel::prelude::*;
     use serial_test::serial;
@@ -290,7 +289,7 @@ mod tests {
     /// Imports the exported images like they were copied to the given onsen.
     async fn import(
         project: &str,
-        images: &[RyokanImageExport],
+        images: &[ImageExport],
         onsen: &str,
         force: bool,
         id_map: BTreeMap<Uuid, Uuid>,

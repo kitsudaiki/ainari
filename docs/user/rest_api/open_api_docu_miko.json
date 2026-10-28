@@ -1748,7 +1748,7 @@
             "minLength": 4
           },
           "quota": {
-            "$ref": "#/components/schemas/MikoQuotaExport"
+            "$ref": "#/components/schemas/QuotaExport"
           }
         }
       },
@@ -1796,7 +1796,7 @@
           }
         }
       },
-      "MikoQuotaExport": {
+      "QuotaExport": {
         "description": "Quota of a project, like it is stored in a backup.",
         "type": "object",
         "required": [

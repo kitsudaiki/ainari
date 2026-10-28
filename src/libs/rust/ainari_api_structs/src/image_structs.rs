@@ -16,12 +16,9 @@ use apistos::ApiComponent;
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
 use std::str::FromStr;
 use uuid::Uuid;
 use validator::Validate;
-
-use crate::project_structs::ImportedResource;
 
 /// State of the file of an image. Only an image with the state `READY` can be used for a
 /// virtual_machine.
@@ -187,61 +184,4 @@ mod tests {
         }
         assert!("ACTIVE".parse::<ImageStatus>().is_err());
     }
-}
-
-/// Image or snapshot, like it is exported from ryokan into a backup. The location of its file is
-/// not part of it, because the file is stored within the backup itself.
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, ApiComponent, Validate)]
-pub struct RyokanImageExport {
-    /// UUID of the image at the time of the backup
-    pub uuid: Uuid,
-    #[validate(length(min = 1, max = 255))]
-    pub name: String,
-    /// type of the unencrypted file (e.g. "qcow2")
-    #[validate(length(min = 1, max = 31))]
-    pub file_type: String,
-    /// size of the unencrypted file in bytes
-    pub file_size: u64,
-    pub is_snapshot: bool,
-    /// secret, which encrypts the file of the image
-    pub secret_uuid: Uuid,
-}
-
-/// Image from a backup, whose file was already copied to a normal onsen.
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
-pub struct RyokanImageImport {
-    #[validate(nested)]
-    pub image: RyokanImageExport,
-    /// address of the onsen, where the file of the image was copied to
-    #[validate(length(min = 1, max = 255))]
-    pub onsen_address: String,
-    /// path of the file on the onsen, which must be within `images/`
-    #[validate(length(min = 1, max = 1024))]
-    pub file_path: String,
-}
-
-/// Images and snapshots of a project, like they are exported from ryokan into a backup.
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
-pub struct RyokanProjectExport {
-    #[validate(nested)]
-    pub images: Vec<RyokanImageExport>,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
-pub struct RyokanProjectImportReq {
-    #[validate(nested)]
-    pub images: Vec<RyokanImageImport>,
-    /// overwrite existing images of the project with the same UUID
-    #[serde(default)]
-    pub force: bool,
-    /// new UUIDs of the resources, whose UUID was already taken. It is applied to the UUIDs of the
-    /// images and to their secrets. UUIDs, which are not part of it, are kept.
-    #[serde(default)]
-    pub id_map: BTreeMap<Uuid, Uuid>,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
-pub struct RyokanProjectImportResp {
-    pub project_id: String,
-    pub images: Vec<ImportedResource>,
 }

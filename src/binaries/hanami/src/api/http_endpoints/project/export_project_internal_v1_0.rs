@@ -24,11 +24,11 @@ use crate::database::network_table;
 
 use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
-use ainari_api_structs::floating_ip_structs::HanamiFloatingIpExport;
-use ainari_api_structs::network_filter_structs::HanamiNetworkFilterExport;
-use ainari_api_structs::network_structs::*;
+use ainari_api_structs::exports::{
+    FloatingIpExport, HanamiProjectExport, HanamiVirtualMachineExport, NetworkExport,
+    NetworkFilterExport,
+};
 use ainari_api_structs::user_context::UserContext;
-use ainari_api_structs::virtual_machine_structs::HanamiVirtualMachineExport;
 
 #[api_operation(
     tag = "project",
@@ -56,7 +56,7 @@ pub async fn export_project_internal(
     let networks = network_table::list_networks_of_project(&project_id)
         .map_err(|e| map_db_list_error("networks", e, Some(&context)))?
         .into_iter()
-        .map(|network| HanamiNetworkExport {
+        .map(|network| NetworkExport {
             uuid: network.uuid,
             name: network.name,
             subnet: network.subnet,
@@ -109,7 +109,7 @@ pub async fn export_project_internal(
             }
             _ => None,
         };
-        floating_ips.push(HanamiFloatingIpExport {
+        floating_ips.push(FloatingIpExport {
             uuid: floating_ip.uuid,
             name: floating_ip.name,
             floating_ip: floating_ip.floating_ip_addr,
@@ -134,12 +134,12 @@ pub async fn export_project_internal(
 ///
 /// # Returns
 ///
-/// * `Ok(HanamiNetworkFilterExport)` - The exported packet filter
+/// * `Ok(NetworkFilterExport)` - The exported packet filter
 /// * `Err(ErrorResponse::InternalError)` - The database contains an invalid filter
 fn to_filter_export(
     entry: NetworkFilterEntry,
     context: &UserContext,
-) -> Result<HanamiNetworkFilterExport, ErrorResponse> {
+) -> Result<NetworkFilterExport, ErrorResponse> {
     let invalid = |e: String| {
         ainari_api::report_internal_error!(
             Some(context),
@@ -148,7 +148,7 @@ fn to_filter_export(
         );
         ErrorResponse::InternalError("Internal Error".to_string())
     };
-    Ok(HanamiNetworkFilterExport {
+    Ok(NetworkFilterExport {
         virtual_machine_uuid: entry.virtual_machine_uuid,
         direction: entry.direction.parse().map_err(invalid)?,
         ip_ranges: entry

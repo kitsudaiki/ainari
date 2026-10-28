@@ -27,7 +27,9 @@ use crate::database::secret_table::{self, SecretEntry};
 
 use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
-use ainari_api_structs::project_structs::*;
+use ainari_api_structs::imports::{
+    ImportedResource, OmamoriProjectImportReq, OmamoriProjectImportResp,
+};
 use ainari_api_structs::user_context::UserContext;
 use ainari_common::functions::{create_ssh_key_fingerprint, is_valid_ssh_public_key};
 
@@ -210,6 +212,7 @@ mod tests {
     use super::*;
     use crate::api::http_endpoints::project::export_project_internal_v1_0::export_project_internal;
     use crate::api::http_endpoints::project::test_utils::*;
+    use ainari_api_structs::exports::{OmamoriProjectExport, OmamoriProjectExportReq};
     use ainari_common::enums::ProjectRole;
     use serial_test::serial;
     use std::collections::BTreeMap;

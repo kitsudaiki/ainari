@@ -22,7 +22,7 @@ use crate::database::quota_table;
 
 use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
-use ainari_api_structs::project_structs::*;
+use ainari_api_structs::imports::{MikoProjectImportReq, MikoProjectImportResp};
 use ainari_api_structs::user_context::UserContext;
 use ainari_common::enums;
 
@@ -137,6 +137,7 @@ pub async fn import_project_internal(
 mod tests {
     use super::*;
     use crate::api::http_endpoints::project::export_project_internal_v1_0::export_project_internal;
+    use ainari_api_structs::exports::{MikoProjectExport, QuotaExport};
     use ainari_common::enums::ProjectRole;
     use serial_test::serial;
 
@@ -160,7 +161,7 @@ mod tests {
         MikoProjectExport {
             id: "original-project".to_string(),
             name: name.to_string(),
-            quota: MikoQuotaExport {
+            quota: QuotaExport {
                 max_virtual_machine: limit,
                 max_image: limit + 1,
                 max_secret: limit + 2,

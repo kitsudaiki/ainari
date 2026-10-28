@@ -21,7 +21,7 @@ use crate::database::quota_table;
 
 use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
-use ainari_api_structs::project_structs::*;
+use ainari_api_structs::exports::{MikoProjectExport, QuotaExport};
 use ainari_api_structs::user_context::UserContext;
 
 #[api_operation(
@@ -53,7 +53,7 @@ pub async fn export_project_internal(
     Ok(Json(MikoProjectExport {
         id: project.id,
         name: project.name,
-        quota: MikoQuotaExport {
+        quota: QuotaExport {
             max_virtual_machine: quota.max_virtual_machine,
             max_image: quota.max_image,
             max_secret: quota.max_secret,

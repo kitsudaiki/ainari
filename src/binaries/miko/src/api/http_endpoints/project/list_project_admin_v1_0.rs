@@ -66,6 +66,8 @@ mod tests {
     use super::*;
     use crate::api::http_endpoints::project::import_project_internal_v1_0::import_project_internal;
     use actix_web::web::Path;
+    use ainari_api_structs::exports::{MikoProjectExport, QuotaExport};
+    use ainari_api_structs::imports::MikoProjectImportReq;
     use ainari_common::enums::ProjectRole;
     use serial_test::serial;
     use uuid::Uuid;
@@ -115,7 +117,7 @@ mod tests {
             project: MikoProjectExport {
                 id: project_id.clone(),
                 name: "lock test".to_string(),
-                quota: MikoQuotaExport {
+                quota: QuotaExport {
                     max_virtual_machine: 1,
                     max_image: 1,
                     max_secret: 1,

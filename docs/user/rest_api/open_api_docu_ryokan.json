@@ -2789,7 +2789,7 @@
           }
         }
       },
-      "RyokanImageExport": {
+      "ImageExport": {
         "description": "Image or snapshot, like it is exported from ryokan into a backup. The location of its file is not part of it, because the file is stored within the backup itself.",
         "type": "object",
         "required": [
@@ -2849,7 +2849,7 @@
             "minLength": 1
           },
           "image": {
-            "$ref": "#/components/schemas/RyokanImageExport"
+            "$ref": "#/components/schemas/ImageExport"
           },
           "onsen_address": {
             "description": "address of the onsen, where the file of the image was copied to",
@@ -2870,7 +2870,7 @@
           "images": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/RyokanImageExport"
+              "$ref": "#/components/schemas/ImageExport"
             }
           }
         }

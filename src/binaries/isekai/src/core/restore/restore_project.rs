@@ -15,12 +15,13 @@
 use uuid::Uuid;
 
 use ainari_api_structs::backup_structs::BackupCopyDirection;
-use ainari_api_structs::image_structs::{RyokanImageImport, RyokanProjectImportReq};
-use ainari_api_structs::network_structs::HanamiProjectImportReq;
+use ainari_api_structs::imports::{
+    HanamiProjectImportReq, RyokanImageImport, RyokanProjectImportReq,
+};
 use ainari_clients::backup as backup_clients;
-use ainari_clients::image::import_project_images;
-use ainari_clients::network::export_project_networks;
-use ainari_clients::project::import_project;
+use ainari_clients::exports::export_project_networks;
+use ainari_clients::imports::import_project;
+use ainari_clients::imports::import_project_images;
 use ainari_common::error::AinariError;
 
 use super::Restorer;

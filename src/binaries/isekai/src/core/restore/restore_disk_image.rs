@@ -16,12 +16,10 @@ use std::collections::BTreeMap;
 use uuid::Uuid;
 
 use ainari_api_structs::backup_structs::BackupCopyDirection;
-use ainari_api_structs::image_structs::{
-    RyokanImageExport, RyokanImageImport, RyokanProjectImportReq,
-};
-use ainari_api_structs::secret_structs::OmamoriSecretExport;
+use ainari_api_structs::exports::{ImageExport, SecretExport};
+use ainari_api_structs::imports::{RyokanImageImport, RyokanProjectImportReq};
 use ainari_clients::backup as backup_clients;
-use ainari_clients::image::import_project_images;
+use ainari_clients::imports::import_project_images;
 use ainari_common::error::AinariError;
 
 use super::Restorer;
@@ -75,7 +73,7 @@ impl Restorer<'_> {
         // the payload stays wrapped with the key of the backup and is only bound to the original
         // UUID of the secret, so the copy gets its new UUID by the id-map
         let secret_uuid = Uuid::new_v4();
-        let image_secret = OmamoriSecretExport {
+        let image_secret = SecretExport {
             owned_by: SECRET_OWNER_IMAGE.to_string(),
             resource_uuid: Some(image_uuid),
             ..disk_secret.clone()
@@ -90,7 +88,7 @@ impl Restorer<'_> {
 
         let request = RyokanProjectImportReq {
             images: vec![RyokanImageImport {
-                image: RyokanImageExport {
+                image: ImageExport {
                     uuid: image_uuid,
                     name: snapshot_name(&virtual_machine.config.name),
                     file_type: DISK_FILE_TYPE.to_string(),
