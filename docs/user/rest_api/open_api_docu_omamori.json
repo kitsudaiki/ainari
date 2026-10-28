@@ -419,7 +419,7 @@
           "secret"
         ],
         "summary": "Create new generated secret (internal)",
-        "description": "Create a new secret with a randomly generated 256-bit key as payload,\\\n\\\nso the payload never has to be transferred to the server.",
+        "description": "Create a new secret with a randomly generated 256-bit key as payload,\\\n\\\nso the payload never has to be transferred to the server.\\\n\\\nThe secret is owned by the resource \\`resource_uuid\\` of the kind \\`owned_by\\`. Secrets with\\\n\\`owned_by = \"backup\"\\` encrypt the disks within a backup. They don't count to the quota of the\\\nproject and don't block the deletion of the project, because a backup can outlive its project. Like\\\nall secrets, which are owned by a resource, they can't be deleted by the users.",
         "requestBody": {
           "content": {
             "application/json": {
@@ -992,6 +992,129 @@
           }
         ]
       }
+    },
+    "/v1alpha/project/{project_id}/export/internal": {
+      "post": {
+        "tags": [
+          "project"
+        ],
+        "summary": "Export project",
+        "description": "Export the secrets and public-keys of a project for a backup.\\\n\\\nThe payloads of the secrets never leave the omamori in plain text: each payload is wrapped with\\\n`wrap_key` (AES-256-GCM with a new nonce and the UUID of the secret as additional data). The\\\n`wrap_key` is only used for this request and is never stored or logged. The secrets of backups are\\\nnot exported, except the ones of the backup `backup_uuid`, which encrypt its disks. Users, which are\\\nnot admin, can only export their own project.\\\n\\\nThis is an internal call, which is protected by the internal api-key.",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "String",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OmamoriProjectExportReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OmamoriProjectExport"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/project/{project_id}/import/internal": {
+      "post": {
+        "tags": [
+          "project"
+        ],
+        "summary": "Import project",
+        "description": "Import the secrets and public-keys of a project from a backup.\\\n\\\nThe payloads of the secrets are unwrapped with `wrap_key` and stored encrypted by the omamori\\\nagain. The `wrap_key` is only used for this request and is never stored or logged. A wrong\\\n`wrap_key` or a changed payload is rejected with `400`, before anything is changed.\\\n\\\nThe resources keep their UUIDs, unless the `id_map` gives them a new one, which is also applied to\\\nthe resources, which own the secrets. A UUID, which is used by another project, is rejected with\\\n`409`. An existing secret or public-key of the project with the same UUID is rejected with `409`,\\\nunless `force` is set, which overwrites it. All conflicts are checked, before anything is changed. The quota of the project is not checked here. Users, which are not\\\nadmin, can only import into their own project.\\\n\\\nThis is an internal call, which is protected by the internal api-key.",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "String",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OmamoriProjectImportReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OmamoriProjectImportResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "409": {
+            "description": "Conflict with existing resources"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -1007,6 +1130,213 @@
             "type": "integer",
             "format": "uint64",
             "minimum": 0.0
+          }
+        }
+      },
+      "ImportedResource": {
+        "description": "Resource, which was imported from a backup.",
+        "type": "object",
+        "required": [
+          "overwritten",
+          "source_uuid",
+          "uuid"
+        ],
+        "properties": {
+          "overwritten": {
+            "description": "true, if an existing resource was overwritten",
+            "type": "boolean"
+          },
+          "source_uuid": {
+            "description": "UUID of the resource within the backup",
+            "type": "string",
+            "format": "uuid"
+          },
+          "uuid": {
+            "description": "UUID of the imported resource, which differs, if it was changed by the `id_map`",
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "OmamoriProjectExport": {
+        "title": "OmamoriProjectExport",
+        "description": "Secrets and public-keys of a project, like they are exported from omamori into a backup.",
+        "type": "object",
+        "required": [
+          "public_keys",
+          "secrets"
+        ],
+        "properties": {
+          "public_keys": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OmamoriPublicKeyExport"
+            }
+          },
+          "secrets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OmamoriSecretExport"
+            }
+          }
+        }
+      },
+      "OmamoriProjectExportReq": {
+        "title": "OmamoriProjectExportReq",
+        "type": "object",
+        "required": [
+          "wrap_key"
+        ],
+        "properties": {
+          "backup_uuid": {
+            "description": "backup, whose own secrets are exported too. The secrets of all other backups are never exported.",
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "wrap_key": {
+            "description": "base64-encoded key with 256 bit, which wraps the payloads of the exported secrets. It is never stored or logged by the omamori.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Secret"
+              }
+            ]
+          }
+        }
+      },
+      "OmamoriProjectImportReq": {
+        "title": "OmamoriProjectImportReq",
+        "type": "object",
+        "required": [
+          "public_keys",
+          "secrets",
+          "wrap_key"
+        ],
+        "properties": {
+          "force": {
+            "description": "overwrite existing secrets and public-keys of the project with the same UUID",
+            "default": false,
+            "type": "boolean"
+          },
+          "id_map": {
+            "description": "new UUIDs of the resources, whose UUID was already taken. It is applied to the UUIDs of the secrets and public-keys and to the resources, which own the secrets. UUIDs, which are not part of it, are kept.",
+            "default": {},
+            "type": "object",
+            "additionalProperties": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "public_keys": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OmamoriPublicKeyExport"
+            }
+          },
+          "secrets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OmamoriSecretExport"
+            }
+          },
+          "wrap_key": {
+            "description": "base64-encoded key with 256 bit, which was used to wrap the payloads of the secrets. It is never stored or logged by the omamori.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Secret"
+              }
+            ]
+          }
+        }
+      },
+      "OmamoriProjectImportResp": {
+        "title": "OmamoriProjectImportResp",
+        "type": "object",
+        "required": [
+          "project_id",
+          "public_keys",
+          "secrets"
+        ],
+        "properties": {
+          "project_id": {
+            "type": "string"
+          },
+          "public_keys": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ImportedResource"
+            }
+          },
+          "secrets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ImportedResource"
+            }
+          }
+        }
+      },
+      "OmamoriPublicKeyExport": {
+        "description": "Public-key, like it is exported from omamori into a backup. The fingerprint is not part of it, because it is calculated from the key again, when it is imported.",
+        "type": "object",
+        "required": [
+          "name",
+          "public_key",
+          "uuid"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1
+          },
+          "public_key": {
+            "description": "the ssh-public-key in its one-line openssh-representation",
+            "type": "string",
+            "maxLength": 4096,
+            "minLength": 8
+          },
+          "uuid": {
+            "description": "UUID of the public-key at the time of the backup",
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "OmamoriSecretExport": {
+        "description": "Secret, like it is exported from omamori into a backup. The payload never leaves the omamori in plain text, but is wrapped with the wrap-key of the backup.",
+        "type": "object",
+        "required": [
+          "name",
+          "owned_by",
+          "uuid",
+          "wrapped_payload"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1
+          },
+          "owned_by": {
+            "description": "kind of owner of the secret, like `user` or `image`",
+            "type": "string",
+            "maxLength": 63,
+            "minLength": 1
+          },
+          "resource_uuid": {
+            "description": "resource, which owns the secret, if it is not owned by a user",
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "uuid": {
+            "description": "UUID of the secret at the time of the backup",
+            "type": "string",
+            "format": "uuid"
+          },
+          "wrapped_payload": {
+            "description": "base64-encoded payload, which is wrapped with the wrap-key (AES-256-GCM with the UUID of the secret as additional data)",
+            "type": "string"
           }
         }
       },

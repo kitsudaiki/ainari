@@ -590,6 +590,7 @@
                     "created_at",
                     "created_by",
                     "host_address",
+                    "is_backup_target",
                     "name",
                     "updated_at",
                     "updated_by",
@@ -605,6 +606,10 @@
                     },
                     "host_address": {
                       "type": "string"
+                    },
+                    "is_backup_target": {
+                      "description": "true, if the onsen-host only stores backups and never normal images or snapshots",
+                      "type": "boolean"
                     },
                     "name": {
                       "type": "string"
@@ -769,6 +774,967 @@
         ]
       }
     },
+    "/v1alpha/host/{host_uuid}/backup_target/admin": {
+      "put": {
+        "tags": [
+          "host"
+        ],
+        "summary": "Set backup-target",
+        "description": "Set, if an onsen-host is a backup-target.\\\n\\\nA backup-target only stores backups and is never used for normal images or snapshots. A host can\\\nonly be marked as backup-target, while no images or snapshots are stored on it, and the mark can\\\nonly be removed, while no backups are stored on it anymore. This can only be done by an admin.",
+        "parameters": [
+          {
+            "name": "host_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Uuid",
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HostBackupTargetUpdateReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HostResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "409": {
+            "description": "Conflict with existing resources"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/backup/internal": {
+      "post": {
+        "tags": [
+          "backup"
+        ],
+        "summary": "Create backup",
+        "description": "Create a new backup, whose package is stored as one directory\\\n`backups/<uuid>` on a backup-target.\\\n\\\nThe backup starts in the state `CREATING`, in which files can be written into the package. With\\\n`host_uuid` the package is stored on this backup-target, otherwise ryokan selects one. Users, which\\\nare not admin, can only create backups of their own project.\\\n\\\nThis is an internal call, which is protected by the internal api-key.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BackupCreateReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "BackupResp",
+                  "type": "object",
+                  "required": [
+                    "backup_status",
+                    "created_at",
+                    "created_by",
+                    "directory_path",
+                    "file_count",
+                    "host_uuid",
+                    "onsen_address",
+                    "owner_id",
+                    "project_id",
+                    "total_size",
+                    "updated_at",
+                    "updated_by",
+                    "uuid"
+                  ],
+                  "properties": {
+                    "backup_status": {
+                      "$ref": "#/components/schemas/BackupStatus"
+                    },
+                    "created_at": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "created_by": {
+                      "type": "string"
+                    },
+                    "directory_path": {
+                      "description": "path of the package relative to the storage-location of the onsen",
+                      "type": "string"
+                    },
+                    "file_count": {
+                      "description": "number of files in the package, known after it was finalized",
+                      "type": "integer",
+                      "format": "uint64",
+                      "minimum": 0.0
+                    },
+                    "host_uuid": {
+                      "description": "backup-target, which stores the package",
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "manifest_sha256": {
+                      "description": "hex-encoded sha256 of the manifest of the package, known after it was finalized",
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "onsen_address": {
+                      "description": "address of the onsen of the backup-target",
+                      "type": "string"
+                    },
+                    "owner_id": {
+                      "type": "string"
+                    },
+                    "project_id": {
+                      "type": "string"
+                    },
+                    "total_size": {
+                      "description": "size of all files of the package in bytes, known after it was finalized",
+                      "type": "integer",
+                      "format": "uint64",
+                      "minimum": 0.0
+                    },
+                    "updated_at": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updated_by": {
+                      "type": "string"
+                    },
+                    "uuid": {
+                      "type": "string",
+                      "format": "uuid"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "409": {
+            "description": "Conflict with existing resources"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      },
+      "get": {
+        "tags": [
+          "backup"
+        ],
+        "summary": "List backups",
+        "description": "List all backups, which are accessible for the user. With the\\\nquery-parameter `project_id`, only the backups of this project are listed.\\\n\\\nThis is an internal call, which is protected by the internal api-key.",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "query",
+            "description": "Project to list only its backups. Without it, all backups are listed, which are visible for the user.",
+            "required": false,
+            "schema": {
+              "description": "Project to list only its backups. Without it, all backups are listed, which are visible for the user.",
+              "type": "string",
+              "nullable": true
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackupListResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/backup/register/internal": {
+      "post": {
+        "tags": [
+          "backup"
+        ],
+        "summary": "Register backup",
+        "description": "Register a package, which was copied onto a backup-target from outside, for\\\nexample from another deployment, as backup.\\\n\\\nThe package must be in `backups/<uuid>` on the backup-target and contain a manifest. Like with\\\nfinalizing a backup, the number and size of all files and the sha256 of the manifest are read from\\\nthe backup-target, and the backup is directly registered as sealed package in the state `READY`.\\\nThis can only be done by an admin.\\\n\\\nThis is an internal call, which is protected by the internal api-key.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BackupRegisterReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "BackupResp",
+                  "type": "object",
+                  "required": [
+                    "backup_status",
+                    "created_at",
+                    "created_by",
+                    "directory_path",
+                    "file_count",
+                    "host_uuid",
+                    "onsen_address",
+                    "owner_id",
+                    "project_id",
+                    "total_size",
+                    "updated_at",
+                    "updated_by",
+                    "uuid"
+                  ],
+                  "properties": {
+                    "backup_status": {
+                      "$ref": "#/components/schemas/BackupStatus"
+                    },
+                    "created_at": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "created_by": {
+                      "type": "string"
+                    },
+                    "directory_path": {
+                      "description": "path of the package relative to the storage-location of the onsen",
+                      "type": "string"
+                    },
+                    "file_count": {
+                      "description": "number of files in the package, known after it was finalized",
+                      "type": "integer",
+                      "format": "uint64",
+                      "minimum": 0.0
+                    },
+                    "host_uuid": {
+                      "description": "backup-target, which stores the package",
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "manifest_sha256": {
+                      "description": "hex-encoded sha256 of the manifest of the package, known after it was finalized",
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "onsen_address": {
+                      "description": "address of the onsen of the backup-target",
+                      "type": "string"
+                    },
+                    "owner_id": {
+                      "type": "string"
+                    },
+                    "project_id": {
+                      "type": "string"
+                    },
+                    "total_size": {
+                      "description": "size of all files of the package in bytes, known after it was finalized",
+                      "type": "integer",
+                      "format": "uint64",
+                      "minimum": 0.0
+                    },
+                    "updated_at": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updated_by": {
+                      "type": "string"
+                    },
+                    "uuid": {
+                      "type": "string",
+                      "format": "uuid"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "409": {
+            "description": "Conflict with existing resources"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/backup/{backup_uuid}/file/internal": {
+      "get": {
+        "tags": [
+          "backup"
+        ],
+        "summary": "Read file from backup",
+        "description": "Read a file, like the metadata or the manifest, from the package of a backup.\\\n\\\nFiles can only be read, after the package was finalized and is in the state `READY`. The\\\nquery-parameter `path` is relative to the directory of the package. The file is returned\\\nbase64-encoded and can have at most 16 MiB.\\\n\\\nThis is an internal call, which is protected by the internal api-key.",
+        "parameters": [
+          {
+            "name": "backup_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Uuid",
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "path",
+            "in": "query",
+            "description": "path of the file relative to the directory of the package",
+            "required": true,
+            "schema": {
+              "description": "path of the file relative to the directory of the package",
+              "type": "string",
+              "maxLength": 1024,
+              "minLength": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackupFileResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "409": {
+            "description": "Conflict with existing resources"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "backup"
+        ],
+        "summary": "Write file into backup",
+        "description": "Write a file, like the metadata or the manifest, into the package of a\\\nbackup. An existing file with the same path is overwritten.\\\n\\\nFiles can only be written, while the backup is in the state `CREATING`. The `path` is relative to\\\nthe directory of the package and the base64-decoded `content` can have at most 16 MiB.\\\n\\\nThis is an internal call, which is protected by the internal api-key.",
+        "parameters": [
+          {
+            "name": "backup_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Uuid",
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BackupFileWriteReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "409": {
+            "description": "Conflict with existing resources"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/backup/{backup_uuid}/file_info/internal": {
+      "get": {
+        "tags": [
+          "backup"
+        ],
+        "summary": "Get info of file in backup",
+        "description": "Get the size and the sha256 of a file within the package of a backup.\\\n\\\nIt is used to write the checksums of all files into the manifest, before the package is\\\nfinalized, and to check them again, before a backup is restored. So it is allowed in the states\\\n`CREATING` and `READY`. The query-parameter `path` is relative to the directory of the package.\\\nLarge files, like the disks, take their time, because their whole content is read by the onsen.\\\n\\\nThis is an internal call, which is protected by the internal api-key.",
+        "parameters": [
+          {
+            "name": "backup_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Uuid",
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "path",
+            "in": "query",
+            "description": "path of the file relative to the directory of the package",
+            "required": true,
+            "schema": {
+              "description": "path of the file relative to the directory of the package",
+              "type": "string",
+              "maxLength": 1024,
+              "minLength": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackupFileInfoResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "409": {
+            "description": "Conflict with existing resources"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/backup/{backup_uuid}/copy/internal": {
+      "post": {
+        "tags": [
+          "backup"
+        ],
+        "summary": "Copy file of backup",
+        "description": "Copy a file between the package of a backup and the normal onsens.\\\n\\\nThe file is streamed chunk by chunk from the source-onsen to the target-onsen, without storing it in\\\nryokan. If the copy fails, the incomplete copy is deleted again.\\\n\\\n- `INTO_BACKUP`: the file of the `READY` image `image_uuid` is copied unchanged into the package\\\n  under `path`. The package must be in the state `CREATING`.\\\n- `OUT_OF_BACKUP`: the file `path` of the package is copied to a normal onsen under\\\n  `images/<image_uuid>`, where it can be registered as image with this UUID afterwards. The UUID\\\n  must not be used by any image yet and the package must be in the state `READY`, so it stays\\\n  untouched.\\\n\\\nThis is an internal call, which is protected by the internal api-key.",
+        "parameters": [
+          {
+            "name": "backup_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Uuid",
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BackupCopyReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackupCopyResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "409": {
+            "description": "Conflict with existing resources"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/backup/{backup_uuid}/disk/internal": {
+      "post": {
+        "tags": [
+          "backup"
+        ],
+        "summary": "Prepare disk in backup",
+        "description": "Get the target, where the root-disk of a virtual_machine is uploaded into the\\\npackage of a backup.\\\n\\\nThe disk is uploaded directly into the onsen of the backup-target, so only its address and the path\\\nof the disk are returned. The disk is no image, so it is not registered as image. This is only\\\npossible, while the backup is in the state `CREATING`.\\\n\\\nThis is an internal call, which is protected by the internal api-key.",
+        "parameters": [
+          {
+            "name": "backup_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Uuid",
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BackupDiskReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackupDiskResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "409": {
+            "description": "Conflict with existing resources"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/backup/{backup_uuid}/internal": {
+      "get": {
+        "tags": [
+          "backup"
+        ],
+        "summary": "Get backup",
+        "description": "Get the state of the package of a backup together with the backup-target,\\\nwhich stores it.\\\n\\\nThis is an internal call, which is protected by the internal api-key.",
+        "parameters": [
+          {
+            "name": "backup_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Uuid",
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackupResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "backup"
+        ],
+        "summary": "Delete backup",
+        "description": "Delete a backup together with its whole package on the backup-target.\\\n\\\nThe package is only deleted as a whole and can be deleted in every state. It gets the state\\\n`DELETING` first, so it can't be read anymore. If the deletion of the files fails, the backup stays\\\nin this state and the deletion can be repeated.\\\n\\\nThis is an internal call, which is protected by the internal api-key.",
+        "parameters": [
+          {
+            "name": "backup_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Uuid",
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "409": {
+            "description": "Conflict with existing resources"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/backup/{backup_uuid}/finalize/internal": {
+      "post": {
+        "tags": [
+          "backup"
+        ],
+        "summary": "Finalize backup",
+        "description": "Seal the package of a backup, after all files were written into it.\\\n\\\nThe number and size of all files and the sha256 of the manifest are read from the backup-target\\\nand stored together with the state `READY`. From now on the package is read only. A package\\\nwithout `manifest.json` is incomplete, so it gets the state `ERROR` and can only be deleted.\\\n\\\nThis is an internal call, which is protected by the internal api-key.",
+        "parameters": [
+          {
+            "name": "backup_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Uuid",
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackupResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "409": {
+            "description": "Conflict with existing resources"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/backup_target/{host_uuid}/scan/internal": {
+      "get": {
+        "tags": [
+          "backup"
+        ],
+        "summary": "Scan backup-target",
+        "description": "List the packages on a backup-target, which are not registered as backup.\\\n\\\nThese are packages, which were copied onto the backup-target from outside, for example from another\\\ndeployment. Only directories in `backups/`, whose name is a UUID, are listed. `has_manifest` shows,\\\nif the package is complete and can be registered. This can only be done by an admin.\\\n\\\nThis is an internal call, which is protected by the internal api-key.",
+        "parameters": [
+          {
+            "name": "host_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Uuid",
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackupScanResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "409": {
+            "description": "Conflict with existing resources"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/backup_target/{host_uuid}/manifest/internal": {
+      "get": {
+        "tags": [
+          "backup"
+        ],
+        "summary": "Read manifest of unregistered package",
+        "description": "Read the manifest of a package on a backup-target, which is not registered as\\\nbackup yet, like a package, which was copied from another deployment.\\\n\\\nThe manifest describes, to which project the package belongs, so it is read before the package is\\\nregistered. Only packages, which are found by the scan of the backup-target, can be read. The\\\nmanifest is returned base64-encoded. This can only be done by an admin.\\\n\\\nThis is an internal call, which is protected by the internal api-key.",
+        "parameters": [
+          {
+            "name": "host_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Uuid",
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "backup_uuid",
+            "in": "query",
+            "description": "UUID of the package, which is the name of its directory on the backup-target",
+            "required": true,
+            "schema": {
+              "description": "UUID of the package, which is the name of its directory on the backup-target",
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackupFileResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "409": {
+            "description": "Conflict with existing resources"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
     "/v1alpha/project/{project_id}/resource_count/internal": {
       "get": {
         "tags": [
@@ -812,10 +1778,508 @@
           }
         ]
       }
+    },
+    "/v1alpha/project/{project_id}/export/internal": {
+      "get": {
+        "tags": [
+          "project"
+        ],
+        "summary": "Export project",
+        "description": "Export the images and snapshots of a project for a backup.\\\n\\\nOnly the metadata is exported. The files are copied into the backup separately and their location\\\nis not part of the export. Images, which are not `READY`, are skipped, because their file is not\\\ncomplete. Backups are not part of the export. Users, which are not admin, can only export their\\\nown project.\\\n\\\nThis is an internal call, which is protected by the internal api-key.",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "String",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RyokanProjectExport"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/project/{project_id}/import/internal": {
+      "post": {
+        "tags": [
+          "project"
+        ],
+        "summary": "Import project",
+        "description": "Import the images and snapshots of a project from a backup.\\\n\\\nThe files of the images must already be copied to a normal onsen, for example with\\\n`POST /v1alpha/backup/{backup_uuid}/copy/internal`. Each image is registered as `READY` with the\\\nlocation of its copy (`onsen_address` and `file_path` within `images/`). A backup-target or an\\\nunknown onsen is rejected with `400`.\\\n\\\nThe images keep their UUIDs, unless the `id_map` gives them a new one, which is also applied to\\\ntheir secrets. A UUID, which is used by another project, is rejected with `409`. An existing\\\nimage of the project with the same UUID is rejected with `409`, unless `force` is set, which\\\noverwrites it and deletes its old file, if the location changed. All conflicts are checked, before\\\nanything is changed. The quota of the project is not checked here.\\\nUsers, which are not admin, can only import into their own project.\\\n\\\nThis is an internal call, which is protected by the internal api-key.",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "String",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RyokanProjectImportReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RyokanProjectImportResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "409": {
+            "description": "Conflict with existing resources"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
     }
   },
   "components": {
     "schemas": {
+      "BackupCopyDirection": {
+        "description": "Direction of a copy between the package of a backup and the normal onsens.",
+        "oneOf": [
+          {
+            "title": "INTO_BACKUP",
+            "description": "The file of an image is copied into the package, which must be in the state `CREATING`",
+            "type": "string",
+            "enum": [
+              "INTO_BACKUP"
+            ]
+          },
+          {
+            "title": "OUT_OF_BACKUP",
+            "description": "A file of the package is copied to a normal onsen, where it can be registered as image. The package must be in the state `READY`.",
+            "type": "string",
+            "enum": [
+              "OUT_OF_BACKUP"
+            ]
+          }
+        ]
+      },
+      "BackupCopyReq": {
+        "title": "BackupCopyReq",
+        "type": "object",
+        "required": [
+          "direction",
+          "image_uuid",
+          "path"
+        ],
+        "properties": {
+          "direction": {
+            "$ref": "#/components/schemas/BackupCopyDirection"
+          },
+          "image_uuid": {
+            "description": "`INTO_BACKUP`: image, whose file is copied into the package. `OUT_OF_BACKUP`: new UUID of the image, under which the file is stored on the normal onsen.",
+            "type": "string",
+            "format": "uuid"
+          },
+          "path": {
+            "description": "path of the file relative to the directory of the package",
+            "type": "string",
+            "maxLength": 1024,
+            "minLength": 1
+          }
+        }
+      },
+      "BackupCopyResp": {
+        "title": "BackupCopyResp",
+        "type": "object",
+        "required": [
+          "file_path",
+          "onsen_address",
+          "size"
+        ],
+        "properties": {
+          "file_path": {
+            "description": "path of the copy relative to the storage-location of the onsen",
+            "type": "string"
+          },
+          "onsen_address": {
+            "description": "address of the onsen, where the file was copied to",
+            "type": "string"
+          },
+          "size": {
+            "description": "size of the copied file in bytes",
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          }
+        }
+      },
+      "BackupCreateReq": {
+        "title": "BackupCreateReq",
+        "type": "object",
+        "required": [
+          "project_id",
+          "uuid"
+        ],
+        "properties": {
+          "host_uuid": {
+            "description": "backup-target, where the backup is stored. Without it, ryokan selects one.",
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "project_id": {
+            "description": "project, which the backup belongs to",
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1
+          },
+          "uuid": {
+            "description": "UUID of the backup, which is also the name of its directory on the backup-target",
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "BackupDiskReq": {
+        "title": "BackupDiskReq",
+        "type": "object",
+        "required": [
+          "vm_uuid"
+        ],
+        "properties": {
+          "vm_uuid": {
+            "description": "virtual_machine, whose root-disk is stored in the package",
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "BackupDiskResp": {
+        "title": "BackupDiskResp",
+        "type": "object",
+        "required": [
+          "file_path",
+          "onsen_address"
+        ],
+        "properties": {
+          "file_path": {
+            "description": "path of the disk relative to the storage-location of the onsen",
+            "type": "string"
+          },
+          "onsen_address": {
+            "description": "address of the onsen of the backup-target, where the disk is uploaded to",
+            "type": "string"
+          }
+        }
+      },
+      "BackupFileInfoResp": {
+        "title": "BackupFileInfoResp",
+        "description": "Size and checksum of a file within the package of a backup.",
+        "type": "object",
+        "required": [
+          "path",
+          "sha256",
+          "size"
+        ],
+        "properties": {
+          "path": {
+            "description": "path of the file relative to the directory of the package",
+            "type": "string"
+          },
+          "sha256": {
+            "description": "hex-encoded sha256 of the content of the file",
+            "type": "string"
+          },
+          "size": {
+            "description": "size of the file in bytes",
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          }
+        }
+      },
+      "BackupFileResp": {
+        "title": "BackupFileResp",
+        "type": "object",
+        "required": [
+          "content",
+          "path"
+        ],
+        "properties": {
+          "content": {
+            "description": "base64-encoded content of the file",
+            "type": "string"
+          },
+          "path": {
+            "description": "path of the file relative to the directory of the package",
+            "type": "string"
+          }
+        }
+      },
+      "BackupFileWriteReq": {
+        "title": "BackupFileWriteReq",
+        "type": "object",
+        "required": [
+          "content",
+          "path"
+        ],
+        "properties": {
+          "content": {
+            "description": "base64-encoded content of the file",
+            "type": "string"
+          },
+          "path": {
+            "description": "path of the file relative to the directory of the package",
+            "type": "string",
+            "maxLength": 1024,
+            "minLength": 1
+          }
+        }
+      },
+      "BackupListResp": {
+        "title": "BackupListResp",
+        "type": "object",
+        "required": [
+          "backups"
+        ],
+        "properties": {
+          "backups": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BackupResp"
+            }
+          }
+        }
+      },
+      "BackupRegisterReq": {
+        "title": "BackupRegisterReq",
+        "type": "object",
+        "required": [
+          "host_uuid",
+          "project_id",
+          "uuid"
+        ],
+        "properties": {
+          "host_uuid": {
+            "description": "backup-target, where the package is stored",
+            "type": "string",
+            "format": "uuid"
+          },
+          "project_id": {
+            "description": "project, which the backup belongs to",
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1
+          },
+          "uuid": {
+            "description": "UUID of the backup, which is the name of its directory on the backup-target",
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "BackupResp": {
+        "title": "BackupResp",
+        "type": "object",
+        "required": [
+          "backup_status",
+          "created_at",
+          "created_by",
+          "directory_path",
+          "file_count",
+          "host_uuid",
+          "onsen_address",
+          "owner_id",
+          "project_id",
+          "total_size",
+          "updated_at",
+          "updated_by",
+          "uuid"
+        ],
+        "properties": {
+          "backup_status": {
+            "$ref": "#/components/schemas/BackupStatus"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "created_by": {
+            "type": "string"
+          },
+          "directory_path": {
+            "description": "path of the package relative to the storage-location of the onsen",
+            "type": "string"
+          },
+          "file_count": {
+            "description": "number of files in the package, known after it was finalized",
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "host_uuid": {
+            "description": "backup-target, which stores the package",
+            "type": "string",
+            "format": "uuid"
+          },
+          "manifest_sha256": {
+            "description": "hex-encoded sha256 of the manifest of the package, known after it was finalized",
+            "type": "string",
+            "nullable": true
+          },
+          "onsen_address": {
+            "description": "address of the onsen of the backup-target",
+            "type": "string"
+          },
+          "owner_id": {
+            "type": "string"
+          },
+          "project_id": {
+            "type": "string"
+          },
+          "total_size": {
+            "description": "size of all files of the package in bytes, known after it was finalized",
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_by": {
+            "type": "string"
+          },
+          "uuid": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "BackupScanEntry": {
+        "type": "object",
+        "required": [
+          "has_manifest",
+          "uuid"
+        ],
+        "properties": {
+          "has_manifest": {
+            "description": "true, if the package contains a manifest. A package without manifest is incomplete.",
+            "type": "boolean"
+          },
+          "uuid": {
+            "description": "UUID of the backup, which is the name of its directory",
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "BackupScanResp": {
+        "title": "BackupScanResp",
+        "type": "object",
+        "required": [
+          "backups"
+        ],
+        "properties": {
+          "backups": {
+            "description": "packages on the backup-target, which are not registered as backup",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BackupScanEntry"
+            }
+          }
+        }
+      },
+      "BackupStatus": {
+        "description": "State of the package of a backup, which is stored as one directory on a backup-target. The package is only handled as a whole, so its state defines, which operations are allowed on its files.",
+        "oneOf": [
+          {
+            "title": "CREATING",
+            "description": "The backup is created. Files can only be written into the package in this state.",
+            "type": "string",
+            "enum": [
+              "CREATING"
+            ]
+          },
+          {
+            "title": "READY",
+            "description": "The package is complete and sealed, so it is read only from now on",
+            "type": "string",
+            "enum": [
+              "READY"
+            ]
+          },
+          {
+            "title": "DELETING",
+            "description": "The package is deleted as a whole. A failed deletion stays in this state and can be repeated.",
+            "type": "string",
+            "enum": [
+              "DELETING"
+            ]
+          },
+          {
+            "title": "ERROR",
+            "description": "The package is incomplete or inconsistent and can only be deleted",
+            "type": "string",
+            "enum": [
+              "ERROR"
+            ]
+          }
+        ]
+      },
       "Count": {
         "title": "Count",
         "type": "object",
@@ -830,16 +2294,34 @@
           }
         }
       },
+      "HostBackupTargetUpdateReq": {
+        "title": "HostBackupTargetUpdateReq",
+        "type": "object",
+        "required": [
+          "is_backup_target"
+        ],
+        "properties": {
+          "is_backup_target": {
+            "description": "mark the onsen-host as backup-target, so it only stores backups and never normal images or snapshots",
+            "type": "boolean"
+          }
+        }
+      },
       "HostBasicResp": {
         "type": "object",
         "required": [
           "host_address",
+          "is_backup_target",
           "name",
           "uuid"
         ],
         "properties": {
           "host_address": {
             "type": "string"
+          },
+          "is_backup_target": {
+            "description": "true, if the onsen-host only stores backups and never normal images or snapshots",
+            "type": "boolean"
           },
           "name": {
             "type": "string"
@@ -908,6 +2390,7 @@
           "created_at",
           "created_by",
           "host_address",
+          "is_backup_target",
           "name",
           "updated_at",
           "updated_by",
@@ -923,6 +2406,10 @@
           },
           "host_address": {
             "type": "string"
+          },
+          "is_backup_target": {
+            "description": "true, if the onsen-host only stores backups and never normal images or snapshots",
+            "type": "boolean"
           },
           "name": {
             "type": "string"
@@ -1248,6 +2735,31 @@
           }
         }
       },
+      "ImportedResource": {
+        "description": "Resource, which was imported from a backup.",
+        "type": "object",
+        "required": [
+          "overwritten",
+          "source_uuid",
+          "uuid"
+        ],
+        "properties": {
+          "overwritten": {
+            "description": "true, if an existing resource was overwritten",
+            "type": "boolean"
+          },
+          "source_uuid": {
+            "description": "UUID of the resource within the backup",
+            "type": "string",
+            "format": "uuid"
+          },
+          "uuid": {
+            "description": "UUID of the imported resource, which differs, if it was changed by the `id_map`",
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
       "ProjectResourceCountInternalResp": {
         "title": "ProjectResourceCountInternalResp",
         "type": "object",
@@ -1274,6 +2786,140 @@
         "properties": {
           "api": {
             "type": "boolean"
+          }
+        }
+      },
+      "RyokanImageExport": {
+        "description": "Image or snapshot, like it is exported from ryokan into a backup. The location of its file is not part of it, because the file is stored within the backup itself.",
+        "type": "object",
+        "required": [
+          "file_size",
+          "file_type",
+          "is_snapshot",
+          "name",
+          "secret_uuid",
+          "uuid"
+        ],
+        "properties": {
+          "file_size": {
+            "description": "size of the unencrypted file in bytes",
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "file_type": {
+            "description": "type of the unencrypted file (e.g. \"qcow2\")",
+            "type": "string",
+            "maxLength": 31,
+            "minLength": 1
+          },
+          "is_snapshot": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1
+          },
+          "secret_uuid": {
+            "description": "secret, which encrypts the file of the image",
+            "type": "string",
+            "format": "uuid"
+          },
+          "uuid": {
+            "description": "UUID of the image at the time of the backup",
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "RyokanImageImport": {
+        "description": "Image from a backup, whose file was already copied to a normal onsen.",
+        "type": "object",
+        "required": [
+          "file_path",
+          "image",
+          "onsen_address"
+        ],
+        "properties": {
+          "file_path": {
+            "description": "path of the file on the onsen, which must be within `images/`",
+            "type": "string",
+            "maxLength": 1024,
+            "minLength": 1
+          },
+          "image": {
+            "$ref": "#/components/schemas/RyokanImageExport"
+          },
+          "onsen_address": {
+            "description": "address of the onsen, where the file of the image was copied to",
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1
+          }
+        }
+      },
+      "RyokanProjectExport": {
+        "title": "RyokanProjectExport",
+        "description": "Images and snapshots of a project, like they are exported from ryokan into a backup.",
+        "type": "object",
+        "required": [
+          "images"
+        ],
+        "properties": {
+          "images": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RyokanImageExport"
+            }
+          }
+        }
+      },
+      "RyokanProjectImportReq": {
+        "title": "RyokanProjectImportReq",
+        "type": "object",
+        "required": [
+          "images"
+        ],
+        "properties": {
+          "force": {
+            "description": "overwrite existing images of the project with the same UUID",
+            "default": false,
+            "type": "boolean"
+          },
+          "id_map": {
+            "description": "new UUIDs of the resources, whose UUID was already taken. It is applied to the UUIDs of the images and to their secrets. UUIDs, which are not part of it, are kept.",
+            "default": {},
+            "type": "object",
+            "additionalProperties": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "images": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RyokanImageImport"
+            }
+          }
+        }
+      },
+      "RyokanProjectImportResp": {
+        "title": "RyokanProjectImportResp",
+        "type": "object",
+        "required": [
+          "images",
+          "project_id"
+        ],
+        "properties": {
+          "images": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ImportedResource"
+            }
+          },
+          "project_id": {
+            "type": "string"
           }
         }
       },
