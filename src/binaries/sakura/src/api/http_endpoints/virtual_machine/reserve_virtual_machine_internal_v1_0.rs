@@ -20,7 +20,7 @@ use validator::Validate;
 
 use crate::database::virtual_machine_table;
 
-use ainari_api::common_functions::*;
+use ainari_api::error_mapping::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::user_context::UserContext;
 use ainari_api_structs::virtual_machine_structs::*;

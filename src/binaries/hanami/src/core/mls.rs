@@ -53,7 +53,7 @@ use crate::database::address_table;
 use crate::database::host_table::{self, HostEntry};
 use crate::database::network_table;
 
-use ainari_api::common_functions::*;
+use ainari_api::error_mapping::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::mls_structs::*;
 use ainari_api_structs::user_context::UserContext;

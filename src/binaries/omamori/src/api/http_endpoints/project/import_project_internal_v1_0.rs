@@ -26,6 +26,7 @@ use crate::database::public_key_table::{self, PublicKeyEntry};
 use crate::database::secret_table::{self, SecretEntry};
 
 use ainari_api::common_functions::*;
+use ainari_api::error_mapping::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::imports::{
     ImportedResource, OmamoriProjectImportReq, OmamoriProjectImportResp,

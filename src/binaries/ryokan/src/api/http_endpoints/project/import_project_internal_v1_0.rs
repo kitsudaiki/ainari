@@ -24,12 +24,14 @@ use crate::database::host_table;
 use crate::database::image_table::{self, ImageEntry};
 
 use ainari_api::common_functions::*;
+use ainari_api::error_mapping::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::image_structs::ImageStatus;
 use ainari_api_structs::imports::{
     ImportedResource, RyokanProjectImportReq, RyokanProjectImportResp,
 };
 use ainari_api_structs::user_context::UserContext;
+use ainari_clients::onsen_file_transfer::delete_file_from_onsen;
 
 /// Directory on the onsen, which contains the files of the images.
 const IMAGE_DIRECTORY: &str = "images";
@@ -129,11 +131,9 @@ pub async fn import_project_internal(
         // because the image itself was already imported.
         if let Some(old) = &existing
             && (old.onsen_address != import.onsen_address || old.file_path != import.file_path)
-            && delete_file_from_onsen(&old.onsen_address, &old.file_path, Some(&context))
-                .await
-                .is_err()
+            && let Err(e) = delete_file_from_onsen(&old.onsen_address, &old.file_path).await
         {
-            log::warn!("Failed to delete the old file of the overwritten image '{uuid}'");
+            log::warn!("Failed to delete the old file of the overwritten image '{uuid}': {e}");
         }
 
         imported.push(ImportedResource {

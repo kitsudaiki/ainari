@@ -27,7 +27,7 @@ use cloud_hypervisor_client::{SocketBasedApiClient, socket_based_api_client};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use ainari_api::common_functions::*;
+use ainari_api::error_mapping::*;
 use ainari_api_structs::user_context::UserContext;
 use ainari_clients::endpoints::get_endpoints;
 use ainari_clients::image::*;
@@ -36,6 +36,7 @@ use ainari_clients::public_key::get_public_key;
 use ainari_clients::secret::get_secret_payload;
 use ainari_common::config::Endpoints;
 use ainari_common::error::AinariError;
+use ainari_common::functions::create_directory;
 use ainari_files::file_encryption::decrypt_file;
 
 use crate::config;

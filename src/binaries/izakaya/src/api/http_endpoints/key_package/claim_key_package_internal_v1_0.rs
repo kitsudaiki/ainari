@@ -18,7 +18,7 @@ use apistos::api_operation;
 use crate::core::key_package::signature_key_of;
 use crate::database::key_package_table;
 
-use ainari_api::common_functions::map_db_id_get_delete_error;
+use ainari_api::error_mapping::map_db_id_get_delete_error;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::mls_structs::*;
 use ainari_api_structs::user_context::UserContext;

@@ -21,7 +21,7 @@ use crate::core::network_filter::{
     NETWORK_FILTER_LOCK, resolve_filter_target, store_network_filter, to_network_filter_resp,
 };
 
-use ainari_api::common_functions::map_ainari_error_to_api_response;
+use ainari_api::error_mapping::map_ainari_error_to_api_response;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::network_filter_structs::*;
 use ainari_api_structs::user_context::UserContext;

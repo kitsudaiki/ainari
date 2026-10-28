@@ -499,7 +499,7 @@ async fn save_root_disk(
 fn is_running(virtual_machine_uuid: &Uuid, context: &UserContext) -> Result<bool, AinariError> {
     let virtual_machine = virtual_machine_table::get_virtual_machine(virtual_machine_uuid, context)
         .map_err(|e| {
-            ainari_api::common_functions::map_db_uuid_get_delete_ainari_error(
+            ainari_api::error_mapping::map_db_uuid_get_delete_ainari_error(
                 "virtual_machine",
                 virtual_machine_uuid,
                 e,

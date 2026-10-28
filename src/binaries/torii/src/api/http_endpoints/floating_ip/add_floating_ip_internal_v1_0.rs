@@ -23,7 +23,7 @@ use crate::core::floating_ip::add_floating_ip;
 use crate::core::utils::validate_vni;
 use crate::database::floating_ip_table;
 
-use ainari_api::common_functions::map_db_write_error;
+use ainari_api::error_mapping::map_db_write_error;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::floating_ip_structs::*;
 use ainari_api_structs::user_context::UserContext;

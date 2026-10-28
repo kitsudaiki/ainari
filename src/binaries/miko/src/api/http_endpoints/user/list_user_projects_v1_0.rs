@@ -17,7 +17,7 @@ use apistos::api_operation;
 
 use crate::database::user_project_mapping_table;
 
-use ainari_api::common_functions::*;
+use ainari_api::error_mapping::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::project_structs::*;
 use ainari_api_structs::user_context::UserContext;

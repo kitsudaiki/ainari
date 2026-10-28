@@ -23,7 +23,7 @@ use crate::core::routing::update_route;
 use crate::core::utils::validate_vni;
 use crate::database::route_table;
 
-use ainari_api::common_functions::{map_db_write_error, permission_denied_response};
+use ainari_api::error_mapping::{map_db_write_error, permission_denied_response};
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::route_structs::*;
 use ainari_api_structs::user_context::UserContext;
