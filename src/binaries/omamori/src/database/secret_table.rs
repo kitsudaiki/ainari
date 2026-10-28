@@ -197,7 +197,8 @@ pub fn list_secrets(context: &UserContext) -> QueryResult<Vec<SecretEntry>> {
 /// Counts the number of secrets that the user owns
 ///
 /// This function returns the count of secrets owned by the current user
-/// within their project. Only accessible to non-admin users.
+/// within their project. Only accessible to non-admin users. Like in `count_secrets_of_project`,
+/// the secrets of backups are not counted, because they don't count to the quota.
 ///
 /// # Arguments
 ///
@@ -214,6 +215,7 @@ pub fn count_secrets(context: &UserContext) -> QueryResult<i64> {
 
     query = query.filter(project_id.eq(context.project_id.clone()));
     query = query.filter(owner_id.eq(context.user_id.clone()));
+    query = query.filter(owned_by.ne(SECRET_OWNER_BACKUP));
 
     query.select(count_star()).first::<i64>(&mut *conn)
 }
@@ -760,6 +762,7 @@ mod tests {
 
         // the secret of the backup neither counts to the quota nor blocks the project-deletion
         assert_eq!(count_secrets_of_project(project).unwrap(), 2);
+        assert_eq!(count_secrets(&context).unwrap(), 2);
         assert!(get_secret(&backup_secret, &context).is_ok());
 
         hard_delete_secret(&user_secret);

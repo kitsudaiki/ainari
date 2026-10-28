@@ -36,8 +36,9 @@ Backups, which were created by isekai.
 
 - `backup_kind`: `PROJECT` or `VIRTUAL_MACHINE`, which also sets `virtual_machine_uuid`.
 - `backup_state`: `CREATING`, `READY`, `DELETING` or `ERROR`.
-- `secret_uuids`: json-list of the secrets in omamori, which encrypt the disks of the backup and
-  which are deleted together with the backup.
+- `secret_uuids`: json-list of the secrets in omamori, which encrypt the disks of the backup. They
+  are only needed, while the backup is created, and deleted afterwards. Secrets, which couldn't be
+  deleted, stay in the list and are deleted together with the backup.
 
 ## jobs
 

@@ -61,8 +61,9 @@ pub struct BackupEntry {
     pub backup_state: String,
     /// version of ainari, which has created the backup
     pub ainari_version: String,
-    /// secrets in omamori, which encrypt the disks of the backup and which are deleted together
-    /// with the backup
+    /// secrets in omamori, which encrypt the disks of the backup. They are only needed, while the
+    /// backup is created, and deleted afterwards. Secrets, which couldn't be deleted, stay here and
+    /// are deleted together with the backup.
     #[diesel(serialize_as = DbVecString, deserialize_as = DbVecString)]
     pub secret_uuids: Vec<String>,
     pub owner_id: String,
@@ -389,7 +390,8 @@ pub fn change_backup_state(
     }
 }
 
-/// Adds the secret of a disk to a backup, so it is deleted together with the backup.
+/// Adds the secret of a disk to a backup, so it is deleted, after the backup is created or has
+/// failed, or at least together with the backup.
 ///
 /// # Arguments
 ///
@@ -410,6 +412,42 @@ pub fn add_backup_secret(backup_uuid: &Uuid, secret_uuid: &Uuid) -> Result<(), e
             .first::<BackupEntry>(conn)?;
         let mut secrets = entry.secret_uuids;
         secrets.push(secret_uuid.to_string());
+        diesel::update(backups.filter(uuid.eq(backup_uuid.to_string())))
+            .set(secret_uuids.eq(DbVecString::from(secrets).0))
+            .execute(conn)
+    });
+
+    match result {
+        Ok(_) => Ok(()),
+        Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
+        Err(e) => {
+            log::error!("Database-error: {e:?}");
+            Err(enums::DbError::InternalError)
+        }
+    }
+}
+
+/// Removes the secret of a disk from a backup, after it was deleted in omamori.
+///
+/// # Arguments
+///
+/// * `backup_uuid` - The UUID of the backup
+/// * `secret_uuid` - The deleted secret
+///
+/// # Returns
+///
+/// Ok, if the secret is not part of the backup anymore, `NotFound`, if the backup doesn't exist
+pub fn remove_backup_secret(backup_uuid: &Uuid, secret_uuid: &Uuid) -> Result<(), enums::DbError> {
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+    use self::backups::dsl::*;
+
+    let result = conn.transaction::<_, diesel::result::Error, _>(|conn| {
+        let entry = backups
+            .filter(uuid.eq(backup_uuid.to_string()))
+            .select(BackupEntry::as_select())
+            .first::<BackupEntry>(conn)?;
+        let mut secrets = entry.secret_uuids;
+        secrets.retain(|secret| *secret != secret_uuid.to_string());
         diesel::update(backups.filter(uuid.eq(backup_uuid.to_string())))
             .set(secret_uuids.eq(DbVecString::from(secrets).0))
             .execute(conn)
@@ -555,6 +593,16 @@ mod tests {
         assert!(add_backup_secret(&backup_uuid, &secret2).is_ok());
         let entry = expect_entry(get_backup(&backup_uuid, &context));
         assert_eq!(entry.secrets(), vec![secret1, secret2]);
+
+        // removing is repeatable, so an unknown secret is no error
+        assert!(remove_backup_secret(&backup_uuid, &secret1).is_ok());
+        assert!(remove_backup_secret(&backup_uuid, &secret1).is_ok());
+        let entry = expect_entry(get_backup(&backup_uuid, &context));
+        assert_eq!(entry.secrets(), vec![secret2]);
+        assert!(matches!(
+            remove_backup_secret(&Uuid::new_v4(), &secret2),
+            Err(enums::DbError::NotFound)
+        ));
 
         // only the expected state is changed
         assert!(matches!(

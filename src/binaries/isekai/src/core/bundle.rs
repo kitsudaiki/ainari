@@ -77,7 +77,8 @@ struct MetadataFile<T> {
 pub struct BackupDisk {
     /// path of the disk relative to the directory of the backup
     pub path: String,
-    /// secret in omamori, which encrypts the disk. Its payload is part of the metadata of omamori.
+    /// secret in omamori, which has encrypted the disk. Its payload is part of the metadata of
+    /// omamori, the secret itself is deleted in omamori after the backup is created.
     pub secret_uuid: Uuid,
 }
 

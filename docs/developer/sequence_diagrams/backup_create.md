@@ -18,7 +18,7 @@ and the metadata of the backup belong to the same state of the project.
 | **miko** | Holds the lock of the project and rejects all writes of the users to the project, while it is locked (`423`). Exports the project with its quota. |
 | **ryokan** | Owns the package of the backup on the backup-target: creates it, writes and reads its files, copies the images into it and seals it at the end. It is the only component, which talks with the onsen of the backup-target about the package. |
 | **onsen** (backup-target) | Stores the files of the package in `backups/<backup_uuid>/`. It never stores normal images or snapshots. |
-| **omamori** | Generates a secret for every disk of the backup and exports the secrets and public-keys of the project with their payloads wrapped by the key of the backup. |
+| **omamori** | Generates a secret for every disk of the backup and exports the secrets and public-keys of the project with their payloads wrapped by the key of the backup. The secrets of the disks are deleted again, after the backup is created. |
 | **hanami** | Exports the networks, virtual machines, network-filters and floating IPs of the project and returns the sakura-host of every virtual machine. |
 | **sakura** | Exports the config of a virtual machine and saves its root-disk encrypted into the package, as task of the virtual machine. |
 
@@ -62,7 +62,8 @@ backups/<backup_uuid>/
 The keys come from the passphrase: `Argon2id(passphrase, salt)` gives the master-key, from which
 `HKDF` derives the metadata-key, the wrap-key and the key of the HMAC of the manifest. The secrets
 of the disks are part of `omamori.json.enc`, so the package needs nothing from the deployment,
-which created it.
+which created it. The secrets of the disks are therefore only kept in omamori, until the backup is
+created, because sakura needs them to encrypt the disks.
 
 A backup of a virtual machine only contains the virtual machine with its root-disk, its network,
 its network-filters and its public-key. The project, its quota and the images are not part of it.
@@ -180,6 +181,10 @@ sequenceDiagram
     R->>R: needs the manifest, counts the files,<br/>stores the size and the sha256 of the manifest
     R-->>J: package READY, read only from now on
     J->>J: backup READY in the database
+    loop every secret of a disk
+        J->>O: DELETE /secret/{uuid}/internal
+        J->>J: remove the secret from the backup
+    end
     J->>M: DELETE /project/{project_id}/lock/internal {job_uuid}
     J->>J: job FINISHED
 ```
@@ -210,7 +215,7 @@ sequenceDiagram
         S-->>J: config of the VM with its power-state
         J->>O: POST /secret/generate/internal<br/>{owned_by: "backup", resource: backup_uuid}
         O-->>J: secret of the disk
-        J->>J: store the secret with the backup,<br/>so it is deleted together with it
+        J->>J: store the secret with the backup,<br/>so it is deleted at the end of the job
         J->>S: POST /virtual_machine/{uuid}/backup/internal<br/>{backup_uuid, secret_uuid, stop_vm}
         S-->>J: task
         S->>R: POST /backup/{backup_uuid}/disk/internal {vm_uuid}
