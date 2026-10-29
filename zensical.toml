@@ -19,6 +19,7 @@ nav = [
     "home/quick_start.md",
     "home/architecture_overview.md",
     "home/features.md",
+    "home/security_concpets.md",
     "home/design_decisions.md",
     "home/license.md",
     "home/CHANGELOG.md",
