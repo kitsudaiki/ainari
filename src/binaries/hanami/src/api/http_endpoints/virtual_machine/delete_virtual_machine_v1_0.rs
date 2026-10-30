@@ -351,7 +351,7 @@ pub(super) async fn cleanup_network(
     // still gets the revocation, which costs nothing, if there is no grant.
     let encrypted = match network_table::is_encryption_disabled(network_uuid) {
         Ok(disabled) => network_encrypted(disabled),
-        Err(_) => config::CONFIG.network.mls_encryption,
+        Err(_) => true,
     };
     if encrypted {
         leave_group_of_network(endpoints, &address.host_address, address.vni).await?;

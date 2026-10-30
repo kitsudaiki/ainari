@@ -20,8 +20,7 @@ package secrets
 
 // Values contains the secret values, which the renderer writes into the configs.
 type Values struct {
-	// public key, which belongs to MLSGrantSigningKey, base64-encoded. Empty, if
-	// hanami.network.mlsEncryption is disabled.
+	// public key, which belongs to MLSGrantSigningKey, base64-encoded
 	MLSGrantPublicKey string
 
 	// key of omamori, which is part of its config

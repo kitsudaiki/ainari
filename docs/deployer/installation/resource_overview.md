@@ -30,7 +30,7 @@ Resources without a condition are always created. The conditions refer to the fi
 | `omamori-cert`      |                                      | TLS of omamori                                 |
 | `omikuji-cert`      |                                      | TLS of omikuji                                 |
 | `isekai-cert`       |                                      | TLS of isekai                                  |
-| `izakaya-cert`      | `hanami.network.mlsEncryption`       | TLS of izakaya                                 |
+| `izakaya-cert`      |                                      | TLS of izakaya                                 |
 | `sakura-cert`       |                                      | TLS of the sakura-hosts                        |
 | `sakura-proxy-cert` |                                      | wildcard-certificate of the proxies to the VMs |
 | `torii-cert`        |                                      | TLS of the torii-gateways                      |
@@ -45,7 +45,7 @@ Resources without a condition are always created. The conditions refer to the fi
 | `ryokan-config`          |                                | config-file of ryokan                            |
 | `omikuji-config`         |                                | config-file of omikuji                           |
 | `isekai-config`          |                                | config-file of isekai                            |
-| `izakaya-config`         | `hanami.network.mlsEncryption` | config-file of izakaya                           |
+| `izakaya-config`         |                                | config-file of izakaya                           |
 | `onsen-config`           |                                | config-template of onsen                         |
 | `onsen-backup-config`    |                                | config-template of the onsen for backups         |
 | `sakura-config`          |                                | config-template of sakura                        |
@@ -58,7 +58,7 @@ Resources without a condition are always created. The conditions refer to the fi
 | `omamori-nginx-config`   |                                | nginx-config of the TLS-sidecars of omamori      |
 | `omikuji-nginx-config`   |                                | nginx-config of the TLS-sidecars of omikuji      |
 | `isekai-nginx-config`    |                                | nginx-config of the TLS-sidecars of isekai       |
-| `izakaya-nginx-config`   | `hanami.network.mlsEncryption` | nginx-config of the TLS-sidecar of izakaya       |
+| `izakaya-nginx-config`   |                                | nginx-config of the TLS-sidecar of izakaya       |
 | `sakura-nginx-config`    |                                | nginx-config of the TLS-sidecars of sakura       |
 | `torii-nginx-config`     |                                | nginx-config of the TLS-sidecars of torii        |
 | `dashboard-nginx-config` | `dashboard.enabled`            | nginx-config of the TLS-sidecar of the dashboard |
@@ -88,7 +88,7 @@ stay, when the `Ainari`-resource is deleted, and are taken over by the next one.
 | `token-key`               |                                | key, with which miko signs the tokens          |
 | `miko-admin`              |                                | passphrase of the admin-user                   |
 | `omamori-encryption-key`  |                                | key, with which omamori encrypts the secrets   |
-| `mls-grant-signing-key`   | `hanami.network.mlsEncryption` | key, with which hanami signs the MLS-grants    |
+| `mls-grant-signing-key`   |                                | key, with which hanami signs the MLS-grants    |
 | `mysql-credentials`       | `mysql.deploy`                 | root-password and passwords of the databases   |
 | `wireguard-keys`          | `global.wireguard.enabled`     | private wireguard-keys of all tunnel-pods      |
 
@@ -102,7 +102,7 @@ stay, when the `Ainari`-resource is deleted, and are taken over by the next one.
 | `omamori-tls-service`   |                                | internal api of omamori                          |
 | `omikuji-tls-service`   |                                | internal api of omikuji                          |
 | `isekai-tls-service`    |                                | internal api of isekai                           |
-| `izakaya-tls-service`   | `hanami.network.mlsEncryption` | internal api of izakaya                          |
+| `izakaya-tls-service`   |                                | internal api of izakaya                          |
 | `torii-tls-service`     |                                | api of the public torii                          |
 | `dashboard-tls-service` | `dashboard.enabled`            | internal access to the dashboard                 |
 | `miko-external`         |                                | public api of miko                               |
@@ -129,7 +129,7 @@ stay, when the `Ainari`-resource is deleted, and are taken over by the next one.
 | `omamori`      |                                | secrets and public keys                     |
 | `omikuji`      |                                | error- and audit-logs                       |
 | `isekai`       |                                | backup and restore                          |
-| `izakaya`      | `hanami.network.mlsEncryption` | MLS-coordination of the network-encryption  |
+| `izakaya`      |                                | MLS-coordination of the network-encryption  |
 | `torii-public` |                                | public gateway in front of the sakura-hosts |
 | `dashboard`    | `dashboard.enabled`            | web-interface                               |
 
@@ -180,7 +180,7 @@ existing certificates are not signed by, until they are issued again.
 | `omamori-tls-secret`      |                                      | TLS-sidecars of omamori                           |
 | `omikuji-tls-secret`      |                                      | TLS-sidecars of omikuji                           |
 | `isekai-tls-secret`       |                                      | TLS-sidecars of isekai                            |
-| `izakaya-tls-secret`      | `hanami.network.mlsEncryption`       | TLS-sidecar of izakaya                            |
+| `izakaya-tls-secret`      |                                      | TLS-sidecar of izakaya                            |
 | `sakura-tls-secret`       |                                      | internal TLS-sidecar of sakura                    |
 | `sakura-proxy-tls-secret` |                                      | external TLS-sidecar of sakura for the VM-proxies |
 | `torii-tls-secret`        |                                      | TLS-sidecars of the public and the VMM-torii      |

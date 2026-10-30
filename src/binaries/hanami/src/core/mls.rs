@@ -68,10 +68,10 @@ use ainari_common::config::{Endpoint, Endpoints};
 /// * `disable_encryption` - The flag of the network, which was given with its creation
 ///
 /// # Returns
-/// `true` if the encryption is enabled in the config and not disabled for the network. Only then
-/// the network gets encrypted routes and a MLS-group.
+/// `true` if the encryption is not disabled for the network. Only then the network gets
+/// encrypted routes and a MLS-group.
 pub fn network_encrypted(disable_encryption: bool) -> bool {
-    config::CONFIG.network.mls_encryption && !disable_encryption
+    !disable_encryption
 }
 
 /// Decides, if the traffic between two hosts of a network is encrypted.

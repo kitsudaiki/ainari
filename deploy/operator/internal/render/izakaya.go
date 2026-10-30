@@ -18,12 +18,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// izakaya coordinates the MLS-groups of the gateways. It is only needed for the encryption of
-// the networks.
+// izakaya coordinates the MLS-groups of the gateways, which exchange the keys for the encryption
+// of the networks.
 func (r *renderer) izakaya() ([]client.Object, error) {
-	if !r.Spec.Hanami.Network.MLSEncryption {
-		return nil, nil
-	}
 	spec := &r.Spec.Izakaya
 	config, err := r.execute("izakaya.toml", r)
 	if err != nil {

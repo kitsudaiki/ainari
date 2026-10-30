@@ -31,10 +31,8 @@ func (r *renderer) hanami() ([]client.Object, error) {
 
 	env := []corev1.EnvVar{
 		envSecret("SAKURA_REGISTRATION_KEY", secrets.SakuraRegistrationKey),
-	}
-	if spec.Network.MLSEncryption {
 		// signs the membership-grants of the MLS-groups of the networks
-		env = append(env, envSecret("MLS_GRANT_SIGNING_KEY", secrets.MLSGrantSigningKey))
+		envSecret("MLS_GRANT_SIGNING_KEY", secrets.MLSGrantSigningKey),
 	}
 
 	return r.backendObjects(backend{
