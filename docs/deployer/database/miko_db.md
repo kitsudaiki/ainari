@@ -20,13 +20,13 @@ Users with their passphrase-hash. The projects they belong to are stored in
 | is_admin   | VARCHAR(8)   |            |             |
 | pw_hash    | VARCHAR(64)  |            |             |
 | salt       | VARCHAR(64)  |            |             |
-| status     | VARCHAR(8)   |            |             |
 | created_at | VARCHAR(64)  |            |             |
 | created_by | VARCHAR(256) |            |             |
 | updated_at | VARCHAR(64)  |            |             |
 | updated_by | VARCHAR(256) |            |             |
-| deleted_at | VARCHAR(64)  |            |             |
-| deleted_by | VARCHAR(256) |            |             |
+
+`pw_hash` is `VARCHAR(256)` in the MySQL-database, because argon2-hashes in the PHC string format
+are longer than 64 characters. SQLite doesn't enforce the length of a `VARCHAR`.
 
 !!! note
 
@@ -54,7 +54,6 @@ can only append new columns.
 | ------------- | ------------ | ---------- | ----------- |
 | id            | VARCHAR(256) | x          |             |
 | name          | VARCHAR(256) |            |             |
-| status        | VARCHAR(8)   |            |             |
 | locked_by_job | VARCHAR(40)  |            |             |
 | lock_reason   | TEXT         |            |             |
 | locked_at     | VARCHAR(64)  |            |             |
@@ -62,8 +61,6 @@ can only append new columns.
 | created_by    | VARCHAR(256) |            |             |
 | updated_at    | VARCHAR(64)  |            |             |
 | updated_by    | VARCHAR(256) |            |             |
-| deleted_at    | VARCHAR(64)  |            |             |
-| deleted_by    | VARCHAR(256) |            |             |
 
 !!! note
 
@@ -83,21 +80,14 @@ when the row is read.
 | project_id | VARCHAR(256) | x          |             |
 | user_id    | VARCHAR(256) | x          |             |
 | role       | VARCHAR(64)  |            |             |
-| status     | VARCHAR(8)   |            |             |
 | created_at | VARCHAR(64)  |            |             |
 | created_by | VARCHAR(256) |            |             |
 | updated_at | VARCHAR(64)  |            |             |
 | updated_by | VARCHAR(256) |            |             |
-| deleted_at | VARCHAR(64)  |            |             |
-| deleted_by | VARCHAR(256) |            |             |
 
 Unique indexes:
 
-- `user_project_mapping_active_project_user`: `(project_id, user_id)` where `status = 'ACTIVE'`
-
-MySQL has no partial indexes, so there the unique index is built on the generated column
-`active_project_id`, which contains the value of `project_id`, if `status = 'ACTIVE'`, and NULL
-otherwise.
+- `user_project_mapping_project_user`: `(project_id, user_id)`
 
 !!! note
 
@@ -116,13 +106,10 @@ Maximum number of resources per project. `id` is the ID of the project.
 | max_secret          | INTEGER      |            |             |
 | max_network         | INTEGER      |            |             |
 | max_floating_ip     | INTEGER      |            |             |
-| status              | VARCHAR(8)   |            |             |
 | created_at          | VARCHAR(64)  |            |             |
 | created_by          | VARCHAR(256) |            |             |
 | updated_at          | VARCHAR(64)  |            |             |
 | updated_by          | VARCHAR(256) |            |             |
-| deleted_at          | VARCHAR(64)  |            |             |
-| deleted_by          | VARCHAR(64)  |            |             |
 
 !!! note
 

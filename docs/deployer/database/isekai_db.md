@@ -26,13 +26,10 @@ Backups, which were created by isekai.
 | ainari_version       | VARCHAR(64)  |            | `NOT NULL`  |
 | secret_uuids         | TEXT         |            | `NOT NULL`  |
 | owner_id             | VARCHAR(256) |            |             |
-| status               | VARCHAR(8)   |            |             |
 | created_at           | VARCHAR(64)  |            |             |
 | created_by           | VARCHAR(256) |            |             |
 | updated_at           | VARCHAR(64)  |            |             |
 | updated_by           | VARCHAR(256) |            |             |
-| deleted_at           | VARCHAR(64)  |            |             |
-| deleted_by           | VARCHAR(256) |            |             |
 
 - `backup_kind`: `PROJECT` or `VIRTUAL_MACHINE`, which also sets `virtual_machine_uuid`.
 - `backup_state`: `CREATING`, `READY`, `DELETING` or `ERROR`.
