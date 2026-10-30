@@ -16,7 +16,7 @@ use actix_web::web::{Json, Query};
 use apistos::api_operation;
 use std::collections::HashMap;
 
-use ainari_api::common_functions::*;
+use ainari_api::error_mapping::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::backup_structs::*;
 use ainari_api_structs::user_context::UserContext;
@@ -131,13 +131,10 @@ mod tests {
             ainari_version: "0.22.0".to_string(),
             secret_uuids: Vec::new(),
             owner_id: "user".to_string(),
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "user".to_string(),
             updated_at: Utc::now(),
             updated_by: "user".to_string(),
-            deleted_at: None,
-            deleted_by: None,
         };
         let mut package = BackupResp {
             uuid: entry.uuid,

@@ -23,7 +23,7 @@ use crate::core::floating_ip::{attach_floating_ip, to_floating_ip_resp};
 use crate::database::floating_ip_table;
 use crate::database::floating_ip_table::FloatingIpReserveError;
 
-use ainari_api::common_functions::*;
+use ainari_api::error_mapping::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::floating_ip_structs::*;
 use ainari_api_structs::user_context::UserContext;

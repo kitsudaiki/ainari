@@ -23,14 +23,11 @@ SQLite-database the column is at the end of the table, because SQLite can only a
 | uuid             | VARCHAR(40)  | x          |                                |
 | name             | VARCHAR(256) |            |                                |
 | address          | VARCHAR(256) |            |                                |
-| status           | VARCHAR(8)   |            |                                |
 | is_backup_target | BOOLEAN      |            | `NOT NULL DEFAULT FALSE`       |
 | created_at       | VARCHAR(64)  |            |                                |
 | created_by       | VARCHAR(256) |            |                                |
 | updated_at       | VARCHAR(64)  |            |                                |
 | updated_by       | VARCHAR(256) |            |                                |
-| deleted_at       | VARCHAR(64)  |            |                                |
-| deleted_by       | VARCHAR(256) |            |                                |
 
 ## images
 
@@ -72,13 +69,10 @@ secret.
 | is_snapshot   | BOOLEAN      |            | `NOT NULL DEFAULT FALSE`       |
 | owner_id      | VARCHAR(256) |            |                                |
 | project_id    | VARCHAR(256) |            |                                |
-| status        | VARCHAR(8)   |            |                                |
 | created_at    | VARCHAR(64)  |            |                                |
 | created_by    | VARCHAR(256) |            |                                |
 | updated_at    | VARCHAR(64)  |            |                                |
 | updated_by    | VARCHAR(256) |            |                                |
-| deleted_at    | VARCHAR(64)  |            |                                |
-| deleted_by    | VARCHAR(256) |            |                                |
 
 ## backups
 
@@ -100,8 +94,9 @@ deleting the same package, only one succeeds.
 
 `file_count`, `total_size` and `manifest_sha256` are read from the backup-target, when the package
 is sealed, so a later change of the files can be detected. A package, which was copied onto a
-backup-target from outside, is registered directly as `READY` with these values. Also a deleted
-backup keeps its UUID, because the UUID names the directory of the package.
+backup-target from outside, is registered directly as `READY` with these values. The entry is only
+removed in the state `DELETING`, after the package was deleted from the backup-target, so a backup
+can't disappear from the database, while its files still exist.
 
 | field           | type         | is primary | constraints          |
 | --------------- | ------------ | ---------- | -------------------- |
@@ -114,10 +109,7 @@ backup keeps its UUID, because the UUID names the directory of the package.
 | manifest_sha256 | VARCHAR(64)  |            |                      |
 | owner_id        | VARCHAR(256) |            |                      |
 | project_id      | VARCHAR(256) |            |                      |
-| status          | VARCHAR(8)   |            |                      |
 | created_at      | VARCHAR(64)  |            |                      |
 | created_by      | VARCHAR(256) |            |                      |
 | updated_at      | VARCHAR(64)  |            |                      |
 | updated_by      | VARCHAR(256) |            |                      |
-| deleted_at      | VARCHAR(64)  |            |                      |
-| deleted_by      | VARCHAR(256) |            |                      |

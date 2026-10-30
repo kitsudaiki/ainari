@@ -20,7 +20,7 @@ use validator::Validate;
 use crate::core::proxy_handler::*;
 use crate::database::proxy_table;
 
-use ainari_api::common_functions::*;
+use ainari_api::error_mapping::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::proxy_structs::*;
 use ainari_api_structs::user_context::UserContext;
@@ -53,9 +53,9 @@ pub async fn register_proxy_internal(
     // the proxy has the uuid of its virtual_machine, so the user sees in the address of the
     // proxy, which virtual_machine it reaches
     let proxy_uuid = body.virtual_machine_uuid;
-    // proxies are only marked as deleted. The uuid of a deleted proxy can only be used again by
-    // its own project, whose deleted virtual_machine is restored with its uuid.
-    let uuid_in_use = proxy_table::proxy_uuid_in_use(&proxy_uuid, &context)
+    // the uuid of a deleted proxy is free again, for example for a virtual_machine, which is
+    // restored with its uuid
+    let uuid_in_use = proxy_table::is_proxy_uuid_in_use(&proxy_uuid)
         .map_err(|e| map_db_list_error("proxys", e, Some(&context)))?;
     if uuid_in_use {
         return Err(ErrorResponse::Conflict(format!(

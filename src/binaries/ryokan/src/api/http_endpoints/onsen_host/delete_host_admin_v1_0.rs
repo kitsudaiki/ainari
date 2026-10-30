@@ -20,7 +20,7 @@ use uuid::Uuid;
 use crate::database::host_table;
 
 use ainari_api::common_functions::check_admin_context;
-use ainari_api::common_functions::map_db_uuid_get_delete_error;
+use ainari_api::error_mapping::map_db_uuid_get_delete_error;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::user_context::UserContext;
 

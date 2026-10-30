@@ -24,7 +24,7 @@ use crate::database::host_table;
 use crate::database::host_table::HostResources;
 use crate::database::meta_virtual_machine_table;
 
-use ainari_api::common_functions::*;
+use ainari_api::error_mapping::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::host_structs::*;
 use ainari_api_structs::user_context::UserContext;
@@ -131,12 +131,36 @@ pub async fn register_host_internal(
         }
     };
 
-    // delete all virtual_machine in the meta-table too, which are marked by the new host as deleted
-    for uuid in &body.deleted_uuids.list {
-        // if the deletion failed, it is most likely because the uuid is already deleted in hanami
-        // because of this, we ignore the response from the database at the moment
-        // TODO: handle response to filter the case that the uuid is already deleted
-        let _ = meta_virtual_machine_table::force_delete_meta_virtual_machine(uuid);
+    // sync the virtual_machines of the host with the ones, which exist on the host, so the
+    // virtual_machines, which were lost on the host, are removed and their resources released
+    let missing = meta_virtual_machine_table::delete_missing_meta_virtual_machines_of_host(
+        &host_uuid,
+        &body.virtual_machine_uuids.list,
+    )
+    .map_err(|e| {
+        map_db_write_error(
+            &format!("sync virtual_machines of host with UUID '{host_uuid}'"),
+            e,
+            Some(&context),
+        )
+    })?;
+    for virtual_machine in &missing {
+        log::warn!(
+            "VM {} doesn't exist on host {host_uuid} anymore, so it is removed.",
+            virtual_machine.uuid
+        );
+        let resources = HostResources {
+            number_of_cores: virtual_machine.number_of_cores,
+            memory_size: virtual_machine.memory_size,
+            disk_space: virtual_machine.disk_size,
+            project_id: None,
+        };
+        if host_table::release_host_resources(&host_uuid, &resources).is_err() {
+            log::error!(
+                "Failed to release resources of VM {} on host {host_uuid}.",
+                virtual_machine.uuid
+            );
+        }
     }
 
     // get new created host from database to get additional information

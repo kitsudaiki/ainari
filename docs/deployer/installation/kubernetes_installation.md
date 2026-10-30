@@ -207,10 +207,8 @@ tags in the following steps.
 
     - Encryption
 
-        - The traffic between the virtual machines of a network is encrypted by default. Without
-          encryption set `hanami.network.mlsEncryption: false`. Then izakaya is not deployed.
-          Single networks can also be created without encryption with the flag
-          `disable_encryption`.
+        - The traffic between the virtual machines of a network is always encrypted. Single
+          networks can be created without encryption with the flag `disable_encryption`.
 
     - Mysql
 

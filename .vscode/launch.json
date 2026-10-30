@@ -88,6 +88,7 @@
                 "RUST_LOG": "debug",
                 "INTERNAL_API_KEY": "test-internal-api-key",
                 "SAKURA_REGISTRATION_KEY": "sakura-key",
+                "MLS_GRANT_SIGNING_KEY": "Veuv2tBnfEjOJwFRdf6rDF9CymxxQwvHvAb3vey8Xoo=",
             },
         },
         {
@@ -104,6 +105,7 @@
                 "RUST_LOG": "debug",
                 "INTERNAL_API_KEY": "test-internal-api-key",
                 "SAKURA_REGISTRATION_KEY": "sakura-key",
+                "MLS_GRANT_SIGNING_KEY": "Veuv2tBnfEjOJwFRdf6rDF9CymxxQwvHvAb3vey8Xoo=",
             },
         },
         {

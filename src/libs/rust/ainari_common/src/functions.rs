@@ -17,6 +17,8 @@ use sha2::{Digest, Sha256};
 use std::fs;
 use std::path::{Component, Path};
 
+use crate::error::AinariError;
+
 /// The ssh-key-algorithms, which are accepted as public-key.
 const SSH_KEY_ALGORITHMS: [&str; 8] = [
     "ssh-ed25519",
@@ -177,6 +179,32 @@ pub fn clear_directory<P: AsRef<Path>>(dir: P) -> std::io::Result<()> {
             fs::remove_file(&path)?;
         }
     }
+    Ok(())
+}
+
+/// Creates a directory and all necessary parent directories asynchronously.
+///
+/// Same as `create_directory_api` of `ainari_api`, but returns an `AinariError`, so it can be used
+/// outside of the endpoints, where no `ErrorResponse` is available yet.
+///
+/// # Arguments
+///
+/// * `path` - A string slice that holds the path to the directory to be created.
+///
+/// # Returns
+///
+/// * `Ok(())` if the directory was created successfully.
+/// * `Err(AinariError::InternalError)` if an error occurred during directory creation.
+pub async fn create_directory(path: &String) -> Result<(), AinariError> {
+    match tokio::fs::create_dir_all(&path).await {
+        Ok(_) => (),
+        Err(e) => {
+            return Err(AinariError::internal(format!(
+                "Failed to create directory '{path}' with error: {e}"
+            )));
+        }
+    }
+
     Ok(())
 }
 

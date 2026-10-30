@@ -24,11 +24,12 @@ pub mod update_image_internal_v1_0;
 use crate::config;
 use crate::database::image_table::{self, ImageEntry};
 
-use ainari_api::common_functions::*;
+use ainari_api::error_mapping::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::image_structs::ImageStatus;
 use ainari_api_structs::user_context::UserContext;
 use ainari_clients::endpoints::get_endpoints;
+use ainari_clients::onsen_file_transfer::delete_file_from_onsen;
 use ainari_clients::quota::get_quota;
 use ainari_clients::secret::delete_secret;
 use uuid::Uuid;
@@ -152,7 +153,9 @@ async fn remove_failed_image(
     }
 
     // onsen accepts the deletion of a file, which doesn't exist
-    let _ = delete_file_from_onsen(onsen_address, file_path, Some(context)).await;
+    if let Err(e) = delete_file_from_onsen(onsen_address, file_path).await {
+        log::error!("Failed to delete file of failed image {image_uuid}: {e}");
+    }
 
     let endpoints = match get_endpoints(&config::CONFIG.miko, config::CONFIG.skip_tls_verification)
         .await

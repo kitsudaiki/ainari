@@ -187,6 +187,9 @@
           "404": {
             "description": "Requested object not found"
           },
+          "409": {
+            "description": "Conflict with existing resources"
+          },
           "500": {
             "description": "Internal error"
           }
@@ -388,7 +391,7 @@
           "migration"
         ],
         "summary": "Remove migrated virtual_machine",
-        "description": "Create a new task, which removes the copy of a migrated virtual_machine from this host.\\\n\\\nThis is the source host after a successful migration, or the target host after a failed one.\\\nOnly a virtual_machine, which is prepared or whose import failed, is removed. Unlike a normal\\\ndeletion, no deleted entry is kept, because the virtual_machine still exists on the other host.",
+        "description": "Create a new task, which removes the copy of a migrated virtual_machine from this host.\\\n\\\nThis is the source host after a successful migration, or the target host after a failed one.\\\nOnly a virtual_machine, which is prepared or whose import failed, is removed. The\\\nvirtual_machine itself still exists on the other host.",
         "parameters": [
           {
             "name": "virtual_machine_uuid",
@@ -743,6 +746,281 @@
         ]
       }
     },
+    "/v1alpha/virtual_machine/{virtual_machine_uuid}/backup/internal": {
+      "post": {
+        "tags": [
+          "task"
+        ],
+        "summary": "Create new backup-task (internal)",
+        "description": "Create a new task, which saves the root-disk of a virtual_machine into a backup.\\\n\\\nIt works like a snapshot, but the root-disk is no image: it is encrypted with the secret\\\n`secret_uuid` and uploaded into the package of the backup `backup_uuid`, which must be in the\\\nstate `CREATING`. The task is processed by the same worker-thread as all other tasks of the\\\nvirtual_machine, so it can't overtake them.\\\n\\\nBy default the virtual_machine is only paused, while its root-disk is copied, so the saved\\\nroot-disk is only crash-consistent. With `stop_vm` a running virtual_machine is shut down before\\\nand started again afterwards, so the saved root-disk is consistent.\\\n\\\nThis is an internal call, which is protected by the internal api-key.",
+        "parameters": [
+          {
+            "name": "virtual_machine_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Uuid",
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TaskBackupSaveReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "TaskResp",
+                  "type": "object",
+                  "required": [
+                    "created_by",
+                    "description",
+                    "messages",
+                    "state",
+                    "task_type",
+                    "uuid"
+                  ],
+                  "properties": {
+                    "created_by": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": "string"
+                    },
+                    "finished_at": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "messages": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "queued_at": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "started_at": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "state": {
+                      "$ref": "#/components/schemas/TaskState"
+                    },
+                    "task_type": {
+                      "$ref": "#/components/schemas/TaskType"
+                    },
+                    "uuid": {
+                      "type": "string",
+                      "format": "uuid"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "409": {
+            "description": "Conflict with existing resources"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/virtual_machine/{virtual_machine_uuid}/backup_restore/internal": {
+      "post": {
+        "tags": [
+          "task"
+        ],
+        "summary": "Create new backup-restore-task (internal)",
+        "description": "Create a new task, which replaces the root-disk of an existing virtual_machine\\\nwith the root-disk of a backup.\\\n\\\nThe root-disk of the backup `backup_uuid` was copied out of the backup and registered as\\\nsnapshot-image `image_uuid` before. The task works like the restore of a snapshot, but has its own\\\ntype, so the tasks of the virtual_machine show, that it was reset to a backup. The\\\nvirtual_machine is shut down, while its root-disk is replaced, and booted again afterwards.\\\n\\\nThis is an internal call, which is protected by the internal api-key.",
+        "parameters": [
+          {
+            "name": "virtual_machine_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Uuid",
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TaskBackupRestoreReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "TaskResp",
+                  "type": "object",
+                  "required": [
+                    "created_by",
+                    "description",
+                    "messages",
+                    "state",
+                    "task_type",
+                    "uuid"
+                  ],
+                  "properties": {
+                    "created_by": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": "string"
+                    },
+                    "finished_at": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "messages": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "queued_at": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "started_at": {
+                      "type": "string",
+                      "format": "date-time",
+                      "nullable": true
+                    },
+                    "state": {
+                      "$ref": "#/components/schemas/TaskState"
+                    },
+                    "task_type": {
+                      "$ref": "#/components/schemas/TaskType"
+                    },
+                    "uuid": {
+                      "type": "string",
+                      "format": "uuid"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "409": {
+            "description": "Conflict with existing resources"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/virtual_machine/{virtual_machine_uuid}/export/internal": {
+      "get": {
+        "tags": [
+          "virtual_machine"
+        ],
+        "summary": "Export virtual_machine",
+        "description": "Export the config of a virtual_machine for a backup.\\\n\\\nThe config contains the resources, the image and public-key, which the virtual_machine was created\\\nwith, its network and addresses and its power-state. The root-disk is saved separately into the\\\nbackup. The seed is not exported, because it is generated again on restore.\\\n\\\nThis is an internal call, which is protected by the internal api-key.",
+        "parameters": [
+          {
+            "name": "virtual_machine_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Uuid",
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SakuraVirtualMachineExport"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
     "/v1alpha/virtual_machine/{virtual_machine_uuid}/internal": {
       "get": {
         "tags": [
@@ -798,7 +1076,7 @@
           "virtual_machine"
         ],
         "summary": "Delete virtual_machine",
-        "description": "Create a new task, which deletes the virtual_machine.\\\n\\\nThe task stops the virtual_machine, removes all of its files from the host and marks it as\\\ndeleted in the database afterwards. So the virtual_machine can still be read, until the task\\\nis finished.",
+        "description": "Create a new task, which deletes the virtual_machine.\\\n\\\nThe task stops the virtual_machine, removes all of its files from the host and removes it from\\\nthe database afterwards. So the virtual_machine can still be read, until the task\\\nis finished.",
         "parameters": [
           {
             "name": "virtual_machine_uuid",
@@ -1762,6 +2040,117 @@
           }
         }
       },
+      "SakuraVirtualMachineExport": {
+        "title": "SakuraVirtualMachineExport",
+        "description": "Config of a virtual_machine, like it is exported from sakura into a backup. The root-disk is saved separately into the backup.",
+        "type": "object",
+        "required": [
+          "disk_size",
+          "image_uuid",
+          "internal_ip",
+          "mac_address",
+          "memory_size",
+          "name",
+          "network_uuid",
+          "number_of_cores",
+          "public_key_uuid",
+          "uuid",
+          "vm_state"
+        ],
+        "properties": {
+          "disk_size": {
+            "description": "size of the root-disk in GiB",
+            "type": "integer",
+            "format": "int64"
+          },
+          "image_uuid": {
+            "description": "image, which the virtual_machine was created from",
+            "type": "string",
+            "format": "uuid"
+          },
+          "internal_ip": {
+            "type": "string",
+            "format": "ipv4"
+          },
+          "mac_address": {
+            "type": "string"
+          },
+          "memory_size": {
+            "description": "memory of the virtual_machine in bytes",
+            "type": "integer",
+            "format": "int64"
+          },
+          "name": {
+            "type": "string"
+          },
+          "network_uuid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "number_of_cores": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "public_key_uuid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "uuid": {
+            "description": "UUID of the virtual_machine at the time of the backup",
+            "type": "string",
+            "format": "uuid"
+          },
+          "vm_state": {
+            "description": "Power-state of the virtual_machine: RESERVED, CREATED, RUNNING, STOPPED, RESTORING or ERROR",
+            "type": "string"
+          }
+        }
+      },
+      "TaskBackupRestoreReq": {
+        "title": "TaskBackupRestoreReq",
+        "type": "object",
+        "required": [
+          "backup_uuid",
+          "image_uuid"
+        ],
+        "properties": {
+          "backup_uuid": {
+            "description": "Backup, whose root-disk is restored",
+            "type": "string",
+            "format": "uuid"
+          },
+          "image_uuid": {
+            "description": "Snapshot-image with the root-disk of the backup, which was copied out of the backup",
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "TaskBackupSaveReq": {
+        "title": "TaskBackupSaveReq",
+        "type": "object",
+        "required": [
+          "backup_uuid",
+          "secret_uuid"
+        ],
+        "properties": {
+          "backup_uuid": {
+            "description": "Backup in the state CREATING, which gets the root-disk as one of its disks",
+            "type": "string",
+            "format": "uuid"
+          },
+          "secret_uuid": {
+            "description": "Secret in the omamori, which is used to encrypt the root-disk",
+            "type": "string",
+            "format": "uuid"
+          },
+          "stop_vm": {
+            "description": "Shut a running virtual_machine down before the root-disk is saved and start it again afterwards, so the saved root-disk is consistent",
+            "default": false,
+            "type": "boolean"
+          }
+        }
+      },
       "TaskBasicResp": {
         "type": "object",
         "required": [
@@ -1914,21 +2303,39 @@
         ]
       },
       "TaskType": {
-        "type": "string",
-        "enum": [
-          "VirtualMachineCreate",
-          "VirtualMachineDelete",
-          "SnapshotSave",
-          "SnapshotRestore",
-          "VirtualMachineStart",
-          "VirtualMachineStop",
-          "VirtualMachineReboot",
-          "MigrationPrepare",
-          "MigrationImport",
-          "MigrationRemove",
-          "MigrationCancel",
-          "BackupSave",
-          "BackupRestore"
+        "oneOf": [
+          {
+            "type": "string",
+            "enum": [
+              "VirtualMachineCreate",
+              "VirtualMachineDelete",
+              "SnapshotSave",
+              "SnapshotRestore",
+              "VirtualMachineStart",
+              "VirtualMachineStop",
+              "VirtualMachineReboot",
+              "MigrationPrepare",
+              "MigrationImport",
+              "MigrationRemove",
+              "MigrationCancel"
+            ]
+          },
+          {
+            "title": "BackupSave",
+            "description": "saves the root-disk of a virtual_machine into a backup of isekai",
+            "type": "string",
+            "enum": [
+              "BackupSave"
+            ]
+          },
+          {
+            "title": "BackupRestore",
+            "description": "replaces the root-disk of a virtual_machine with the one of a backup of isekai",
+            "type": "string",
+            "enum": [
+              "BackupRestore"
+            ]
+          }
         ]
       },
       "VersionResp": {
@@ -2059,6 +2466,13 @@
           },
           "tap_name": {
             "type": "string"
+          },
+          "uuid": {
+            "description": "UUID of the virtual_machine, for example the original one of a backup. Without it, a new UUID is generated.",
+            "default": null,
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
           }
         }
       },

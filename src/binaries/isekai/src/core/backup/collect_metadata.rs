@@ -16,10 +16,9 @@ use std::collections::BTreeSet;
 use uuid::Uuid;
 
 use ainari_api_structs::backup_structs::BackupCopyDirection;
-use ainari_api_structs::network_structs::HanamiProjectExport;
-use ainari_api_structs::project_structs::OmamoriProjectExport;
+use ainari_api_structs::exports::{HanamiProjectExport, OmamoriProjectExport};
 use ainari_clients::backup as backup_clients;
-use ainari_clients::image::export_project_images;
+use ainari_clients::exports::export_project_images;
 use ainari_common::error::AinariError;
 
 use super::BackupJob;
@@ -210,18 +209,15 @@ pub(super) async fn collect_images(
 mod tests {
     use super::*;
     use crate::core::bundle::{BackupDisk, BackupVirtualMachine, disk_path};
-    use ainari_api_structs::floating_ip_structs::HanamiFloatingIpExport;
-    use ainari_api_structs::image_structs::RyokanImageExport;
-    use ainari_api_structs::network_filter_structs::{FilterDirection, HanamiNetworkFilterExport};
-    use ainari_api_structs::network_structs::HanamiNetworkExport;
-    use ainari_api_structs::public_key_structs::OmamoriPublicKeyExport;
-    use ainari_api_structs::secret_structs::OmamoriSecretExport;
-    use ainari_api_structs::virtual_machine_structs::HanamiVirtualMachineExport;
-    use ainari_api_structs::virtual_machine_structs::SakuraVirtualMachineExport;
+    use ainari_api_structs::exports::{
+        FloatingIpExport, HanamiVirtualMachineExport, ImageExport, NetworkExport,
+        NetworkFilterExport, PublicKeyExport, SakuraVirtualMachineExport, SecretExport,
+    };
+    use ainari_api_structs::network_filter_structs::FilterDirection;
     use std::net::Ipv4Addr;
 
-    fn network(uuid: Uuid) -> HanamiNetworkExport {
-        HanamiNetworkExport {
+    fn network(uuid: Uuid) -> NetworkExport {
+        NetworkExport {
             uuid,
             name: "network".to_string(),
             subnet: "192.168.100.0/24".to_string(),
@@ -242,8 +238,8 @@ mod tests {
         }
     }
 
-    fn filter(virtual_machine_uuid: Uuid) -> HanamiNetworkFilterExport {
-        HanamiNetworkFilterExport {
+    fn filter(virtual_machine_uuid: Uuid) -> NetworkFilterExport {
+        NetworkFilterExport {
             virtual_machine_uuid,
             direction: FilterDirection::Ingress,
             ip_ranges: Vec::new(),
@@ -251,8 +247,8 @@ mod tests {
         }
     }
 
-    fn floating_ip(virtual_machine_uuid: Option<Uuid>) -> HanamiFloatingIpExport {
-        HanamiFloatingIpExport {
+    fn floating_ip(virtual_machine_uuid: Option<Uuid>) -> FloatingIpExport {
+        FloatingIpExport {
             uuid: Uuid::new_v4(),
             name: "floating-ip".to_string(),
             floating_ip: Ipv4Addr::new(10, 0, 0, 5),
@@ -282,8 +278,8 @@ mod tests {
         }
     }
 
-    fn secret(uuid: Uuid) -> OmamoriSecretExport {
-        OmamoriSecretExport {
+    fn secret(uuid: Uuid) -> SecretExport {
+        SecretExport {
             uuid,
             name: "secret".to_string(),
             owned_by: "user".to_string(),
@@ -292,8 +288,8 @@ mod tests {
         }
     }
 
-    fn public_key(uuid: Uuid) -> OmamoriPublicKeyExport {
-        OmamoriPublicKeyExport {
+    fn public_key(uuid: Uuid) -> PublicKeyExport {
+        PublicKeyExport {
             uuid,
             name: "key".to_string(),
             public_key: "ssh-ed25519 AAAA test".to_string(),
@@ -354,7 +350,7 @@ mod tests {
             virtual_machines: vec![backup_vm(vm, key, disk_secret)],
         };
         let ryokan = RyokanMetadata {
-            images: vec![RyokanImageExport {
+            images: vec![ImageExport {
                 uuid: Uuid::new_v4(),
                 name: "image".to_string(),
                 file_type: "qcow2".to_string(),

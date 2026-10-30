@@ -21,7 +21,7 @@ use apistos::api_operation;
 use crate::core::virtual_machine::cloud_hypervisor::migration::transfer::compressed_file_stream;
 use crate::core::virtual_machine::cloud_hypervisor::vm_socket_path;
 
-use ainari_api::common_functions::*;
+use ainari_api::error_mapping::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::migration_structs::*;
 use ainari_api_structs::user_context::UserContext;

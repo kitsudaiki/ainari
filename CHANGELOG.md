@@ -30,12 +30,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - license check
     - go-linter
     - docker-scout check
+- when sakura restarts, now the list of existing VMs instead of deleted VMs is send to hanami 
+  to sync the database of hanami
 
 ### Changed
 
 - write-requests to a locked project are rejected with `423 Locked` by all components
 - updated dashboard-styling
 - synced go-versions used in the repo to version 1.26.10
+- mac-addresses and internal-ip addresses are now choosen random and not by counting up
+- database rows are now not marked as deleted anymore, but instead hard deleted from the db
+- update virtual-machine- and host-rows in dashboard, so the content is not so pressed anymore
+- update the icon of the image in the sidebar of the dashboard
 
 ### Fixed
 

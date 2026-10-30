@@ -24,7 +24,7 @@ use ainari_common::objects::*;
 
 // Define the schema for the quotas table
 // This table stores quota information for projects including maximum limits
-// for various resources and their status.
+// for various resources.
 table! {
     quotas (id) {
         id -> Varchar,
@@ -33,13 +33,10 @@ table! {
         max_secret -> Integer,
         max_network -> Integer,
         max_floating_ip -> Integer,
-        status -> Varchar,
         created_at -> Varchar,
         created_by -> Varchar,
         updated_at -> Varchar,
         updated_by -> Varchar,
-        deleted_at -> Nullable<Varchar>,
-        deleted_by -> Nullable<Varchar>,
     }
 }
 
@@ -48,7 +45,7 @@ table! {
 /// This struct contains information about resource limits for a project. The `id` is the ID of
 /// the project
 /// including maximum allowed virtual_machines, images, snapshots, secrets, and task queues.
-/// It also tracks the status, creation, update, and deletion information.
+/// It also tracks the creation and update information.
 #[derive(Insertable, Queryable, Selectable, Debug, PartialEq, Clone)]
 #[diesel(table_name = quotas)]
 pub struct QuotaEntry {
@@ -58,16 +55,12 @@ pub struct QuotaEntry {
     pub max_secret: i32,
     pub max_network: i32,
     pub max_floating_ip: i32,
-    pub status: String,
     #[diesel(serialize_as = DbDateTime, deserialize_as = DbDateTime)]
     pub created_at: DateTime<Utc>,
     pub created_by: String,
     #[diesel(serialize_as = DbDateTime, deserialize_as = DbDateTime)]
     pub updated_at: DateTime<Utc>,
     pub updated_by: String,
-    #[diesel(serialize_as = DbOptDateTime, deserialize_as = DbOptDateTime)]
-    pub deleted_at: Option<DateTime<Utc>>,
-    pub deleted_by: Option<String>,
 }
 
 /// Adds a new quota entry to the database.
@@ -109,7 +102,6 @@ pub fn add_new_quota(
     }
 
     // check if quota already exists in the database
-    // The same id is allowed multiple times in the table, but only one time active.
     if get_quota(project_id, context).is_ok() {
         return Err(diesel::result::Error::DatabaseError(
             DatabaseErrorKind::UniqueViolation,
@@ -126,13 +118,10 @@ pub fn add_new_quota(
         max_secret,
         max_network,
         max_floating_ip,
-        status: "ACTIVE".to_string(),
         created_at: Utc::now(),
         created_by: context.user_id.clone(),
         updated_at: Utc::now(),
         updated_by: context.user_id.clone(),
-        deleted_at: None,
-        deleted_by: None,
     };
 
     add_quota(quota.clone())
@@ -160,7 +149,7 @@ pub fn add_quota(quota: QuotaEntry) -> QueryResult<usize> {
 
 /// Retrieves a quota entry from the database for a specific project.
 ///
-/// This function queries the database for an active quota entry
+/// This function queries the database for a quota entry
 /// associated with the provided project ID.
 ///
 /// # Arguments
@@ -175,7 +164,7 @@ pub fn get_quota(project_id: &String, _: &UserContext) -> Result<QuotaEntry, enu
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::quotas::dsl::*;
     match quotas
-        .filter(id.eq(project_id).and(status.eq("ACTIVE")))
+        .filter(id.eq(project_id))
         .select(QuotaEntry::as_select())
         .first::<QuotaEntry>(&mut *conn)
     {
@@ -188,16 +177,16 @@ pub fn get_quota(project_id: &String, _: &UserContext) -> Result<QuotaEntry, enu
     }
 }
 
-/// Lists all active quota entries in the database.
+/// Lists all quota entries in the database.
 ///
-/// This function retrieves all quota entries with an "ACTIVE" status.
+/// This function retrieves all quota entries.
 /// Only admin users can access this function.
 ///
 /// # Arguments
 /// * `context` - The user context containing authentication information
 ///
 /// # Returns
-/// - `Ok(Vec<QuotaEntry>)` with all active quota entries if successful
+/// - `Ok(Vec<QuotaEntry>)` with all quota entries if successful
 /// - An error if the query fails
 pub fn list_quotas(context: &UserContext) -> QueryResult<Vec<QuotaEntry>> {
     if context.is_admin != true.to_string() {
@@ -207,10 +196,7 @@ pub fn list_quotas(context: &UserContext) -> QueryResult<Vec<QuotaEntry>> {
 
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::quotas::dsl::*;
-    quotas
-        .filter(status.eq("ACTIVE"))
-        .select(QuotaEntry::as_select())
-        .load(&mut *conn)
+    quotas.select(QuotaEntry::as_select()).load(&mut *conn)
 }
 
 /// Updates an existing quota entry in the database.
@@ -271,9 +257,8 @@ pub fn set_quota(
     }
 }
 
-/// Marks a quota entry as deleted in the database.
+/// Deletes a quota entry from the database.
 ///
-/// This function updates the status of a quota entry to "DELETED".
 /// Only admin users can access this function.
 ///
 /// # Arguments
@@ -281,7 +266,7 @@ pub fn set_quota(
 /// * `context` - The user context containing authentication information
 ///
 /// # Returns
-/// - `Ok(())` if the quota was marked as deleted successfully
+/// - `Ok(())` if the quota was deleted successfully
 /// - `enums::DbError::NotFound` if the quota is not found
 /// - `enums::DbError::InternalError` if an error occurs while updating the database
 pub fn delete_quota(project_id: &String, context: &UserContext) -> Result<(), enums::DbError> {
@@ -296,10 +281,7 @@ pub fn delete_quota(project_id: &String, context: &UserContext) -> Result<(), en
 
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::quotas::dsl::*;
-    match diesel::update(quotas.filter(id.eq(project_id)))
-        .set(status.eq("DELETED"))
-        .execute(&mut *conn)
-    {
+    match diesel::delete(quotas.filter(id.eq(project_id))).execute(&mut *conn) {
         Ok(_) => Ok(()),
         Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
         Err(e) => {
@@ -359,13 +341,10 @@ mod tests {
             max_secret: 45,
             max_network: 50,
             max_floating_ip: 51,
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
         };
 
         hard_delete_quota(&quota.id);
@@ -379,11 +358,8 @@ mod tests {
             );
             assert_eq!(retrieved_quota.max_image, quota.max_image);
             assert_eq!(retrieved_quota.max_secret, quota.max_secret);
-            assert_eq!(retrieved_quota.status, quota.status);
             assert_eq!(retrieved_quota.created_by, quota.created_by);
             assert_eq!(retrieved_quota.updated_by, quota.updated_by);
-            assert_eq!(retrieved_quota.deleted_at, quota.deleted_at);
-            assert_eq!(retrieved_quota.deleted_by, quota.deleted_by);
         };
 
         let _ = delete_quota(&quota.id, &context);
@@ -409,13 +385,10 @@ mod tests {
             max_secret: 45,
             max_network: 50,
             max_floating_ip: 51,
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
         };
 
         hard_delete_quota(&quota.id);
@@ -449,11 +422,8 @@ mod tests {
             assert_eq!(retrieved_quota.max_secret, new_max_secret);
             assert_eq!(retrieved_quota.max_network, new_max_network);
             assert_eq!(retrieved_quota.max_floating_ip, new_max_floating_ip);
-            assert_eq!(retrieved_quota.status, quota.status);
             assert_eq!(retrieved_quota.created_by, quota.created_by);
             assert_eq!(retrieved_quota.updated_by, quota.updated_by);
-            assert_eq!(retrieved_quota.deleted_at, quota.deleted_at);
-            assert_eq!(retrieved_quota.deleted_by, quota.deleted_by);
         };
 
         let _ = delete_quota(&quota.id, &context);
@@ -480,13 +450,10 @@ mod tests {
             max_secret: 45,
             max_network: 50,
             max_floating_ip: 51,
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
         };
 
         let user2 = QuotaEntry {
@@ -496,13 +463,10 @@ mod tests {
             max_secret: 45,
             max_network: 50,
             max_floating_ip: 51,
-            status: "DELETED".to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
         };
 
         hard_delete_quota(&user1.id);
@@ -510,6 +474,7 @@ mod tests {
 
         add_quota(user1.clone()).unwrap();
         add_quota(user2.clone()).unwrap();
+        assert!(delete_quota(&user2.id, &context).is_ok());
 
         let quotas = list_quotas(&context).unwrap();
         assert_eq!(quotas.len(), 1);
@@ -538,13 +503,10 @@ mod tests {
             max_secret: 45,
             max_network: 50,
             max_floating_ip: 51,
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
         };
 
         hard_delete_quota(&quota.id);

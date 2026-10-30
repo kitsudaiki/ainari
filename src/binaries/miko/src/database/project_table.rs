@@ -20,7 +20,8 @@ use uuid::Uuid;
 use crate::database::db_handle;
 use crate::database::quota_table;
 
-use ainari_api_structs::project_structs::{MikoQuotaExport, ProjectLock};
+use ainari_api_structs::exports::QuotaExport;
+use ainari_api_structs::project_structs::ProjectLock;
 use ainari_api_structs::user_context::UserContext;
 use ainari_common::enums;
 use ainari_common::objects::*;
@@ -30,7 +31,6 @@ table! {
     projects (id) {
         id -> Varchar,
         name -> Varchar,
-        status -> Varchar,
         locked_by_job -> Nullable<Varchar>,
         lock_reason -> Nullable<Text>,
         locked_at -> Nullable<Varchar>,
@@ -38,8 +38,6 @@ table! {
         created_by -> Varchar,
         updated_at -> Varchar,
         updated_by -> Varchar,
-        deleted_at -> Nullable<Varchar>,
-        deleted_by -> Nullable<Varchar>,
     }
 }
 
@@ -52,7 +50,6 @@ table! {
 pub struct ProjectEntry {
     pub id: String,
     pub name: String,
-    pub status: String,
     /// Job, which has locked the project during a backup or restore, None if it is not locked
     #[diesel(serialize_as = DbOptUuid, deserialize_as = DbOptUuid)]
     pub locked_by_job: Option<Uuid>,
@@ -67,9 +64,6 @@ pub struct ProjectEntry {
     #[diesel(serialize_as = DbDateTime, deserialize_as = DbDateTime)]
     pub updated_at: DateTime<Utc>,
     pub updated_by: String,
-    #[diesel(serialize_as = DbOptDateTime, deserialize_as = DbOptDateTime)]
-    pub deleted_at: Option<DateTime<Utc>>,
-    pub deleted_by: Option<String>,
 }
 
 /// Adds a new project to the database.
@@ -97,7 +91,7 @@ pub fn add_new_project(
 }
 
 /// Default quota of a new project, which is created over the api.
-const DEFAULT_QUOTA: MikoQuotaExport = MikoQuotaExport {
+const DEFAULT_QUOTA: QuotaExport = QuotaExport {
     max_virtual_machine: 10,
     max_image: 10,
     max_secret: 10,
@@ -123,7 +117,7 @@ const DEFAULT_QUOTA: MikoQuotaExport = MikoQuotaExport {
 pub fn add_new_project_with_quota(
     project_id: &String,
     project_name: &str,
-    quota: &MikoQuotaExport,
+    quota: &QuotaExport,
     context: &UserContext,
 ) -> QueryResult<usize> {
     // observers without admin-privileges are only allowed to read
@@ -139,7 +133,6 @@ pub fn add_new_project_with_quota(
     }
 
     // Check if project already exists in the database
-    // Note: The same ID is allowed multiple times in the table, but only one can be active
     if get_project(project_id, context).is_ok() {
         return Err(diesel::result::Error::DatabaseError(
             DatabaseErrorKind::UniqueViolation,
@@ -161,7 +154,6 @@ pub fn add_new_project_with_quota(
     let project = ProjectEntry {
         id: project_id.clone(),
         name: project_name.to_owned(),
-        status: "ACTIVE".to_string(),
         locked_by_job: None,
         lock_reason: None,
         locked_at: None,
@@ -169,8 +161,6 @@ pub fn add_new_project_with_quota(
         created_by: context.user_id.clone(),
         updated_at: Utc::now(),
         updated_by: context.user_id.clone(),
-        deleted_at: None,
-        deleted_by: None,
     };
 
     // delete quota again, if adding of the project failed, to avoid inconsistent database
@@ -203,7 +193,7 @@ pub fn add_project(project: ProjectEntry) -> QueryResult<usize> {
 
 /// Retrieves a project for the authentication from the database.
 ///
-/// This function fetches a project by its ID, ensuring the project is active.
+/// This function fetches a project by its ID.
 /// Unlike get_project, this function doesn't check for admin privileges.
 ///
 /// # Arguments
@@ -219,7 +209,7 @@ pub fn get_auth_project(project_id: &String) -> Result<ProjectEntry, enums::DbEr
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::projects::dsl::*;
     match projects
-        .filter(id.eq(project_id).and(status.eq("ACTIVE")))
+        .filter(id.eq(project_id))
         .select(ProjectEntry::as_select())
         .first::<ProjectEntry>(&mut *conn)
     {
@@ -235,7 +225,6 @@ pub fn get_auth_project(project_id: &String) -> Result<ProjectEntry, enums::DbEr
 /// Retrieves a project from the database.
 ///
 /// This function fetches a project by its ID, checking for admin permissions.
-/// Only active projects (with status "ACTIVE") are returned.
 ///
 /// # Arguments
 ///
@@ -258,7 +247,7 @@ pub fn get_project(
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::projects::dsl::*;
     match projects
-        .filter(id.eq(project_id).and(status.eq("ACTIVE")))
+        .filter(id.eq(project_id))
         .select(ProjectEntry::as_select())
         .first::<ProjectEntry>(&mut *conn)
     {
@@ -271,9 +260,8 @@ pub fn get_project(
     }
 }
 
-/// Lists all active projects in the database.
+/// Lists all projects in the database.
 ///
-/// This function retrieves all projects with status "ACTIVE".
 /// Non-admin users will receive an empty list.
 ///
 /// # Arguments
@@ -282,7 +270,7 @@ pub fn get_project(
 ///
 /// # Returns
 ///
-/// * `Ok(Vec<ProjectEntry>)` with all active projects if successful
+/// * `Ok(Vec<ProjectEntry>)` with all projects if successful
 /// * A database error if the operation fails
 pub fn list_projects(context: &UserContext) -> QueryResult<Vec<ProjectEntry>> {
     if context.is_admin != true.to_string() {
@@ -292,13 +280,10 @@ pub fn list_projects(context: &UserContext) -> QueryResult<Vec<ProjectEntry>> {
 
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::projects::dsl::*;
-    projects
-        .filter(status.eq("ACTIVE"))
-        .select(ProjectEntry::as_select())
-        .load(&mut *conn)
+    projects.select(ProjectEntry::as_select()).load(&mut *conn)
 }
 
-/// Changes the name of an active project.
+/// Changes the name of a project.
 ///
 /// # Arguments
 ///
@@ -324,7 +309,7 @@ pub fn set_project_name(
 
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::projects::dsl::*;
-    match diesel::update(projects.filter(id.eq(project_id).and(status.eq("ACTIVE"))))
+    match diesel::update(projects.filter(id.eq(project_id)))
         .set((
             name.eq(project_name),
             updated_at.eq(Utc::now().to_rfc3339()),
@@ -372,7 +357,6 @@ pub fn is_default_project(project_id: &str) -> bool {
 
 /// Deletes a project from the database.
 ///
-/// This function marks a project as deleted by changing its status to "DELETED".
 /// It checks for admin permissions before performing the operation.
 ///
 /// # Arguments
@@ -397,10 +381,7 @@ pub fn delete_project(project_id: &String, context: &UserContext) -> Result<(), 
 
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::projects::dsl::*;
-    match diesel::update(projects.filter(id.eq(project_id)))
-        .set(status.eq("DELETED"))
-        .execute(&mut *conn)
-    {
+    match diesel::delete(projects.filter(id.eq(project_id))).execute(&mut *conn) {
         Ok(_) => Ok(()),
         Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
         Err(e) => {
@@ -511,7 +492,7 @@ pub fn lock_project(
         use self::projects::dsl::*;
         diesel::update(
             projects.filter(
-                id.eq(project_id).and(status.eq("ACTIVE")).and(
+                id.eq(project_id).and(
                     locked_by_job
                         .is_null()
                         .or(locked_by_job.eq(job_uuid.to_string())),
@@ -572,7 +553,7 @@ pub fn unlock_project(
     let result = {
         let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
         use self::projects::dsl::*;
-        let project = projects.filter(id.eq(project_id).and(status.eq("ACTIVE")));
+        let project = projects.filter(id.eq(project_id));
         let unlocked = (
             locked_by_job.eq(None::<String>),
             lock_reason.eq(None::<String>),
@@ -635,7 +616,6 @@ mod tests {
         let project = ProjectEntry {
             id: project_id.clone(),
             name: "Alice".to_string(),
-            status: "ACTIVE".to_string(),
             locked_by_job: None,
             lock_reason: None,
             locked_at: None,
@@ -643,8 +623,6 @@ mod tests {
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
         };
 
         hard_delete_project(&project.id);
@@ -653,11 +631,8 @@ mod tests {
         if let Ok(retrieved_project) = get_project(&project_id, &context) {
             assert_eq!(retrieved_project.id, project.id);
             assert_eq!(retrieved_project.name, project.name);
-            assert_eq!(retrieved_project.status, project.status);
             assert_eq!(retrieved_project.created_by, project.created_by);
             assert_eq!(retrieved_project.updated_by, project.updated_by);
-            assert_eq!(retrieved_project.deleted_at, project.deleted_at);
-            assert_eq!(retrieved_project.deleted_by, project.deleted_by);
         };
 
         let _ = delete_project(&project.id, &context);
@@ -680,7 +655,6 @@ mod tests {
         let project1 = ProjectEntry {
             id: project_id1.clone(),
             name: "Alice".to_string(),
-            status: "ACTIVE".to_string(),
             locked_by_job: None,
             lock_reason: None,
             locked_at: None,
@@ -688,14 +662,11 @@ mod tests {
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
         };
 
         let project2 = ProjectEntry {
             id: project_id2.clone(),
             name: "Bob".to_string(),
-            status: "DELETED".to_string(),
             locked_by_job: None,
             lock_reason: None,
             locked_at: None,
@@ -703,8 +674,6 @@ mod tests {
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
         };
 
         hard_delete_project(&project1.id);
@@ -712,6 +681,7 @@ mod tests {
 
         add_project(project1.clone()).unwrap();
         add_project(project2.clone()).unwrap();
+        assert!(delete_project(&project2.id, &context).is_ok());
 
         let projects = list_projects(&context).unwrap();
         assert_eq!(projects.len(), 1);
@@ -736,7 +706,6 @@ mod tests {
         let project = ProjectEntry {
             id: project_id.clone(),
             name: "Alice".to_string(),
-            status: "ACTIVE".to_string(),
             locked_by_job: None,
             lock_reason: None,
             locked_at: None,
@@ -744,8 +713,6 @@ mod tests {
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
         };
 
         hard_delete_project(&project.id);
@@ -802,7 +769,6 @@ mod tests {
         add_project(ProjectEntry {
             id: project_id.clone(),
             name: "lock".to_string(),
-            status: "ACTIVE".to_string(),
             locked_by_job: None,
             lock_reason: None,
             locked_at: None,
@@ -810,8 +776,6 @@ mod tests {
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
         })
         .unwrap();
         project_id

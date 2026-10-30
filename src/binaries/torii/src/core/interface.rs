@@ -29,7 +29,7 @@ use crate::core::utils::{
     is_iface_up, parse_mac, run_ip, unbind_iface_from_table, with_table,
 };
 
-use ainari_api::common_functions::map_internal_error;
+use ainari_api::error_mapping::map_internal_error;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::network_interface_structs::*;
 use torii_common::{ArpProxy, IFACE_FLAG_FIP, IfaceConfig};

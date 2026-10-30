@@ -18,7 +18,7 @@ use uuid::Uuid;
 
 use crate::database::vm_type_table;
 
-use ainari_api::common_functions::*;
+use ainari_api::error_mapping::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::user_context::UserContext;
 use ainari_api_structs::vm_type_structs::*;

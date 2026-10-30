@@ -6,9 +6,9 @@ network form an [MLS](https://www.rfc-editor.org/rfc/rfc9420.html) group, and ea
 the keys of its IPsec Security Associations (SAs) from the secret of the current epoch of the
 group.
 
-A network, which was created with `disable_encryption: true`, or a hanami with
-`mls_encryption = false`, skips all of this: the routes between the hosts of the network are not
-encrypted, hanami signs no grants for it, so its torii never subscribe to a group of it.
+A network, which was created with `disable_encryption: true`, skips all of this: the routes
+between the hosts of the network are not encrypted, hanami signs no grants for it, so its torii
+never subscribe to a group of it.
 
 ## Components
 

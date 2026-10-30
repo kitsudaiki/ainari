@@ -21,7 +21,7 @@ use base64::engine::general_purpose::STANDARD as BASE64;
 use uuid::Uuid;
 use validator::Validate;
 
-use ainari_api::common_functions::*;
+use ainari_api::error_mapping::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::backup_structs::*;
 use ainari_api_structs::user_context::UserContext;

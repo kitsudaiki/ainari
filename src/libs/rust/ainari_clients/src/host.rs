@@ -33,7 +33,7 @@ use crate::prepare_client;
 /// * `name` - The name of the Sakura host to register
 /// * `sakura_address` - The address of the Sakura host
 /// * `sakura_external_address` - Address of the external api of the sakura-host, if it has one
-/// * `deleted_uuids` - List of UUIDs that have been deleted and need to be tracked
+/// * `virtual_machine_uuids` - UUIDs of all virtual machines, which exist on the Sakura host
 /// * `registration_key` - The registration key for the host
 /// * `number_of_cores` - Number of CPU threads of the Sakura host
 /// * `memory_size` - Total memory of the Sakura host in MiB
@@ -51,7 +51,7 @@ pub async fn register_sakura_host(
     name: &str,
     sakura_address: &str,
     sakura_external_address: Option<&str>,
-    deleted_uuids: UuidList,
+    virtual_machine_uuids: UuidList,
     registration_key: &Secret,
     number_of_cores: u64,
     memory_size: u64,
@@ -66,7 +66,7 @@ pub async fn register_sakura_host(
         name: name.to_owned(),
         host_address: sakura_address.to_owned(),
         external_address: sakura_external_address.map(str::to_owned),
-        deleted_uuids,
+        virtual_machine_uuids,
         registration_key: Secret::from(registration_key.reveal()),
         number_of_cores,
         memory_size,

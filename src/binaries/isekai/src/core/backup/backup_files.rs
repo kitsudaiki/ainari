@@ -17,6 +17,7 @@ use serde::Serialize;
 use ainari_api_structs::backup_structs::MAX_BACKUP_FILE_SIZE;
 use ainari_clients::backup as backup_clients;
 use ainari_clients::secret::delete_secret;
+use ainari_common::enums;
 use ainari_common::error::AinariError;
 
 use crate::core::bundle::encrypt_metadata;
@@ -24,7 +25,7 @@ use crate::core::keys::BackupKeys;
 use crate::core::manifest::{ManifestFile, sha256_hex};
 use crate::core::processing::jobs::Job;
 use crate::core::services::Services;
-use crate::database::backup_table::BackupEntry;
+use crate::database::backup_table::{self, BackupEntry};
 
 /// Encrypts a metadata-file and writes it into the backup.
 pub(super) async fn write_metadata<T: Serialize>(
@@ -84,7 +85,7 @@ pub(super) async fn file_info(
     })
 }
 
-/// Deletes the files of a backup in ryokan and the secrets of its disks in omamori.
+/// Deletes the files of a backup in ryokan and the remaining secrets of its disks in omamori.
 ///
 /// Parts, which are already deleted, are skipped, so it can be repeated.
 ///
@@ -100,7 +101,7 @@ pub async fn delete_backup_content(
     services: &Services,
     entry: &BackupEntry,
 ) -> Result<(), AinariError> {
-    let mut result = match backup_clients::delete_backup(
+    let result = match backup_clients::delete_backup(
         &services.endpoints.ryokan,
         &services.token,
         services.key(),
@@ -116,6 +117,28 @@ pub async fn delete_backup_content(
         }
     };
 
+    result.and(delete_backup_secrets(services, entry).await)
+}
+
+/// Deletes the secrets of the disks of a backup in omamori.
+///
+/// The payloads of the secrets are part of the metadata of the backup, so the secrets in omamori
+/// are only needed by sakura, while it encrypts the disks. Every deleted secret is removed from the
+/// backup, so a repetition only deletes the remaining ones.
+///
+/// # Arguments
+///
+/// * `services` - Connection to the other components
+/// * `entry` - The backup
+///
+/// # Returns
+///
+/// Ok, if all secrets are deleted, or the first error.
+pub async fn delete_backup_secrets(
+    services: &Services,
+    entry: &BackupEntry,
+) -> Result<(), AinariError> {
+    let mut result = Ok(());
     for secret_uuid in entry.secrets() {
         match delete_secret(
             &services.endpoints.omamori,
@@ -126,7 +149,17 @@ pub async fn delete_backup_content(
         )
         .await
         {
-            Ok(()) | Err(AinariError::NotFound(_)) => {}
+            Ok(()) | Err(AinariError::NotFound(_)) => {
+                // a backup, which was deleted in the meantime, has nothing to remove anymore
+                if let Err(enums::DbError::InternalError) =
+                    backup_table::remove_backup_secret(&entry.uuid, &secret_uuid)
+                {
+                    log::error!(
+                        "Failed to remove the deleted secret {secret_uuid} from backup {}",
+                        entry.uuid
+                    );
+                }
+            }
             Err(e) => {
                 log::error!(
                     "Failed to delete secret {secret_uuid} of backup {}: {e}",

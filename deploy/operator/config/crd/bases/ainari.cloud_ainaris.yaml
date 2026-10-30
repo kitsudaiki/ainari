@@ -222,12 +222,6 @@ spec:
                         description: range of the floating ip-addresses, which are
                           served by the torii at the edge
                         type: string
-                      mlsEncryption:
-                        default: true
-                        description: |-
-                          Encrypts the traffic between the virtual machines of a network on different hosts with
-                          IPsec, whose keys the gateways exchange over MLS-groups, which izakaya coordinates.
-                        type: boolean
                       mlsGrantRefreshInterval:
                         default: 300
                         description: seconds between two refreshes of all membership-grants
@@ -358,8 +352,7 @@ spec:
                 default: {}
                 description: |-
                   Shares the MLS key-packages of the gateways, delivers their MLS-messages and coordinates the
-                  changes and key-rotations of the groups. It is only deployed, if
-                  hanami.network.mlsEncryption is enabled.
+                  changes and key-rotations of the groups.
                 properties:
                   domain:
                     default: local-izakaya

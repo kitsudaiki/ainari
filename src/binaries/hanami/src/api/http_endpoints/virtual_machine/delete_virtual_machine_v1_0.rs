@@ -32,7 +32,7 @@ use crate::database::meta_virtual_machine_table;
 use crate::database::network_filter_table;
 use crate::database::network_table;
 
-use ainari_api::common_functions::*;
+use ainari_api::error_mapping::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::user_context::UserContext;
 use ainari_clients::endpoints::get_endpoints;
@@ -234,8 +234,8 @@ async fn detach_floating_ip_of_virtual_machine(
 /// the deleted virtual_machine was the last one of that network on this host, because the other
 /// virtual_machines of the host still use them.
 ///
-/// The entry of the address-table is marked as deleted at the end, so the address, the
-/// MAC-address and the name of the TAP-device can be used again.
+/// The entry of the address-table is removed, so the address, the MAC-address and the name of the
+/// TAP-device can be used again.
 ///
 /// # Arguments
 /// * `endpoints` - Endpoints of the components, which contains the torii reachable from outside
@@ -265,7 +265,7 @@ pub(super) async fn cleanup_network(
         }
     };
 
-    // the entry is marked as deleted first, so the addresses of the network, which are read
+    // the entry is removed first, so the addresses of the network, which are read
     // afterwards, are the virtual_machines, which keep their routes
     address_table::delete_address(&address.uuid, context)
         .map_err(|e| map_db_uuid_get_delete_error("address", &address.uuid, e, Some(context)))?;
@@ -351,7 +351,7 @@ pub(super) async fn cleanup_network(
     // still gets the revocation, which costs nothing, if there is no grant.
     let encrypted = match network_table::is_encryption_disabled(network_uuid) {
         Ok(disabled) => network_encrypted(disabled),
-        Err(_) => config::CONFIG.network.mls_encryption,
+        Err(_) => true,
     };
     if encrypted {
         leave_group_of_network(endpoints, &address.host_address, address.vni).await?;

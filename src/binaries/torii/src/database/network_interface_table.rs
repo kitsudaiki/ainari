@@ -33,13 +33,10 @@ table! {
         fip_port -> Bool,
         owner_id -> Varchar,
         project_id -> Varchar,
-        status -> Varchar,
         created_at -> Varchar,
         created_by -> Varchar,
         updated_at -> Varchar,
         updated_by -> Varchar,
-        deleted_at -> Nullable<Varchar>,
-        deleted_by -> Nullable<Varchar>,
     }
 }
 
@@ -55,13 +52,10 @@ table! {
 /// * `fip_port` - True, if floating IPs are translated on the interface
 /// * `owner_id` - User ID of the entry owner
 /// * `project_id` - Project ID the entry belongs to
-/// * `status` - Current status of the entry (ACTIVE, DELETED, etc.)
 /// * `created_at` - Timestamp when the entry was created
 /// * `created_by` - User ID who created the entry
 /// * `updated_at` - Timestamp when the entry was last updated
 /// * `updated_by` - User ID who last updated the entry
-/// * `deleted_at` - Timestamp when the entry was deleted (nullable)
-/// * `deleted_by` - User ID who deleted the entry (nullable)
 #[derive(Insertable, Queryable, Selectable, Debug, PartialEq, Clone)]
 #[diesel(table_name = network_interfaces)]
 pub struct NetworkInterfaceEntry {
@@ -75,16 +69,12 @@ pub struct NetworkInterfaceEntry {
     pub fip_port: bool,
     pub owner_id: String,
     pub project_id: String,
-    pub status: String,
     #[diesel(serialize_as = DbDateTime, deserialize_as = DbDateTime)]
     pub created_at: DateTime<Utc>,
     pub created_by: String,
     #[diesel(serialize_as = DbDateTime, deserialize_as = DbDateTime)]
     pub updated_at: DateTime<Utc>,
     pub updated_by: String,
-    #[diesel(serialize_as = DbOptDateTime, deserialize_as = DbOptDateTime)]
-    pub deleted_at: Option<DateTime<Utc>>,
-    pub deleted_by: Option<String>,
 }
 
 impl From<NetworkInterfaceEntry> for IfaceConfigReq {
@@ -102,7 +92,7 @@ impl From<NetworkInterfaceEntry> for IfaceConfigReq {
 /// Persists the configuration of an interface.
 ///
 /// An interface has only one configuration at a time, so an already persisted entry for the same
-/// interface is marked as deleted and replaced within one transaction.
+/// interface is removed and replaced within one transaction.
 ///
 /// # Arguments
 /// * `req` - The request, which configured the interface
@@ -125,31 +115,17 @@ pub fn set_network_interface(req: &IfaceConfigReq, context: &UserContext) -> Que
         fip_port: req.fip_port,
         owner_id: context.user_id.clone(),
         project_id: context.project_id.clone(),
-        status: "ACTIVE".to_string(),
         created_at: Utc::now(),
         created_by: context.user_id.clone(),
         updated_at: Utc::now(),
         updated_by: context.user_id.clone(),
-        deleted_at: None,
-        deleted_by: None,
     };
 
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     conn.transaction(|conn| {
         use self::network_interfaces::dsl::*;
-        diesel::update(
-            network_interfaces.filter(
-                iface_name
-                    .eq(req.iface_name.clone())
-                    .and(status.eq("ACTIVE")),
-            ),
-        )
-        .set((
-            status.eq("DELETED"),
-            deleted_at.eq(Utc::now().to_rfc3339()),
-            deleted_by.eq(context.user_id.clone()),
-        ))
-        .execute(conn)?;
+        diesel::delete(network_interfaces.filter(iface_name.eq(req.iface_name.clone())))
+            .execute(conn)?;
         diesel::insert_into(network_interfaces)
             .values(entry)
             .execute(conn)
@@ -165,7 +141,6 @@ pub fn list_network_interfaces() -> QueryResult<Vec<NetworkInterfaceEntry>> {
     use self::network_interfaces::dsl::*;
 
     let mut entries = network_interfaces
-        .filter(status.eq("ACTIVE"))
         .select(NetworkInterfaceEntry::as_select())
         .load(&mut *conn)?;
     entries.sort_by_key(|entry| entry.created_at);

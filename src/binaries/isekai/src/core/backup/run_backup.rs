@@ -16,12 +16,14 @@ use chrono::Utc;
 
 use ainari_api_structs::backup_structs::BackupStatus;
 use ainari_clients::backup as backup_clients;
-use ainari_clients::network::export_project_networks;
-use ainari_clients::project::export_project;
-use ainari_clients::secret::export_project_secrets;
+use ainari_clients::exports::export_project;
+use ainari_clients::exports::export_project_networks;
+use ainari_clients::exports::export_project_secrets;
 use ainari_common::error::AinariError;
 
-use super::backup_files::{delete_backup_content, file_info, write_metadata};
+use super::backup_files::{
+    delete_backup_content, delete_backup_secrets, file_info, write_metadata,
+};
 use super::collect_metadata::{
     check_references, collect_images, filter_resources_of_virtual_machine,
     filter_secrets_of_virtual_machines,
@@ -38,9 +40,10 @@ use crate::database::job_table;
 
 /// Creates a backup.
 ///
-/// On success the backup is sealed in ryokan and the project is unlocked again. If the backup
-/// fails, the incomplete backup is deleted together with the secrets of its disks and the project
-/// is unlocked as well, because the project itself wasn't changed by the backup.
+/// On success the backup is sealed in ryokan, the secrets of its disks are deleted in omamori,
+/// because their payloads are part of the backup, and the project is unlocked again. If the
+/// backup fails, the incomplete backup is deleted together with the secrets of its disks and the
+/// project is unlocked as well, because the project itself wasn't changed by the backup.
 ///
 /// # Arguments
 ///
@@ -65,6 +68,9 @@ pub async fn run_backup(job: &Job, backup: &BackupJob) -> Result<(), AinariError
         cleanup_failed_backup(job, &services).await;
         return Err(e);
     }
+
+    job.step("delete disk-secrets");
+    delete_disk_secrets(job, &services).await;
 
     job.step("unlock project");
     services.unlock(&job.project_id, &job.uuid).await
@@ -199,6 +205,31 @@ async fn create_backup(
     }
 
     Ok(())
+}
+
+/// Deletes the secrets of the disks of a finished backup in omamori.
+///
+/// The backup is complete without them, so a failure doesn't fail the job. The remaining secrets
+/// stay with the backup and are deleted together with it.
+async fn delete_disk_secrets(job: &Job, services: &Services) {
+    let deleted = match backup_table::get_backup(&job.backup_uuid, &job.context) {
+        // the errors of the single secrets are already logged
+        Ok(entry) => delete_backup_secrets(services, &entry).await.is_ok(),
+        Err(_) => {
+            log::error!(
+                "Failed to read backup {} to delete its secrets",
+                job.backup_uuid
+            );
+            false
+        }
+    };
+    if !deleted {
+        let _ = job_table::add_message_to_job(
+            &job.uuid,
+            "Failed to delete the secrets of the disks in omamori. They are deleted together with \
+             the backup.",
+        );
+    }
 }
 
 /// Removes everything of a failed backup and unlocks the project again.

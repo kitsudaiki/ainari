@@ -16,7 +16,7 @@ jobs:
   #   env:
   #     FORCE_COLOR: 1
   #   steps:
-  #     - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+  #     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
   #     -
   #       name: Install dependencies
   #       run: |
@@ -34,7 +34,7 @@ jobs:
     name: cargo clippy
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Install dependencies
         run: |
@@ -67,14 +67,14 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       -
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       -
-        uses: actions-rust-lang/setup-rust-toolchain@fb51252c7ba57d633bc668f941da052e410add48
+        uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2.0.0
         with:
           components: rustfmt
       -
         name: Rustfmt Check
-        uses: actions-rust-lang/rustfmt@559aa3035a47390ba96088dffa783b5d26da9326
+        uses: actions-rust-lang/rustfmt@4066006ec54a31931b9b1fddfd38f2fdf2d27143 # v1.1.2
 
 
   flake8-check:
@@ -84,7 +84,7 @@ jobs:
       FORCE_COLOR: 1
     steps:
       -
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       -
         name: Install dependencies
         run: |
@@ -111,7 +111,7 @@ jobs:
     steps:
       -
         name: checkout code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       -
         name: Run binary files check script
         run: |
@@ -132,10 +132,10 @@ jobs:
     steps:
       -
         name: checkout code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       -
         name: lint commits
-        uses: wagoid/commitlint-github-action@7f0a61df502599e1f1f50880aaa7ec1e2c0592f2
+        uses: wagoid/commitlint-github-action@b948419dd99f3fd78a6548d48f94e3df7f6bf3ed # v6.2.1
 
 
 
@@ -151,7 +151,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y git python3 python3-venv python3-pip
       -
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       -
         name: Run check
         run: |
@@ -168,7 +168,7 @@ jobs:
       FORCE_COLOR: 1
     steps:
       -
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       -
         name: Install dependencies
         run: |
@@ -181,7 +181,7 @@ jobs:
           source codespell_env/bin/activate
           pip3 install codespell
           # the skipped files and ignored words are defined in .codespellrc
-          codespell docs README.md
+          codespell docs README.md AI_POLICY.md
 
 
   markdown-lint-docs:
@@ -189,7 +189,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       -
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       -
         name: Run check
         run: |
@@ -203,11 +203,11 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       -
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       -
         name: Run cargo-deny
         # v2.1.1
-        uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25
+        uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25 # v2.1.1
         with:
           # the allowed licenses are defined in deny.toml
           command: check licenses
@@ -226,17 +226,17 @@ jobs:
           - deploy/operator
     steps:
       -
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       -
         name: Install Go
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: ${{ matrix.module }}/go.mod
           cache-dependency-path: ${{ matrix.module }}/go.sum
       -
         name: Run golangci-lint
         # v9.3.0
-        uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a
+        uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
         with:
           version: v2.15.0
           working-directory: ${{ matrix.module }}
@@ -284,7 +284,7 @@ jobs:
           cp ./ainari_sdk-$PYTHON_PACKAGE_VERSION-py2.py3-none-any.whl /tmp/ainari_python_build_result/
       -
         name: Create artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ainari_python_build_result
           path: /tmp/ainari_python_build_result
@@ -333,7 +333,7 @@ jobs:
           cp ./src/cli/ainarictl/ainarictl /tmp/ainarictl_build_result/
       -
         name: Create artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ainarictl_build_result
           path: /tmp/ainarictl_build_result
@@ -450,10 +450,10 @@ jobs:
     needs: [ clippy-check, rustfmt-check, flake8-check, check-for-executables, commit-lint, detect-sectets, spell-check-docs, markdown-lint-docs, license-check, golangci-lint ]
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Install Go
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: deploy/operator/go.mod
           cache-dependency-path: deploy/operator/go.sum
@@ -518,15 +518,15 @@ jobs:
       -
         name: Docker meta
         id: meta
-        uses: docker/metadata-action@8e5442c4ef9f78752691e2d8f8d19755c6f78e81
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         with:
           images: ${{ matrix.builds.regitry }}
       -
         name: Set up QEMU
-        uses: docker/setup-qemu-action@49b3bc8e6bdd4a60e6116a5414239cba5943d3cf
+        uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
       -
         name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@988b5a0280414f521da01fcc63a27aeeb4b104db
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
       -
         name: Login to Docker Hub
         uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
@@ -562,7 +562,7 @@ jobs:
           touch "/tmp/digests/${digest#sha256:}"          
       -
         name: Upload digest
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: digests-${{ matrix.builds.component }}-${{ env.PLATFORM_PAIR_COMPONENT }}
           path: /tmp/digests/*
@@ -613,11 +613,11 @@ jobs:
           merge-multiple: true
       -
         name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@988b5a0280414f521da01fcc63a27aeeb4b104db
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
       -
         name: Docker meta
         id: meta
-        uses: docker/metadata-action@8e5442c4ef9f78752691e2d8f8d19755c6f78e81
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         with:
           images: ${{ matrix.builds.regitry }}
       -
@@ -628,7 +628,7 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
       -
         name: Checkout cleanup-script
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           sparse-checkout: .github/scripts
       -
@@ -671,7 +671,7 @@ jobs:
       -
         name: Docker Scout
         # v1.27.0
-        uses: docker/scout-action@a4119c5a8c5076236a54e4ce99531f7e4dd2ef84
+        uses: docker/scout-action@e7e2a72bf1485d10a58f30696b6c513b261ce4fa # v1.29.0
         with:
           # prints the vulnerabilities of the pushed image in the log and the job-summary
           command: cves
@@ -682,7 +682,7 @@ jobs:
           exit-code: false
       -
         name: Upload Docker Scout result
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: scout-${{ matrix.builds.component }}
           path: ${{ github.workspace }}/${{ matrix.builds.component }}.sarif.json
@@ -699,7 +699,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       -
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       -
         name: Download Docker Scout results
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
@@ -808,7 +808,7 @@ jobs:
   #         sudo curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="--disable traefik" INSTALL_K3S_VERSION=v${{ matrix.kubernetes_version.version }}+k3s1  sh -
   #     -
   #       name: Sleep for 60 seconds
-  #       uses: jakejarvis/wait-action@919fc193e07906705e5b7a50f90ea9e74d20b2b0
+  #       uses: jakejarvis/wait-action@919fc193e07906705e5b7a50f90ea9e74d20b2b0 # v0.1.1
   #       with:
   #         time: '60s'
   #     -
@@ -877,7 +877,7 @@ jobs:
   #         helm install --set docker.tag="${{ env.BRANCH_NAME }}" --set miko.user.id=asdf --set miko.user.name="test user" --set miko.user.passphrase="asdfasdf" --set miko.token.data="this is a test-token"  ainari /tmp/ainari_helm_build_result/ainari-$HELM_VERSION.tgz
   #     -
   #       name: Sleep for 120 seconds
-  #       uses: jakejarvis/wait-action@919fc193e07906705e5b7a50f90ea9e74d20b2b0
+  #       uses: jakejarvis/wait-action@919fc193e07906705e5b7a50f90ea9e74d20b2b0 # v0.1.1
   #       with:
   #         time: '120s'
   #     -
@@ -952,7 +952,7 @@ jobs:
   #         fi
   #     -
   #       name: Checkout repository
-  #       uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+  #       uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
   #     -
   #       name: Publish Python Badges
   #       uses: ./.github/actions/badge

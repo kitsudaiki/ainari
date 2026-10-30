@@ -26,7 +26,7 @@ use crate::core::processing::tasks::{
 use crate::database::virtual_machine_table;
 use crate::database::virtual_machine_table::{VirtualMachineEntry, VirtualMachineState};
 
-use ainari_api::common_functions::*;
+use ainari_api::error_mapping::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::migration_structs::*;
 use ainari_api_structs::task_structs::*;
@@ -142,12 +142,9 @@ fn imported_entry(
         mac_address: description.mac_address,
         owner_id: description.owner_id,
         project_id: description.project_id,
-        status: "ACTIVE".to_string(),
         created_at: description.created_at,
         created_by: description.created_by,
         updated_at: Utc::now(),
         updated_by: context.user_id.clone(),
-        deleted_at: None,
-        deleted_by: None,
     }
 }

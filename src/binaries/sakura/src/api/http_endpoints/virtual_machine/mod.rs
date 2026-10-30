@@ -35,7 +35,7 @@ use crate::database::task_table;
 use crate::database::virtual_machine_table;
 use crate::database::virtual_machine_table::{VirtualMachineEntry, VirtualMachineState};
 
-use ainari_api::common_functions::*;
+use ainari_api::error_mapping::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::image_structs::{ImageInternalResp, ImageStatus};
 use ainari_api_structs::task_structs::*;

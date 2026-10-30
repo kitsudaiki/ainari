@@ -174,7 +174,7 @@
           "auth"
         ],
         "summary": "Validate Token",
-        "description": "Validate the access-token of the request.\\\n\\\nThe check itself is done by the middleware, so a successful response means that\\\nthe token is valid, and the content of the token is returned.",
+        "description": "Validate the access-token of the request.\\\n\\\nThe check itself is done by the middleware, so a successful response means that\\\nthe token is valid, and the content of the token is returned.\\\n\\\n`project_locked` is true, while the project of the token is locked by a backup or restore. The\\\nother components only allow reading requests of the user to a locked project.",
         "responses": {
           "200": {
             "description": "",
@@ -188,6 +188,74 @@
           },
           "401": {
             "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/token/project/admin": {
+      "put": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Renew Token for project (admin)",
+        "description": "Create a new access-token of an admin for any existing project, also if the admin is not assigned to the project.\\\n\\\nSome components act on the project of the token, like isekai, when it restores a backup into another or a new project. The admin keeps the role within the project, if the admin is assigned to it, otherwise the token gets the role `admin`. The admin-flag of the user is read again from the database. This can only be done by an admin, the normal renewal of a token over `PUT /v1alpha/token` only allows projects, to which the user is assigned.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TokenProjectAdminReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "UserTokenResp",
+                  "type": "object",
+                  "required": [
+                    "access_token",
+                    "expires",
+                    "token_type"
+                  ],
+                  "properties": {
+                    "access_token": {
+                      "type": "string"
+                    },
+                    "expires": {
+                      "type": "integer",
+                      "format": "uint64",
+                      "minimum": 0.0
+                    },
+                    "token_type": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
           },
           "500": {
             "description": "Internal error"
@@ -356,6 +424,16 @@
                     "id": {
                       "type": "string"
                     },
+                    "lock": {
+                      "description": "lock of the project during a backup or restore, None if the project is not locked",
+                      "default": null,
+                      "allOf": [
+                        {
+                          "$ref": "#/components/schemas/ProjectLock"
+                        }
+                      ],
+                      "nullable": true
+                    },
                     "name": {
                       "type": "string"
                     },
@@ -396,7 +474,7 @@
           "project"
         ],
         "summary": "List projects",
-        "description": "List basic information of all projects from the database.\\\n\\\nThis can only be done by an admin.",
+        "description": "List basic information of all projects from the database.\\\n\\\nEvery project contains its lock, while it is locked by a backup, a restore or an admin. This can\\\nonly be done by an admin.",
         "responses": {
           "200": {
             "description": "",
@@ -636,6 +714,366 @@
         ]
       }
     },
+    "/v1alpha/project/{project_id}/export/internal": {
+      "get": {
+        "tags": [
+          "project"
+        ],
+        "summary": "Export project",
+        "description": "Export a project together with its quota for a backup.\\\n\\\nUsers and their assignments to the project are not part of the export, because a user can be member\\\nof multiple projects. Users, which are not admin, can only export their own project.\\\n\\\nThis is an internal call, which is protected by the internal api-key.",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "String",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MikoProjectExport"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/project/{project_id}/import/internal": {
+      "post": {
+        "tags": [
+          "project"
+        ],
+        "summary": "Import project",
+        "description": "Import a project together with its quota from a backup.\\\n\\\nThe project is imported under the ID of the path, so a backup can also be restored into another\\\nproject. A project, which doesn't exist, is created with the name and the quota of the backup,\\\nwhich can only be done by an admin. An existing project is rejected with `409`, unless `force` is\\\nset: then its name is overwritten, and its quota only, if the user is an admin, so a user can't\\\nraise the quota of the own project with a backup. `quota_imported` shows, if the quota was applied.\\\nUsers and their assignments to the project are never changed. Users, which are not admin, can only\\\nimport into their own project.\\\n\\\nThis is an internal call, which is protected by the internal api-key.",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "String",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MikoProjectImportReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MikoProjectImportResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "409": {
+            "description": "Conflict with existing resources"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/project/{project_id}/lock/internal": {
+      "post": {
+        "tags": [
+          "project"
+        ],
+        "summary": "Lock project",
+        "description": "Lock a project for a job, like a backup or a restore. `reason` describes, why\\\nthe project is locked.\\\n\\\nWhile a project is locked, its users can only read its resources, all other requests of users to\\\nthe project are rejected by all components. Only the job, which has locked the project, can remove\\\nthe lock again. Locking a project, which is already locked by another job, is rejected with `409`,\\\nso two backups or restores of the same project can't run at the same time. Locking it again with the\\\nsame job is accepted. The nil-UUID is reserved for the lock of an admin and is rejected with\\\n`400`. Users, which are not admin, can only lock their own project.\\\n\\\nThis is an internal call, which is protected by the internal api-key.",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "String",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectLockReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectLockResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "409": {
+            "description": "Conflict with existing resources"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "project"
+        ],
+        "summary": "Unlock project",
+        "description": "Remove the lock of a project, which was set by the job `job_uuid`.\\\n\\\nA lock of another job is kept and the request is rejected with `409`. Unlocking a project, which\\\nis not locked, is accepted, so the unlocking can be repeated. The nil-UUID is reserved for the lock\\\nof an admin and is rejected with `400`. Users, which are not admin, can only unlock their own\\\nproject.\\\n\\\nThis is an internal call, which is protected by the internal api-key.",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "String",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectUnlockReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectLockResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "409": {
+            "description": "Conflict with existing resources"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/project/{project_id}/lock/admin": {
+      "post": {
+        "tags": [
+          "project"
+        ],
+        "summary": "Lock project (admin)",
+        "description": "Lock a project manually.\\\n\\\nWhile a project is locked, its users can only read its resources, all other requests of users to\\\nthe project are rejected by all components. Also no backup or restore can be started for the\\\nproject. `reason` describes, why the admin has locked the project. The lock gets the nil-UUID as\\\n`locked_by_job`, because it belongs to no job, and it is only removed again by an admin with\\\n`DELETE /v1alpha/project/{project_id}/lock/admin`. A project, which is already locked by a backup or\\\nrestore, is rejected with `409`. Locking a project again, which is already locked by an admin, is\\\naccepted. This can only be done by an admin.",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "String",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectLockAdminReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectLockResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "409": {
+            "description": "Conflict with existing resources"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "project"
+        ],
+        "summary": "Unlock project (admin)",
+        "description": "Remove the lock of a project, independent of the job, which has set it.\\\n\\\nThis is meant for a project, which stays locked after a failed restore, so it can be used again.\\\nThe resources of such a project can be incomplete. This can only be done by an admin.",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "String",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectLockResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
     "/v1alpha/project/{project_id}/admin": {
       "get": {
         "tags": [
@@ -690,7 +1128,7 @@
           "project"
         ],
         "summary": "Delete project",
-        "description": "Delete a project together with its quota and the assignments of its users. Only projects without any resources and without users with the role admin or member can be deleted, so nobody can create a new resource during the delete. Observers don't block the delete. The default-project of a user can not be deleted here, it is only deleted together with its user. This can only be done by an admin.",
+        "description": "Delete a project together with its quota and the assignments of its users. Only projects without any resources and without users with the role admin or member can be deleted, so nobody can create a new resource during the delete. Observers don't block the delete. A locked project can not be deleted. The default-project of a user can not be deleted here, it is only deleted together with its user. This can only be done by an admin.",
         "parameters": [
           {
             "name": "project_id",
@@ -1246,6 +1684,18 @@
           "hanami": {
             "$ref": "#/components/schemas/EndpointField"
           },
+          "isekai": {
+            "description": "Orchestrator of the backups and restores. It is optional, so the clients still understand a miko, which doesn't know isekai yet.",
+            "default": {
+              "internal_address": "",
+              "public_address": ""
+            },
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EndpointField"
+              }
+            ]
+          },
           "izakaya": {
             "default": {
               "internal_address": "",
@@ -1276,6 +1726,111 @@
           },
           "torii": {
             "$ref": "#/components/schemas/EndpointField"
+          }
+        }
+      },
+      "MikoProjectExport": {
+        "description": "Project with its quota, like it is exported from miko into a backup. Users and their assignments to the project are not part of it.",
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "quota"
+        ],
+        "properties": {
+          "id": {
+            "description": "ID of the project at the time of the backup",
+            "type": "string"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 127,
+            "minLength": 4
+          },
+          "quota": {
+            "$ref": "#/components/schemas/QuotaExport"
+          }
+        }
+      },
+      "MikoProjectImportReq": {
+        "title": "MikoProjectImportReq",
+        "type": "object",
+        "required": [
+          "project"
+        ],
+        "properties": {
+          "force": {
+            "description": "overwrite name and quota of an already existing project",
+            "default": false,
+            "type": "boolean"
+          },
+          "project": {
+            "description": "project from the backup. Its ID is ignored, the project is imported under the ID of the path, so a backup can also be restored into another project.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MikoProjectExport"
+              }
+            ]
+          }
+        }
+      },
+      "MikoProjectImportResp": {
+        "title": "MikoProjectImportResp",
+        "type": "object",
+        "required": [
+          "created",
+          "project_id",
+          "quota_imported"
+        ],
+        "properties": {
+          "created": {
+            "description": "true, if the project didn't exist before and was created by the import",
+            "type": "boolean"
+          },
+          "project_id": {
+            "type": "string"
+          },
+          "quota_imported": {
+            "description": "true, if the quota of the backup was applied. The quota of an existing project is only overwritten for an admin, so a user can't raise the quota of the own project with a backup.",
+            "type": "boolean"
+          }
+        }
+      },
+      "QuotaExport": {
+        "description": "Quota of a project, like it is stored in a backup.",
+        "type": "object",
+        "required": [
+          "max_floating_ip",
+          "max_image",
+          "max_network",
+          "max_secret",
+          "max_virtual_machine"
+        ],
+        "properties": {
+          "max_floating_ip": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0.0
+          },
+          "max_image": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0.0
+          },
+          "max_network": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0.0
+          },
+          "max_secret": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0.0
+          },
+          "max_virtual_machine": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0.0
           }
         }
       },
@@ -1385,6 +1940,16 @@
           "id": {
             "type": "string"
           },
+          "lock": {
+            "description": "lock of the project during a backup or restore, None if the project is not locked",
+            "default": null,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ProjectLock"
+              }
+            ],
+            "nullable": true
+          },
           "name": {
             "type": "string"
           }
@@ -1455,6 +2020,86 @@
           }
         }
       },
+      "ProjectLock": {
+        "type": "object",
+        "required": [
+          "lock_reason",
+          "locked_at",
+          "locked_by_job"
+        ],
+        "properties": {
+          "lock_reason": {
+            "description": "description, why the project is locked",
+            "type": "string"
+          },
+          "locked_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "locked_by_job": {
+            "description": "job, which has locked the project",
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "ProjectLockAdminReq": {
+        "title": "ProjectLockAdminReq",
+        "type": "object",
+        "required": [
+          "reason"
+        ],
+        "properties": {
+          "reason": {
+            "description": "description, why the admin has locked the project",
+            "type": "string",
+            "maxLength": 4096,
+            "minLength": 1
+          }
+        }
+      },
+      "ProjectLockReq": {
+        "title": "ProjectLockReq",
+        "type": "object",
+        "required": [
+          "job_uuid",
+          "reason"
+        ],
+        "properties": {
+          "job_uuid": {
+            "description": "job, which locks the project. Only this job can remove the lock again.",
+            "type": "string",
+            "format": "uuid"
+          },
+          "reason": {
+            "description": "description, why the project is locked, like the backup or restore, which is running",
+            "type": "string",
+            "maxLength": 4096,
+            "minLength": 1
+          }
+        }
+      },
+      "ProjectLockResp": {
+        "title": "ProjectLockResp",
+        "type": "object",
+        "required": [
+          "project_id"
+        ],
+        "properties": {
+          "lock": {
+            "description": "lock of the project, None if the project is not locked",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ProjectLock"
+              }
+            ],
+            "nullable": true
+          },
+          "project_id": {
+            "type": "string"
+          }
+        }
+      },
       "ProjectMemberListResp": {
         "title": "ProjectMemberListResp",
         "type": "object",
@@ -1521,6 +2166,16 @@
           "id": {
             "type": "string"
           },
+          "lock": {
+            "description": "lock of the project during a backup or restore, None if the project is not locked",
+            "default": null,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ProjectLock"
+              }
+            ],
+            "nullable": true
+          },
           "name": {
             "type": "string"
           },
@@ -1541,6 +2196,20 @@
           "member",
           "observer"
         ]
+      },
+      "ProjectUnlockReq": {
+        "title": "ProjectUnlockReq",
+        "type": "object",
+        "required": [
+          "job_uuid"
+        ],
+        "properties": {
+          "job_uuid": {
+            "description": "job, which has locked the project",
+            "type": "string",
+            "format": "uuid"
+          }
+        }
       },
       "QuotaBasicResp": {
         "type": "object",
@@ -1696,6 +2365,21 @@
       "Secret": {
         "description": "Wrapper around a string, which must not be leaked into logs or error-messages.\n\n`Debug` and `Display` both print `***` instead of the content, so a secret stays hidden even when it is part of a bigger struct, which is logged as a whole. The content is only reachable through `reveal`, which makes every intended access visible at the call-site.",
         "type": "string"
+      },
+      "TokenProjectAdminReq": {
+        "title": "TokenProjectAdminReq",
+        "type": "object",
+        "required": [
+          "project_id"
+        ],
+        "properties": {
+          "project_id": {
+            "description": "Project, for which the new token is created. The admin doesn't have to be assigned to it.",
+            "type": "string",
+            "maxLength": 127,
+            "minLength": 4
+          }
+        }
       },
       "TokenRenewReq": {
         "title": "TokenRenewReq",
@@ -1914,6 +2598,11 @@
         "properties": {
           "context": {
             "$ref": "#/components/schemas/UserContext"
+          },
+          "project_locked": {
+            "description": "true, if the project of the token is locked by a backup or restore, so the user can only read its resources. It is not part of the token itself, because the lock changes, while the token is valid.",
+            "default": false,
+            "type": "boolean"
           }
         }
       },

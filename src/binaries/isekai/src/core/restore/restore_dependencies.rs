@@ -15,13 +15,13 @@
 use std::collections::BTreeMap;
 use uuid::Uuid;
 
-use ainari_api_structs::network_structs::{HanamiProjectExport, HanamiProjectImportReq};
-use ainari_api_structs::project_structs::{OmamoriProjectImportReq, OmamoriProjectImportResp};
-use ainari_api_structs::public_key_structs::OmamoriPublicKeyExport;
-use ainari_api_structs::secret_structs::OmamoriSecretExport;
-use ainari_clients::network::import_project_networks;
+use ainari_api_structs::exports::{HanamiProjectExport, PublicKeyExport, SecretExport};
+use ainari_api_structs::imports::{
+    HanamiProjectImportReq, OmamoriProjectImportReq, OmamoriProjectImportResp,
+};
+use ainari_clients::imports::import_project_networks;
+use ainari_clients::imports::import_project_secrets;
 use ainari_clients::public_key::get_public_key;
-use ainari_clients::secret::import_project_secrets;
 use ainari_common::error::AinariError;
 
 use super::Restorer;
@@ -91,8 +91,8 @@ impl Restorer<'_> {
     /// Imports secrets and public-keys into omamori.
     pub(super) async fn import_secrets(
         &self,
-        secrets: Vec<OmamoriSecretExport>,
-        public_keys: Vec<OmamoriPublicKeyExport>,
+        secrets: Vec<SecretExport>,
+        public_keys: Vec<PublicKeyExport>,
         force: bool,
         id_map: BTreeMap<Uuid, Uuid>,
     ) -> Result<OmamoriProjectImportResp, AinariError> {

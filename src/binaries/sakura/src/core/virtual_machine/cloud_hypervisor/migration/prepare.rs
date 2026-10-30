@@ -16,7 +16,7 @@ use std::fs;
 
 use uuid::Uuid;
 
-use ainari_api::common_functions::*;
+use ainari_api::error_mapping::*;
 use ainari_api_structs::user_context::UserContext;
 use ainari_common::error::AinariError;
 

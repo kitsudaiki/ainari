@@ -40,13 +40,10 @@ table! {
         is_snapshot -> Bool,
         owner_id -> Varchar,
         project_id -> Varchar,
-        status -> Varchar,
         created_at -> Varchar,
         created_by -> Varchar,
         updated_at -> Varchar,
         updated_by -> Varchar,
-        deleted_at -> Nullable<Varchar>,
-        deleted_by -> Nullable<Varchar>,
     }
 }
 
@@ -78,8 +75,6 @@ pub struct ImageEntry {
     pub owner_id: String,
     /// ID of the project this image belongs to
     pub project_id: String,
-    /// Status of the image (e.g., "ACTIVE", "DELETED")
-    pub status: String,
     /// Timestamp when the image was created
     #[diesel(serialize_as = DbDateTime, deserialize_as = DbDateTime)]
     pub created_at: DateTime<Utc>,
@@ -90,11 +85,6 @@ pub struct ImageEntry {
     pub updated_at: DateTime<Utc>,
     /// ID of the user who last updated the image
     pub updated_by: String,
-    /// Timestamp when the image was deleted (if applicable)
-    #[diesel(serialize_as = DbOptDateTime, deserialize_as = DbOptDateTime)]
-    pub deleted_at: Option<DateTime<Utc>>,
-    /// ID of the user who deleted the image (if applicable)
-    pub deleted_by: Option<String>,
 }
 
 /// Adds a new image to the database.
@@ -148,13 +138,10 @@ pub fn add_new_image(
         is_snapshot,
         owner_id: context.user_id.clone(),
         project_id: context.project_id.clone(),
-        status: "ACTIVE".to_string(),
         created_at: Utc::now(),
         created_by: context.user_id.clone(),
         updated_at: Utc::now(),
         updated_by: context.user_id.clone(),
-        deleted_at: None,
-        deleted_by: None,
     };
 
     add_image(image.clone())
@@ -218,14 +205,13 @@ pub fn list_ready_images_of_project(project: &str) -> QueryResult<Vec<ImageEntry
     use self::images::dsl::*;
 
     images
-        .filter(status.eq("ACTIVE"))
         .filter(project_id.eq(project))
         .filter(image_status.eq(ImageStatus::Ready.as_str()))
         .select(ImageEntry::as_select())
         .load(&mut *conn)
 }
 
-/// Searches an image by its UUID within all projects, also if it is already deleted.
+/// Searches an image by its UUID within all projects.
 ///
 /// It is used to check, if the UUID is still free, before an image with this UUID is imported.
 ///
@@ -233,7 +219,7 @@ pub fn list_ready_images_of_project(project: &str) -> QueryResult<Vec<ImageEntry
 /// * `image_uuid` - The UUID of the image
 ///
 /// # Returns
-/// * `QueryResult<Option<ImageEntry>>` - The image, or None, if the UUID was never used
+/// * `QueryResult<Option<ImageEntry>>` - The image, or None, if the UUID is not used
 pub fn find_image(image_uuid: &Uuid) -> QueryResult<Option<ImageEntry>> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::images::dsl::*;
@@ -247,8 +233,7 @@ pub fn find_image(image_uuid: &Uuid) -> QueryResult<Option<ImageEntry>> {
 
 /// Adds an image to the database or replaces the existing entry with the same UUID.
 ///
-/// It is used to import an image, so also an already deleted image can be restored with its
-/// original UUID, which is the primary key of the table. Like `add_image`, an image is never
+/// It is used to import an image with its original UUID, which is the primary key of the table. Like `add_image`, an image is never
 /// stored on a backup-target.
 ///
 /// # Arguments
@@ -267,7 +252,7 @@ pub fn put_image(image: ImageEntry) -> QueryResult<usize> {
     })
 }
 
-/// Counts the active images and snapshots, which are stored on an onsen-host.
+/// Counts the images and snapshots, which are stored on an onsen-host.
 ///
 /// It takes the already locked connection, so it can be used within the transaction of another
 /// table.
@@ -277,19 +262,17 @@ pub fn put_image(image: ImageEntry) -> QueryResult<usize> {
 /// * `address` - Address of the onsen-host
 ///
 /// # Returns
-/// * `QueryResult<i64>` - The number of active images on the host
+/// * `QueryResult<i64>` - The number of images on the host
 pub fn count_images_on_onsen(conn: &mut DbConnection, address: &str) -> QueryResult<i64> {
     use self::images::dsl::*;
 
     images
-        .filter(status.eq("ACTIVE"))
         .filter(onsen_address.eq(address))
         .select(count_star())
         .first::<i64>(conn)
 }
 
-/// Checks, if an image with this UUID was ever registered, in any project and also if it is
-/// already deleted.
+/// Checks, if an image with this UUID is registered in any project.
 ///
 /// # Arguments
 /// * `image_uuid` - The UUID of the image
@@ -323,9 +306,7 @@ pub fn get_image(image_uuid: &Uuid, context: &UserContext) -> Result<ImageEntry,
     use self::images::dsl::*;
 
     // Start building the query with basic filters
-    let mut query = images
-        .filter(uuid.eq(image_uuid.to_string()).and(status.eq("ACTIVE")))
-        .into_boxed();
+    let mut query = images.filter(uuid.eq(image_uuid.to_string())).into_boxed();
 
     // Apply additional filters based on user permissions
     if context.is_admin != true.to_string() {
@@ -348,7 +329,7 @@ pub fn get_image(image_uuid: &Uuid, context: &UserContext) -> Result<ImageEntry,
 
 /// Lists all images accessible to the user.
 ///
-/// This function retrieves all images that are active and accessible to the user
+/// This function retrieves all images that are accessible to the user
 /// based on their permissions.
 ///
 /// # Arguments
@@ -361,7 +342,7 @@ pub fn list_images(context: &UserContext) -> QueryResult<Vec<ImageEntry>> {
     use self::images::dsl::*;
 
     // Start building the query with basic filters
-    let mut query = images.filter(status.eq("ACTIVE")).into_boxed();
+    let mut query = images.into_boxed();
 
     // Apply additional filters based on user permissions
     if context.is_admin != true.to_string() {
@@ -374,7 +355,7 @@ pub fn list_images(context: &UserContext) -> QueryResult<Vec<ImageEntry>> {
 
 /// Counts the number of images accessible to the user.
 ///
-/// This function counts all images that are active and owned by the user.
+/// This function counts all images that are owned by the user.
 ///
 /// # Arguments
 /// * `context` - The user context containing authentication information
@@ -386,7 +367,7 @@ pub fn count_images(context: &UserContext) -> QueryResult<i64> {
     use self::images::dsl::*;
 
     // Start building the query with basic filters
-    let mut query = images.filter(status.eq("ACTIVE")).into_boxed();
+    let mut query = images.into_boxed();
 
     // Apply filters to only count images owned by the user
     query = query.filter(project_id.eq(context.project_id.clone()));
@@ -413,7 +394,6 @@ pub fn count_images_of_project(project: &str) -> QueryResult<i64> {
     use self::images::dsl::*;
 
     images
-        .filter(status.eq("ACTIVE"))
         .filter(project_id.eq(project))
         .select(count_star())
         .first::<i64>(&mut *conn)
@@ -422,8 +402,8 @@ pub fn count_images_of_project(project: &str) -> QueryResult<i64> {
 /// Sets the state of the file of an image, optionally together with type and size of the file.
 ///
 /// The file of an image doesn't exist yet, when the image is registered, so type and size are
-/// only known after the upload or after the root-disk of a virtual_machine was copied. Only an
-/// active image is updated, so an image, which was deleted during the upload, stays deleted.
+/// only known after the upload or after the root-disk of a virtual_machine was copied. An image,
+/// which was deleted during the upload, is not stored anymore, so it stays deleted.
 ///
 /// # Arguments
 /// * `image_uuid` - The UUID of the image to update
@@ -450,7 +430,7 @@ pub fn update_image_status(
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::images::dsl::*;
 
-    let target = images.filter(uuid.eq(image_uuid.to_string()).and(status.eq("ACTIVE")));
+    let target = images.filter(uuid.eq(image_uuid.to_string()));
     let result = match file_info {
         Some((new_file_type, new_file_size)) => diesel::update(target)
             .set((
@@ -484,9 +464,6 @@ pub fn update_image_status(
 
 /// Deletes an image from the database.
 ///
-/// This function marks an image as deleted by updating its status and setting
-/// the deletion timestamp and user.
-///
 /// # Arguments
 /// * `image_uuid` - The UUID of the image to delete
 /// * `context` - The user context containing authentication information
@@ -505,15 +482,7 @@ pub fn delete_image(image_uuid: &Uuid, context: &UserContext) -> Result<(), enum
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::images::dsl::*;
 
-    // Update the image status and deletion information
-    match diesel::update(images.filter(uuid.eq(image_uuid.to_string())))
-        .set((
-            status.eq("DELETED"),
-            deleted_at.eq(Utc::now().to_rfc3339()),
-            deleted_by.eq(context.user_id.clone()),
-        ))
-        .execute(&mut *conn)
-    {
+    match diesel::delete(images.filter(uuid.eq(image_uuid.to_string()))).execute(&mut *conn) {
         Ok(_) => Ok(()),
         Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
         Err(e) => {
@@ -564,13 +533,10 @@ mod tests {
             is_snapshot: true,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
         };
 
         hard_delete_image(&uuid1);
@@ -585,11 +551,8 @@ mod tests {
             assert_eq!(retrieved_image.image_status, image.image_status);
             assert_eq!(retrieved_image.secret_uuid, image.secret_uuid);
             assert_eq!(retrieved_image.is_snapshot, image.is_snapshot);
-            assert_eq!(retrieved_image.status, image.status);
             assert_eq!(retrieved_image.created_by, image.created_by);
             assert_eq!(retrieved_image.updated_by, image.updated_by);
-            assert_eq!(retrieved_image.deleted_at, image.deleted_at);
-            assert_eq!(retrieved_image.deleted_by, image.deleted_by);
         };
 
         hard_delete_image(&uuid1);
@@ -625,13 +588,10 @@ mod tests {
             is_snapshot: false,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
         };
 
         let image2 = ImageEntry {
@@ -646,13 +606,10 @@ mod tests {
             is_snapshot: false,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
-            status: "DELETED".to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
         };
 
         hard_delete_image(&uuid1);
@@ -660,6 +617,7 @@ mod tests {
 
         add_image(image1).unwrap();
         add_image(image2).unwrap();
+        assert!(delete_image(&uuid2, &context).is_ok());
         let images = list_images(&context).unwrap();
         assert_eq!(images.len(), 1);
         hard_delete_image(&uuid1);
@@ -695,13 +653,10 @@ mod tests {
             is_snapshot: false,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
         };
 
         hard_delete_image(&uuid1);
@@ -712,8 +667,8 @@ mod tests {
         let _ = delete_image(&uuid1, &context);
         let result = get_image(&uuid1, &context);
         assert!(result.is_err());
-        // also a deleted image keeps its UUID
-        assert!(is_uuid_taken(&uuid1).unwrap());
+        // the UUID of a deleted image is free again
+        assert!(!is_uuid_taken(&uuid1).unwrap());
 
         hard_delete_image(&uuid1);
     }
@@ -811,13 +766,10 @@ mod tests {
             is_snapshot: false,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
         };
 
         let image2 = ImageEntry {
@@ -832,13 +784,10 @@ mod tests {
             is_snapshot: false,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
         };
 
         let image3 = ImageEntry {
@@ -853,13 +802,10 @@ mod tests {
             is_snapshot: false,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
         };
 
         hard_delete_image(&uuid1);
@@ -899,13 +845,10 @@ mod tests {
             is_snapshot: false,
             owner_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
         };
 
         let image2 = ImageEntry {
@@ -920,13 +863,10 @@ mod tests {
             is_snapshot: false,
             owner_id: "test-user-43".to_string(),
             project_id: "test_permissions_1".to_string(),
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
         };
 
         let image3 = ImageEntry {
@@ -941,13 +881,10 @@ mod tests {
             is_snapshot: false,
             owner_id: "test-user-44".to_string(),
             project_id: "test_permissions_2".to_string(),
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
         };
 
         hard_delete_image(&uuid1);

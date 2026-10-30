@@ -40,13 +40,10 @@ table! {
         amount_of_used_disk_space -> BigInt,
         is_host_isolated -> Bool,
         project_id -> Nullable<Varchar>,
-        status -> Varchar,
         created_at -> Varchar,
         created_by -> Varchar,
         updated_at -> Varchar,
         updated_by -> Varchar,
-        deleted_at -> Nullable<Varchar>,
-        deleted_by -> Nullable<Varchar>,
     }
 }
 
@@ -83,8 +80,6 @@ pub struct HostEntry {
     pub is_host_isolated: bool,
     /// ID of the project, which the host is isolated for. None, if the host is not isolated
     pub project_id: Option<String>,
-    /// Current status of the host (ACTIVE, DELETED, etc.)
-    pub status: String,
     /// Timestamp when the host was created
     #[diesel(serialize_as = DbDateTime, deserialize_as = DbDateTime)]
     pub created_at: DateTime<Utc>,
@@ -95,11 +90,6 @@ pub struct HostEntry {
     pub updated_at: DateTime<Utc>,
     /// User ID who last updated the host
     pub updated_by: String,
-    /// Timestamp when the host was deleted (if applicable)
-    #[diesel(serialize_as = DbOptDateTime, deserialize_as = DbOptDateTime)]
-    pub deleted_at: Option<DateTime<Utc>>,
-    /// User ID who deleted the host (if applicable)
-    pub deleted_by: Option<String>,
 }
 
 impl HostEntry {
@@ -129,7 +119,7 @@ pub struct HostResources {
 /// Adds a new host to the database with default values.
 ///
 /// This function creates a new HostEntry with the provided UUID, name, address and
-/// hardware-resources, sets the status to "ACTIVE", sets the used resources to 0 and uses
+/// hardware-resources, sets the used resources to 0 and uses
 /// the current timestamp and user context for creation and update information.
 ///
 /// # Arguments
@@ -168,13 +158,10 @@ pub fn add_new_host(
         amount_of_used_disk_space: 0,
         is_host_isolated: false,
         project_id: None,
-        status: "ACTIVE".to_string(),
         created_at: Utc::now(),
         created_by: context.user_id.clone(),
         updated_at: Utc::now(),
         updated_by: context.user_id.clone(),
-        deleted_at: None,
-        deleted_by: None,
     };
 
     add_host(host.clone())
@@ -206,7 +193,7 @@ pub fn update_host_resources(
 
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::hosts::dsl::*;
-    match diesel::update(hosts.filter(uuid.eq(host_uuid.to_string()).and(status.eq("ACTIVE"))))
+    match diesel::update(hosts.filter(uuid.eq(host_uuid.to_string())))
         .set((
             number_of_cores.eq(resources.number_of_cores),
             memory_size.eq(resources.memory_size),
@@ -251,7 +238,7 @@ pub fn update_host_external_address(
 
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::hosts::dsl::*;
-    match diesel::update(hosts.filter(uuid.eq(host_uuid.to_string()).and(status.eq("ACTIVE"))))
+    match diesel::update(hosts.filter(uuid.eq(host_uuid.to_string())))
         .set((
             external_address.eq(host_external_address),
             updated_at.eq(Utc::now().to_rfc3339()),
@@ -301,7 +288,7 @@ pub fn set_host_isolation(
     let host_uuid = host_uuid.to_string();
 
     let result = conn.transaction::<_, diesel::result::Error, _>(|conn| {
-        let is_active_host = uuid.eq(&host_uuid).and(status.eq("ACTIVE"));
+        let is_active_host = uuid.eq(&host_uuid);
         let is_unused = used_number_of_cores
             .eq(0)
             .and(amount_of_used_memory.eq(0))
@@ -352,7 +339,7 @@ pub fn get_mls_signature_key(host_uuid: &Uuid) -> Result<Option<String>, enums::
     use self::hosts::dsl::*;
 
     match hosts
-        .filter(uuid.eq(host_uuid.to_string()).and(status.eq("ACTIVE")))
+        .filter(uuid.eq(host_uuid.to_string()))
         .select(mls_signature_key)
         .first::<Option<String>>(&mut *conn)
     {
@@ -388,7 +375,6 @@ pub fn pin_mls_signature_key(
     match diesel::update(
         hosts.filter(
             uuid.eq(host_uuid.to_string())
-                .and(status.eq("ACTIVE"))
                 .and(mls_signature_key.is_null()),
         ),
     )
@@ -419,7 +405,7 @@ pub fn reset_mls_pin(host_uuid: &Uuid) -> Result<Option<String>, enums::DbError>
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::hosts::dsl::*;
 
-    let filter = || hosts.filter(uuid.eq(host_uuid.to_string()).and(status.eq("ACTIVE")));
+    let filter = || hosts.filter(uuid.eq(host_uuid.to_string()));
     let previous = match filter()
         .select(mls_client_id)
         .first::<Option<String>>(&mut *conn)
@@ -465,8 +451,7 @@ pub fn add_host(host: HostEntry) -> QueryResult<usize> {
 
 /// Retrieves a host by its network address.
 ///
-/// This function queries the database for a host with the given address that
-/// has an "ACTIVE" status.
+/// This function queries the database for a host with the given address.
 ///
 /// # Arguments
 /// * `host_address` - Network address of the host to retrieve
@@ -484,11 +469,7 @@ pub fn get_host_by_address(
     use self::hosts::dsl::*;
 
     let query = hosts
-        .filter(
-            address
-                .eq(host_address.to_string())
-                .and(status.eq("ACTIVE")),
-        )
+        .filter(address.eq(host_address.to_string()))
         .into_boxed();
 
     match query
@@ -506,8 +487,7 @@ pub fn get_host_by_address(
 
 /// Retrieves a host by its UUID.
 ///
-/// This function queries the database for a host with the given UUID that
-/// has an "ACTIVE" status.
+/// This function queries the database for a host with the given UUID.
 ///
 /// # Arguments
 /// * `host_uuid` - Unique identifier of the host to retrieve
@@ -521,9 +501,7 @@ pub fn get_host(host_uuid: &Uuid, _: &UserContext) -> Result<HostEntry, enums::D
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::hosts::dsl::*;
 
-    let query = hosts
-        .filter(uuid.eq(host_uuid.to_string()).and(status.eq("ACTIVE")))
-        .into_boxed();
+    let query = hosts.filter(uuid.eq(host_uuid.to_string())).into_boxed();
 
     match query
         .select(HostEntry::as_select())
@@ -538,9 +516,7 @@ pub fn get_host(host_uuid: &Uuid, _: &UserContext) -> Result<HostEntry, enums::D
     }
 }
 
-/// Lists all active hosts in the database.
-///
-/// This function retrieves all hosts that have an "ACTIVE" status.
+/// Lists all hosts in the database.
 ///
 /// # Arguments
 /// * `_` - User context (not currently used in the query)
@@ -551,15 +527,14 @@ pub fn list_hosts(_: &UserContext) -> QueryResult<Vec<HostEntry>> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::hosts::dsl::*;
 
-    let query = hosts.filter(status.eq("ACTIVE")).into_boxed();
+    let query = hosts.into_boxed();
 
     query.select(HostEntry::as_select()).load(&mut *conn)
 }
 
-/// Deletes a host by marking it as "DELETED".
+/// Deletes a host.
 ///
-/// This function updates the host's status to "DELETED" and sets the deletion
-/// timestamp and user. It first verifies that the host exists and is active.
+/// This function removes the host from the database. It first verifies that the host exists.
 ///
 /// # Arguments
 /// * `host_uuid` - Unique identifier of the host to delete
@@ -579,14 +554,7 @@ pub fn delete_host_admin(host_uuid: &Uuid, context: &UserContext) -> Result<(), 
 
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::hosts::dsl::*;
-    match diesel::update(hosts.filter(uuid.eq(host_uuid.to_string())))
-        .set((
-            status.eq("DELETED"),
-            deleted_at.eq(Utc::now().to_rfc3339()),
-            deleted_by.eq(context.user_id.clone()),
-        ))
-        .execute(&mut *conn)
-    {
+    match diesel::delete(hosts.filter(uuid.eq(host_uuid.to_string()))).execute(&mut *conn) {
         Ok(_) => Ok(()),
         Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
         Err(e) => {
@@ -679,9 +647,7 @@ fn allocate_on_suitable_host(
                 .or(project_id.eq(requested_project.unwrap_or_default())),
         );
 
-        let has_free_resources = status
-            .eq("ACTIVE")
-            .and(matches_isolation)
+        let has_free_resources = matches_isolation
             .and((number_of_cores - used_number_of_cores).ge(requested.number_of_cores))
             .and((memory_size - amount_of_used_memory).ge(requested.memory_size))
             .and((disk_space - amount_of_used_disk_space).ge(requested.disk_space));
@@ -811,10 +777,9 @@ pub fn release_host_resources(
     }
 }
 
-/// Deletes all active hosts by marking them as "DELETED".
+/// Deletes all hosts.
 ///
-/// This function updates all hosts with an "ACTIVE" status to "DELETED"
-/// and sets the deletion timestamp and user. This is typically used for
+/// This function removes all hosts from the database. This is typically used for
 /// database reset or cleanup purposes.
 ///
 /// # Returns
@@ -825,14 +790,7 @@ pub fn release_host_resources(
 pub fn delete_all_host() -> Result<(), enums::DbError> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::hosts::dsl::*;
-    match diesel::update(hosts.filter(status.eq("ACTIVE")))
-        .set((
-            status.eq("DELETED"),
-            deleted_at.eq(Utc::now().to_rfc3339()),
-            deleted_by.eq("HANAMI_START"),
-        ))
-        .execute(&mut *conn)
-    {
+    match diesel::delete(hosts).execute(&mut *conn) {
         Ok(_) => Ok(()),
         Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
         Err(e) => {
@@ -881,13 +839,10 @@ mod tests {
             amount_of_used_disk_space: 0,
             is_host_isolated: false,
             project_id: None,
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
             external_address: None,
         };
 
@@ -898,11 +853,8 @@ mod tests {
             Ok(retrieved_host) => {
                 assert_eq!(retrieved_host.uuid, host.uuid);
                 assert_eq!(retrieved_host.name, host.name);
-                assert_eq!(retrieved_host.status, host.status);
                 assert_eq!(retrieved_host.created_by, host.created_by);
                 assert_eq!(retrieved_host.updated_by, host.updated_by);
-                assert_eq!(retrieved_host.deleted_at, host.deleted_at);
-                assert_eq!(retrieved_host.deleted_by, host.deleted_by);
                 assert_eq!(retrieved_host.number_of_cores, host.number_of_cores);
                 assert_eq!(retrieved_host.memory_size, host.memory_size);
                 assert_eq!(retrieved_host.disk_space, host.disk_space);
@@ -1459,13 +1411,10 @@ mod tests {
             amount_of_used_disk_space: 0,
             is_host_isolated: false,
             project_id: None,
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
             external_address: None,
         };
 
@@ -1481,13 +1430,10 @@ mod tests {
             amount_of_used_disk_space: 0,
             is_host_isolated: false,
             project_id: None,
-            status: "DELETED".to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
             external_address: None,
         };
 
@@ -1496,6 +1442,8 @@ mod tests {
 
         add_host(host1).unwrap();
         add_host(host2).unwrap();
+        // a deleted host is not listed anymore
+        hard_delete_host(&uuid2);
         let hosts = list_hosts(&context).unwrap();
         assert_eq!(hosts.len(), 1);
         hard_delete_host(&uuid1);
@@ -1529,13 +1477,10 @@ mod tests {
             amount_of_used_disk_space: 0,
             is_host_isolated: false,
             project_id: None,
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
             external_address: None,
         };
 
@@ -1566,13 +1511,10 @@ mod tests {
             amount_of_used_disk_space: 0,
             is_host_isolated: false,
             project_id: None,
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
             external_address: None,
         };
 
@@ -1588,13 +1530,10 @@ mod tests {
             amount_of_used_disk_space: 0,
             is_host_isolated: false,
             project_id: None,
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
             external_address: None,
         };
 
@@ -1610,13 +1549,10 @@ mod tests {
             amount_of_used_disk_space: 0,
             is_host_isolated: false,
             project_id: None,
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
             external_address: None,
         };
 

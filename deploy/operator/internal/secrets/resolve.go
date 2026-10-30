@@ -49,14 +49,12 @@ func (s *Store) Resolve(ctx context.Context, ainari *ainariv1alpha1.Ainari) (*Va
 	}
 	values.OmamoriEncryptionKey = omamori[OmamoriEncryptionKey.Key]
 
-	if spec.Hanami.Network.MLSEncryption {
-		mls, err := s.ensure(ctx, namespace, singleKey(MLSGrantSigningKey, generateKey, validateKey))
-		if err != nil {
-			return nil, err
-		}
-		if values.MLSGrantPublicKey, err = ed25519PublicKey(mls[MLSGrantSigningKey.Key]); err != nil {
-			return nil, err
-		}
+	mls, err := s.ensure(ctx, namespace, singleKey(MLSGrantSigningKey, generateKey, validateKey))
+	if err != nil {
+		return nil, err
+	}
+	if values.MLSGrantPublicKey, err = ed25519PublicKey(mls[MLSGrantSigningKey.Key]); err != nil {
+		return nil, err
 	}
 
 	if members := spec.WireGuardMembers(); len(members) > 0 {
