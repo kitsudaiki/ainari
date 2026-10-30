@@ -181,7 +181,7 @@ jobs:
           source codespell_env/bin/activate
           pip3 install codespell
           # the skipped files and ignored words are defined in .codespellrc
-          codespell docs README.md
+          codespell docs README.md AI_POLICY.md
 
 
   markdown-lint-docs:

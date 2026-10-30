@@ -1,7 +1,7 @@
 # Config of codespell for the spell-check of the documentation.
 #
 # Run it with:
-#   pip3 install codespell && codespell docs README.md
+#   pip3 install codespell && codespell docs README.md AI_POLICY.md
 
 [codespell]
 # images, diagrams and backups contain no prose, CHANGELOG.md and license.md are symlinks to the

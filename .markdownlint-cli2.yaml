@@ -45,6 +45,7 @@ config:
 globs:
   - "docs/**/*.md"
   - "README.md"
+  - "AI_POLICY.md"
 
 ignores:
   # symlinks to the files in the root of the repository, which are no documentation-pages
