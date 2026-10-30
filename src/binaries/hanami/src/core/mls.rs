@@ -370,9 +370,10 @@ mod tests {
         let key = parse_signing_key(DEVELOPMENT_SEED).unwrap();
         let public_key = encode_verifying_key(&key);
 
-        // hanami of the local stack signs with the seed, izakaya and the torii check with the
-        // public key
+        // hanami of the local stack and of the vscode-setup signs with the seed, izakaya and the
+        // torii check with the public key
         assert!(read("docker-compose.yml").contains(DEVELOPMENT_SEED));
+        assert!(read(".vscode/launch.json").contains(DEVELOPMENT_SEED));
         for config in [
             "example_configs/ainari/izakaya.toml",
             "example_configs/ainari/torii.toml",
