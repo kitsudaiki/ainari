@@ -45,6 +45,7 @@ nav = [
     { "Installation" = [
       "deployer/installation/kubernetes_installation.md",
       "deployer/installation/offline_installation.md",
+      "deployer/installation/resource_overview.md",
     ] },
     { "Configuration" = [
       "deployer/config/sakura_config.md",
