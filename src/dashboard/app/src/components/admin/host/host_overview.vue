@@ -36,56 +36,77 @@
                 </button>
             </div>
 
-            <table
-                class="overview-table"
-                :class="{ 'with-resources': selectedTab === 'sakura' }"
-                v-if="hosts.length > 0"
-            >
-                <thead>
-                    <tr>
-                        <th>UUID</th>
-                        <th>Name</th>
-                        <th>Address</th>
-                        <template v-if="selectedTab === 'sakura'">
-                            <th class="resource-column">Cores</th>
-                            <th class="resource-column">Memory</th>
-                            <th class="resource-column">Disk</th>
-                            <th>Isolated</th>
-                        </template>
-                        <th v-else>Backup Target</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
+            <!-- no header: every row is a multi-line slot, whose fields carry their own captions -->
+            <table class="overview-table host-table" v-if="hosts.length > 0">
                 <tbody>
                     <tr v-for="host in hosts" :key="host.uuid">
-                        <td>{{ host.uuid }}</td>
-                        <td>{{ host.name }}</td>
-                        <td>{{ host.host_address }}</td>
-                        <template v-if="isSakuraHost(host)">
-                            <td class="resource-column">
-                                <UsageBar
-                                    :used="host.used_number_of_cores"
-                                    :total="host.number_of_cores"
-                                />
-                            </td>
-                            <td class="resource-column">
-                                <UsageBar
-                                    :used="mibToGib(host.amount_of_used_memory)"
-                                    :total="mibToGib(host.memory_size)"
-                                    unit="GiB"
-                                />
-                            </td>
-                            <td class="resource-column">
-                                <UsageBar
-                                    :used="host.amount_of_used_disk_space"
-                                    :total="host.disk_space"
-                                    unit="GiB"
-                                />
-                            </td>
-                            <td>{{ host.is_host_isolated ? "yes" : "no" }}</td>
-                        </template>
-                        <td v-else-if="isOnsenHost(host)">
-                            {{ host.is_backup_target ? "yes" : "no" }}
+                        <td class="host-cell">
+                            <div class="host-layout">
+                                <div class="host-identity">
+                                    <div class="host-name-line">
+                                        <span class="host-name">{{
+                                            host.name
+                                        }}</span>
+                                        <span
+                                            v-if="
+                                                isSakuraHost(host) &&
+                                                host.is_host_isolated
+                                            "
+                                            class="host-badge"
+                                        >
+                                            Isolated
+                                        </span>
+                                        <span
+                                            v-if="
+                                                isOnsenHost(host) &&
+                                                host.is_backup_target
+                                            "
+                                            class="host-badge"
+                                        >
+                                            Backup target
+                                        </span>
+                                    </div>
+                                    <div class="host-address">
+                                        {{ host.host_address }}
+                                    </div>
+                                    <div class="host-uuid">{{ host.uuid }}</div>
+                                </div>
+
+                                <div
+                                    v-if="isSakuraHost(host)"
+                                    class="host-resources"
+                                >
+                                    <div class="host-resource">
+                                        <span class="host-caption">Cores</span>
+                                        <UsageBar
+                                            :used="host.used_number_of_cores"
+                                            :total="host.number_of_cores"
+                                        />
+                                    </div>
+                                    <div class="host-resource">
+                                        <span class="host-caption">Memory</span>
+                                        <UsageBar
+                                            :used="
+                                                mibToGib(
+                                                    host.amount_of_used_memory,
+                                                )
+                                            "
+                                            :total="mibToGib(host.memory_size)"
+                                            unit="GiB"
+                                        />
+                                    </div>
+                                    <div class="host-resource">
+                                        <span class="host-caption">Disk</span>
+                                        <UsageBar
+                                            :used="
+                                                host.amount_of_used_disk_space
+                                            "
+                                            :total="host.disk_space"
+                                            unit="GiB"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
                         </td>
                         <td>
                             <!-- Dropdown menu -->
@@ -158,7 +179,11 @@
 import { ref, onMounted, onBeforeUnmount, inject } from "vue";
 
 import { hanami, ryokan } from "@/api";
-import type { HostBasicResp, OnsenHostBasicResp, SakuraHostBasicResp } from "@/api";
+import type {
+    HostBasicResp,
+    OnsenHostBasicResp,
+    SakuraHostBasicResp,
+} from "@/api";
 import HostDeleteModal from "./host_delete_modal.vue";
 import HostIsolationModal from "./host_isolation_modal.vue";
 import OnsenBackupTargetModal from "./onsen_backup_target_modal.vue";
@@ -308,21 +333,99 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-/* Columns 2 through n-1 share remaining space equally, except the resource-columns */
-th:not(:first-child):not(:last-child):not(.resource-column),
-td:not(:first-child):not(:last-child):not(.resource-column) {
-    width: 30%;
+/* more distance to the tab-slider, because the rows are higher than in other tables */
+.host-table {
+    margin-top: 1.25rem;
 }
 
-/* with the resource-columns, name and address only get a small part of the space,
-so the usage-bars have enough space to be readable */
-.with-resources th:not(:first-child):not(:last-child):not(.resource-column),
-.with-resources td:not(:first-child):not(:last-child):not(.resource-column) {
-    width: 10%;
+/* the host-cell is the first cell, but holds more than the UUID, so the mono-font and the
+fixed width of the shared overview-table are reset here */
+.overview-table td.host-cell {
+    width: auto;
+    white-space: normal;
+    font-family: var(--title-font-family);
+    font-size: 1rem;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    padding-top: 0.8rem;
+    padding-bottom: 0.8rem;
 }
 
-.with-resources .resource-column {
-    width: 20%;
-    min-width: 12rem;
+/* identity on the left, resources on the right. On small screens the resources wrap below
+the identity. */
+.host-layout {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem 2.5rem;
+}
+
+.host-identity {
+    flex: 1 1 18rem;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.host-name-line {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+}
+
+.host-name {
+    color: var(--color-text);
+    font-size: 1.05rem;
+    overflow-wrap: anywhere;
+}
+
+.host-address {
+    color: var(--color-text-light);
+    font-size: 0.85rem;
+    overflow-wrap: anywhere;
+}
+
+/* the UUID inherits the color of the first cell, so it lights up on hover like in the
+other overview-tables */
+.host-uuid {
+    font-family: var(--mono-font-family);
+    font-size: 0.75rem;
+    font-weight: 400;
+    letter-spacing: 0;
+    overflow-wrap: anywhere;
+}
+
+/* small outlined flags for the special states of a host */
+.host-badge {
+    padding: 0.05rem 0.45rem;
+    border: 1px solid currentColor;
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    white-space: nowrap;
+    color: var(--color-highlight);
+}
+
+/* the usage-bars get equal columns with enough space to be readable */
+.host-resources {
+    flex: 3 1 30rem;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(9rem, 1fr));
+    gap: 0.5rem 1.5rem;
+}
+
+.host-resource {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.host-caption {
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--color-text-light);
 }
 </style>

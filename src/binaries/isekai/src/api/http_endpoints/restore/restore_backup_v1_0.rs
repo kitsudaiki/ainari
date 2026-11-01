@@ -18,13 +18,13 @@ use apistos::api_operation;
 use uuid::Uuid;
 use validator::Validate;
 
-use ainari_api::common_functions::*;
+use ainari_api::error_mapping::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::backup_structs::*;
 use ainari_api_structs::user_context::UserContext;
 use ainari_clients::auth::renew_token_for_project_admin;
 use ainari_clients::backup as backup_clients;
-use ainari_clients::project::import_project;
+use ainari_clients::imports::import_project;
 use ainari_common::error::AinariError;
 
 use crate::core::manifest::{MANIFEST_FILE, UnverifiedManifest};

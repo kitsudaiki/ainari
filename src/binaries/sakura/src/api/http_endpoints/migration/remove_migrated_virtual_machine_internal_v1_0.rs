@@ -20,7 +20,7 @@ use uuid::Uuid;
 use crate::core::processing::tasks::{CloudHypervisorVirtualMachineMigrationInfo, TaskVariant};
 use crate::database::virtual_machine_table;
 
-use ainari_api::common_functions::*;
+use ainari_api::error_mapping::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::task_structs::*;
 use ainari_api_structs::user_context::UserContext;
@@ -31,8 +31,8 @@ use ainari_api_structs::user_context::UserContext;
     description = r###"Create a new task, which removes the copy of a migrated virtual_machine from this host.
 
 This is the source host after a successful migration, or the target host after a failed one.
-Only a virtual_machine, which is prepared or whose import failed, is removed. Unlike a normal
-deletion, no deleted entry is kept, because the virtual_machine still exists on the other host."###,
+Only a virtual_machine, which is prepared or whose import failed, is removed. The
+virtual_machine itself still exists on the other host."###,
     error_code = 400,
     error_code = 401,
     error_code = 404,

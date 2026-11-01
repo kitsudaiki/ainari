@@ -37,13 +37,10 @@ table! {
         encrypted -> Bool,
         owner_id -> Varchar,
         project_id -> Varchar,
-        status -> Varchar,
         created_at -> Varchar,
         created_by -> Varchar,
         updated_at -> Varchar,
         updated_by -> Varchar,
-        deleted_at -> Nullable<Varchar>,
-        deleted_by -> Nullable<Varchar>,
     }
 }
 
@@ -61,13 +58,10 @@ table! {
 /// * `encrypted` - True, if the destination is reached over IPsec
 /// * `owner_id` - User ID of the route owner
 /// * `project_id` - Project ID the route belongs to
-/// * `status` - Current status of the route (ACTIVE, DELETED, etc.)
 /// * `created_at` - Timestamp when the route was created
 /// * `created_by` - User ID who created the route
 /// * `updated_at` - Timestamp when the route was last updated
 /// * `updated_by` - User ID who last updated the route
-/// * `deleted_at` - Timestamp when the route was deleted (nullable)
-/// * `deleted_by` - User ID who deleted the route (nullable)
 #[derive(Insertable, Queryable, Selectable, Debug, PartialEq, Clone)]
 #[diesel(table_name = routes)]
 pub struct RouteEntry {
@@ -86,16 +80,12 @@ pub struct RouteEntry {
     pub encrypted: bool,
     pub owner_id: String,
     pub project_id: String,
-    pub status: String,
     #[diesel(serialize_as = DbDateTime, deserialize_as = DbDateTime)]
     pub created_at: DateTime<Utc>,
     pub created_by: String,
     #[diesel(serialize_as = DbDateTime, deserialize_as = DbDateTime)]
     pub updated_at: DateTime<Utc>,
     pub updated_by: String,
-    #[diesel(serialize_as = DbOptDateTime, deserialize_as = DbOptDateTime)]
-    pub deleted_at: Option<DateTime<Utc>>,
-    pub deleted_by: Option<String>,
 }
 
 impl From<RouteEntry> for Route {
@@ -138,13 +128,10 @@ pub fn add_new_route(route: &Route, context: &UserContext) -> QueryResult<usize>
         encrypted: route.encrypted,
         owner_id: context.user_id.clone(),
         project_id: context.project_id.clone(),
-        status: "ACTIVE".to_string(),
         created_at: Utc::now(),
         created_by: context.user_id.clone(),
         updated_at: Utc::now(),
         updated_by: context.user_id.clone(),
-        deleted_at: None,
-        deleted_by: None,
     };
 
     add_route(entry)
@@ -178,7 +165,7 @@ pub fn get_route(route_uuid: &Uuid) -> Result<RouteEntry, enums::DbError> {
     use self::routes::dsl::*;
 
     match routes
-        .filter(uuid.eq(route_uuid.to_string()).and(status.eq("ACTIVE")))
+        .filter(uuid.eq(route_uuid.to_string()))
         .select(RouteEntry::as_select())
         .first::<RouteEntry>(&mut *conn)
     {
@@ -202,19 +189,16 @@ pub fn list_routes() -> QueryResult<Vec<RouteEntry>> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::routes::dsl::*;
 
-    let mut entries = routes
-        .filter(status.eq("ACTIVE"))
-        .select(RouteEntry::as_select())
-        .load(&mut *conn)?;
+    let mut entries = routes.select(RouteEntry::as_select()).load(&mut *conn)?;
     entries.sort_by_key(|entry| entry.updated_at);
     Ok(entries)
 }
 
-/// Overwrites the values of an active route in the database.
+/// Overwrites the values of a route in the database.
 ///
 /// A route, which changed its destination or its tenant, takes the rules of its packet filters
 /// with it. Both happen within one transaction. The rules are moved even if the route itself has
-/// no active entry yet, like a route, which the gateway derives from its own config, so they are
+/// no entry yet, like a route, which the gateway derives from its own config, so they are
 /// not lost when the route is added afterwards.
 ///
 /// # Arguments
@@ -238,7 +222,7 @@ pub fn update_route(
             context,
         )?;
         use self::routes::dsl::*;
-        diesel::update(routes.filter(uuid.eq(route.uuid.to_string()).and(status.eq("ACTIVE"))))
+        diesel::update(routes.filter(uuid.eq(route.uuid.to_string())))
             .set((
                 vni.eq(route.vni as i32),
                 dest_ip.eq(route.dest_ip.to_string()),
@@ -263,19 +247,18 @@ pub fn update_route(
     }
 }
 
-/// Marks a route and all rules of the packet filters of its destination as deleted in the
-/// database.
+/// Deletes a route and all rules of the packet filters of its destination from the database.
 ///
 /// Both happen within one transaction, so a route is never deleted without its filters or the
 /// other way around.
 ///
 /// # Arguments
 /// * `route` - The route to delete
-/// * `context` - User context to record who performed the deletion
+/// * `context` - User context, which is checked for the permission to delete
 ///
 /// # Returns
 /// * `Result<(), enums::DbError>` indicating success or failure. `NotFound` means, that the
-///   route itself had no active entry. Its filter-rules are deleted nevertheless.
+///   route itself had no entry. Its filter-rules are deleted nevertheless.
 pub fn delete_route(route: &Route, context: &UserContext) -> Result<(), enums::DbError> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     let result = conn.transaction(|conn| {
@@ -287,13 +270,7 @@ pub fn delete_route(route: &Route, context: &UserContext) -> Result<(), enums::D
             context,
         )?;
         use self::routes::dsl::*;
-        diesel::update(routes.filter(uuid.eq(route.uuid.to_string()).and(status.eq("ACTIVE"))))
-            .set((
-                status.eq("DELETED"),
-                deleted_at.eq(Utc::now().to_rfc3339()),
-                deleted_by.eq(context.user_id.clone()),
-            ))
-            .execute(conn)
+        diesel::delete(routes.filter(uuid.eq(route.uuid.to_string()))).execute(conn)
     });
 
     match result {

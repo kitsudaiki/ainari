@@ -97,7 +97,8 @@
 import { ref, reactive, watch, nextTick, onMounted, computed } from "vue";
 import { version } from "../../package.json";
 
-// icon is the class of a primeicons-icon, like "pi-home"
+// icon is the class of a primeicons-icon, like "pi-home", or of a custom icon defined in the
+// style below, like "pi-disc"
 type MenuItem = { view: string; label: string; icon: string };
 type Menu = { name: string; label: string; icon: string; items?: MenuItem[] };
 
@@ -145,7 +146,7 @@ const menus = ref<Menu[]>([
         label: "Storage",
         icon: "pi-database",
         items: [
-            { view: "StorageImage", label: "Image", icon: "pi-image" },
+            { view: "StorageImage", label: "Image", icon: "pi-disc" },
             { view: "StorageBackup", label: "Backups", icon: "pi-save" },
         ],
     },
@@ -400,6 +401,20 @@ aside .sidebar button.sidebar-btn:hover {
     text-align: center;
     font-size: 1rem;
     transition: color 150ms;
+}
+
+/* primeicons has no CD/DVD, so it is drawn by a mask in the current text-color. This
+way it changes the color on hover and selection like the other icons. The disc is a
+little bit bigger, because its round shape looks smaller than the other icons. */
+.entry-label .pi-disc::before {
+    content: "";
+    display: inline-block;
+    width: 1.2em;
+    height: 1.2em;
+    vertical-align: middle;
+    background-color: currentColor;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='9.5'/%3E%3Ccircle cx='12' cy='12' r='2.5'/%3E%3Cpath d='M12 5.5a6.5 6.5 0 0 1 6.5 6.5'/%3E%3C/svg%3E")
+        center / contain no-repeat;
 }
 
 /* caret: a small chevron, which points down when the section is open */

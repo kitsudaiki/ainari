@@ -21,7 +21,7 @@ use crate::core::filter::{apply_filter, filter_resp, filter_slot, persist_filter
 use crate::core::models::FilterKey;
 use crate::database::network_filter_table;
 
-use ainari_api::common_functions::map_db_write_error;
+use ainari_api::error_mapping::map_db_write_error;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::network_filter_structs::*;
 use ainari_api_structs::user_context::UserContext;

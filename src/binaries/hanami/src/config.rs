@@ -65,12 +65,6 @@ pub struct Network {
     /// network translates to the internal addresses of the virtual machines
     #[serde(default = "default_floating_ip_cidr")]
     pub floating_ip_cidr: String,
-    /// Encrypt the traffic between the virtual machines of a network, which run on different
-    /// hosts, with IPsec. The keys are derived from a MLS-group of the gateways of the network,
-    /// which is shared over the izakaya. The routes from and to the gateway at the edge of the
-    /// network are never encrypted.
-    #[serde(default = "default_mls_encryption")]
-    pub mls_encryption: bool,
     /// Seconds, for which a membership-grant allows a gateway to join the group of a network.
     /// hanami grants the membership with every VM, which it places on a host, so the grant only
     /// has to last until the gateway joined.
@@ -87,16 +81,10 @@ impl Default for Network {
     fn default() -> Self {
         Self {
             floating_ip_cidr: default_floating_ip_cidr(),
-            mls_encryption: default_mls_encryption(),
             mls_grant_validity: default_mls_grant_validity(),
             mls_grant_refresh_interval: default_mls_grant_refresh_interval(),
         }
     }
-}
-
-/// Default value for mls_encryption
-fn default_mls_encryption() -> bool {
-    true
 }
 
 /// Default value for mls_grant_validity: one day

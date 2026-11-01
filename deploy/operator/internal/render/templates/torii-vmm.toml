@@ -15,10 +15,8 @@ address = {{ quote mikoAddress }}
 overlay_iface = "none"
 underlay_iface = "eth0"
 default_gateway_ip = "@DEFAULT_GATEWAY_IP@"
-{{- if .Spec.Hanami.Network.MLSEncryption }}
 
 # key-exchange of the IPsec-keys of the encrypted routes over MLS-groups, which izakaya
 # coordinates. The gateway only joins the group of a network with a grant of hanami.
 [mls]
 grant_public_key = {{ quote .Secrets.MLSGrantPublicKey }}
-{{- end }}

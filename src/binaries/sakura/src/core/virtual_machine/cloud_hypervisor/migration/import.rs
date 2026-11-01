@@ -15,10 +15,11 @@
 use cloud_hypervisor_client::apis::DefaultApi;
 use uuid::Uuid;
 
-use ainari_api::common_functions::*;
+use ainari_api::error_mapping::*;
 use ainari_api_structs::migration_structs::MigrationFile;
 use ainari_api_structs::user_context::UserContext;
 use ainari_common::error::AinariError;
+use ainari_common::functions::create_directory;
 
 use super::super::create_ch_virtual_machine::spawn_vmm_with_vm;
 use super::super::{mark_error_on_failure, set_vm_state, vm_directory};

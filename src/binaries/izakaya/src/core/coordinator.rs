@@ -834,10 +834,66 @@ pub fn operation_done(vni: u32, req: &MlsOperationDoneReq, now: i64) -> Result<(
                 op.client_id.as_deref().unwrap_or("-"),
                 req.reason.as_deref().unwrap_or("-")
             );
+            // a committer without members doesn't hold the group anymore
+            if req.members.is_empty() {
+                let target = op.client_id.clone();
+                if !drop_lost_members(&mut group, &req.client_id, target.as_deref(), now)? {
+                    return Ok(());
+                }
+            }
         }
 
         progress(vni, now)
     })
+}
+
+/// Drops the committer of a refused operation from a group, because it doesn't hold the group
+/// anymore, for example because it left the group, while its own removal was still queued.
+///
+/// The target of the operation is dropped as well: a removal would only take its membership
+/// away, and a gateway, which waits to be added, doesn't hold the group either. Without this,
+/// the group would keep members, which can't make any change, and refuse every gateway forever.
+/// If nobody is left, the group is deleted, so the next gateway creates it again.
+///
+/// # Arguments
+/// * `group` - The group
+/// * `committer` - The committer, which refused the operation
+/// * `target` - The gateway, which the operation was about, if any
+/// * `now` - Current unix-time in seconds
+///
+/// # Returns
+/// `Ok(true)` if the group still exists, `Ok(false)` if it was deleted
+fn drop_lost_members(
+    group: &mut Group,
+    committer: &str,
+    target: Option<&str>,
+    now: i64,
+) -> Result<bool, ErrorResponse> {
+    let vni = group.vni;
+    group
+        .members
+        .retain(|member| member != committer && Some(member.as_str()) != target);
+
+    if group.members.is_empty() {
+        mls_operation_table::drop_open_operations(vni)
+            .map_err(|e| internal_error(&format!("drop the operations of tenant {vni}"), e))?;
+        mls_group_table::delete_group(vni)
+            .map_err(|e| internal_error(&format!("delete the MLS-group of tenant {vni}"), e))?;
+        log::warn!(
+            "No member of the MLS-group of tenant {vni} holds it anymore, so it is deleted and \
+             created again by the next gateway"
+        );
+        return Ok(false);
+    }
+
+    log::warn!(
+        "Committer '{committer}' doesn't hold the MLS-group of tenant {vni} anymore, so it is \
+         dropped from it"
+    );
+    // progress picks another one, if the new committer is not alive
+    group.committer = pick_committer(group, None, now)?.unwrap_or_else(|| group.members[0].clone());
+    save_group(group)?;
+    Ok(true)
 }
 
 /// Takes the acknowledgement of a phase of the current round from a member.
@@ -1274,6 +1330,100 @@ mod tests {
             subscribe(vni, &req, now),
             Err(ErrorResponse::Forbidden(_))
         ));
+    }
+
+    /// Reports, that the committer refused an operation, because it has no group
+    fn refuse_without_group(vni: u32, op: &MlsOperation, committer: &str, now: i64) {
+        let req = MlsOperationDoneReq {
+            op_uuid: op.op_uuid,
+            client_id: committer.to_string(),
+            success: false,
+            epoch: 0,
+            members: Vec::new(),
+            reason: Some(format!("this gateway has no MLS-group for tenant {vni}")),
+        };
+        operation_done(vni, &req, now).unwrap();
+    }
+
+    /// Builds a group of the given gateways, whose first one is the committer
+    fn joined_group(vni: u32, gateways: &[&String], now: i64) {
+        for gateway in gateways {
+            allow(vni, gateway, now);
+            subscribe_as(vni, gateway, false, now);
+        }
+        for epoch in 1..gateways.len() as u64 {
+            let ops = take_operations(gateways[0]);
+            let members = &gateways[..=epoch as usize];
+            let members: Vec<&str> = members.iter().map(|it| it.as_str()).collect();
+            done(vni, &ops[0], gateways[0], epoch, &members, now);
+            for phase in [MlsRoundPhase::Install, MlsRoundPhase::Switch] {
+                for member in &gateways[..=epoch as usize] {
+                    ack(vni, member, epoch, phase, now);
+                }
+            }
+            tick(now + CLEANUP_GRACE, 3600).unwrap();
+        }
+        for gateway in gateways {
+            take_rounds(gateway);
+        }
+    }
+
+    #[test]
+    #[serial]
+    fn a_group_is_created_again_after_its_last_members_left_at_once() {
+        let vni = new_vni();
+        let now = now_secs();
+        let (a, b) = (client("a"), client("b"));
+        joined_group(vni, &[&a, &b], now);
+
+        // both gateways drop the group at the same time, so the committer a refuses the removal
+        // of b, because it already left the group itself
+        unsubscribe(vni, &b, now).unwrap();
+        let ops = take_operations(&a);
+        assert_eq!(ops[0].kind, MlsOperationKind::Remove);
+        refuse_without_group(vni, &ops[0], &a, now);
+        unsubscribe(vni, &a, now).unwrap();
+        assert!(load_group(vni).unwrap().is_none());
+
+        // later both need the encryption again: the first creates the group, the second joins
+        assert_eq!(
+            subscribe_as(vni, &b, false, now),
+            MlsSubscribeAction::Create
+        );
+        assert_eq!(
+            subscribe_as(vni, &a, false, now),
+            MlsSubscribeAction::Joining
+        );
+        let ops = take_operations(&b);
+        assert_eq!(ops[0].kind, MlsOperationKind::Add);
+        assert_eq!(ops[0].client_id.as_deref(), Some(a.as_str()));
+    }
+
+    #[test]
+    #[serial]
+    fn a_committer_without_group_is_replaced_by_a_member_with_it() {
+        let vni = new_vni();
+        let now = now_secs();
+        let (a, b, c) = (client("a"), client("b"), client("c"));
+        joined_group(vni, &[&a, &b, &c], now);
+
+        // a lost the group, so it refuses the removal of b, while c still holds the group
+        unsubscribe(vni, &b, now).unwrap();
+        let ops = take_operations(&a);
+        refuse_without_group(vni, &ops[0], &a, now);
+
+        let group = load_group(vni).unwrap().unwrap();
+        assert_eq!(group.members, vec![c.clone()]);
+        assert_eq!(group.committer, c);
+
+        // a joins again over c
+        assert_eq!(
+            subscribe_as(vni, &a, false, now),
+            MlsSubscribeAction::Joining
+        );
+        let ops = take_operations(&c);
+        assert_eq!(ops[0].kind, MlsOperationKind::Add);
+        assert_eq!(ops[0].client_id.as_deref(), Some(a.as_str()));
     }
 
     #[test]

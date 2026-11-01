@@ -35,13 +35,10 @@ table! {
         payload -> Varchar,
         owner_id -> Varchar,
         project_id -> Varchar,
-        status -> Varchar,
         created_at -> Varchar,
         created_by -> Varchar,
         updated_at -> Varchar,
         updated_by -> Varchar,
-        deleted_at -> Nullable<Varchar>,
-        deleted_by -> Nullable<Varchar>,
         grants -> Nullable<Text>,
     }
 }
@@ -64,16 +61,12 @@ pub struct MlsMessageEntry {
     pub payload: String,
     pub owner_id: String,
     pub project_id: String,
-    pub status: String,
     #[diesel(serialize_as = DbDateTime, deserialize_as = DbDateTime)]
     pub created_at: DateTime<Utc>,
     pub created_by: String,
     #[diesel(serialize_as = DbDateTime, deserialize_as = DbDateTime)]
     pub updated_at: DateTime<Utc>,
     pub updated_by: String,
-    #[diesel(serialize_as = DbOptDateTime, deserialize_as = DbOptDateTime)]
-    pub deleted_at: Option<DateTime<Utc>>,
-    pub deleted_by: Option<String>,
     /// JSON-encoded grants of the gateways, which a commit adds
     pub grants: Option<String>,
 }
@@ -132,13 +125,10 @@ pub fn add_mls_message(req: &MlsMessageReq, context: &UserContext) -> QueryResul
             payload: req.payload.clone(),
             owner_id: context.user_id.clone(),
             project_id: context.project_id.clone(),
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: context.user_id.clone(),
             updated_at: Utc::now(),
             updated_by: context.user_id.clone(),
-            deleted_at: None,
-            deleted_by: None,
             grants: message_grants.clone(),
         })
         .collect();
@@ -173,7 +163,7 @@ pub fn list_mls_messages(message_recipient: &str) -> QueryResult<Vec<MlsMessageE
     use self::mls_messages::dsl::*;
 
     let mut entries = mls_messages
-        .filter(recipient.eq(message_recipient).and(status.eq("ACTIVE")))
+        .filter(recipient.eq(message_recipient))
         .select(MlsMessageEntry::as_select())
         .load(&mut *conn)?;
     entries.sort_by(|a, b| {
@@ -203,18 +193,12 @@ pub fn delete_mls_message(
 
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::mls_messages::dsl::*;
-    match diesel::update(
+    match diesel::delete(
         mls_messages.filter(
             uuid.eq(message_uuid.to_string())
-                .and(recipient.eq(message_recipient))
-                .and(status.eq("ACTIVE")),
+                .and(recipient.eq(message_recipient)),
         ),
     )
-    .set((
-        status.eq("DELETED"),
-        deleted_at.eq(Utc::now().to_rfc3339()),
-        deleted_by.eq(context.user_id.clone()),
-    ))
     .execute(&mut *conn)
     {
         Ok(0) => Err(enums::DbError::NotFound),

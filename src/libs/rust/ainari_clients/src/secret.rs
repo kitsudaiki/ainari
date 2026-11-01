@@ -14,10 +14,6 @@
 
 use uuid::Uuid;
 
-use ainari_api_structs::project_structs::{
-    OmamoriProjectExport, OmamoriProjectExportReq, OmamoriProjectImportReq,
-    OmamoriProjectImportResp,
-};
 use ainari_api_structs::secret_structs::*;
 use ainari_common::config as ainari_config;
 use ainari_common::error::AinariError;
@@ -214,90 +210,6 @@ pub async fn delete_secret(
         .await;
 
     handle_empty_response(response, "secret", &secret_uuid.to_string()).await
-}
-
-/// Exports the secrets and public-keys of a project from the omamori for a backup.
-///
-/// The payloads of the secrets are wrapped with the wrap-key, so they never leave the omamori in
-/// plain text.
-///
-/// # Arguments
-///
-/// * `omamori_endpoint` - The endpoint configuration for the omamori service
-/// * `token` - The authentication token for the API request
-/// * `internal_api_key` - The internal API key for authentication
-/// * `project_id` - The ID of the project to export
-/// * `wrap_key` - The base64-encoded key with 256 bit, which wraps the payloads
-/// * `backup_uuid` - The backup, whose own secrets are exported too
-/// * `insecure_client` - Whether to use an insecure (non-TLS) client
-///
-/// # Returns
-///
-/// A `Result` containing the secrets and public-keys of the project, or an `AinariError`.
-pub async fn export_project_secrets(
-    omamori_endpoint: &ainari_config::Endpoint,
-    token: &String,
-    internal_api_key: &Secret,
-    project_id: &str,
-    wrap_key: &Secret,
-    backup_uuid: Option<&Uuid>,
-    insecure_client: bool,
-) -> Result<OmamoriProjectExport, AinariError> {
-    let address = omamori_endpoint.internal_address.clone();
-    let client = prepare_client(&address, insecure_client);
-    let url = format!("{address}/v1alpha/project/{project_id}/export/internal");
-
-    let body = OmamoriProjectExportReq {
-        wrap_key: wrap_key.clone(),
-        backup_uuid: backup_uuid.copied(),
-    };
-
-    let response = client
-        .post(url)
-        .insert_header(("Authorization", format!("Bearer {}", token)))
-        .insert_header(("X-Internal-API-Key", internal_api_key.reveal()))
-        .send_json(&body)
-        .await;
-
-    handle_response(response, "project", project_id).await
-}
-
-/// Imports the secrets and public-keys of a project from a backup into the omamori.
-///
-/// # Arguments
-///
-/// * `omamori_endpoint` - The endpoint configuration for the omamori service
-/// * `token` - The authentication token for the API request
-/// * `internal_api_key` - The internal API key for authentication
-/// * `project_id` - The ID of the project, into which is imported
-/// * `request` - The secrets and public-keys from the backup together with the wrap-key,
-///   `force` and the `id_map`
-/// * `insecure_client` - Whether to use an insecure (non-TLS) client
-///
-/// # Returns
-///
-/// A `Result` containing the imported resources with their UUIDs, or an `AinariError`. Conflicts
-/// with existing resources are rejected with `Conflict`, a wrong wrap-key with `InvalidInput`.
-pub async fn import_project_secrets(
-    omamori_endpoint: &ainari_config::Endpoint,
-    token: &String,
-    internal_api_key: &Secret,
-    project_id: &str,
-    request: &OmamoriProjectImportReq,
-    insecure_client: bool,
-) -> Result<OmamoriProjectImportResp, AinariError> {
-    let address = omamori_endpoint.internal_address.clone();
-    let client = prepare_client(&address, insecure_client);
-    let url = format!("{address}/v1alpha/project/{project_id}/import/internal");
-
-    let response = client
-        .post(url)
-        .insert_header(("Authorization", format!("Bearer {}", token)))
-        .insert_header(("X-Internal-API-Key", internal_api_key.reveal()))
-        .send_json(request)
-        .await;
-
-    handle_response(response, "project", project_id).await
 }
 
 /// Deletes a secret of a user in omamori over the public api.

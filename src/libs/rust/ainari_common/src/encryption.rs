@@ -127,7 +127,9 @@ mod tests {
         for plaintext in [&b""[..], b"x", b"{\"schema_version\": 1, \"data\": {}}"] {
             let encrypted = encrypt_bytes(plaintext, KEY, b"aad").unwrap();
             assert_eq!(encrypted.len(), NONCE_LEN + plaintext.len() + TAG_LEN);
-            if !plaintext.is_empty() {
+            // a short plaintext is part of the random-looking output by chance (about one in nine
+            // runs for a single byte), so it is only checked from 8 bytes on
+            if plaintext.len() >= 8 {
                 assert!(
                     !encrypted
                         .windows(plaintext.len())

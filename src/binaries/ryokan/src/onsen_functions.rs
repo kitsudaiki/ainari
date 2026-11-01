@@ -231,14 +231,11 @@ mod tests {
             uuid: Uuid::new_v4(),
             name: "onsen".to_string(),
             address: format!("http://{}:50051", Uuid::new_v4()),
-            status: "ACTIVE".to_string(),
             is_backup_target,
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
         }
     }
 

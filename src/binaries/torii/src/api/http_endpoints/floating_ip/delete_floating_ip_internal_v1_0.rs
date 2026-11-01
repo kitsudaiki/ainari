@@ -20,7 +20,7 @@ use crate::core::ebpf_interface::EBPF_INTERFACE_HANDLE;
 use crate::core::floating_ip::remove_floating_ip;
 use crate::database::floating_ip_table;
 
-use ainari_api::common_functions::permission_denied_response;
+use ainari_api::error_mapping::permission_denied_response;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::floating_ip_structs::*;
 use ainari_api_structs::user_context::UserContext;

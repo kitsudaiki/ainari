@@ -15,12 +15,11 @@
 use std::time::{Duration, Instant};
 use uuid::Uuid;
 
+use ainari_api_structs::exports::HanamiVirtualMachineExport;
 use ainari_api_structs::task_structs::TaskBackupRestoreReq;
-use ainari_api_structs::virtual_machine_structs::{
-    HanamiVirtualMachineExport, VirtualMachineReserveInternalReq,
-};
+use ainari_api_structs::virtual_machine_structs::VirtualMachineReserveInternalReq;
+use ainari_clients::exports::export_project_networks;
 use ainari_clients::image::delete_image;
-use ainari_clients::network::export_project_networks;
 use ainari_clients::virtual_machine::{
     create_virtual_machine_task, delete_virtual_machine_in_hanami, get_virtual_machine_host,
     is_virtual_machine_deleted, reserve_virtual_machine_internal,

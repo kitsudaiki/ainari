@@ -32,14 +32,11 @@ table! {
         uuid -> Varchar,
         name -> Varchar,
         address -> Varchar,
-        status -> Varchar,
         is_backup_target -> Bool,
         created_at -> Varchar,
         created_by -> Varchar,
         updated_at -> Varchar,
         updated_by -> Varchar,
-        deleted_at -> Nullable<Varchar>,
-        deleted_by -> Nullable<Varchar>,
     }
 }
 
@@ -57,8 +54,6 @@ pub struct HostEntry {
     pub name: String,
     /// Network address of the host
     pub address: String,
-    /// Current status of the host (ACTIVE, DELETED, etc.)
-    pub status: String,
     /// True, if the host only stores backups and never normal images or snapshots
     pub is_backup_target: bool,
     /// Timestamp when the host was created
@@ -71,17 +66,12 @@ pub struct HostEntry {
     pub updated_at: DateTime<Utc>,
     /// User ID who last updated the host
     pub updated_by: String,
-    /// Timestamp when the host was deleted (if applicable)
-    #[diesel(serialize_as = DbOptDateTime, deserialize_as = DbOptDateTime)]
-    pub deleted_at: Option<DateTime<Utc>>,
-    /// User ID who deleted the host (if applicable)
-    pub deleted_by: Option<String>,
 }
 
 /// Adds a new host to the database with default values.
 ///
 /// This function creates a new HostEntry with the provided parameters and
-/// sets default values for fields like status and timestamps.
+/// sets default values for fields like the timestamps.
 ///
 /// # Arguments
 ///
@@ -108,14 +98,11 @@ pub fn add_new_host(
         uuid: *host_uuid,
         name: host_name.to_owned(),
         address: host_address.to_owned(),
-        status: "ACTIVE".to_string(),
         is_backup_target: false,
         created_at: Utc::now(),
         created_by: context.user_id.clone(),
         updated_at: Utc::now(),
         updated_by: context.user_id.clone(),
-        deleted_at: None,
-        deleted_by: None,
     };
 
     add_host(host.clone())
@@ -141,7 +128,7 @@ pub fn add_host(host: HostEntry) -> QueryResult<usize> {
 
 /// Retrieves a host from the database by its address.
 ///
-/// Only active hosts are returned, so an already deregistered one is reported as not found.
+/// An already deregistered host is removed, so it is reported as not found.
 ///
 /// # Arguments
 ///
@@ -151,7 +138,7 @@ pub fn add_host(host: HostEntry) -> QueryResult<usize> {
 /// # Returns
 ///
 /// * `Ok(HostEntry)` with the host on success
-/// * `Err(enums::DbError)` if there is no active host with that address
+/// * `Err(enums::DbError)` if there is no host with that address
 pub fn get_host_by_address(
     host_address: &String,
     _: &UserContext,
@@ -160,11 +147,7 @@ pub fn get_host_by_address(
     use self::hosts::dsl::*;
 
     let query = hosts
-        .filter(
-            address
-                .eq(host_address.to_string())
-                .and(status.eq("ACTIVE")),
-        )
+        .filter(address.eq(host_address.to_string()))
         .into_boxed();
 
     match query
@@ -182,7 +165,7 @@ pub fn get_host_by_address(
 
 /// Retrieves an onsen-host from the database.
 ///
-/// Only active hosts are returned, so an already deregistered one is reported as not found. The
+/// An already deregistered host is removed, so it is reported as not found. The
 /// hosts are part of the infrastructure and not owned by a user, so no ownership-filter is applied
 /// and the user-context is only taken for consistency with the other tables.
 ///
@@ -197,9 +180,7 @@ pub fn get_host(host_uuid: &Uuid, _: &UserContext) -> Result<HostEntry, enums::D
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::hosts::dsl::*;
 
-    let query = hosts
-        .filter(uuid.eq(host_uuid.to_string()).and(status.eq("ACTIVE")))
-        .into_boxed();
+    let query = hosts.filter(uuid.eq(host_uuid.to_string())).into_boxed();
 
     match query
         .select(HostEntry::as_select())
@@ -214,9 +195,7 @@ pub fn get_host(host_uuid: &Uuid, _: &UserContext) -> Result<HostEntry, enums::D
     }
 }
 
-/// Retrieves a list of all active hosts from the database.
-///
-/// This function queries the database for all hosts with an ACTIVE status.
+/// Retrieves a list of all hosts from the database.
 ///
 /// # Arguments
 ///
@@ -224,12 +203,12 @@ pub fn get_host(host_uuid: &Uuid, _: &UserContext) -> Result<HostEntry, enums::D
 ///
 /// # Returns
 ///
-/// * `QueryResult<Vec<HostEntry>>` - A vector of all active hosts
+/// * `QueryResult<Vec<HostEntry>>` - A vector of all hosts
 pub fn list_hosts(_: &UserContext) -> QueryResult<Vec<HostEntry>> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::hosts::dsl::*;
 
-    let query = hosts.filter(status.eq("ACTIVE")).into_boxed();
+    let query = hosts.into_boxed();
 
     query.select(HostEntry::as_select()).load(&mut *conn)
 }
@@ -271,7 +250,7 @@ pub fn set_backup_target(
 
     let result = conn.transaction::<_, diesel::result::Error, _>(|conn| {
         let host_address = hosts
-            .filter(uuid.eq(&host_uuid).and(status.eq("ACTIVE")))
+            .filter(uuid.eq(&host_uuid))
             .select(address)
             .first::<String>(conn)?;
 
@@ -302,7 +281,7 @@ pub fn set_backup_target(
     }
 }
 
-/// Checks, if an onsen-address belongs to an active backup-target.
+/// Checks, if an onsen-address belongs to a backup-target.
 ///
 /// It takes the already locked connection, so it can be used within the transaction of another
 /// table.
@@ -314,23 +293,18 @@ pub fn set_backup_target(
 ///
 /// # Returns
 ///
-/// * `QueryResult<bool>` - True, if an active host with this address is a backup-target
+/// * `QueryResult<bool>` - True, if a host with this address is a backup-target
 pub fn is_backup_target_address(conn: &mut DbConnection, onsen_address: &str) -> QueryResult<bool> {
     use self::hosts::dsl::*;
 
     hosts
-        .filter(
-            address
-                .eq(onsen_address)
-                .and(status.eq("ACTIVE"))
-                .and(is_backup_target.eq(true)),
-        )
+        .filter(address.eq(onsen_address).and(is_backup_target.eq(true)))
         .select(count_star())
         .first::<i64>(conn)
         .map(|count| count > 0)
 }
 
-/// Checks, if a host is an active backup-target.
+/// Checks, if a host is a backup-target.
 ///
 /// It takes the already locked connection, so it can be used within the transaction of another
 /// table.
@@ -342,16 +316,12 @@ pub fn is_backup_target_address(conn: &mut DbConnection, onsen_address: &str) ->
 ///
 /// # Returns
 ///
-/// * `QueryResult<bool>` - True, if the host is active and a backup-target
+/// * `QueryResult<bool>` - True, if the host exists and is a backup-target
 pub fn is_backup_target_host(conn: &mut DbConnection, host: &Uuid) -> QueryResult<bool> {
     use self::hosts::dsl::*;
 
     hosts
-        .filter(
-            uuid.eq(host.to_string())
-                .and(status.eq("ACTIVE"))
-                .and(is_backup_target.eq(true)),
-        )
+        .filter(uuid.eq(host.to_string()).and(is_backup_target.eq(true)))
         .select(count_star())
         .first::<i64>(conn)
         .map(|count| count > 0)
@@ -359,8 +329,7 @@ pub fn is_backup_target_host(conn: &mut DbConnection, host: &Uuid) -> QueryResul
 
 /// Deletes a host from the database (admin function).
 ///
-/// This function marks a host as DELETED by updating its status and setting
-/// the deletion timestamp and user. It first verifies the host exists and is active.
+/// It first verifies the host exists.
 ///
 /// # Arguments
 ///
@@ -380,14 +349,7 @@ pub fn delete_host_admin(host_uuid: &Uuid, context: &UserContext) -> Result<(), 
 
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::hosts::dsl::*;
-    match diesel::update(hosts.filter(uuid.eq(host_uuid.to_string())))
-        .set((
-            status.eq("DELETED"),
-            deleted_at.eq(Utc::now().to_rfc3339()),
-            deleted_by.eq(context.user_id.clone()),
-        ))
-        .execute(&mut *conn)
-    {
+    match diesel::delete(hosts.filter(uuid.eq(host_uuid.to_string()))).execute(&mut *conn) {
         Ok(_) => Ok(()),
         Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
         Err(e) => {
@@ -397,11 +359,9 @@ pub fn delete_host_admin(host_uuid: &Uuid, context: &UserContext) -> Result<(), 
     }
 }
 
-/// Deletes all active hosts from the database (admin function).
+/// Deletes all hosts from the database (admin function).
 ///
-/// This function marks all active hosts as DELETED by updating their status
-/// and setting the deletion timestamp and user. This is typically used during
-/// application startup or shutdown.
+/// This is typically used during application startup or shutdown.
 ///
 /// # Returns
 ///
@@ -410,14 +370,7 @@ pub fn delete_host_admin(host_uuid: &Uuid, context: &UserContext) -> Result<(), 
 pub fn delete_all_host() -> Result<(), enums::DbError> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::hosts::dsl::*;
-    match diesel::update(hosts.filter(status.eq("ACTIVE")))
-        .set((
-            status.eq("DELETED"),
-            deleted_at.eq(Utc::now().to_rfc3339()),
-            deleted_by.eq("HANAMI_START"),
-        ))
-        .execute(&mut *conn)
-    {
+    match diesel::delete(hosts).execute(&mut *conn) {
         Ok(_) => Ok(()),
         Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
         Err(e) => {
@@ -458,14 +411,11 @@ mod tests {
             uuid: uuid1,
             name: "Alice".to_string(),
             address: "http://127.0.0.1:11420".to_string(),
-            status: "ACTIVE".to_string(),
             is_backup_target: false,
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
         };
 
         hard_delete_host(&uuid1);
@@ -475,11 +425,8 @@ mod tests {
             Ok(retrieved_host) => {
                 assert_eq!(retrieved_host.uuid, host.uuid);
                 assert_eq!(retrieved_host.name, host.name);
-                assert_eq!(retrieved_host.status, host.status);
                 assert_eq!(retrieved_host.created_by, host.created_by);
                 assert_eq!(retrieved_host.updated_by, host.updated_by);
-                assert_eq!(retrieved_host.deleted_at, host.deleted_at);
-                assert_eq!(retrieved_host.deleted_by, host.deleted_by);
             }
             Err(_) => {
                 assert_eq!(true, false);
@@ -509,28 +456,22 @@ mod tests {
             uuid: uuid1,
             name: "Alice".to_string(),
             address: "http://127.0.0.1:11420".to_string(),
-            status: "ACTIVE".to_string(),
             is_backup_target: false,
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
         };
 
         let host2 = HostEntry {
             uuid: uuid2,
             name: "Bob".to_string(),
             address: "http://127.0.0.1:11420".to_string(),
-            status: "DELETED".to_string(),
             is_backup_target: false,
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
         };
 
         hard_delete_host(&uuid1);
@@ -538,6 +479,7 @@ mod tests {
 
         add_host(host1).unwrap();
         add_host(host2).unwrap();
+        assert!(delete_host_admin(&uuid2, &context).is_ok());
         let hosts = list_hosts(&context).unwrap();
         assert_eq!(hosts.len(), 1);
         hard_delete_host(&uuid1);
@@ -563,14 +505,11 @@ mod tests {
             uuid: uuid1,
             name: "Alice".to_string(),
             address: "http://127.0.0.1:11420".to_string(),
-            status: "ACTIVE".to_string(),
             is_backup_target: false,
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
         };
 
         hard_delete_host(&uuid1);
@@ -592,42 +531,33 @@ mod tests {
             uuid: uuid1,
             name: "Alice".to_string(),
             address: "http://127.0.0.1:11420".to_string(),
-            status: "ACTIVE".to_string(),
             is_backup_target: false,
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
         };
 
         let host2 = HostEntry {
             uuid: uuid2,
             name: "Bob".to_string(),
             address: "http://127.0.0.1:11420".to_string(),
-            status: "ACTIVE".to_string(),
             is_backup_target: false,
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
         };
 
         let host3 = HostEntry {
             uuid: uuid3,
             name: "Poi".to_string(),
             address: "http://127.0.0.1:11420".to_string(),
-            status: "ACTIVE".to_string(),
             is_backup_target: false,
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
         };
 
         hard_delete_host(&uuid1);
@@ -681,20 +611,17 @@ mod tests {
         }
     }
 
-    /// Adds an active host with a unique address, which is not a backup-target.
+    /// Adds a host with a unique address, which is not a backup-target.
     fn add_test_host() -> HostEntry {
         let host = HostEntry {
             uuid: Uuid::new_v4(),
             name: "onsen".to_string(),
             address: format!("http://{}:50051", Uuid::new_v4()),
-            status: "ACTIVE".to_string(),
             is_backup_target: false,
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
         };
         add_host(host.clone()).unwrap();
         host

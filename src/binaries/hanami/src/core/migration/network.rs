@@ -43,7 +43,7 @@ use crate::database::host_table::HostEntry;
 use crate::database::network_filter_table;
 use crate::database::network_table;
 
-use ainari_api::common_functions::*;
+use ainari_api::error_mapping::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::network_filter_structs::*;
 use ainari_api_structs::route_structs::RouteReq;

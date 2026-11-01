@@ -73,13 +73,10 @@ pub(crate) mod test_utils {
             resource_uuid,
             owner_id: "test-user".to_string(),
             project_id: project.to_string(),
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "test-user".to_string(),
             updated_at: Utc::now(),
             updated_by: "test-user".to_string(),
-            deleted_at: None,
-            deleted_by: None,
         })
         .unwrap();
         SimpleCrypto::new()
@@ -98,13 +95,10 @@ pub(crate) mod test_utils {
             fingerprint: "fingerprint".to_string(),
             owner_id: "test-user".to_string(),
             project_id: project.to_string(),
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "test-user".to_string(),
             updated_at: Utc::now(),
             updated_by: "test-user".to_string(),
-            deleted_at: None,
-            deleted_by: None,
         })
         .unwrap();
         uuid

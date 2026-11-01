@@ -62,7 +62,7 @@ pub struct VirtualMachineInternalCreateReq {
 
 /// Reservation of a virtual_machine by another component, for example to restore it from a
 /// backup. Unlike `VirtualMachineCreateReq` the resources are given directly instead of a vm-type,
-/// and the UUID and the addresses can be fixed.
+/// and the UUID and the addresses can be predefined.
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
 pub struct VirtualMachineReserveInternalReq {
     /// UUID of the virtual_machine. Without it, a new UUID is generated.
@@ -139,43 +139,4 @@ pub struct VirtualMachineBasicResp {
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
 pub struct VirtualMachineListResp {
     pub virtual_machines: Vec<VirtualMachineBasicResp>,
-}
-
-/// Virtual_machine, like it is exported from hanami into a backup. The disk and the config within
-/// the virtual_machine are exported by sakura.
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, ApiComponent)]
-pub struct HanamiVirtualMachineExport {
-    /// UUID of the virtual_machine at the time of the backup
-    pub uuid: Uuid,
-    pub name: String,
-    pub number_of_cores: i64,
-    /// memory in MiB
-    pub memory_size: i64,
-    /// size of the root-disk in GiB
-    pub disk_size: i64,
-    pub network_uuid: Uuid,
-    pub internal_ip: Ipv4Addr,
-    pub mac_address: String,
-}
-
-/// Config of a virtual_machine, like it is exported from sakura into a backup. The root-disk is
-/// saved separately into the backup.
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, ApiComponent)]
-pub struct SakuraVirtualMachineExport {
-    /// UUID of the virtual_machine at the time of the backup
-    pub uuid: Uuid,
-    pub name: String,
-    /// Power-state of the virtual_machine: RESERVED, CREATED, RUNNING, STOPPED, RESTORING or ERROR
-    pub vm_state: String,
-    pub number_of_cores: i32,
-    /// memory of the virtual_machine in bytes
-    pub memory_size: i64,
-    /// size of the root-disk in GiB
-    pub disk_size: i64,
-    /// image, which the virtual_machine was created from
-    pub image_uuid: Uuid,
-    pub public_key_uuid: Uuid,
-    pub network_uuid: Uuid,
-    pub internal_ip: Ipv4Addr,
-    pub mac_address: String,
 }

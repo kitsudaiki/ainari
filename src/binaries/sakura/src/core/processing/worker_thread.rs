@@ -29,7 +29,6 @@ use super::tasks::*;
 /// The worker thread runs on a specific CPU core and processes tasks until stopped.
 /// It handles different types of tasks including training, processing, and backpropagation.
 pub struct WorkerThread {
-    #[allow(dead_code)]
     pub queue: Arc<Mutex<TaskQueue>>,
     pub handle: Option<JoinHandle<()>>,
     pub running: Arc<AtomicBool>,

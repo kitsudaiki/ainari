@@ -83,21 +83,3 @@ pub struct SecretBasicResp {
 pub struct SecretListResp {
     pub secrets: Vec<SecretBasicResp>,
 }
-
-/// Secret, like it is exported from omamori into a backup. The payload never leaves the omamori in
-/// plain text, but is wrapped with the wrap-key of the backup.
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, ApiComponent, Validate)]
-pub struct OmamoriSecretExport {
-    /// UUID of the secret at the time of the backup
-    pub uuid: Uuid,
-    #[validate(length(min = 1, max = 255))]
-    pub name: String,
-    /// kind of owner of the secret, like `user` or `image`
-    #[validate(length(min = 1, max = 63))]
-    pub owned_by: String,
-    /// resource, which owns the secret, if it is not owned by a user
-    pub resource_uuid: Option<Uuid>,
-    /// base64-encoded payload, which is wrapped with the wrap-key (AES-256-GCM with the UUID of the
-    /// secret as additional data)
-    pub wrapped_payload: String,
-}

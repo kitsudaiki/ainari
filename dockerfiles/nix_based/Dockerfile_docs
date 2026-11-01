@@ -21,12 +21,10 @@
 # dockerfiles/nix_based/nix/packages.nix and the built documentation. The list of these packages is
 # in /etc/nix-packages.txt of the image. See docs/developer/docker_images.md.
 
-ARG NIX_IMAGE=nixos/nix:2.35.2@sha256:7a007c766426c1877758ddc5cb87a965ac131fc78c582ce0083d922d51ae945c
-
 # ==========================================
 # nix with the flake of this repository
 # ==========================================
-FROM ${NIX_IMAGE} AS nix
+FROM nixos/nix:2.35.2@sha256:7a007c766426c1877758ddc5cb87a965ac131fc78c582ce0083d922d51ae945c AS nix
 
 # The builds of nix run with a filter of syscalls, which QEMU can't apply, when an image for
 # another platform is built with emulation (like arm64 on an amd64-host). The sandbox of nix is

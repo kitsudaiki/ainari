@@ -18,5 +18,6 @@ pub mod auth_middleware;
 pub mod common_functions;
 pub mod cors_middleware;
 pub mod endpoints;
+pub mod error_mapping;
 pub mod errors;
 pub mod omikuji_logging;

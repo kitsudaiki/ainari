@@ -19,7 +19,7 @@ use cloud_hypervisor_client::models::VmState;
 use cloud_hypervisor_client::socket_based_api_client;
 use uuid::Uuid;
 
-use ainari_api::common_functions::*;
+use ainari_api::error_mapping::*;
 use ainari_api_structs::image_structs::ImageStatus;
 use ainari_api_structs::user_context::UserContext;
 use ainari_clients::backup::prepare_backup_disk;
@@ -28,6 +28,7 @@ use ainari_clients::image::{get_image, update_image_status};
 use ainari_clients::onsen_file_transfer::upload_file;
 use ainari_clients::secret::get_secret_payload;
 use ainari_common::error::AinariError;
+use ainari_common::functions::create_directory;
 use ainari_files::file_encryption::encrypt_file;
 use ainari_files::file_info::{FileInfo, get_disk_image_info};
 

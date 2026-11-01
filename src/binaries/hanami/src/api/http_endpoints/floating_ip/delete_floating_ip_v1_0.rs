@@ -20,7 +20,7 @@ use uuid::Uuid;
 use crate::core::floating_ip::detach_floating_ip;
 use crate::database::floating_ip_table;
 
-use ainari_api::common_functions::*;
+use ainari_api::error_mapping::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::user_context::UserContext;
 

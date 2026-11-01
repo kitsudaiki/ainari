@@ -41,13 +41,10 @@ table! {
         spec -> Varchar,
         owner_id -> Varchar,
         project_id -> Varchar,
-        status -> Varchar,
         created_at -> Varchar,
         created_by -> Varchar,
         updated_at -> Varchar,
         updated_by -> Varchar,
-        deleted_at -> Nullable<Varchar>,
-        deleted_by -> Nullable<Varchar>,
     }
 }
 
@@ -64,13 +61,10 @@ table! {
 /// * `spec` - Canonical textual form of the rule, like `10.0.0.0/24` or `8000-8100`
 /// * `owner_id` - User ID of the rule owner
 /// * `project_id` - Project ID the rule belongs to
-/// * `status` - Current status of the rule (ACTIVE, DELETED, etc.)
 /// * `created_at` - Timestamp when the rule was created
 /// * `created_by` - User ID who created the rule
 /// * `updated_at` - Timestamp when the rule was last updated
 /// * `updated_by` - User ID who last updated the rule
-/// * `deleted_at` - Timestamp when the rule was deleted (nullable)
-/// * `deleted_by` - User ID who deleted the rule (nullable)
 #[derive(Insertable, Queryable, Selectable, Debug, PartialEq, Clone)]
 #[diesel(table_name = network_filters)]
 pub struct NetworkFilterEntry {
@@ -85,22 +79,18 @@ pub struct NetworkFilterEntry {
     pub spec: String,
     pub owner_id: String,
     pub project_id: String,
-    pub status: String,
     #[diesel(serialize_as = DbDateTime, deserialize_as = DbDateTime)]
     pub created_at: DateTime<Utc>,
     pub created_by: String,
     #[diesel(serialize_as = DbDateTime, deserialize_as = DbDateTime)]
     pub updated_at: DateTime<Utc>,
     pub updated_by: String,
-    #[diesel(serialize_as = DbOptDateTime, deserialize_as = DbOptDateTime)]
-    pub deleted_at: Option<DateTime<Utc>>,
-    pub deleted_by: Option<String>,
 }
 
 /// Replaces the persisted packet filter of one direction of an address by a new set of
 /// include-lists.
 ///
-/// All active rules of the filter are marked as deleted and the new rules are inserted within one
+/// All rules of the filter are removed and the new rules are inserted within one
 /// transaction, so the database never holds a half-written filter. Empty include-lists leave the
 /// filter without any active rule, which is the unfiltered state.
 ///
@@ -140,13 +130,10 @@ pub fn set_filter_rules(
             spec: filter_spec,
             owner_id: context.user_id.clone(),
             project_id: context.project_id.clone(),
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: context.user_id.clone(),
             updated_at: Utc::now(),
             updated_by: context.user_id.clone(),
-            deleted_at: None,
-            deleted_by: None,
         })
         .collect();
 
@@ -161,7 +148,7 @@ pub fn set_filter_rules(
     })
 }
 
-/// Marks the rules of the packet filters of an address as deleted on an already locked
+/// Deletes the rules of the packet filters of an address on an already locked
 /// connection.
 ///
 /// It takes the connection, so the deletion can be part of a bigger transaction, like the one,
@@ -172,7 +159,7 @@ pub fn set_filter_rules(
 /// * `filter_vni` - Tenant of the address
 /// * `filter_ip` - The address
 /// * `filter_direction` - Direction of the filter, whose rules are deleted, or `None` for both
-/// * `context` - User context to record who performed the deletion
+/// * `context` - User context, which is checked for the permission to delete
 ///
 /// # Returns
 /// * `QueryResult<usize>` with the number of deleted rules
@@ -190,24 +177,14 @@ pub fn delete_filter_rules_in(
 
     use self::network_filters::dsl::*;
     let mut query = network_filters
-        .filter(
-            vni.eq(filter_vni as i32)
-                .and(ip.eq(filter_ip.to_string()))
-                .and(status.eq("ACTIVE")),
-        )
+        .filter(vni.eq(filter_vni as i32).and(ip.eq(filter_ip.to_string())))
         .into_boxed();
     if let Some(filter_direction) = filter_direction {
         query = query.filter(direction.eq(filter_direction.to_string()));
     }
     let rule_uuids: Vec<String> = query.select(uuid).load(conn)?;
 
-    diesel::update(network_filters.filter(uuid.eq_any(rule_uuids)))
-        .set((
-            status.eq("DELETED"),
-            deleted_at.eq(Utc::now().to_rfc3339()),
-            deleted_by.eq(context.user_id.clone()),
-        ))
-        .execute(conn)
+    diesel::delete(network_filters.filter(uuid.eq_any(rule_uuids))).execute(conn)
 }
 
 /// Moves the rules of the packet filters of an address to another address on an already locked
@@ -237,20 +214,14 @@ pub fn move_filter_rules_in(
     delete_filter_rules_in(conn, to.0, to.1, None, context)?;
 
     use self::network_filters::dsl::*;
-    diesel::update(
-        network_filters.filter(
-            vni.eq(from.0 as i32)
-                .and(ip.eq(from.1.to_string()))
-                .and(status.eq("ACTIVE")),
-        ),
-    )
-    .set((
-        vni.eq(to.0 as i32),
-        ip.eq(to.1.to_string()),
-        updated_at.eq(Utc::now().to_rfc3339()),
-        updated_by.eq(context.user_id.clone()),
-    ))
-    .execute(conn)
+    diesel::update(network_filters.filter(vni.eq(from.0 as i32).and(ip.eq(from.1.to_string()))))
+        .set((
+            vni.eq(to.0 as i32),
+            ip.eq(to.1.to_string()),
+            updated_at.eq(Utc::now().to_rfc3339()),
+            updated_by.eq(context.user_id.clone()),
+        ))
+        .execute(conn)
 }
 
 /// Lists the persisted packet filters.
@@ -265,7 +236,6 @@ pub fn list_filter_rules() -> QueryResult<HashMap<FilterKey, RouteFilterRules>> 
         let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
         use self::network_filters::dsl::*;
         network_filters
-            .filter(status.eq("ACTIVE"))
             .select(NetworkFilterEntry::as_select())
             .load(&mut *conn)?
     };

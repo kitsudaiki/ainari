@@ -20,10 +20,11 @@ use uuid::Uuid;
 use crate::config;
 use crate::database::image_table;
 
-use ainari_api::common_functions::*;
+use ainari_api::error_mapping::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::user_context::UserContext;
 use ainari_clients::endpoints::get_endpoints;
+use ainari_clients::onsen_file_transfer::delete_file_from_onsen;
 use ainari_clients::secret::delete_secret;
 
 #[api_operation(
@@ -47,12 +48,9 @@ pub async fn delete_image(
         .map_err(|e| map_db_uuid_get_delete_error("image", &image_uuid, e, Some(&context)))?;
 
     // delete image-payload from onsen
-    delete_file_from_onsen(
-        &image_data.onsen_address,
-        &image_data.file_path,
-        Some(&context),
-    )
-    .await?;
+    delete_file_from_onsen(&image_data.onsen_address, &image_data.file_path)
+        .await
+        .map_err(|e| map_ainari_error_to_api_response(e, Some(&context)))?;
 
     // delete secret from omamori
     let miko_endpoint = &config::CONFIG.miko;

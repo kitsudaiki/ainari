@@ -266,6 +266,132 @@
         ]
       }
     },
+    "/v1alpha/virtual_machine/internal": {
+      "post": {
+        "tags": [
+          "virtual_machine"
+        ],
+        "summary": "Reserve new virtual_machine (internal)",
+        "description": "Reserve a new virtual_machine for another component, for example to restore it\\\nfrom a backup.\\\n\\\nIt works like the reservation of the users, but the number of cores and the memory in MiB are given\\\ndirectly instead of a vm-type. With `uuid`, `internal_ip` and `mac_address` the virtual_machine\\\nkeeps the original values of the backup. A UUID, which is used by an active virtual_machine or by\\\nanother project, or an address, which is already used, is rejected with `409`. The UUID of a\\\ndeleted virtual_machine of the same project can be used again. The values, which are not given,\\\nare selected like for a new virtual_machine.\\\n\\\nThis is an internal call, which is protected by the internal api-key.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VirtualMachineReserveInternalReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "VirtualMachineResp",
+                  "type": "object",
+                  "required": [
+                    "created_at",
+                    "created_by",
+                    "disk_size",
+                    "image_uuid",
+                    "internal_ip",
+                    "memory_size",
+                    "name",
+                    "network_uuid",
+                    "number_of_cores",
+                    "torii_address",
+                    "updated_at",
+                    "updated_by",
+                    "uuid",
+                    "vm_state"
+                  ],
+                  "properties": {
+                    "created_at": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "created_by": {
+                      "type": "string"
+                    },
+                    "disk_size": {
+                      "description": "size of the disk of the virtual_machine in GiB",
+                      "type": "integer",
+                      "format": "int64"
+                    },
+                    "image_uuid": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "internal_ip": {
+                      "type": "string",
+                      "format": "ipv4"
+                    },
+                    "memory_size": {
+                      "description": "memory of the virtual_machine; in bytes from sakura, in MiB from hanami",
+                      "type": "integer",
+                      "format": "int64"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "network_uuid": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "number_of_cores": {
+                      "type": "integer",
+                      "format": "int32"
+                    },
+                    "torii_address": {
+                      "description": "Address of the sakura-host of the virtual_machine, which is a proxy of the torii at the edge, so it stays the same, when the virtual_machine is moved to another sakura-host. Empty in the responses of sakura itself.",
+                      "type": "string"
+                    },
+                    "updated_at": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updated_by": {
+                      "type": "string"
+                    },
+                    "uuid": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "vm_state": {
+                      "description": "Power-state of the virtual_machine: RESERVED, CREATED, RUNNING, STOPPED, RESTORING or ERROR",
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "409": {
+            "description": "Conflict with existing resources"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
     "/v1alpha/virtual_machine/{virtual_machine_uuid}": {
       "get": {
         "tags": [
@@ -349,6 +475,57 @@
           },
           "409": {
             "description": "Conflict with existing resources"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/virtual_machine/{virtual_machine_uuid}/host/internal": {
+      "get": {
+        "tags": [
+          "virtual_machine"
+        ],
+        "summary": "Get host of virtual_machine (internal)",
+        "description": "Get the sakura-host, which runs a virtual_machine.\\\n\\\nOther components, like isekai for the backups, use the internal address of the host to call the\\\nendpoints of sakura for the virtual_machine directly. The virtual_machine must belong to the\\\nproject of the user, unless the user is an admin.\\\n\\\nThis is an internal call, which is protected by the internal api-key.",
+        "parameters": [
+          {
+            "name": "virtual_machine_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Uuid",
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VirtualMachineHostResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
           },
           "500": {
             "description": "Internal error"
@@ -2101,6 +2278,119 @@
           }
         ]
       }
+    },
+    "/v1alpha/project/{project_id}/export/internal": {
+      "get": {
+        "tags": [
+          "project"
+        ],
+        "summary": "Export project",
+        "description": "Export the networks, virtual_machines, packet filters and floating ip-addresses\\\nof a project for a backup.\\\n\\\nThe virtual_machines are exported with their resources and their address within the network.\\\nTheir disk and their config are exported by sakura. The floating ip-addresses are exported with\\\nthe virtual_machine, which they are attached to. The vm-types are not exported, because they are\\\nglobal and not bound to a project. Users, which are not admin, can only export their own project.\\\n\\\nThis is an internal call, which is protected by the internal api-key.",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "String",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HanamiProjectExport"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/project/{project_id}/import/internal": {
+      "post": {
+        "tags": [
+          "project"
+        ],
+        "summary": "Import project",
+        "description": "Import the networks, packet filters and floating ip-addresses of a project from\\\na backup.\\\n\\\nThe virtual_machines are not imported here, but reserved like new ones over\\\n`POST /v1alpha/virtual_machine/internal`. So the networks are imported first, the packet filters\\\nand floating ip-addresses with a second request, after the virtual_machines were reserved. All\\\nsections of the request are optional.\\\n\\\n- Networks keep their UUIDs, unless the `id_map` gives them a new one. A UUID, which is used by\\\n  another project, is rejected with `409`. An existing network of the project is rejected with\\\n  `409`, unless `force` is set, which overwrites it. Its subnet and encryption can only be\\\n  changed, while no virtual_machine uses the network. A deleted network is restored.\\\n- Packet filters are applied by the torii of the host of their virtual_machine. An existing\\\n  filter of the same direction is rejected with `409`, unless `force` is set, which replaces it.\\\n- Floating ip-addresses are allocated again from the pool and get new UUIDs. The address of the\\\n  backup is only used, if it is still free. A virtual_machine, which already has a floating\\\n  ip-address, keeps it.\\\n\\\nThe virtual_machines of the packet filters and floating ip-addresses, after applying the\\\n`id_map`, must exist in the project. All conflicts are checked, before anything is changed. The\\\nquota of the project is not checked here. Users, which are not admin, can only import into their\\\nown project.\\\n\\\nThis is an internal call, which is protected by the internal api-key.",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "String",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HanamiProjectImportReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HanamiProjectImportResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "409": {
+            "description": "Conflict with existing resources"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -2302,6 +2592,256 @@
           }
         }
       },
+      "FloatingIpExport": {
+        "description": "Floating ip-address, like it is exported from hanami into a backup. It is allocated again from the pool of the target on restore, so the address is only a preference.",
+        "type": "object",
+        "required": [
+          "floating_ip",
+          "name",
+          "uuid"
+        ],
+        "properties": {
+          "floating_ip": {
+            "type": "string",
+            "format": "ipv4"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1
+          },
+          "uuid": {
+            "description": "UUID of the floating ip-address at the time of the backup",
+            "type": "string",
+            "format": "uuid"
+          },
+          "virtual_machine_uuid": {
+            "description": "virtual_machine, which the floating ip-address was attached to",
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          }
+        }
+      },
+      "NetworkExport": {
+        "description": "Network, like it is exported from hanami into a backup.",
+        "type": "object",
+        "required": [
+          "disable_encryption",
+          "name",
+          "subnet",
+          "uuid"
+        ],
+        "properties": {
+          "disable_encryption": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1
+          },
+          "subnet": {
+            "type": "string",
+            "maxLength": 63,
+            "minLength": 1
+          },
+          "uuid": {
+            "description": "UUID of the network at the time of the backup",
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "NetworkFilterExport": {
+        "description": "Packet filter of one direction of a virtual_machine, like it is exported from hanami into a backup.",
+        "type": "object",
+        "required": [
+          "direction",
+          "ip_ranges",
+          "ports",
+          "virtual_machine_uuid"
+        ],
+        "properties": {
+          "direction": {
+            "$ref": "#/components/schemas/FilterDirection"
+          },
+          "ip_ranges": {
+            "description": "include-list of the ip-ranges",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "ports": {
+            "description": "include-list of the ports",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "virtual_machine_uuid": {
+            "description": "virtual_machine at the time of the backup, which the filter belongs to",
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "HanamiProjectExport": {
+        "title": "HanamiProjectExport",
+        "description": "Networks, virtual_machines, packet filters and floating ip-addresses of a project, like they are exported from hanami into a backup.",
+        "type": "object",
+        "required": [
+          "floating_ips",
+          "network_filters",
+          "networks",
+          "virtual_machines"
+        ],
+        "properties": {
+          "floating_ips": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FloatingIpExport"
+            }
+          },
+          "network_filters": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NetworkFilterExport"
+            }
+          },
+          "networks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NetworkExport"
+            }
+          },
+          "virtual_machines": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HanamiVirtualMachineExport"
+            }
+          }
+        }
+      },
+      "HanamiProjectImportReq": {
+        "title": "HanamiProjectImportReq",
+        "description": "Import of the resources of a project from a backup into hanami. The virtual_machines are not imported here, but reserved like new ones, so the networks are imported before them, the packet filters and floating ip-addresses afterwards with a second request.",
+        "type": "object",
+        "properties": {
+          "floating_ips": {
+            "default": [],
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FloatingIpExport"
+            }
+          },
+          "force": {
+            "description": "overwrite existing resources of the project",
+            "default": false,
+            "type": "boolean"
+          },
+          "id_map": {
+            "description": "new UUIDs of the resources, whose UUID was already taken. It is applied to the networks and to the virtual_machines, which the packet filters and floating ip-addresses belong to. UUIDs, which are not part of it, are kept.",
+            "default": {},
+            "type": "object",
+            "additionalProperties": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "network_filters": {
+            "default": [],
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NetworkFilterExport"
+            }
+          },
+          "networks": {
+            "default": [],
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NetworkExport"
+            }
+          }
+        }
+      },
+      "HanamiProjectImportResp": {
+        "title": "HanamiProjectImportResp",
+        "type": "object",
+        "required": [
+          "floating_ips",
+          "networks",
+          "project_id"
+        ],
+        "properties": {
+          "floating_ips": {
+            "description": "the floating ip-addresses get new UUIDs, because they are allocated again",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ImportedResource"
+            }
+          },
+          "networks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ImportedResource"
+            }
+          },
+          "project_id": {
+            "type": "string"
+          }
+        }
+      },
+      "HanamiVirtualMachineExport": {
+        "description": "Virtual_machine, like it is exported from hanami into a backup. The disk and the config within the virtual_machine are exported by sakura.",
+        "type": "object",
+        "required": [
+          "disk_size",
+          "internal_ip",
+          "mac_address",
+          "memory_size",
+          "name",
+          "network_uuid",
+          "number_of_cores",
+          "uuid"
+        ],
+        "properties": {
+          "disk_size": {
+            "description": "size of the root-disk in GiB",
+            "type": "integer",
+            "format": "int64"
+          },
+          "internal_ip": {
+            "type": "string",
+            "format": "ipv4"
+          },
+          "mac_address": {
+            "type": "string"
+          },
+          "memory_size": {
+            "description": "memory in MiB",
+            "type": "integer",
+            "format": "int64"
+          },
+          "name": {
+            "type": "string"
+          },
+          "network_uuid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "number_of_cores": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "uuid": {
+            "description": "UUID of the virtual_machine at the time of the backup",
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
       "HostIsolationUpdateReq": {
         "title": "HostIsolationUpdateReq",
         "type": "object",
@@ -2312,6 +2852,31 @@
           "is_host_isolated": {
             "description": "isolate the host, so it is only used by the virtual-machines of a single project",
             "type": "boolean"
+          }
+        }
+      },
+      "ImportedResource": {
+        "description": "Resource, which was imported from a backup.",
+        "type": "object",
+        "required": [
+          "overwritten",
+          "source_uuid",
+          "uuid"
+        ],
+        "properties": {
+          "overwritten": {
+            "description": "true, if an existing resource was overwritten",
+            "type": "boolean"
+          },
+          "source_uuid": {
+            "description": "UUID of the resource within the backup",
+            "type": "string",
+            "format": "uuid"
+          },
+          "uuid": {
+            "description": "UUID of the imported resource, which differs, if it was changed by the `id_map`",
+            "type": "string",
+            "format": "uuid"
           }
         }
       },
@@ -2676,18 +3241,15 @@
         "title": "SakuraHostCreateReq",
         "type": "object",
         "required": [
-          "deleted_uuids",
           "disk_space",
           "host_address",
           "memory_size",
           "name",
           "number_of_cores",
-          "registration_key"
+          "registration_key",
+          "virtual_machine_uuids"
         ],
         "properties": {
-          "deleted_uuids": {
-            "$ref": "#/components/schemas/UuidList"
-          },
           "disk_space": {
             "description": "total size of the disk, which holds the virtual-machines, in GiB",
             "type": "integer",
@@ -2734,6 +3296,14 @@
             "minLength": 4,
             "maxItems": 127,
             "minItems": 4
+          },
+          "virtual_machine_uuids": {
+            "description": "UUIDs of all virtual-machines, which exist on the host. Hanami removes its entries of virtual-machines of the host, which are not in this list.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UuidList"
+              }
+            ]
           }
         }
       },
@@ -2922,6 +3492,30 @@
           }
         }
       },
+      "VirtualMachineHostResp": {
+        "title": "VirtualMachineHostResp",
+        "description": "Sakura-host, which runs a virtual_machine.",
+        "type": "object",
+        "required": [
+          "address",
+          "host_uuid",
+          "virtual_machine_uuid"
+        ],
+        "properties": {
+          "address": {
+            "description": "Internal address of the sakura-host, where its internal endpoints are reachable",
+            "type": "string"
+          },
+          "host_uuid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "virtual_machine_uuid": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
       "VirtualMachineListResp": {
         "title": "VirtualMachineListResp",
         "type": "object",
@@ -2973,6 +3567,71 @@
           "virtual_machine_uuid": {
             "type": "string",
             "format": "uuid"
+          }
+        }
+      },
+      "VirtualMachineReserveInternalReq": {
+        "title": "VirtualMachineReserveInternalReq",
+        "description": "Reservation of a virtual_machine by another component, for example to restore it from a backup. Unlike `VirtualMachineCreateReq` the resources are given directly instead of a vm-type, and the UUID and the addresses can be predefined.",
+        "type": "object",
+        "required": [
+          "disk_size",
+          "memory_size",
+          "name",
+          "network_uuid",
+          "number_of_cores"
+        ],
+        "properties": {
+          "disk_size": {
+            "description": "size of the disk of the virtual_machine in GiB",
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1.0
+          },
+          "internal_ip": {
+            "description": "internal IP-address within the network. Without it, the next free one is used.",
+            "default": null,
+            "type": "string",
+            "format": "ipv4",
+            "nullable": true
+          },
+          "isolated_host": {
+            "description": "Place the virtual_machine on a host, which is isolated for the project",
+            "default": false,
+            "type": "boolean"
+          },
+          "mac_address": {
+            "description": "MAC-address of the virtual_machine. Without it, the next free one is used.",
+            "default": null,
+            "type": "string",
+            "nullable": true
+          },
+          "memory_size": {
+            "description": "memory of the virtual_machine in MiB",
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1.0
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 127,
+            "minLength": 4
+          },
+          "network_uuid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "number_of_cores": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1.0
+          },
+          "uuid": {
+            "description": "UUID of the virtual_machine. Without it, a new UUID is generated.",
+            "default": null,
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
           }
         }
       },

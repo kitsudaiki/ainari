@@ -29,7 +29,7 @@ pub mod unlock_project_internal_v1_0;
 
 use crate::database::project_table::{self, ProjectEntry};
 
-use ainari_api::common_functions::*;
+use ainari_api::error_mapping::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::project_structs::{ProjectLock, ProjectLockResp};
 use ainari_api_structs::user_context::UserContext;

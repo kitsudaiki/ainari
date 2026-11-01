@@ -69,8 +69,7 @@ type AinariSpec struct {
 	Isekai IsekaiSpec `json:"isekai"`
 
 	// Shares the MLS key-packages of the gateways, delivers their MLS-messages and coordinates the
-	// changes and key-rotations of the groups. It is only deployed, if
-	// hanami.network.mlsEncryption is enabled.
+	// changes and key-rotations of the groups.
 	// +kubebuilder:default={}
 	// +optional
 	Izakaya IzakayaSpec `json:"izakaya"`
@@ -400,12 +399,6 @@ type HanamiNetworkSpec struct {
 	// +kubebuilder:default="10.0.0.0/24"
 	// +optional
 	FloatingIPCIDR string `json:"floatingIpCidr"`
-
-	// Encrypts the traffic between the virtual machines of a network on different hosts with
-	// IPsec, whose keys the gateways exchange over MLS-groups, which izakaya coordinates.
-	// +kubebuilder:default=true
-	// +optional
-	MLSEncryption bool `json:"mlsEncryption"`
 
 	// seconds, for which a membership-grant allows a gateway to join the group of a network
 	// +kubebuilder:default=86400

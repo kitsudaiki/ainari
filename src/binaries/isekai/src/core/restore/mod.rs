@@ -38,8 +38,7 @@ use uuid::Uuid;
 
 use ainari_common::error::AinariError;
 
-use ainari_api_structs::network_structs::HanamiProjectExport;
-use ainari_api_structs::project_structs::{MikoProjectExport, OmamoriProjectExport};
+use ainari_api_structs::exports::{HanamiProjectExport, MikoProjectExport, OmamoriProjectExport};
 
 use crate::core::bundle::{RyokanMetadata, SakuraMetadata};
 use crate::core::keys::BackupKeys;

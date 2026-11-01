@@ -1,0 +1,1440 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Isekai-API-Documentation",
+    "contact": {
+      "email": "tobias.anker@kitsunemimi.moe"
+    },
+    "license": {
+      "name": "Apache 2.0",
+      "url": "http://www.apache.org/licenses/LICENSE-2.0.html"
+    },
+    "version": "unknown"
+  },
+  "servers": [],
+  "paths": {
+    "/v1alpha/version": {
+      "get": {
+        "tags": [
+          "version"
+        ],
+        "summary": "Get version",
+        "description": "Get the version of the binary consisting of Tag or Branch-name together with the commit-hash.",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VersionResp"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/is_ready": {
+      "get": {
+        "tags": [
+          "version"
+        ],
+        "summary": "Get ready status",
+        "description": "Get status of the service endpoint.",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadyResp"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/backup": {
+      "post": {
+        "tags": [
+          "backup"
+        ],
+        "summary": "Create backup of project",
+        "description": "Create a backup of the whole project of the user.\\\n\\\nThe backup contains the project with its quota, the secrets and public-keys, the images and\\\nsnapshots, the networks, virtual_machines, packet-filters and floating ip-addresses and a copy of\\\nthe root-disk of every virtual_machine. Users and their assignments to the project are not part\\\nof it.\\\n\\\nThe backup is created by a job in the background, which can be followed over the returned job.\\\nThe project is locked for the whole duration of the backup, so all resources of the project can\\\nonly be read in the meantime. A project, which is already locked by another backup or restore, is\\\nrejected with `409`.\\\n\\\nWith `stop_vms` every running virtual_machine is shut down, while its root-disk is saved, and\\\nstarted again afterwards. Otherwise the virtual_machines are only paused shortly. With\\\n`include_images` the files of the images of the project are copied into the backup as well.\\\n\\\nThe backup is encrypted with a key, which is derived from the `passphrase`. The passphrase is not\\\nstored, so the backup can't be restored without it.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectBackupCreateReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "BackupJobResp",
+                  "description": "Response of a new backup, which is created by a job in the background.",
+                  "type": "object",
+                  "required": [
+                    "backup",
+                    "job"
+                  ],
+                  "properties": {
+                    "backup": {
+                      "$ref": "#/components/schemas/IsekaiBackupResp"
+                    },
+                    "job": {
+                      "description": "job, which creates the backup and which can be polled",
+                      "allOf": [
+                        {
+                          "$ref": "#/components/schemas/JobResp"
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "409": {
+            "description": "Conflict with existing resources"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      },
+      "get": {
+        "tags": [
+          "backup"
+        ],
+        "summary": "List backups",
+        "description": "List all backups of the project of the user, the newest first.\\\n\\\nAdmins see the backups of all projects, which can be restricted to one project with the\\\nquery-parameter `project_id`.",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "query",
+            "description": "Project to list only its backups. Without it, all backups are listed, which are visible for the user.",
+            "required": false,
+            "schema": {
+              "description": "Project to list only its backups. Without it, all backups are listed, which are visible for the user.",
+              "type": "string",
+              "nullable": true
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IsekaiBackupListResp"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/backup/scan/admin": {
+      "get": {
+        "tags": [
+          "import"
+        ],
+        "summary": "Scan backup-target for foreign backups",
+        "description": "List the backups on a backup-target, which are not known yet.\\\n\\\nThese are backups, which were copied onto the backup-target from outside, for example from\\\nanother deployment for a disaster-recovery. Only complete backups with a manifest are listed. They\\\ncan be imported with `POST /v1alpha/backup/import/admin`. This can only be done by an admin.",
+        "parameters": [
+          {
+            "name": "onsen_host_uuid",
+            "in": "query",
+            "description": "backup-target, which is scanned for packages, which are not known yet",
+            "required": true,
+            "schema": {
+              "description": "backup-target, which is scanned for packages, which are not known yet",
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackupScanResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "409": {
+            "description": "Conflict with existing resources"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/backup/import/admin": {
+      "post": {
+        "tags": [
+          "import"
+        ],
+        "summary": "Import foreign backup",
+        "description": "Import a backup, which was copied onto a backup-target from outside, for example\\\nfrom another deployment for a disaster-recovery.\\\n\\\nThe passphrase is checked against the manifest of the backup, before the backup is registered, so\\\na wrong passphrase is rejected with `400`. Afterwards the backup belongs to the project, which it\\\nwas created from, and can be restored like every other backup, also into a new project. The users\\\nof the old deployment are not part of the backup and have to be created and assigned to the\\\nrestored project by an admin. This can only be done by an admin.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BackupImportReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "IsekaiBackupResp",
+                  "type": "object",
+                  "required": [
+                    "ainari_version",
+                    "created_at",
+                    "created_by",
+                    "kind",
+                    "name",
+                    "project_id",
+                    "state",
+                    "uuid"
+                  ],
+                  "properties": {
+                    "ainari_version": {
+                      "description": "version of ainari, which has created the backup",
+                      "type": "string"
+                    },
+                    "created_at": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "created_by": {
+                      "type": "string"
+                    },
+                    "file_count": {
+                      "description": "number of files of the backup, known after it was finished",
+                      "type": "integer",
+                      "format": "uint64",
+                      "minimum": 0.0,
+                      "nullable": true
+                    },
+                    "host_uuid": {
+                      "description": "backup-target, which stores the backup, if it is known",
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "kind": {
+                      "$ref": "#/components/schemas/BackupKind"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "project_id": {
+                      "type": "string"
+                    },
+                    "state": {
+                      "$ref": "#/components/schemas/BackupStatus"
+                    },
+                    "total_size": {
+                      "description": "size of all files of the backup in bytes, known after it was finished",
+                      "type": "integer",
+                      "format": "uint64",
+                      "minimum": 0.0,
+                      "nullable": true
+                    },
+                    "uuid": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "virtual_machine_uuid": {
+                      "description": "saved virtual_machine, only for backups of the kind `VIRTUAL_MACHINE`",
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "409": {
+            "description": "Conflict with existing resources"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/backup/virtual_machine": {
+      "post": {
+        "tags": [
+          "backup"
+        ],
+        "summary": "Create backup of virtual_machine",
+        "description": "Create a backup of a single virtual_machine of the project of the user.\\\n\\\nThe backup contains the root-disk of the virtual_machine, its config, its public-key, its\\\npacket-filters, its floating ip-addresses and its network, which is created again on a restore,\\\nif it doesn't exist anymore.\\\n\\\nThe backup is created by a job in the background, which can be followed over the returned job.\\\nThe whole project is locked, while the root-disk is saved, because the backup also contains\\\nresources of the project, like the network. A project, which is already locked by another backup\\\nor restore, is rejected with `409`.\\\n\\\nWith `stop_vm` the virtual_machine is shut down, while its root-disk is saved, and started again\\\nafterwards, if it was running. Otherwise it is only paused shortly.\\\n\\\nThe backup is encrypted with a key, which is derived from the `passphrase`. The passphrase is not\\\nstored, so the backup can't be restored without it.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VirtualMachineBackupCreateReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "BackupJobResp",
+                  "description": "Response of a new backup, which is created by a job in the background.",
+                  "type": "object",
+                  "required": [
+                    "backup",
+                    "job"
+                  ],
+                  "properties": {
+                    "backup": {
+                      "$ref": "#/components/schemas/IsekaiBackupResp"
+                    },
+                    "job": {
+                      "description": "job, which creates the backup and which can be polled",
+                      "allOf": [
+                        {
+                          "$ref": "#/components/schemas/JobResp"
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "409": {
+            "description": "Conflict with existing resources"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/backup/{backup_uuid}": {
+      "get": {
+        "tags": [
+          "backup"
+        ],
+        "summary": "Get backup",
+        "description": "Get a backup of the project of the user.\\\n\\\nThe backup-target and the size of the backup are read from ryokan, which stores the files of the\\\nbackup. They are empty, if ryokan doesn't know the backup or is not reachable.",
+        "parameters": [
+          {
+            "name": "backup_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Uuid",
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IsekaiBackupResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "backup"
+        ],
+        "summary": "Delete backup",
+        "description": "Delete a backup together with its files and the secrets of its disks.\\\n\\\nOnly admins of the project can delete a backup. A backup, which is created or restored right now,\\\nis rejected with `409`. If the deletion fails, the backup stays in the state `DELETING` and the\\\ndeletion can be repeated.\\\n\\\nThe project of a backup, whose creation was interrupted by a restart of isekai, is unlocked again\\\nby the deletion.",
+        "parameters": [
+          {
+            "name": "backup_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Uuid",
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "409": {
+            "description": "Conflict with existing resources"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/backup/{backup_uuid}/restore": {
+      "post": {
+        "tags": [
+          "restore"
+        ],
+        "summary": "Restore backup",
+        "description": "Restore a backup into a project.\\\n\\\nThe passphrase is checked against the manifest of the backup and its metadata is read, before\\\nanything is changed, so a wrong passphrase or a manipulated metadata-file is rejected with `400`.\\\nAfterwards the plan of the restore is calculated: which resources keep their UUID, which get a\\\nnew one (`id_map`), which are overwritten and which are deleted by `prune`, and how the quota of\\\nthe project is used afterwards. With `dry_run` only the plan is returned\\\nand nothing is changed. A restore, which would exceed the quota, is rejected with `409`.\\\n\\\nThen the project is locked and the backup is restored by a job in the background, which can be\\\nfollowed over the returned job. A project, which is already locked by another backup or restore,\\\nis rejected with `409`. The job checks the disks and images of the backup against its manifest,\\\nbefore it changes the project, so a manipulated backup changes nothing.\\\n\\\n- Without `force` a resource keeps its UUID, if it is free. A resource, whose UUID is used in\\\n  the project, gets a new one. Restored into another project, all resources get new UUIDs,\\\n  because their UUIDs are still used by the project of the backup.\\\n- With `force` every UUID is kept and existing resources are overwritten. A virtual_machine gets\\\n  the root-disk of the backup, or is created again, if its disk-size changed.\\\n- With `prune`, which is only allowed together with `force`, the resources of the project, which\\\n  are not part of the backup, are deleted, so the project gets exactly the state of the backup.\\\n- Floating ip-addresses are always allocated again. The virtual_machines get their power-state\\\n  from the time of the backup, or are started with `start_vms`.\\\n\\\nA backup of a project is restored into its own project, or into `target_project_id`. A project,\\\nwhich doesn't exist, is created with the name and quota of the backup. Users and their\\\nassignments to the project are never restored. A backup of a virtual_machine is restored into the\\\nproject of the token, or into `target_project_id`, which must exist. A missing public-key is\\\nrestored from the backup and a missing network is created from the backup, if\\\n`include_dependencies` is set.\\\n\\\nIf the restore fails after it has changed the project, the project stays locked. It is unlocked\\\nby repeating the restore of the same backup with `force`, which takes over the lock, or by an\\\nadmin.\\\n\\\nAdmins of the project can restore into their own project, all other projects, also new ones,\\\ncan only be restored by admins.",
+        "parameters": [
+          {
+            "name": "backup_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Uuid",
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BackupRestoreReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "RestoreResp",
+                  "type": "object",
+                  "required": [
+                    "plan"
+                  ],
+                  "properties": {
+                    "job": {
+                      "description": "job, which restores the backup and which can be polled. Empty for a dry-run.",
+                      "allOf": [
+                        {
+                          "$ref": "#/components/schemas/JobResp"
+                        }
+                      ],
+                      "nullable": true
+                    },
+                    "plan": {
+                      "description": "plan of the restore",
+                      "allOf": [
+                        {
+                          "$ref": "#/components/schemas/RestorePlanResp"
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "409": {
+            "description": "Conflict with existing resources"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/job": {
+      "get": {
+        "tags": [
+          "job"
+        ],
+        "summary": "List jobs",
+        "description": "List the backup- and restore-jobs of the project of the user, the newest first.\\\n\\\nThe query-parameter `backup_uuid` lists only the jobs of one backup. Admins see the jobs of all\\\nprojects.",
+        "parameters": [
+          {
+            "name": "backup_uuid",
+            "in": "query",
+            "description": "Backup to list only its jobs",
+            "required": false,
+            "schema": {
+              "description": "Backup to list only its jobs",
+              "type": "string",
+              "format": "uuid",
+              "nullable": true
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobListResp"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/job/{job_uuid}": {
+      "get": {
+        "tags": [
+          "job"
+        ],
+        "summary": "Get job",
+        "description": "Get a backup- or restore-job of the project of the user.\\\n\\\nThe job shows the step, which is processed right now, the reason of a failure in its messages and\\\nthe resources, which were restored under a new UUID.",
+        "parameters": [
+          {
+            "name": "job_uuid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Uuid",
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "BackupImportReq": {
+        "title": "BackupImportReq",
+        "type": "object",
+        "required": [
+          "backup_uuid",
+          "onsen_host_uuid",
+          "passphrase"
+        ],
+        "properties": {
+          "backup_uuid": {
+            "description": "UUID of the package, which is the name of its directory on the backup-target",
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "description": "Name of the backup. Without it, the backup is named after its UUID.",
+            "default": null,
+            "type": "string",
+            "maxLength": 127,
+            "minLength": 4,
+            "nullable": true
+          },
+          "onsen_host_uuid": {
+            "description": "backup-target, which stores the package",
+            "type": "string",
+            "format": "uuid"
+          },
+          "passphrase": {
+            "description": "Passphrase, which was given, when the backup was created",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Secret"
+              }
+            ],
+            "maxLength": 1024,
+            "minLength": 1,
+            "maxItems": 1024,
+            "minItems": 1
+          }
+        }
+      },
+      "BackupJobResp": {
+        "title": "BackupJobResp",
+        "description": "Response of a new backup, which is created by a job in the background.",
+        "type": "object",
+        "required": [
+          "backup",
+          "job"
+        ],
+        "properties": {
+          "backup": {
+            "$ref": "#/components/schemas/IsekaiBackupResp"
+          },
+          "job": {
+            "description": "job, which creates the backup and which can be polled",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/JobResp"
+              }
+            ]
+          }
+        }
+      },
+      "BackupKind": {
+        "description": "Content of a backup.",
+        "oneOf": [
+          {
+            "title": "PROJECT",
+            "description": "All resources of a project",
+            "type": "string",
+            "enum": [
+              "PROJECT"
+            ]
+          },
+          {
+            "title": "VIRTUAL_MACHINE",
+            "description": "A single virtual_machine with its root-disk, public-key, network and packet-filters",
+            "type": "string",
+            "enum": [
+              "VIRTUAL_MACHINE"
+            ]
+          }
+        ]
+      },
+      "BackupRestoreReq": {
+        "title": "BackupRestoreReq",
+        "type": "object",
+        "required": [
+          "passphrase"
+        ],
+        "properties": {
+          "dry_run": {
+            "description": "Only calculate and return the plan of the restore, without changing anything",
+            "default": false,
+            "type": "boolean"
+          },
+          "force": {
+            "description": "Overwrite existing resources of the project with the same UUID. Without it, the restored resources get new UUIDs, if their UUIDs are already used.",
+            "default": false,
+            "type": "boolean"
+          },
+          "include_dependencies": {
+            "description": "Create the network of a virtual_machine from the backup, if it doesn't exist in the project anymore",
+            "default": true,
+            "type": "boolean"
+          },
+          "passphrase": {
+            "description": "Passphrase, which was given, when the backup was created",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Secret"
+              }
+            ],
+            "maxLength": 1024,
+            "minLength": 1,
+            "maxItems": 1024,
+            "minItems": 1
+          },
+          "prune": {
+            "description": "Delete the resources of the project, which are not part of the backup",
+            "default": false,
+            "type": "boolean"
+          },
+          "start_vms": {
+            "description": "Start all restored virtual_machines. Without it, they get the power-state, which they had at the time of the backup.",
+            "default": false,
+            "type": "boolean"
+          },
+          "target_project_id": {
+            "description": "Project, which the backup is restored into. Without it, the project of the backup is used.",
+            "default": null,
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1,
+            "nullable": true
+          }
+        }
+      },
+      "BackupScanEntry": {
+        "type": "object",
+        "required": [
+          "has_manifest",
+          "uuid"
+        ],
+        "properties": {
+          "has_manifest": {
+            "description": "true, if the package contains a manifest. A package without manifest is incomplete.",
+            "type": "boolean"
+          },
+          "uuid": {
+            "description": "UUID of the backup, which is the name of its directory",
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "BackupScanResp": {
+        "title": "BackupScanResp",
+        "type": "object",
+        "required": [
+          "backups"
+        ],
+        "properties": {
+          "backups": {
+            "description": "packages on the backup-target, which are not registered as backup",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BackupScanEntry"
+            }
+          }
+        }
+      },
+      "BackupStatus": {
+        "description": "State of the package of a backup, which is stored as one directory on a backup-target. The package is only handled as a whole, so its state defines, which operations are allowed on its files.",
+        "oneOf": [
+          {
+            "title": "CREATING",
+            "description": "The backup is created. Files can only be written into the package in this state.",
+            "type": "string",
+            "enum": [
+              "CREATING"
+            ]
+          },
+          {
+            "title": "READY",
+            "description": "The package is complete and sealed, so it is read only from now on",
+            "type": "string",
+            "enum": [
+              "READY"
+            ]
+          },
+          {
+            "title": "DELETING",
+            "description": "The package is deleted as a whole. A failed deletion stays in this state and can be repeated.",
+            "type": "string",
+            "enum": [
+              "DELETING"
+            ]
+          },
+          {
+            "title": "ERROR",
+            "description": "The package is incomplete or inconsistent and can only be deleted",
+            "type": "string",
+            "enum": [
+              "ERROR"
+            ]
+          }
+        ]
+      },
+      "IdMapEntryResp": {
+        "description": "Resource, which got a new UUID by a restore, because its original UUID was already used.",
+        "type": "object",
+        "required": [
+          "new_uuid",
+          "old_uuid",
+          "resource_type"
+        ],
+        "properties": {
+          "new_uuid": {
+            "description": "UUID of the restored resource",
+            "type": "string",
+            "format": "uuid"
+          },
+          "old_uuid": {
+            "description": "UUID of the resource within the backup",
+            "type": "string",
+            "format": "uuid"
+          },
+          "resource_type": {
+            "description": "kind of the resource, like `virtual_machine` or `network`",
+            "type": "string"
+          }
+        }
+      },
+      "IsekaiBackupListResp": {
+        "title": "IsekaiBackupListResp",
+        "type": "object",
+        "required": [
+          "backups"
+        ],
+        "properties": {
+          "backups": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IsekaiBackupResp"
+            }
+          }
+        }
+      },
+      "IsekaiBackupResp": {
+        "title": "IsekaiBackupResp",
+        "type": "object",
+        "required": [
+          "ainari_version",
+          "created_at",
+          "created_by",
+          "kind",
+          "name",
+          "project_id",
+          "state",
+          "uuid"
+        ],
+        "properties": {
+          "ainari_version": {
+            "description": "version of ainari, which has created the backup",
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "created_by": {
+            "type": "string"
+          },
+          "file_count": {
+            "description": "number of files of the backup, known after it was finished",
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0,
+            "nullable": true
+          },
+          "host_uuid": {
+            "description": "backup-target, which stores the backup, if it is known",
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "kind": {
+            "$ref": "#/components/schemas/BackupKind"
+          },
+          "name": {
+            "type": "string"
+          },
+          "project_id": {
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/components/schemas/BackupStatus"
+          },
+          "total_size": {
+            "description": "size of all files of the backup in bytes, known after it was finished",
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0,
+            "nullable": true
+          },
+          "uuid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "virtual_machine_uuid": {
+            "description": "saved virtual_machine, only for backups of the kind `VIRTUAL_MACHINE`",
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          }
+        }
+      },
+      "JobListResp": {
+        "title": "JobListResp",
+        "type": "object",
+        "required": [
+          "jobs"
+        ],
+        "properties": {
+          "jobs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/JobResp"
+            }
+          }
+        }
+      },
+      "JobResp": {
+        "title": "JobResp",
+        "type": "object",
+        "required": [
+          "backup_uuid",
+          "created_at",
+          "created_by",
+          "id_map",
+          "job_type",
+          "messages",
+          "project_id",
+          "state",
+          "step",
+          "uuid"
+        ],
+        "properties": {
+          "backup_uuid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "created_by": {
+            "type": "string"
+          },
+          "finished_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "id_map": {
+            "description": "resources, which got a new UUID by a restore",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IdMapEntryResp"
+            }
+          },
+          "job_type": {
+            "$ref": "#/components/schemas/JobType"
+          },
+          "messages": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "project_id": {
+            "description": "project, which is saved or restored by the job",
+            "type": "string"
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "state": {
+            "$ref": "#/components/schemas/JobState"
+          },
+          "step": {
+            "description": "step, which is processed right now, or the last step of a finished or failed job",
+            "type": "string"
+          },
+          "uuid": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "JobState": {
+        "oneOf": [
+          {
+            "title": "QUEUED",
+            "description": "The job waits for its worker",
+            "type": "string",
+            "enum": [
+              "QUEUED"
+            ]
+          },
+          {
+            "title": "ACTIVE",
+            "description": "The job is processed right now",
+            "type": "string",
+            "enum": [
+              "ACTIVE"
+            ]
+          },
+          {
+            "title": "FINISHED",
+            "description": "The job was processed successfully",
+            "type": "string",
+            "enum": [
+              "FINISHED"
+            ]
+          },
+          {
+            "title": "ERROR",
+            "description": "The job failed. The messages of the job contain the reason.",
+            "type": "string",
+            "enum": [
+              "ERROR"
+            ]
+          }
+        ]
+      },
+      "JobType": {
+        "type": "string",
+        "enum": [
+          "BACKUP",
+          "RESTORE"
+        ]
+      },
+      "PlannedResource": {
+        "description": "Resource of the project, which is changed by a restore.",
+        "type": "object",
+        "required": [
+          "name",
+          "resource_type",
+          "uuid"
+        ],
+        "properties": {
+          "name": {
+            "description": "name of the resource. For a packet-filter it is its direction.",
+            "type": "string"
+          },
+          "resource_type": {
+            "description": "kind of the resource, like `virtual_machine` or `network`",
+            "type": "string"
+          },
+          "uuid": {
+            "description": "UUID of the resource. For a packet-filter it is the UUID of its virtual_machine.",
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "ProjectBackupCreateReq": {
+        "title": "ProjectBackupCreateReq",
+        "type": "object",
+        "required": [
+          "name",
+          "passphrase"
+        ],
+        "properties": {
+          "include_images": {
+            "description": "Copy the images and snapshots of the project into the backup, so it is self-contained",
+            "default": true,
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 127,
+            "minLength": 4
+          },
+          "passphrase": {
+            "description": "Passphrase, which encrypts the backup. It is required again for the restore and is never stored, so a backup can't be restored without it.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Secret"
+              }
+            ],
+            "maxLength": 1024,
+            "minLength": 12,
+            "maxItems": 1024,
+            "minItems": 12
+          },
+          "stop_vms": {
+            "description": "Shut the running virtual_machines down for the time of the saving of their root-disks and start them again afterwards, so the root-disks are consistent. Otherwise they are only paused shortly, which is like a power-loss for the applications within them.",
+            "default": false,
+            "type": "boolean"
+          }
+        }
+      },
+      "QuotaUsageResp": {
+        "description": "Usage of the quota of the project for one kind of resource after the restore.",
+        "type": "object",
+        "required": [
+          "after_restore",
+          "current",
+          "max",
+          "resource_type"
+        ],
+        "properties": {
+          "after_restore": {
+            "description": "number of resources of the project after the restore",
+            "type": "integer",
+            "format": "int64"
+          },
+          "current": {
+            "description": "number of resources of the project before the restore",
+            "type": "integer",
+            "format": "int64"
+          },
+          "max": {
+            "description": "maximum number of resources of the project after the restore",
+            "type": "integer",
+            "format": "int64"
+          },
+          "resource_type": {
+            "description": "kind of the resource, like `virtual_machine` or `network`",
+            "type": "string"
+          }
+        }
+      },
+      "ReadyResp": {
+        "title": "ReadyResp",
+        "type": "object",
+        "required": [
+          "api"
+        ],
+        "properties": {
+          "api": {
+            "type": "boolean"
+          }
+        }
+      },
+      "RestorePlanResp": {
+        "description": "Plan of a restore, which shows, how the project is changed by it.",
+        "type": "object",
+        "required": [
+          "create_project",
+          "deleted",
+          "id_map",
+          "overwritten",
+          "quota",
+          "target_project_id",
+          "warnings"
+        ],
+        "properties": {
+          "create_project": {
+            "description": "true, if the project doesn't exist and is created by the restore",
+            "type": "boolean"
+          },
+          "deleted": {
+            "description": "resources of the project, which are not part of the backup and deleted by `prune`",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlannedResource"
+            }
+          },
+          "id_map": {
+            "description": "resources, which get a new UUID, because their UUID is already used",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IdMapEntryResp"
+            }
+          },
+          "overwritten": {
+            "description": "existing resources, which are overwritten by the backup",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlannedResource"
+            }
+          },
+          "quota": {
+            "description": "usage of the quota of the project after the restore",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QuotaUsageResp"
+            }
+          },
+          "target_project_id": {
+            "description": "project, which the backup is restored into",
+            "type": "string"
+          },
+          "warnings": {
+            "description": "hints about parts of the backup, which can't be restored completely",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "RestoreResp": {
+        "title": "RestoreResp",
+        "type": "object",
+        "required": [
+          "plan"
+        ],
+        "properties": {
+          "job": {
+            "description": "job, which restores the backup and which can be polled. Empty for a dry-run.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/JobResp"
+              }
+            ],
+            "nullable": true
+          },
+          "plan": {
+            "description": "plan of the restore",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RestorePlanResp"
+              }
+            ]
+          }
+        }
+      },
+      "Secret": {
+        "description": "Wrapper around a string, which must not be leaked into logs or error-messages.\n\n`Debug` and `Display` both print `***` instead of the content, so a secret stays hidden even when it is part of a bigger struct, which is logged as a whole. The content is only reachable through `reveal`, which makes every intended access visible at the call-site.",
+        "type": "string"
+      },
+      "VersionResp": {
+        "title": "VersionResp",
+        "type": "object",
+        "required": [
+          "commit_hash",
+          "timestamp",
+          "version"
+        ],
+        "properties": {
+          "commit_hash": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        }
+      },
+      "VirtualMachineBackupCreateReq": {
+        "title": "VirtualMachineBackupCreateReq",
+        "type": "object",
+        "required": [
+          "name",
+          "passphrase",
+          "virtual_machine_uuid"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 127,
+            "minLength": 4
+          },
+          "passphrase": {
+            "description": "Passphrase, which encrypts the backup. It is required again for the restore and is never stored, so a backup can't be restored without it.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Secret"
+              }
+            ],
+            "maxLength": 1024,
+            "minLength": 12,
+            "maxItems": 1024,
+            "minItems": 12
+          },
+          "stop_vm": {
+            "description": "Shut the virtual_machine down for the time of the saving of its root-disk and start it again afterwards, so the root-disk is consistent",
+            "default": false,
+            "type": "boolean"
+          },
+          "virtual_machine_uuid": {
+            "description": "virtual_machine of the project of the user, which is saved",
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "user_context": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  },
+  "externalDocs": {
+    "description": "Find out more about Swagger",
+    "url": "http://swagger.io"
+  }
+}

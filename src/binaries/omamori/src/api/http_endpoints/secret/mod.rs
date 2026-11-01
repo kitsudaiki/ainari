@@ -26,7 +26,7 @@ pub mod upload_secret_v1_0;
 use crate::config;
 use crate::database::secret_table;
 
-use ainari_api::common_functions::map_ainari_error_to_api_response;
+use ainari_api::error_mapping::map_ainari_error_to_api_response;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::secret_structs::SECRET_OWNER_BACKUP;
 use ainari_api_structs::user_context::UserContext;

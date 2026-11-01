@@ -21,63 +21,91 @@
             <!-- Add button -->
             <button class="add-button" @click="openCreateModal">+</button>
 
+            <!-- no header: every row is a multi-line slot, whose fields carry their own captions -->
             <table
-                class="overview-table"
+                class="overview-table vm-table"
                 v-if="virtualMachines.length > 0"
             >
-                <thead>
-                    <tr>
-                        <th>UUID</th>
-                        <th>Name</th>
-                        <th class="address-column">Address</th>
-                        <th class="resource-column">Cores</th>
-                        <th class="resource-column">Memory</th>
-                        <th class="resource-column">Disk</th>
-                        <th class="state-column">State</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
                 <tbody>
                     <tr
                         v-for="virtualMachine in virtualMachines"
                         :key="virtualMachine.uuid"
                     >
-                        <td>{{ virtualMachine.uuid }}</td>
-                        <td>{{ virtualMachine.name }}</td>
-                        <td class="address-column">
-                            {{ virtualMachine.proxy_address }}
-                        </td>
-                        <td class="resource-column">
-                            {{ formatResource(virtualMachine.number_of_cores) }}
-                        </td>
-                        <td class="resource-column">
-                            {{ formatMemory(virtualMachine.memory_size) }}
-                        </td>
-                        <td class="resource-column">
-                            {{ formatResource(virtualMachine.disk_size, "GiB") }}
-                        </td>
-                        <td class="state-column">
-                            <div class="state-cell">
-                                <span
-                                    class="state-light"
-                                    :class="
-                                        'state-' +
-                                        (vmStates[virtualMachine.uuid] ??
-                                            'unknown')
-                                    "
-                                    :title="
-                                        stateLabels[
-                                            vmStates[virtualMachine.uuid] ??
-                                                'unknown'
-                                        ]
-                                    "
-                                ></span>
-                                <span class="state-value">
-                                    {{
-                                        vmStateValues[virtualMachine.uuid] ??
-                                        "–"
-                                    }}
-                                </span>
+                        <td class="vm-cell">
+                            <div class="vm-layout">
+                                <div class="vm-identity">
+                                    <div class="vm-name">
+                                        {{ virtualMachine.name }}
+                                    </div>
+                                    <div class="vm-address">
+                                        {{ virtualMachine.proxy_address }}
+                                    </div>
+                                    <div class="vm-uuid">
+                                        {{ virtualMachine.uuid }}
+                                    </div>
+                                </div>
+
+                                <div class="vm-fields">
+                                    <div class="vm-field">
+                                        <span class="vm-caption">State</span>
+                                        <div class="state-cell">
+                                            <span
+                                                class="state-light"
+                                                :class="
+                                                    'state-' +
+                                                    (vmStates[
+                                                        virtualMachine.uuid
+                                                    ] ?? 'unknown')
+                                                "
+                                                :title="
+                                                    stateLabels[
+                                                        vmStates[
+                                                            virtualMachine.uuid
+                                                        ] ?? 'unknown'
+                                                    ]
+                                                "
+                                            ></span>
+                                            <span class="state-value">
+                                                {{
+                                                    vmStateValues[
+                                                        virtualMachine.uuid
+                                                    ] ?? "–"
+                                                }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div class="vm-field">
+                                        <span class="vm-caption">Cores</span>
+                                        <span class="vm-value">
+                                            {{
+                                                formatResource(
+                                                    virtualMachine.number_of_cores,
+                                                )
+                                            }}
+                                        </span>
+                                    </div>
+                                    <div class="vm-field">
+                                        <span class="vm-caption">Memory</span>
+                                        <span class="vm-value">
+                                            {{
+                                                formatMemory(
+                                                    virtualMachine.memory_size,
+                                                )
+                                            }}
+                                        </span>
+                                    </div>
+                                    <div class="vm-field">
+                                        <span class="vm-caption">Disk</span>
+                                        <span class="vm-value">
+                                            {{
+                                                formatResource(
+                                                    virtualMachine.disk_size,
+                                                    "GiB",
+                                                )
+                                            }}
+                                        </span>
+                                    </div>
+                                </div>
                             </div>
                         </td>
                         <td>
@@ -146,7 +174,9 @@
                                     </button>
                                     <button
                                         @click="
-                                            openSnapshotSaveModal(virtualMachine)
+                                            openSnapshotSaveModal(
+                                                virtualMachine,
+                                            )
                                         "
                                     >
                                         Save snapshot
@@ -324,8 +354,10 @@ const vmStates = ref<Record<string, VmState>>({});
 const vmStateValues = ref<Record<string, VirtualMachineState>>({});
 // task of the last start-, stop- or reboot-action of a virtual machine, which
 // is followed until it is finished
-const pendingPowerTasks: Record<string, { toriiAddress: string; taskUuid: string }> =
-    {};
+const pendingPowerTasks: Record<
+    string,
+    { toriiAddress: string; taskUuid: string }
+> = {};
 // migrations, which were started here. A virtual machine is only frozen in the
 // state MIGRATING, after the migration started on its host, so it is shown as
 // pending until then. A migration, which failed before, is followed at most
@@ -686,15 +718,9 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-/* the uuid has always the same length, so it is not wrapped */
-td:first-child {
-    white-space: nowrap;
-}
-
-/* Columns 2 through n-2 share remaining space equally */
-th:not(:first-child):not(.state-column):not(.resource-column):not(.address-column):not(:last-child),
-td:not(:first-child):not(.state-column):not(.resource-column):not(.address-column):not(:last-child) {
-    width: 30%;
+/* more distance to the add-button, because the rows are higher than in other tables */
+.vm-table {
+    margin-top: 1.25rem;
 }
 
 /* wider than the default, so "Restore from snapshot" fits in one line */
@@ -702,23 +728,84 @@ td:not(:first-child):not(.state-column):not(.resource-column):not(.address-colum
     min-width: 13rem;
 }
 
-.address-column {
-    width: 15%;
+/* the vm-cell is the first cell, but holds more than the UUID, so the mono-font and the
+fixed width of the shared overview-table are reset here */
+.overview-table td.vm-cell {
+    width: auto;
+    white-space: normal;
+    font-family: var(--title-font-family);
+    font-size: 1rem;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    padding-top: 0.8rem;
+    padding-bottom: 0.8rem;
 }
 
-.resource-column {
-    width: 10%;
-    min-width: 7rem;
-    white-space: nowrap;
-    text-align: right;
+/* identity on the left, fields on the right. On small screens the fields wrap below the
+identity. */
+.vm-layout {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem 2.5rem;
 }
 
-/* only as wide as its content */
-.state-column {
-    width: 1%;
+.vm-identity {
+    flex: 1 1 18rem;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.vm-name {
+    color: var(--color-text);
+    font-size: 1.05rem;
+    overflow-wrap: anywhere;
+}
+
+.vm-address {
+    color: var(--color-text-light);
+    font-size: 0.85rem;
+    overflow-wrap: anywhere;
+}
+
+/* the UUID inherits the color of the first cell, so it lights up on hover like in the
+other overview-tables */
+.vm-uuid {
+    font-family: var(--mono-font-family);
+    font-size: 0.75rem;
+    font-weight: 400;
+    letter-spacing: 0;
+    overflow-wrap: anywhere;
+}
+
+/* state and resources get equal columns */
+.vm-fields {
+    flex: 3 1 30rem;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(7rem, 1fr));
+    gap: 0.5rem 1.5rem;
+}
+
+.vm-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.vm-caption {
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--color-text-light);
+}
+
+.vm-value,
+.state-value {
+    color: var(--color-text);
+    font-variant-numeric: tabular-nums;
     white-space: nowrap;
-    /* more space between the disk and the state */
-    padding-left: 2rem;
 }
 
 /* light and value side by side, both centered vertically */

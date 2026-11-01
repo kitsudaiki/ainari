@@ -31,6 +31,8 @@ See more in the [About-section](https://docs.ainari.cloud/home/about/) of the do
 
 - [Architecture Overview](https://docs.ainari.cloud/home/overview/)
 
+- [Security Concepts](https://docs.ainari.cloud/home/security_concpets/)
+
 ## Getting started
 
 - [Quick Start Guide](https://docs.ainari.cloud/home/quick_start/)

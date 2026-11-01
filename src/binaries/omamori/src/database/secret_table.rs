@@ -33,13 +33,10 @@ table! {
         resource_uuid -> Nullable<Varchar>,
         owner_id -> Varchar,
         project_id -> Varchar,
-        status -> Varchar,
         created_at -> Varchar,
         created_by -> Varchar,
         updated_at -> Varchar,
         updated_by -> Varchar,
-        deleted_at -> Nullable<Varchar>,
-        deleted_by -> Nullable<Varchar>,
     }
 }
 
@@ -58,16 +55,12 @@ pub struct SecretEntry {
     pub resource_uuid: Option<Uuid>,
     pub owner_id: String,
     pub project_id: String,
-    pub status: String,
     #[diesel(serialize_as = DbDateTime, deserialize_as = DbDateTime)]
     pub created_at: DateTime<Utc>,
     pub created_by: String,
     #[diesel(serialize_as = DbDateTime, deserialize_as = DbDateTime)]
     pub updated_at: DateTime<Utc>,
     pub updated_by: String,
-    #[diesel(serialize_as = DbOptDateTime, deserialize_as = DbOptDateTime)]
-    pub deleted_at: Option<DateTime<Utc>>,
-    pub deleted_by: Option<String>,
 }
 
 /// Adds a new secret to the database with default values
@@ -105,13 +98,10 @@ pub fn add_new_secret(
         resource_uuid,
         owner_id: context.user_id.clone(),
         project_id: context.project_id.clone(),
-        status: "ACTIVE".to_string(),
         created_at: Utc::now(),
         created_by: context.user_id.clone(),
         updated_at: Utc::now(),
         updated_by: context.user_id.clone(),
-        deleted_at: None,
-        deleted_by: None,
     };
 
     add_secret(secret.clone())
@@ -139,7 +129,7 @@ pub fn add_secret(secret: SecretEntry) -> QueryResult<usize> {
 /// Retrieves a secret from the database
 ///
 /// This function fetches a secret by its UUID, applying appropriate filters
-/// based on the user's permissions. Only active secrets are returned.
+/// based on the user's permissions.
 ///
 /// # Arguments
 ///
@@ -158,7 +148,7 @@ pub fn get_secret(
     use self::secrets::dsl::*;
 
     let mut query = secrets
-        .filter(uuid.eq(secret_uuid.to_string()).and(status.eq("ACTIVE")))
+        .filter(uuid.eq(secret_uuid.to_string()))
         .into_boxed();
 
     if context.is_admin != true.to_string() {
@@ -180,7 +170,7 @@ pub fn get_secret(
 
 /// Lists all secrets that the user has access to
 ///
-/// This function returns all active secrets that are visible to the user
+/// This function returns all secrets that are visible to the user
 /// based on their permissions. Admins can see all secrets, all other users can see all secrets
 /// of their project, also the ones of other users.
 ///
@@ -191,12 +181,11 @@ pub fn get_secret(
 /// # Returns
 ///
 /// A QueryResult containing a vector of SecretEntry objects
-#[allow(dead_code)]
 pub fn list_secrets(context: &UserContext) -> QueryResult<Vec<SecretEntry>> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::secrets::dsl::*;
 
-    let mut query = secrets.filter(status.eq("ACTIVE")).into_boxed();
+    let mut query = secrets.into_boxed();
 
     if context.is_admin != true.to_string() {
         query = query.filter(project_id.eq(context.project_id.clone()));
@@ -207,8 +196,9 @@ pub fn list_secrets(context: &UserContext) -> QueryResult<Vec<SecretEntry>> {
 
 /// Counts the number of secrets that the user owns
 ///
-/// This function returns the count of active secrets owned by the current user
-/// within their project. Only accessible to non-admin users.
+/// This function returns the count of secrets owned by the current user
+/// within their project. Only accessible to non-admin users. Like in `count_secrets_of_project`,
+/// the secrets of backups are not counted, because they don't count to the quota.
 ///
 /// # Arguments
 ///
@@ -221,10 +211,11 @@ pub fn count_secrets(context: &UserContext) -> QueryResult<i64> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::secrets::dsl::*;
 
-    let mut query = secrets.filter(status.eq("ACTIVE")).into_boxed();
+    let mut query = secrets.into_boxed();
 
     query = query.filter(project_id.eq(context.project_id.clone()));
     query = query.filter(owner_id.eq(context.user_id.clone()));
+    query = query.filter(owned_by.ne(SECRET_OWNER_BACKUP));
 
     query.select(count_star()).first::<i64>(&mut *conn)
 }
@@ -248,14 +239,13 @@ pub fn count_secrets_of_project(project: &str) -> QueryResult<i64> {
     use self::secrets::dsl::*;
 
     secrets
-        .filter(status.eq("ACTIVE"))
         .filter(project_id.eq(project))
         .filter(owned_by.ne(SECRET_OWNER_BACKUP))
         .select(count_star())
         .first::<i64>(&mut *conn)
 }
 
-/// Lists all active secrets of a project.
+/// Lists all secrets of a project.
 ///
 /// Unlike the listing for the users, it is done for the project of the path and not the one of
 /// the token, so an admin can export any project.
@@ -272,13 +262,12 @@ pub fn list_secrets_of_project(project: &str) -> QueryResult<Vec<SecretEntry>> {
     use self::secrets::dsl::*;
 
     secrets
-        .filter(status.eq("ACTIVE"))
         .filter(project_id.eq(project))
         .select(SecretEntry::as_select())
         .load(&mut *conn)
 }
 
-/// Searches a secret by its UUID within all projects, also if it is already deleted.
+/// Searches a secret by its UUID within all projects.
 ///
 /// It is used to check, if the UUID is still free, before a secret with this UUID is imported.
 ///
@@ -288,7 +277,7 @@ pub fn list_secrets_of_project(project: &str) -> QueryResult<Vec<SecretEntry>> {
 ///
 /// # Returns
 ///
-/// A QueryResult containing the secret, or None, if the UUID was never used
+/// A QueryResult containing the secret, or None, if the UUID is not used
 pub fn find_secret(entry_uuid: &Uuid) -> QueryResult<Option<SecretEntry>> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::secrets::dsl::*;
@@ -302,8 +291,7 @@ pub fn find_secret(entry_uuid: &Uuid) -> QueryResult<Option<SecretEntry>> {
 
 /// Adds a secret to the database or replaces the existing entry with the same UUID.
 ///
-/// It is used to import a secret, so also an already deleted secret can be restored with its
-/// original UUID, which is the primary key of the table.
+/// It is used to import a secret with its original UUID, which is the primary key of the table.
 ///
 /// # Arguments
 ///
@@ -324,9 +312,7 @@ pub fn put_secret(entry: SecretEntry) -> QueryResult<usize> {
 
 /// Deletes a secret from the database
 ///
-/// This function marks a secret as deleted by updating its status and
-/// setting the deletion timestamp and user. The secret is not physically
-/// removed from the database.
+/// This function removes a secret from the database.
 ///
 /// # Arguments
 ///
@@ -346,14 +332,7 @@ pub fn delete_secret(secret_uuid: &Uuid, context: &UserContext) -> Result<(), en
 
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::secrets::dsl::*;
-    match diesel::update(secrets.filter(uuid.eq(secret_uuid.to_string())))
-        .set((
-            status.eq("DELETED"),
-            deleted_at.eq(Utc::now().to_rfc3339()),
-            deleted_by.eq(context.user_id.clone()),
-        ))
-        .execute(&mut *conn)
-    {
+    match diesel::delete(secrets.filter(uuid.eq(secret_uuid.to_string()))).execute(&mut *conn) {
         Ok(_) => Ok(()),
         Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
         Err(e) => {
@@ -365,7 +344,7 @@ pub fn delete_secret(secret_uuid: &Uuid, context: &UserContext) -> Result<(), en
 
 /// Deletes all secrets in the database
 ///
-/// This function marks all active secrets as deleted. This is typically
+/// This function deletes all secrets. This is typically
 /// used for cleanup during application startup or shutdown.
 ///
 /// # Returns
@@ -375,14 +354,7 @@ pub fn delete_secret(secret_uuid: &Uuid, context: &UserContext) -> Result<(), en
 pub fn delete_all_secret() -> Result<(), enums::DbError> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::secrets::dsl::*;
-    match diesel::update(secrets.filter(status.eq("ACTIVE")))
-        .set((
-            status.eq("DELETED"),
-            deleted_at.eq(Utc::now().to_rfc3339()),
-            deleted_by.eq("AINARI_START"),
-        ))
-        .execute(&mut *conn)
-    {
+    match diesel::delete(secrets).execute(&mut *conn) {
         Ok(_) => Ok(()),
         Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
         Err(e) => {
@@ -428,13 +400,10 @@ mod tests {
             resource_uuid: None,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
         };
 
         hard_delete_secret(&uuid1);
@@ -448,11 +417,8 @@ mod tests {
                 assert_eq!(retrieved_secret.resource_uuid, secret.resource_uuid);
                 assert_eq!(retrieved_secret.owner_id, secret.owner_id);
                 assert_eq!(retrieved_secret.project_id, secret.project_id);
-                assert_eq!(retrieved_secret.status, secret.status);
                 assert_eq!(retrieved_secret.created_by, secret.created_by);
                 assert_eq!(retrieved_secret.updated_by, secret.updated_by);
-                assert_eq!(retrieved_secret.deleted_at, secret.deleted_at);
-                assert_eq!(retrieved_secret.deleted_by, secret.deleted_by);
             }
             Err(_) => {
                 assert_eq!(true, false);
@@ -486,13 +452,10 @@ mod tests {
             resource_uuid: None,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
         };
 
         let secret2 = SecretEntry {
@@ -502,13 +465,10 @@ mod tests {
             resource_uuid: None,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
-            status: "DELETED".to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
         };
 
         hard_delete_secret(&uuid1);
@@ -516,6 +476,7 @@ mod tests {
 
         add_secret(secret1).unwrap();
         add_secret(secret2).unwrap();
+        assert!(delete_secret(&uuid2, &context).is_ok());
         let secrets = list_secrets(&context).unwrap();
         assert_eq!(secrets.len(), 1);
         hard_delete_secret(&uuid1);
@@ -545,13 +506,10 @@ mod tests {
             resource_uuid: None,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
         };
 
         hard_delete_secret(&uuid1);
@@ -587,13 +545,10 @@ mod tests {
             resource_uuid: None,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
         };
 
         let secret2 = SecretEntry {
@@ -603,13 +558,10 @@ mod tests {
             resource_uuid: None,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
         };
 
         let secret3 = SecretEntry {
@@ -619,13 +571,10 @@ mod tests {
             resource_uuid: None,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
         };
 
         hard_delete_secret(&uuid1);
@@ -659,13 +608,10 @@ mod tests {
             resource_uuid: None,
             owner_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
         };
 
         let secret2 = SecretEntry {
@@ -675,13 +621,10 @@ mod tests {
             resource_uuid: None,
             owner_id: "test-user-43".to_string(),
             project_id: "test_permissions_1".to_string(),
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
         };
 
         let secret3 = SecretEntry {
@@ -691,13 +634,10 @@ mod tests {
             resource_uuid: None,
             owner_id: "test-user-44".to_string(),
             project_id: "test_permissions_2".to_string(),
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
         };
 
         hard_delete_secret(&uuid1);
@@ -822,6 +762,7 @@ mod tests {
 
         // the secret of the backup neither counts to the quota nor blocks the project-deletion
         assert_eq!(count_secrets_of_project(project).unwrap(), 2);
+        assert_eq!(count_secrets(&context).unwrap(), 2);
         assert!(get_secret(&backup_secret, &context).is_ok());
 
         hard_delete_secret(&user_secret);

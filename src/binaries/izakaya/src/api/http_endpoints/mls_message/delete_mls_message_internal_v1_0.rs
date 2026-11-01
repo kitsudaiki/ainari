@@ -18,7 +18,7 @@ use apistos::api_operation;
 
 use crate::database::mls_message_table;
 
-use ainari_api::common_functions::map_db_uuid_get_delete_error;
+use ainari_api::error_mapping::map_db_uuid_get_delete_error;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::mls_structs::*;
 use ainari_api_structs::user_context::UserContext;

@@ -32,13 +32,10 @@ table! {
         fingerprint -> Varchar,
         owner_id -> Varchar,
         project_id -> Varchar,
-        status -> Varchar,
         created_at -> Varchar,
         created_by -> Varchar,
         updated_at -> Varchar,
         updated_by -> Varchar,
-        deleted_at -> Nullable<Varchar>,
-        deleted_by -> Nullable<Varchar>,
     }
 }
 
@@ -54,22 +51,18 @@ pub struct PublicKeyEntry {
     pub fingerprint: String,
     pub owner_id: String,
     pub project_id: String,
-    pub status: String,
     #[diesel(serialize_as = DbDateTime, deserialize_as = DbDateTime)]
     pub created_at: DateTime<Utc>,
     pub created_by: String,
     #[diesel(serialize_as = DbDateTime, deserialize_as = DbDateTime)]
     pub updated_at: DateTime<Utc>,
     pub updated_by: String,
-    #[diesel(serialize_as = DbOptDateTime, deserialize_as = DbOptDateTime)]
-    pub deleted_at: Option<DateTime<Utc>>,
-    pub deleted_by: Option<String>,
 }
 
 /// Adds a new public-key to the database.
 ///
 /// This function creates a new PublicKeyEntry with the provided parameters and inserts it into the database.
-/// The status is set to "ACTIVE" and timestamps are set to the current time.
+/// The timestamps are set to the current time.
 ///
 /// # Arguments
 /// * `public_key_uuid` - The unique identifier for the public-key
@@ -99,13 +92,10 @@ pub fn add_new_public_key(
         fingerprint: fingerprint.to_string(),
         owner_id: context.user_id.clone(),
         project_id: context.project_id.clone(),
-        status: "ACTIVE".to_string(),
         created_at: Utc::now(),
         created_by: context.user_id.clone(),
         updated_at: Utc::now(),
         updated_by: context.user_id.clone(),
-        deleted_at: None,
-        deleted_by: None,
     };
 
     add_public_key(new_public_key)
@@ -131,7 +121,7 @@ pub fn add_public_key(entry: PublicKeyEntry) -> QueryResult<usize> {
 /// Retrieves a public-key from the database.
 ///
 /// This function queries the database for a public-key with the specified UUID and checks the user's permissions.
-/// Only active public_keys are returned, and the query is filtered based on the user's role and project membership.
+/// The query is filtered based on the user's role and project membership.
 ///
 /// # Arguments
 /// * `public_key_uuid` - The UUID of the public-key to retrieve
@@ -147,10 +137,7 @@ pub fn get_public_key(
     use self::public_keys::dsl::*;
 
     let mut query = public_keys
-        .filter(
-            uuid.eq(public_key_uuid.to_string())
-                .and(status.eq("ACTIVE")),
-        )
+        .filter(uuid.eq(public_key_uuid.to_string()))
         .into_boxed();
 
     // Apply permission-based filtering
@@ -173,7 +160,7 @@ pub fn get_public_key(
 
 /// Lists all public-keys that the user has access to.
 ///
-/// This function retrieves all active public-keys and applies permission-based filtering.
+/// This function retrieves all public-keys and applies permission-based filtering.
 /// The results are filtered based on the user's role and project membership.
 ///
 /// # Arguments
@@ -181,12 +168,11 @@ pub fn get_public_key(
 ///
 /// # Returns
 /// A QueryResult containing a vector of PublicKeyEntry objects
-#[allow(dead_code)]
 pub fn list_public_keys(context: &UserContext) -> QueryResult<Vec<PublicKeyEntry>> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::public_keys::dsl::*;
 
-    let mut query = public_keys.filter(status.eq("ACTIVE")).into_boxed();
+    let mut query = public_keys.into_boxed();
 
     // Apply permission-based filtering
     if context.is_admin != true.to_string() {
@@ -212,7 +198,6 @@ pub fn count_public_keys_of_project(project: &str) -> QueryResult<i64> {
     use self::public_keys::dsl::*;
 
     public_keys
-        .filter(status.eq("ACTIVE"))
         .filter(project_id.eq(project))
         .select(count_star())
         .first::<i64>(&mut *conn)
@@ -220,7 +205,7 @@ pub fn count_public_keys_of_project(project: &str) -> QueryResult<i64> {
 
 /// Counts the number of public-keys that the user has access to.
 ///
-/// This function counts all active public-keys and applies permission-based filtering.
+/// This function counts all public-keys and applies permission-based filtering.
 /// The count is filtered based on the user's role and project membership.
 ///
 /// # Arguments
@@ -228,12 +213,12 @@ pub fn count_public_keys_of_project(project: &str) -> QueryResult<i64> {
 ///
 /// # Returns
 /// A QueryResult containing the count of public-keys as an i64
-#[allow(dead_code)]
+#[cfg(test)]
 pub fn count_public_keys(context: &UserContext) -> QueryResult<i64> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::public_keys::dsl::*;
 
-    let mut query = public_keys.filter(status.eq("ACTIVE")).into_boxed();
+    let mut query = public_keys.into_boxed();
 
     // Apply permission-based filtering
     query = query.filter(project_id.eq(context.project_id.clone()));
@@ -242,7 +227,7 @@ pub fn count_public_keys(context: &UserContext) -> QueryResult<i64> {
     query.select(count_star()).first::<i64>(&mut *conn)
 }
 
-/// Lists all active public_keys of a project.
+/// Lists all public_keys of a project.
 ///
 /// Unlike the listing for the users, it is done for the project of the path and not the one of
 /// the token, so an admin can export any project.
@@ -259,13 +244,12 @@ pub fn list_public_keys_of_project(project: &str) -> QueryResult<Vec<PublicKeyEn
     use self::public_keys::dsl::*;
 
     public_keys
-        .filter(status.eq("ACTIVE"))
         .filter(project_id.eq(project))
         .select(PublicKeyEntry::as_select())
         .load(&mut *conn)
 }
 
-/// Searches a public-key by its UUID within all projects, also if it is already deleted.
+/// Searches a public-key by its UUID within all projects.
 ///
 /// It is used to check, if the UUID is still free, before a public-key with this UUID is imported.
 ///
@@ -275,7 +259,7 @@ pub fn list_public_keys_of_project(project: &str) -> QueryResult<Vec<PublicKeyEn
 ///
 /// # Returns
 ///
-/// A QueryResult containing the public-key, or None, if the UUID was never used
+/// A QueryResult containing the public-key, or None, if the UUID is not used
 pub fn find_public_key(entry_uuid: &Uuid) -> QueryResult<Option<PublicKeyEntry>> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::public_keys::dsl::*;
@@ -289,8 +273,7 @@ pub fn find_public_key(entry_uuid: &Uuid) -> QueryResult<Option<PublicKeyEntry>>
 
 /// Adds a public-key to the database or replaces the existing entry with the same UUID.
 ///
-/// It is used to import a public-key, so also an already deleted public-key can be restored with its
-/// original UUID, which is the primary key of the table.
+/// It is used to import a public-key with its original UUID, which is the primary key of the table.
 ///
 /// # Arguments
 ///
@@ -311,7 +294,7 @@ pub fn put_public_key(entry: PublicKeyEntry) -> QueryResult<usize> {
 
 /// Force deletes a public-key from the database.
 ///
-/// This function marks a public-key as deleted without checking permissions.
+/// This function deletes a public-key without checking permissions.
 /// It's intended for system-level operations where permission checks are not required.
 ///
 /// # Arguments
@@ -319,16 +302,11 @@ pub fn put_public_key(entry: PublicKeyEntry) -> QueryResult<usize> {
 ///
 /// # Returns
 /// A Result indicating success or an error
-#[allow(dead_code)]
+#[cfg(test)]
 pub fn force_delete_public_key(public_key_uuid: &Uuid) -> Result<(), enums::DbError> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::public_keys::dsl::*;
-    match diesel::update(public_keys.filter(uuid.eq(public_key_uuid.to_string())))
-        .set((
-            status.eq("DELETED"),
-            deleted_at.eq(Utc::now().to_rfc3339()),
-            deleted_by.eq("HOST_INIT"),
-        ))
+    match diesel::delete(public_keys.filter(uuid.eq(public_key_uuid.to_string())))
         .execute(&mut *conn)
     {
         Ok(_) => Ok(()),
@@ -342,7 +320,7 @@ pub fn force_delete_public_key(public_key_uuid: &Uuid) -> Result<(), enums::DbEr
 
 /// Deletes a public-key from the database.
 ///
-/// This function marks a public-key as deleted after verifying that the user has permission to delete it.
+/// This function deletes a public-key after verifying that the user has permission to delete it.
 /// It first checks if the public-key exists and if the user has the necessary permissions.
 ///
 /// # Arguments
@@ -365,12 +343,7 @@ pub fn delete_public_key(
 
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::public_keys::dsl::*;
-    match diesel::update(public_keys.filter(uuid.eq(public_key_uuid.to_string())))
-        .set((
-            status.eq("DELETED"),
-            deleted_at.eq(Utc::now().to_rfc3339()),
-            deleted_by.eq(context.user_id.clone()),
-        ))
+    match diesel::delete(public_keys.filter(uuid.eq(public_key_uuid.to_string())))
         .execute(&mut *conn)
     {
         Ok(_) => Ok(()),
@@ -384,23 +357,16 @@ pub fn delete_public_key(
 
 /// Deletes all public-keys from the database.
 ///
-/// This function marks all active public-keys as deleted without checking permissions.
+/// This function deletes all public-keys without checking permissions.
 /// It's intended for system-level operations where permission checks are not required.
 ///
 /// # Returns
 /// A Result indicating success or an error
-#[allow(dead_code)]
+#[cfg(test)]
 pub fn delete_all_public_key() -> Result<(), enums::DbError> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::public_keys::dsl::*;
-    match diesel::update(public_keys.filter(status.eq("ACTIVE")))
-        .set((
-            status.eq("DELETED"),
-            deleted_at.eq(Utc::now().to_rfc3339()),
-            deleted_by.eq("AINARI_START"),
-        ))
-        .execute(&mut *conn)
-    {
+    match diesel::delete(public_keys).execute(&mut *conn) {
         Ok(_) => Ok(()),
         Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
         Err(e) => {
@@ -426,12 +392,11 @@ mod tests {
             .execute(&mut *conn);
     }
 
-    /// Builds a PublicKeyEntry for the tests with the given identity and status.
+    /// Builds a PublicKeyEntry for the tests with the given identity.
     fn new_entry(
         entry_uuid: &Uuid,
         entry_owner_id: &str,
         entry_project_id: &str,
-        entry_status: &str,
     ) -> PublicKeyEntry {
         PublicKeyEntry {
             uuid: *entry_uuid,
@@ -440,13 +405,10 @@ mod tests {
             fingerprint: FINGERPRINT.to_string(),
             owner_id: entry_owner_id.to_string(),
             project_id: entry_project_id.to_string(),
-            status: entry_status.to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
         }
     }
 
@@ -486,7 +448,7 @@ mod tests {
         let uuid1 = Uuid::new_v4();
         let context = new_context("test-user", "test-project", false, ProjectRole::Member);
 
-        let entry = new_entry(&uuid1, "test-user", "test-project", "ACTIVE");
+        let entry = new_entry(&uuid1, "test-user", "test-project");
 
         hard_delete_public_key(&uuid1);
 
@@ -499,13 +461,10 @@ mod tests {
         assert_eq!(retrieved.fingerprint, entry.fingerprint);
         assert_eq!(retrieved.owner_id, entry.owner_id);
         assert_eq!(retrieved.project_id, entry.project_id);
-        assert_eq!(retrieved.status, entry.status);
         assert_eq!(retrieved.created_at, entry.created_at);
         assert_eq!(retrieved.created_by, entry.created_by);
         assert_eq!(retrieved.updated_at, entry.updated_at);
         assert_eq!(retrieved.updated_by, entry.updated_by);
-        assert_eq!(retrieved.deleted_at, entry.deleted_at);
-        assert_eq!(retrieved.deleted_by, entry.deleted_by);
 
         hard_delete_public_key(&uuid1);
     }
@@ -528,16 +487,17 @@ mod tests {
         let uuid2 = Uuid::new_v4();
         let context = new_context("test-user", "test-project", false, ProjectRole::Member);
 
-        let entry1 = new_entry(&uuid1, "test-user", "test-project", "ACTIVE");
-        let entry2 = new_entry(&uuid2, "test-user", "test-project", "DELETED");
+        let entry1 = new_entry(&uuid1, "test-user", "test-project");
+        let entry2 = new_entry(&uuid2, "test-user", "test-project");
 
         hard_delete_public_key(&uuid1);
         hard_delete_public_key(&uuid2);
 
         add_public_key(entry1).unwrap();
         add_public_key(entry2).unwrap();
+        assert!(force_delete_public_key(&uuid2).is_ok());
 
-        // only the ACTIVE entry is listed
+        // only the remaining entry is listed
         let entries = list_public_keys(&context).unwrap();
         assert_eq!(entries.len(), 1);
         assert_eq!(entries[0].uuid, uuid1);
@@ -554,7 +514,7 @@ mod tests {
         let uuid1 = Uuid::new_v4();
         let context = new_context("test-user", "test-project", false, ProjectRole::Member);
 
-        let entry = new_entry(&uuid1, "test-user", "test-project", "ACTIVE");
+        let entry = new_entry(&uuid1, "test-user", "test-project");
 
         hard_delete_public_key(&uuid1);
 
@@ -573,7 +533,7 @@ mod tests {
         let context = new_context("test-user", "test-project", false, ProjectRole::Member);
 
         // the entry belongs to another project, so only the force-delete can remove it
-        let entry = new_entry(&uuid1, "other-user", "other-project", "ACTIVE");
+        let entry = new_entry(&uuid1, "other-user", "other-project");
 
         hard_delete_public_key(&uuid1);
 
@@ -592,8 +552,8 @@ mod tests {
         let uuid2 = Uuid::new_v4();
         let context = new_context("test-user", "test-project", true, ProjectRole::Member);
 
-        let entry1 = new_entry(&uuid1, "test-user", "test-project", "ACTIVE");
-        let entry2 = new_entry(&uuid2, "other-user", "other-project", "ACTIVE");
+        let entry1 = new_entry(&uuid1, "test-user", "test-project");
+        let entry2 = new_entry(&uuid2, "other-user", "other-project");
 
         hard_delete_public_key(&uuid1);
         hard_delete_public_key(&uuid2);
@@ -617,10 +577,10 @@ mod tests {
         let uuid3 = Uuid::new_v4();
         let context = new_context("test-user", "test-project", false, ProjectRole::Member);
 
-        let entry1 = new_entry(&uuid1, "test-user", "test-project", "ACTIVE");
-        let entry2 = new_entry(&uuid2, "test-user", "test-project", "ACTIVE");
-        // neither DELETED entries nor entries of other owners are counted
-        let entry3 = new_entry(&uuid3, "other-user", "test-project", "ACTIVE");
+        let entry1 = new_entry(&uuid1, "test-user", "test-project");
+        let entry2 = new_entry(&uuid2, "test-user", "test-project");
+        // entries of other owners are not counted
+        let entry3 = new_entry(&uuid3, "other-user", "test-project");
 
         hard_delete_public_key(&uuid1);
         hard_delete_public_key(&uuid2);
@@ -644,9 +604,9 @@ mod tests {
         let uuid2 = Uuid::new_v4();
         let uuid3 = Uuid::new_v4();
 
-        let entry1 = new_entry(&uuid1, "test-user-42", "test_permissions_1", "ACTIVE");
-        let entry2 = new_entry(&uuid2, "test-user-43", "test_permissions_1", "ACTIVE");
-        let entry3 = new_entry(&uuid3, "test-user-44", "test_permissions_2", "ACTIVE");
+        let entry1 = new_entry(&uuid1, "test-user-42", "test_permissions_1");
+        let entry2 = new_entry(&uuid2, "test-user-43", "test_permissions_1");
+        let entry3 = new_entry(&uuid3, "test-user-44", "test_permissions_2");
 
         hard_delete_public_key(&uuid1);
         hard_delete_public_key(&uuid2);
@@ -750,7 +710,7 @@ mod tests {
         let result = add_new_public_key(&uuid1, "key", PUBLIC_KEY, FINGERPRINT, &observer);
         assert!(matches!(result, Err(e) if enums::is_permission_denied(&e)));
         assert_not_found(get_public_key(&uuid1, &observer));
-        add_public_key(new_entry(&uuid2, "test-user", "test-project", "ACTIVE")).unwrap();
+        add_public_key(new_entry(&uuid2, "test-user", "test-project")).unwrap();
         assert!(matches!(
             delete_public_key(&uuid2, &observer),
             Err(enums::DbError::PermissionDenied)

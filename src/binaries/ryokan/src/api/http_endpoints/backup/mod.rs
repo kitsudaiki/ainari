@@ -33,7 +33,7 @@ use crate::database::backup_table::{self, BackupEntry, PackageInfo};
 use crate::database::host_table::{self, HostEntry};
 use crate::onsen_functions::{RemoteFile, list_files_recursive};
 
-use ainari_api::common_functions::*;
+use ainari_api::error_mapping::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::backup_structs::*;
 use ainari_api_structs::user_context::UserContext;

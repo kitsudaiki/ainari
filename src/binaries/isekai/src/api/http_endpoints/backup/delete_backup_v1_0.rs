@@ -17,7 +17,7 @@ use apistos::actix::NoContent;
 use apistos::api_operation;
 use uuid::Uuid;
 
-use ainari_api::common_functions::*;
+use ainari_api::error_mapping::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::backup_structs::*;
 use ainari_api_structs::user_context::UserContext;
@@ -91,7 +91,7 @@ pub async fn delete_backup(
         }
     }
 
-    backup_table::delete_backup(&backup_uuid, &context)
+    backup_table::delete_backup(&backup_uuid)
         .map_err(|e| map_db_uuid_get_delete_error("backup", &backup_uuid, e, Some(&context)))?;
 
     Ok(NoContent)

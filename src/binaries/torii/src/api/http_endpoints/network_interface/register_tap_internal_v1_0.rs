@@ -21,7 +21,7 @@ use crate::core::interface::{register_tap, rollback_tap, validate_tap_req};
 use crate::core::utils::{get_ifindex, validate_vni};
 use crate::database::tap_table;
 
-use ainari_api::common_functions::{map_db_write_error, map_internal_error};
+use ainari_api::error_mapping::{map_db_write_error, map_internal_error};
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::network_interface_structs::*;
 use ainari_api_structs::user_context::UserContext;

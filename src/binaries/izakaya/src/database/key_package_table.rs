@@ -31,13 +31,10 @@ table! {
         key_package -> Varchar,
         owner_id -> Varchar,
         project_id -> Varchar,
-        status -> Varchar,
         created_at -> Varchar,
         created_by -> Varchar,
         updated_at -> Varchar,
         updated_by -> Varchar,
-        deleted_at -> Nullable<Varchar>,
-        deleted_by -> Nullable<Varchar>,
     }
 }
 
@@ -55,16 +52,12 @@ pub struct KeyPackageEntry {
     pub key_package: String,
     pub owner_id: String,
     pub project_id: String,
-    pub status: String,
     #[diesel(serialize_as = DbDateTime, deserialize_as = DbDateTime)]
     pub created_at: DateTime<Utc>,
     pub created_by: String,
     #[diesel(serialize_as = DbDateTime, deserialize_as = DbDateTime)]
     pub updated_at: DateTime<Utc>,
     pub updated_by: String,
-    #[diesel(serialize_as = DbOptDateTime, deserialize_as = DbOptDateTime)]
-    pub deleted_at: Option<DateTime<Utc>>,
-    pub deleted_by: Option<String>,
 }
 
 /// Adds new key-packages of a MLS-client to the database.
@@ -97,13 +90,10 @@ pub fn add_key_packages(
             key_package: encoded.clone(),
             owner_id: context.user_id.clone(),
             project_id: context.project_id.clone(),
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: context.user_id.clone(),
             updated_at: Utc::now(),
             updated_by: context.user_id.clone(),
-            deleted_at: None,
-            deleted_by: None,
         })
         .collect();
     let uuids = entries.iter().map(|entry| entry.uuid).collect();
@@ -124,10 +114,9 @@ pub fn add_key_packages(
 
 /// Claims the newest key-package of a MLS-client.
 ///
-/// A key-package must only be used for one invitation, so it is marked as deleted with the
-/// claim. The newest one is taken, because its private part is the most likely one to still be
-/// known by the client. The deletion only succeeds, if the entry is still active, so two parallel
-/// claims, also from different instances of the izakaya, never get the same key-package.
+/// A key-package must only be used for one invitation, so it is deleted with the claim. The
+/// newest one is taken, because its private part is the most likely one to still be known by the
+/// client. The deletion only succeeds, if the entry still exists, so two parallel claims, also from different instances of the izakaya, never get the same key-package.
 ///
 /// # Arguments
 /// * `key_package_client_id` - Identity of the MLS-client, whose key-package is claimed
@@ -152,21 +141,14 @@ pub fn claim_key_package(
         use self::key_packages::dsl::*;
 
         let mut candidates = key_packages
-            .filter(client_id.eq(key_package_client_id).and(status.eq("ACTIVE")))
+            .filter(client_id.eq(key_package_client_id))
             .select(KeyPackageEntry::as_select())
             .load(conn)?;
         candidates.sort_by_key(|entry| std::cmp::Reverse(entry.created_at));
 
         for candidate in candidates.into_iter().filter(|entry| accept(entry)) {
-            let claimed = diesel::update(
-                key_packages.filter(uuid.eq(candidate.uuid.to_string()).and(status.eq("ACTIVE"))),
-            )
-            .set((
-                status.eq("DELETED"),
-                deleted_at.eq(Utc::now().to_rfc3339()),
-                deleted_by.eq(context.user_id.clone()),
-            ))
-            .execute(conn)?;
+            let claimed = diesel::delete(key_packages.filter(uuid.eq(candidate.uuid.to_string())))
+                .execute(conn)?;
 
             if claimed == 1 {
                 return Ok(Some(candidate));
@@ -192,13 +174,13 @@ pub fn claim_key_package(
 /// * `key_package_client_id` - Identity of the MLS-client
 ///
 /// # Returns
-/// A QueryResult containing the number of active key-packages
+/// A QueryResult containing the number of key-packages
 pub fn count_key_packages(key_package_client_id: &str) -> QueryResult<i64> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::key_packages::dsl::*;
 
     key_packages
-        .filter(client_id.eq(key_package_client_id).and(status.eq("ACTIVE")))
+        .filter(client_id.eq(key_package_client_id))
         .select(count_star())
         .first::<i64>(&mut *conn)
 }

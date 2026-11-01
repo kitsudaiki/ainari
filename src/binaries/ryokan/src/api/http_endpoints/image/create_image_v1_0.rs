@@ -33,9 +33,11 @@ use crate::database::image_table;
 use crate::onsen_functions::select_onsen;
 
 use ainari_api::common_functions::*;
+use ainari_api::error_mapping::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::image_structs::*;
 use ainari_api_structs::user_context::UserContext;
+use ainari_clients::onsen_file_transfer::upload_file_to_onsen;
 use ainari_files::file_encryption::encrypt_file;
 use ainari_files::file_info::get_disk_image_info;
 
@@ -187,9 +189,9 @@ pub async fn upload_binary(
                 &selected_onsen.address,
                 &upload_file_path_str,
                 &encrypted_result_path,
-                Some(&context),
             )
-            .await?;
+            .await
+            .map_err(|e| map_ainari_error_to_api_response(e, Some(&context)))?;
 
             image_table::update_image_status(&image_uuid, &ImageStatus::Ready, None, &context)
                 .map_err(|e| map_db_uuid_get_delete_error("image", &image_uuid, e, Some(&context)))

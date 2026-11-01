@@ -19,7 +19,7 @@ project with isekai (passphrase from `AINARI_BACKUP_PASSPHRASE`).
 
     ```bash
     AINARI_SAKURA_HOSTS=1 AINARI_SSH_NETNS=torii-outside \
-        .venv/bin/python testing/local_stack/prepare_resources.py
+        .venv/bin/python testing/ainari_test/prepare_resources.py
     ```
 
     | Variable                  | Description                                                                                    |
@@ -168,7 +168,7 @@ The traffic between two virtual machines of a network, which run on different sa
 encrypted with IPsec (see
 [Key-exchange of the network-encryption](sequence_diagrams/network_crypto_key_exchange.md)). These
 steps check it in the docker-compose setup (`make up local`) with the two virtual machines of
-`prepare_resources.py`. Below, virtual machine 1 runs behind `torii-vmm` (`172.30.0.20`) and
+`vm_lifecycle_test.py`. Below, virtual machine 1 runs behind `torii-vmm` (`172.30.0.20`) and
 virtual machine 2 behind `torii-vmm-2` (`172.30.0.21`). All commands run in the root of the
 repository.
 
@@ -180,7 +180,7 @@ repository.
     ```
 
     Each gateway has to show one `tap-…`. If both are on the same gateway, nothing is encrypted:
-    run `prepare_resources.py` again, hanami picks the host of every virtual machine anew.
+    run `vm_lifecycle_test.py` again, hanami picks the host of every virtual machine anew.
 
 2. Get the internal addresses of the virtual machines:
 

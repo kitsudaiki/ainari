@@ -219,6 +219,56 @@ pub async fn delete_file(
     Ok(())
 }
 
+/// Uploads a file to an Onsen file transfer service asynchronously.
+///
+/// # Arguments
+///
+/// * `onsen_address` - A string slice that holds the address of the Onsen service.
+/// * `remote_file_path` - A string slice that holds the destination path on the Onsen service.
+/// * `local_file_path` - A string slice that holds the path to the local file to be uploaded.
+///
+/// # Returns
+///
+/// * `Ok(())` if the file was uploaded successfully.
+/// * `Err(AinariError::InternalError)` if an error occurred during the upload process.
+pub async fn upload_file_to_onsen(
+    onsen_address: &str,
+    remote_file_path: &str,
+    local_file_path: &str,
+) -> Result<(), AinariError> {
+    upload_file(onsen_address, remote_file_path, local_file_path)
+        .await
+        .map_err(|e| {
+            AinariError::internal(format!(
+                "Failed to send file with path '{local_file_path}' to onsen '{onsen_address}' to '{remote_file_path}' with error: {e}"
+            ))
+        })
+}
+
+/// Deletes a file from an Onsen file transfer service asynchronously.
+///
+/// # Arguments
+///
+/// * `onsen_address` - A string slice that holds the address of the Onsen service.
+/// * `remote_file_path` - A string slice that holds the path to the file on the Onsen service to be deleted.
+///
+/// # Returns
+///
+/// * `Ok(())` if the file was deleted successfully.
+/// * `Err(AinariError::InternalError)` if an error occurred during the deletion process.
+pub async fn delete_file_from_onsen(
+    onsen_address: &str,
+    remote_file_path: &str,
+) -> Result<(), AinariError> {
+    delete_file(onsen_address, remote_file_path)
+        .await
+        .map_err(|e| {
+            AinariError::internal(format!(
+                "Failed to delete file '{remote_file_path}' from onsen '{onsen_address}' with error: {e}"
+            ))
+        })
+}
+
 /// Opens a grpc-connection to an onsen.
 async fn connect(onsen_address: &str) -> Result<DataServiceClient<Channel>, AinariError> {
     DataServiceClient::connect(onsen_address.to_owned())

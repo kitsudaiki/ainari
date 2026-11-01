@@ -1,5 +1,0 @@
----
-- name: Install Ainari
-  hosts: all
-  roles:
-    - sakura

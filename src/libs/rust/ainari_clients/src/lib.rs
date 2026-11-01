@@ -15,9 +15,11 @@
 pub mod auth;
 pub mod backup;
 pub mod endpoints;
+pub mod exports;
 pub mod floating_ip;
 pub mod host;
 pub mod image;
+pub mod imports;
 pub mod izakaya;
 pub mod logging;
 pub mod network;

@@ -20,7 +20,7 @@ use uuid::Uuid;
 use crate::database::backup_table::{self, StatusChange};
 use crate::database::host_table;
 
-use ainari_api::common_functions::*;
+use ainari_api::error_mapping::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::backup_structs::*;
 use ainari_api_structs::user_context::UserContext;

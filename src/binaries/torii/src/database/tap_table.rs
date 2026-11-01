@@ -33,13 +33,10 @@ table! {
         vm_ip -> Nullable<Varchar>,
         owner_id -> Varchar,
         project_id -> Varchar,
-        status -> Varchar,
         created_at -> Varchar,
         created_by -> Varchar,
         updated_at -> Varchar,
         updated_by -> Varchar,
-        deleted_at -> Nullable<Varchar>,
-        deleted_by -> Nullable<Varchar>,
     }
 }
 
@@ -54,13 +51,10 @@ table! {
 /// * `vm_ip` - Address of the VM behind the TAP device (nullable)
 /// * `owner_id` - User ID of the entry owner
 /// * `project_id` - Project ID the entry belongs to
-/// * `status` - Current status of the entry (ACTIVE, DELETED, etc.)
 /// * `created_at` - Timestamp when the entry was created
 /// * `created_by` - User ID who created the entry
 /// * `updated_at` - Timestamp when the entry was last updated
 /// * `updated_by` - User ID who last updated the entry
-/// * `deleted_at` - Timestamp when the entry was deleted (nullable)
-/// * `deleted_by` - User ID who deleted the entry (nullable)
 #[derive(Insertable, Queryable, Selectable, Debug, PartialEq, Clone)]
 #[diesel(table_name = taps)]
 pub struct TapEntry {
@@ -74,16 +68,12 @@ pub struct TapEntry {
     pub vm_ip: Option<Ipv4Addr>,
     pub owner_id: String,
     pub project_id: String,
-    pub status: String,
     #[diesel(serialize_as = DbDateTime, deserialize_as = DbDateTime)]
     pub created_at: DateTime<Utc>,
     pub created_by: String,
     #[diesel(serialize_as = DbDateTime, deserialize_as = DbDateTime)]
     pub updated_at: DateTime<Utc>,
     pub updated_by: String,
-    #[diesel(serialize_as = DbOptDateTime, deserialize_as = DbOptDateTime)]
-    pub deleted_at: Option<DateTime<Utc>>,
-    pub deleted_by: Option<String>,
 }
 
 impl From<TapEntry> for TapReq {
@@ -100,7 +90,7 @@ impl From<TapEntry> for TapReq {
 /// Persists a registered TAP device.
 ///
 /// A TAP device is registered only once at a time, so an already persisted entry for the same
-/// device is marked as deleted and replaced within one transaction.
+/// device is removed and replaced within one transaction.
 ///
 /// # Arguments
 /// * `req` - The request, which registered the TAP device
@@ -122,25 +112,16 @@ pub fn set_tap(req: &TapReq, context: &UserContext) -> QueryResult<usize> {
         vm_ip: req.vm_ip,
         owner_id: context.user_id.clone(),
         project_id: context.project_id.clone(),
-        status: "ACTIVE".to_string(),
         created_at: Utc::now(),
         created_by: context.user_id.clone(),
         updated_at: Utc::now(),
         updated_by: context.user_id.clone(),
-        deleted_at: None,
-        deleted_by: None,
     };
 
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     conn.transaction(|conn| {
         use self::taps::dsl::*;
-        diesel::update(taps.filter(tap_name.eq(req.tap_name.clone()).and(status.eq("ACTIVE"))))
-            .set((
-                status.eq("DELETED"),
-                deleted_at.eq(Utc::now().to_rfc3339()),
-                deleted_by.eq(context.user_id.clone()),
-            ))
-            .execute(conn)?;
+        diesel::delete(taps.filter(tap_name.eq(req.tap_name.clone()))).execute(conn)?;
         diesel::insert_into(taps).values(entry).execute(conn)
     })
 }
@@ -156,7 +137,7 @@ pub fn get_tap(name: &str) -> QueryResult<Option<TapEntry>> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::taps::dsl::*;
 
-    taps.filter(tap_name.eq(name).and(status.eq("ACTIVE")))
+    taps.filter(tap_name.eq(name))
         .select(TapEntry::as_select())
         .first(&mut *conn)
         .optional()
@@ -170,10 +151,7 @@ pub fn list_taps() -> QueryResult<Vec<TapEntry>> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::taps::dsl::*;
 
-    let mut entries = taps
-        .filter(status.eq("ACTIVE"))
-        .select(TapEntry::as_select())
-        .load(&mut *conn)?;
+    let mut entries = taps.select(TapEntry::as_select()).load(&mut *conn)?;
     entries.sort_by_key(|entry| entry.created_at);
     Ok(entries)
 }

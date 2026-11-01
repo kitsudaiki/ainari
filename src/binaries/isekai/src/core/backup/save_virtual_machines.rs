@@ -15,13 +15,12 @@
 use futures::stream::{self, StreamExt};
 use std::collections::BTreeMap;
 
+use ainari_api_structs::exports::HanamiVirtualMachineExport;
 use ainari_api_structs::secret_structs::SECRET_OWNER_BACKUP;
 use ainari_api_structs::task_structs::TaskBackupSaveReq;
-use ainari_api_structs::virtual_machine_structs::HanamiVirtualMachineExport;
+use ainari_clients::exports::export_virtual_machine;
 use ainari_clients::secret::generate_secret;
-use ainari_clients::virtual_machine::{
-    backup_virtual_machine, export_virtual_machine, get_virtual_machine_host,
-};
+use ainari_clients::virtual_machine::{backup_virtual_machine, get_virtual_machine_host};
 use ainari_common::error::AinariError;
 
 use super::BackupJob;

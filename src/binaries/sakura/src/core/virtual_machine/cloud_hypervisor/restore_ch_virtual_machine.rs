@@ -18,7 +18,7 @@ use cloud_hypervisor_client::apis::DefaultApi;
 use cloud_hypervisor_client::models::VmState;
 use uuid::Uuid;
 
-use ainari_api::common_functions::*;
+use ainari_api::error_mapping::*;
 use ainari_api_structs::image_structs::ImageInternalResp;
 use ainari_api_structs::user_context::UserContext;
 use ainari_clients::endpoints::get_endpoints;
@@ -26,6 +26,7 @@ use ainari_clients::image::get_image;
 use ainari_clients::onsen_file_transfer::download_file;
 use ainari_clients::secret::get_secret_payload;
 use ainari_common::error::AinariError;
+use ainari_common::functions::create_directory;
 use ainari_common::secret::Secret;
 use ainari_files::file_encryption::decrypt_file;
 

@@ -17,7 +17,7 @@ use apistos::api_operation;
 
 use crate::database::user_project_mapping_table;
 
-use ainari_api::common_functions::*;
+use ainari_api::error_mapping::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::project_structs::*;
 use ainari_api_structs::user_context::UserContext;
@@ -34,7 +34,7 @@ The default-project of the user is part of the list as well."###,
 pub async fn list_user_projects(
     context: UserContext,
 ) -> Result<Json<ProjectInvitedListResp>, ErrorResponse> {
-    // get all active assignments of the user of the token from database
+    // get all assignments of the user of the token from database
     let mappings = user_project_mapping_table::list_mappings_of_user(&context.user_id)
         .map_err(|e| map_db_list_error("invited projects", e, Some(&context)))?;
 

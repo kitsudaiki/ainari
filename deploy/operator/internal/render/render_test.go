@@ -53,7 +53,7 @@ func testSpec() *ainariv1alpha1.AinariSpec {
 		Hanami: ainariv1alpha1.HanamiSpec{
 			Replicas: 1, Image: "kitsudaiki/hanami:develop", Domain: "local-hanami",
 			Network: ainariv1alpha1.HanamiNetworkSpec{
-				FloatingIPCIDR: "10.0.0.0/24", MLSEncryption: true, MLSGrantValidity: 86400, MLSGrantRefreshInterval: 300,
+				FloatingIPCIDR: "10.0.0.0/24", MLSGrantValidity: 86400, MLSGrantRefreshInterval: 300,
 			},
 		},
 		Sakura:  ainariv1alpha1.SakuraSpec{Replicas: 1, Image: "kitsudaiki/sakura:develop", Domain: "local-sakura", KVMGID: 993, HostDataPath: "/etc/ainari"},
@@ -157,7 +157,6 @@ func TestRenderDefaultStack(t *testing.T) {
 func TestRenderOptionalComponents(t *testing.T) {
 	spec := testSpec()
 	spec.Dashboard.Enabled = false
-	spec.Hanami.Network.MLSEncryption = false
 	spec.Global.Gateway.Enabled = false
 	spec.Global.WireGuard.Enabled = false
 	spec.MySQL.Deploy = false
@@ -166,7 +165,7 @@ func TestRenderOptionalComponents(t *testing.T) {
 	objects := renderObjects(t, spec)
 
 	for key := range objects {
-		for _, unwanted := range []string{"dashboard", "izakaya", "TLSRoute/", "wg-", "wireguard", "mls-grant", "StatefulSet/mysql"} {
+		for _, unwanted := range []string{"dashboard", "TLSRoute/", "wg-", "wireguard", "StatefulSet/mysql"} {
 			if strings.Contains(key, unwanted) {
 				t.Errorf("the object %s is rendered, although it is disabled", key)
 			}

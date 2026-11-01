@@ -293,45 +293,6 @@ pub async fn reserve_virtual_machine_internal(
     handle_response(response, "virtual_machine", "").await
 }
 
-/// Exports the config of a virtual_machine from its sakura-host for a backup.
-///
-/// # Arguments
-///
-/// * `sakura_address` - Internal address of the sakura-host, which runs the virtual_machine
-/// * `token` - The authentication token for the API
-/// * `internal_api_key` - The internal API key for accessing protected endpoints
-/// * `virtual_machine_uuid` - The virtual_machine to export
-/// * `insecure_client` - Whether to use an insecure (HTTP) client instead of HTTPS
-///
-/// # Returns
-///
-/// A `Result` containing the config of the virtual_machine, or an `AinariError`.
-pub async fn export_virtual_machine(
-    sakura_address: &str,
-    token: &String,
-    internal_api_key: &Secret,
-    virtual_machine_uuid: &Uuid,
-    insecure_client: bool,
-) -> Result<SakuraVirtualMachineExport, AinariError> {
-    let client = prepare_client(sakura_address, insecure_client);
-    let url =
-        format!("{sakura_address}/v1alpha/virtual_machine/{virtual_machine_uuid}/export/internal");
-
-    let response = client
-        .get(url)
-        .insert_header(("Authorization", format!("Bearer {}", token)))
-        .insert_header(("X-Internal-API-Key", internal_api_key.reveal()))
-        .send()
-        .await;
-
-    handle_response(
-        response,
-        "virtual_machine",
-        &virtual_machine_uuid.to_string(),
-    )
-    .await
-}
-
 /// Creates a task on the sakura-host, which saves the root-disk of a virtual_machine into a
 /// backup.
 ///

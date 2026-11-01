@@ -9,23 +9,20 @@ restored into the eBPF-datapath, when the torii starts again.
 
 ## proxys
 
-Proxies, which forward a port of the gateway to a virtual machine.
+Proxies, which forward to a virtual machine. All proxies share one listener of the gateway and
+are picked by the server name of the TLS-connection, which contains the UUID of the proxy.
 
 | field                | type         | is primary | constraints |
 | -------------------- | ------------ | ---------- | ----------- |
 | uuid                 | VARCHAR(40)  | x          |             |
-| port                 | INTEGER      |            |             |
 | target_address       | VARCHAR(256) |            |             |
 | virtual_machine_uuid | VARCHAR(40)  |            |             |
 | owner_id             | VARCHAR(256) |            |             |
 | project_id           | VARCHAR(256) |            |             |
-| status               | VARCHAR(8)   |            |             |
 | created_at           | VARCHAR(64)  |            |             |
 | created_by           | VARCHAR(256) |            |             |
 | updated_at           | VARCHAR(64)  |            |             |
 | updated_by           | VARCHAR(256) |            |             |
-| deleted_at           | VARCHAR(64)  |            |             |
-| deleted_by           | VARCHAR(256) |            |             |
 
 ## network_interfaces
 
@@ -44,13 +41,10 @@ configuration at a time.
 | fip_port   | BOOLEAN      |            | `NOT NULL DEFAULT FALSE` |
 | owner_id   | VARCHAR(256) |            |                          |
 | project_id | VARCHAR(256) |            |                          |
-| status     | VARCHAR(8)   |            |                          |
 | created_at | VARCHAR(64)  |            |                          |
 | created_by | VARCHAR(256) |            |                          |
 | updated_at | VARCHAR(64)  |            |                          |
 | updated_by | VARCHAR(256) |            |                          |
-| deleted_at | VARCHAR(64)  |            |                          |
-| deleted_by | VARCHAR(256) |            |                          |
 
 ## taps
 
@@ -67,13 +61,10 @@ only once at a time.
 | vm_ip      | VARCHAR(16)  |            |                      |
 | owner_id   | VARCHAR(256) |            |                      |
 | project_id | VARCHAR(256) |            |                      |
-| status     | VARCHAR(8)   |            |                      |
 | created_at | VARCHAR(64)  |            |                      |
 | created_by | VARCHAR(256) |            |                      |
 | updated_at | VARCHAR(64)  |            |                      |
 | updated_by | VARCHAR(256) |            |                      |
-| deleted_at | VARCHAR(64)  |            |                      |
-| deleted_by | VARCHAR(256) |            |                      |
 
 ## routes
 
@@ -95,13 +86,10 @@ the gateway derives from its own config at startup, only get an entry with their
 | encrypted    | BOOLEAN      |            | `NOT NULL DEFAULT FALSE` |
 | owner_id     | VARCHAR(256) |            |                          |
 | project_id   | VARCHAR(256) |            |                          |
-| status       | VARCHAR(8)   |            |                          |
 | created_at   | VARCHAR(64)  |            |                          |
 | created_by   | VARCHAR(256) |            |                          |
 | updated_at   | VARCHAR(64)  |            |                          |
 | updated_by   | VARCHAR(256) |            |                          |
-| deleted_at   | VARCHAR(64)  |            |                          |
-| deleted_by   | VARCHAR(256) |            |                          |
 
 ## network_filters
 
@@ -124,13 +112,10 @@ towards the address and move with it, when the route is updated to another addre
 | spec       | VARCHAR(64)  |            |             |
 | owner_id   | VARCHAR(256) |            |             |
 | project_id | VARCHAR(256) |            |             |
-| status     | VARCHAR(8)   |            |             |
 | created_at | VARCHAR(64)  |            |             |
 | created_by | VARCHAR(256) |            |             |
 | updated_at | VARCHAR(64)  |            |             |
 | updated_by | VARCHAR(256) |            |             |
-| deleted_at | VARCHAR(64)  |            |             |
-| deleted_by | VARCHAR(256) |            |             |
 
 ## floating_ips
 
@@ -147,10 +132,19 @@ within the tenant (`vni`) of the network (`network_uuid`) they lead to.
 | vni          | INTEGER      |            | `NOT NULL DEFAULT 0` |
 | owner_id     | VARCHAR(256) |            |                      |
 | project_id   | VARCHAR(256) |            |                      |
-| status       | VARCHAR(8)   |            |                      |
 | created_at   | VARCHAR(64)  |            |                      |
 | created_by   | VARCHAR(256) |            |                      |
 | updated_at   | VARCHAR(64)  |            |                      |
 | updated_by   | VARCHAR(256) |            |                      |
-| deleted_at   | VARCHAR(64)  |            |                      |
-| deleted_by   | VARCHAR(256) |            |                      |
+
+## mls_storage
+
+Key-value-store of the MLS-client of the gateway: its identity, its unused key-packages and the
+secrets of every group, both sides base64-encoded. openmls keeps the store in memory and it is
+written into this table after every change within one transaction, so the gateway is still a
+member of its groups after a restart.
+
+| field         | type | is primary | constraints |
+| ------------- | ---- | ---------- | ----------- |
+| storage_key   | TEXT | x          | `NOT NULL`  |
+| storage_value | TEXT |            | `NOT NULL`  |

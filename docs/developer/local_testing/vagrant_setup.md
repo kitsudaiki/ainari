@@ -27,74 +27,11 @@ land on any of them, because they keep their state only within the database.
 | `ainari-mysql`    | `192.168.56.16` | the mysql-server of miko, hanami, ryokan and omamori                        |
 | `ainari-onsen`    | `192.168.56.17` | one onsen, which stores the images of the virtual machines                  |
 | `ainari-onsen-2`  | `192.168.56.18` | the other onsen                                                             |
-| `ainari-torii`    | `192.168.56.11` | `torii-public`, the gateway at the edge of the network                      |
-| `ainari-sakura-1` | `192.168.56.12` | one sakura-host with the torii in front of it                               |
-| `ainari-sakura-2` | `192.168.56.13` | the other sakura-host with the torii in front of it                         |
+| `ainari-torii`    | `192.168.56.11` | `torii-public`, the gateway at the edge of the network, `192.168.57.11` on the underlay |
+| `ainari-sakura-1` | `192.168.56.12` | one sakura-host with the torii in front of it, `192.168.57.12` on the underlay          |
+| `ainari-sakura-2` | `192.168.56.13` | the other sakura-host with the torii in front of it, `192.168.57.13` on the underlay    |
 
 The dashboard runs with three replicas as well, one on each management-machine.
-
-## Architecture
-
-```mermaid
-flowchart TB
-    host["host<br/>route 10.0.0.0/24 via 192.168.56.11"]
-
-    subgraph net["private network of vagrant 192.168.56.0/24, mtu 1600"]
-        subgraph mgmt["VMs ainari-mgmt-1 to -3 192.168.56.10, .14, .15"]
-            control["k3s-server on ainari-mgmt-1<br/>one replica of miko, omamori, ryokan, hanami on each<br/>and of the dashboard<br/>each with a tls-sidecar"]
-        end
-        subgraph onsenvm["VM ainari-onsen 192.168.56.17"]
-            onsen["pod onsen-N<br/>images of the virtual machines"]
-        end
-        subgraph onsenvm2["VM ainari-onsen-2 192.168.56.18"]
-            onsen2["pod onsen-N<br/>images of the virtual machines"]
-        end
-        subgraph mysqlvm["VM ainari-mysql 192.168.56.16"]
-            mysql["pod mysql-0<br/>databases of miko, hanami, ryokan, omamori"]
-        end
-        subgraph toriivm["VM ainari-torii 192.168.56.11"]
-            uplink["service ainari-uplink<br/>10.0.0.1 on veth-uplink, NAT to the internet"]
-            public["pod torii-public<br/>floating ip-NAT, proxies"]
-        end
-        subgraph sak1["VM ainari-sakura-1 192.168.56.12 (nested kvm)"]
-            pod0["pod sakura-N<br/>torii + sakura"]
-        end
-        subgraph sak2["VM ainari-sakura-2 192.168.56.13 (nested kvm)"]
-            pod1["pod sakura-N<br/>torii + sakura"]
-        end
-    end
-
-    host -- "api on 192.168.56.10:11416-11422 (servicelb)" --- control
-    host -- "floating ip-addresses" --- uplink
-    uplink -- "veth-uplink / veth-gw (uplink)" --- public
-    public -- "underlay over flannel (vxlan)" --- pod0
-    public -- "underlay over flannel (vxlan)" --- pod1
-    pod0 --- vm0["virtual machines"]
-    pod1 --- vm1["virtual machines"]
-    control -- "mysql" --- mysql
-    control -. "grpc" .- onsen
-    onsen -. "images" .- pod0
-    onsen -. "images" .- pod1
-    control -. "grpc" .- onsen2
-    onsen2 -. "images" .- pod0
-    onsen2 -. "images" .- pod1
-    control -. "https" .- public
-    control -. "https" .- pod0
-    control -. "https" .- pod1
-```
-
-The service `ainari-uplink` on the virtual machine `ainari-torii` moves a veth-pair into the pod
-of `torii-public` and a new one into every new pod of it. That virtual machine is the next hop
-`10.0.0.1` of the gateway, routes the floating ip-addresses between the gateway and the host and
-masquerades the traffic of the virtual machines of ainari towards the internet.
-
-The overlay of torii runs within the vxlan of flannel, which adds a second header. The private
-network therefore has an mtu of 1600, so the pods get 1550 and the virtual machines of ainari keep
-the full mtu of 1500.
-
-Every sakura-host registers itself with the name of its pod in the headless service `sakura`
-(`https://sakura-0.sakura.ainari.svc.cluster.local:8443`). Its torii shares the pod, so hanami
-derives the torii of a host from this address.
 
 ## Requirements
 
@@ -271,6 +208,11 @@ virtual machines keep running, when the container is left; they are destroyed wi
   machine and runs over all of them.
 - **Uplink:** `vagrant ssh ainari-torii -c 'sudo journalctl -u ainari-uplink'` shows, when the
   uplink was moved into a pod of `torii-public`.
+- **Underlay:** `vagrant ssh ainari-sakura-1 -c 'sudo journalctl -u ainari-underlay'` shows, when
+  the underlay was moved into a pod of `sakura`, on `ainari-torii` into a pod of `torii-public`.
+  The traffic between the gateways can be captured on the bridge of the libvirt-network
+  `ainari-vagrant-underlay` on the host, for example with
+  `sudo tcpdump -ni "$(virsh net-info ainari-vagrant-underlay | awk '/Bridge/ {print $2}')" esp`.
 - **grpc:** the connection between ryokan, sakura and onsen is still plain grpc, because the
   grpc-client has no tls-support yet.
 - **Conflicts:** the setup-script refuses to start, if an interface of the host has an address in

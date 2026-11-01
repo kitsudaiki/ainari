@@ -66,14 +66,14 @@ uses the MLS (Messaging Layer Security) for the exchange.
 
 ### Omamori
 
-Omamori is the protection component and is basically a key-manager. It provides basic functionality
+Omamori is the key-manager and protects the secrets of the infrastructure. It provides basic functionality
 to upload, generate and download keys.
 
-!!! info
+### Isekai
 
-    Current only a simple crypto process is done by omamori, where uploaded and generated keys are
-    encrypted by a key from the config and stored encrypted within the database. Will be updated by
-    a Vault-connection and other backends in the future.
+Isekai is the orchestrator for backup and disaster recovery, for example in case the deployment is
+hit by a white truck. The backup data are stored in ryokan and the onsen instances, which are
+explicitly marked as backup targets.
 
 ## other
 

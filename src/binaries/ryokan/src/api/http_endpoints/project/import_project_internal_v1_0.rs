@@ -24,12 +24,14 @@ use crate::database::host_table;
 use crate::database::image_table::{self, ImageEntry};
 
 use ainari_api::common_functions::*;
+use ainari_api::error_mapping::*;
 use ainari_api::errors::ErrorResponse;
-use ainari_api_structs::image_structs::{
-    ImageStatus, RyokanProjectImportReq, RyokanProjectImportResp,
+use ainari_api_structs::image_structs::ImageStatus;
+use ainari_api_structs::imports::{
+    ImportedResource, RyokanProjectImportReq, RyokanProjectImportResp,
 };
-use ainari_api_structs::project_structs::ImportedResource;
 use ainari_api_structs::user_context::UserContext;
+use ainari_clients::onsen_file_transfer::delete_file_from_onsen;
 
 /// Directory on the onsen, which contains the files of the images.
 const IMAGE_DIRECTORY: &str = "images";
@@ -47,8 +49,8 @@ unknown onsen is rejected with `400`.
 The images keep their UUIDs, unless the `id_map` gives them a new one, which is also applied to
 their secrets. A UUID, which is used by another project, is rejected with `409`. An existing
 image of the project with the same UUID is rejected with `409`, unless `force` is set, which
-overwrites it and deletes its old file, if the location changed. A deleted image is restored. All
-conflicts are checked, before anything is changed. The quota of the project is not checked here.
+overwrites it and deletes its old file, if the location changed. All conflicts are checked, before
+anything is changed. The quota of the project is not checked here.
 Users, which are not admin, can only import into their own project.
 
 This is an internal call, which is protected by the internal api-key."###,
@@ -88,15 +90,13 @@ pub async fn import_project_internal(
         let existing = image_table::find_image(uuid)
             .map_err(|e| map_db_list_error("images", e, Some(&context)))?;
         check_import_target(
-            existing
-                .as_ref()
-                .map(|image| (image.project_id.as_str(), image.status.as_str())),
+            existing.as_ref().map(|image| image.project_id.as_str()),
             &project_id,
             body.force,
             "Image",
             uuid,
         )?;
-        existing_images.push(existing.filter(|image| image.status == "ACTIVE"));
+        existing_images.push(existing);
     }
 
     let mut imported = Vec::new();
@@ -114,13 +114,10 @@ pub async fn import_project_internal(
             is_snapshot: image.is_snapshot,
             owner_id: context.user_id.clone(),
             project_id: project_id.clone(),
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: context.user_id.clone(),
             updated_at: Utc::now(),
             updated_by: context.user_id.clone(),
-            deleted_at: None,
-            deleted_by: None,
         })
         .map_err(|e| {
             map_db_write_error(
@@ -134,11 +131,9 @@ pub async fn import_project_internal(
         // because the image itself was already imported.
         if let Some(old) = &existing
             && (old.onsen_address != import.onsen_address || old.file_path != import.file_path)
-            && delete_file_from_onsen(&old.onsen_address, &old.file_path, Some(&context))
-                .await
-                .is_err()
+            && let Err(e) = delete_file_from_onsen(&old.onsen_address, &old.file_path).await
         {
-            log::warn!("Failed to delete the old file of the overwritten image '{uuid}'");
+            log::warn!("Failed to delete the old file of the overwritten image '{uuid}': {e}");
         }
 
         imported.push(ImportedResource {
@@ -209,9 +204,8 @@ mod tests {
     use crate::api::http_endpoints::project::export_project_internal_v1_0::export_project_internal;
     use crate::database::db_handle;
     use crate::database::host_table::HostEntry;
-    use ainari_api_structs::image_structs::{
-        RyokanImageExport, RyokanImageImport, RyokanProjectExport,
-    };
+    use ainari_api_structs::exports::{ImageExport, RyokanProjectExport};
+    use ainari_api_structs::imports::RyokanImageImport;
     use ainari_common::enums::ProjectRole;
     use diesel::prelude::*;
     use serial_test::serial;
@@ -236,14 +230,11 @@ mod tests {
             uuid: Uuid::new_v4(),
             name: "onsen".to_string(),
             address: format!("http://{}:50051", Uuid::new_v4()),
-            status: "ACTIVE".to_string(),
             is_backup_target,
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
         };
         host_table::add_host(host.clone()).unwrap();
         host
@@ -263,13 +254,10 @@ mod tests {
             is_snapshot,
             owner_id: "test-user".to_string(),
             project_id: project.to_string(),
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "test-user".to_string(),
             updated_at: Utc::now(),
             updated_by: "test-user".to_string(),
-            deleted_at: None,
-            deleted_by: None,
         })
         .unwrap();
         uuid
@@ -301,7 +289,7 @@ mod tests {
     /// Imports the exported images like they were copied to the given onsen.
     async fn import(
         project: &str,
-        images: &[RyokanImageExport],
+        images: &[ImageExport],
         onsen: &str,
         force: bool,
         id_map: BTreeMap<Uuid, Uuid>,
@@ -436,7 +424,7 @@ mod tests {
         assert_eq!(overwritten.name, "renamed");
         assert_ne!(overwritten.file_path, format!("images/{image}"));
 
-        // a deleted image is restored with its UUID, also without force
+        // a deleted image is imported again with its UUID, also without force
         assert!(image_table::delete_image(&image, &context).is_ok());
         let resp = import(
             &project,
@@ -449,10 +437,7 @@ mod tests {
         .await
         .unwrap();
         assert!(!resp.images[0].overwritten);
-        assert_eq!(
-            image_table::find_image(&image).unwrap().unwrap().status,
-            "ACTIVE"
-        );
+        assert!(image_table::find_image(&image).unwrap().is_some());
 
         cleanup(&[&project], &[&host]);
     }

@@ -24,17 +24,27 @@ them is already used by virtual machines.
 | amount_of_used_memory     | BIGINT       |            | `NOT NULL DEFAULT 0 CHECK (amount_of_used_memory >= 0)`     |
 | disk_space                | BIGINT       |            | `NOT NULL DEFAULT 0 CHECK (disk_space >= 0)`                |
 | amount_of_used_disk_space | BIGINT       |            | `NOT NULL DEFAULT 0 CHECK (amount_of_used_disk_space >= 0)` |
-| status                    | VARCHAR(8)   |            |                                                             |
 | created_at                | VARCHAR(64)  |            |                                                             |
 | created_by                | VARCHAR(256) |            |                                                             |
 | updated_at                | VARCHAR(64)  |            |                                                             |
 | updated_by                | VARCHAR(256) |            |                                                             |
-| deleted_at                | VARCHAR(64)  |            |                                                             |
-| deleted_by                | VARCHAR(256) |            |                                                             |
 | external_address          | VARCHAR(256) |            |                                                             |
+| mls_signature_key         | VARCHAR(256) |            |                                                             |
+| mls_client_id             | VARCHAR(256) |            |                                                             |
+| is_host_isolated          | BOOLEAN      |            | `NOT NULL DEFAULT FALSE`                                    |
+| project_id                | VARCHAR(256) |            |                                                             |
 
 `external_address` is the address of the external api of the sakura-host, which the proxies of
 its virtual machines forward to. It is NULL for hosts without one, then `address` is used.
+
+`mls_signature_key` and `mls_client_id` are the MLS-identity of the torii of the host, which hanami
+pins with the first membership-grant of the host. Every following grant names this key, so no other
+torii can join a group in the name of the host. `mls_client_id` is the underlay-address of the
+torii, so a torii, which comes back with another address after a restart, is recognized and its old
+identity removed from the groups.
+
+An isolated host (`is_host_isolated`) is only used by the virtual machines of the project in
+`project_id`.
 
 ## meta_virtual_machines
 
@@ -48,35 +58,35 @@ Virtual machines with the sakura-host they were scheduled on and the resources t
 | proxy_uuid       | VARCHAR(40)  |            |                                                   |
 | owner_id         | VARCHAR(256) |            |                                                   |
 | project_id       | VARCHAR(256) |            |                                                   |
-| status           | VARCHAR(8)   |            |                                                   |
 | created_at       | VARCHAR(64)  |            |                                                   |
 | created_by       | VARCHAR(256) |            |                                                   |
 | updated_at       | VARCHAR(64)  |            |                                                   |
 | updated_by       | VARCHAR(256) |            |                                                   |
-| deleted_at       | VARCHAR(64)  |            |                                                   |
-| deleted_by       | VARCHAR(256) |            |                                                   |
 | number_of_cores  | BIGINT       |            | `NOT NULL DEFAULT 0 CHECK (number_of_cores >= 0)` |
 | memory_size      | BIGINT       |            | `NOT NULL DEFAULT 0 CHECK (memory_size >= 0)`     |
 | disk_size        | BIGINT       |            | `NOT NULL DEFAULT 0 CHECK (disk_size >= 0)`       |
 
 ## networks
 
-Virtual networks with their subnet.
+Virtual networks with their subnet and their tenant (`vni`).
 
-| field      | type         | is primary | constraints |
-| ---------- | ------------ | ---------- | ----------- |
-| uuid       | VARCHAR(40)  | x          |             |
-| name       | VARCHAR(256) |            |             |
-| subnet     | VARCHAR(40)  |            |             |
-| owner_id   | VARCHAR(256) |            |             |
-| project_id | VARCHAR(256) |            |             |
-| status     | VARCHAR(8)   |            |             |
-| created_at | VARCHAR(64)  |            |             |
-| created_by | VARCHAR(256) |            |             |
-| updated_at | VARCHAR(64)  |            |             |
-| updated_by | VARCHAR(256) |            |             |
-| deleted_at | VARCHAR(64)  |            |             |
-| deleted_by | VARCHAR(256) |            |             |
+`vni` is NULL, until the first address of the network is reserved, then a random free tenant
+starting at 1 is assigned. A network with `disable_encryption` gets no IPsec-encryption between
+its hosts and no MLS-group.
+
+| field              | type         | is primary | constraints              |
+| ------------------ | ------------ | ---------- | ------------------------ |
+| uuid               | VARCHAR(40)  | x          |                          |
+| name               | VARCHAR(256) |            |                          |
+| subnet             | VARCHAR(40)  |            |                          |
+| owner_id           | VARCHAR(256) |            |                          |
+| project_id         | VARCHAR(256) |            |                          |
+| created_at         | VARCHAR(64)  |            |                          |
+| created_by         | VARCHAR(256) |            |                          |
+| updated_at         | VARCHAR(64)  |            |                          |
+| updated_by         | VARCHAR(256) |            |                          |
+| disable_encryption | BOOLEAN      |            | `NOT NULL DEFAULT FALSE` |
+| vni                | INTEGER      |            |                          |
 
 ## vm_types
 
@@ -91,13 +101,10 @@ They are not bound to a project, so every user can use them, but only admins can
 | amount_of_memory | BIGINT       |            | `NOT NULL DEFAULT 0 CHECK (amount_of_memory >= 0)` |
 | owner_id         | VARCHAR(256) |            |                                                    |
 | project_id       | VARCHAR(256) |            |                                                    |
-| status           | VARCHAR(8)   |            |                                                    |
 | created_at       | VARCHAR(64)  |            |                                                    |
 | created_by       | VARCHAR(256) |            |                                                    |
 | updated_at       | VARCHAR(64)  |            |                                                    |
 | updated_by       | VARCHAR(256) |            |                                                    |
-| deleted_at       | VARCHAR(64)  |            |                                                    |
-| deleted_by       | VARCHAR(256) |            |                                                    |
 
 ## addresses
 
@@ -116,23 +123,16 @@ TAP-device and the tenant (`vni`) of the network.
 | virtual_machine_uuid | VARCHAR(40)  |            |                      |
 | owner_id             | VARCHAR(256) |            |                      |
 | project_id           | VARCHAR(256) |            |                      |
-| status               | VARCHAR(8)   |            |                      |
 | created_at           | VARCHAR(64)  |            |                      |
 | created_by           | VARCHAR(256) |            |                      |
 | updated_at           | VARCHAR(64)  |            |                      |
 | updated_by           | VARCHAR(256) |            |                      |
-| deleted_at           | VARCHAR(64)  |            |                      |
-| deleted_by           | VARCHAR(256) |            |                      |
 
 Unique indexes:
 
-- `addresses_active_mac_address`: `(mac_address)` where `status = 'ACTIVE'`
-- `addresses_active_tap_name`: `(tap_name)` where `status = 'ACTIVE'`
-- `addresses_active_network_internal_ip`: `(network_uuid, internal_ip)` where `status = 'ACTIVE'`
-
-MySQL has no partial indexes, so there the unique indexes are built on generated columns
-`active_<column>`, which contain the value of the column, if `status = 'ACTIVE'`, and NULL
-otherwise.
+- `addresses_mac_address`: `(mac_address)`
+- `addresses_tap_name`: `(tap_name)`
+- `addresses_network_internal_ip`: `(network_uuid, internal_ip)`
 
 ## floating_ips
 
@@ -148,23 +148,17 @@ are NULL, while the floating IP is detached.
 | floating_ip_addr | VARCHAR(40)  |            |                       |
 | owner_id         | VARCHAR(256) |            |                       |
 | project_id       | VARCHAR(256) |            |                       |
-| status           | VARCHAR(8)   |            |                       |
 | created_at       | VARCHAR(64)  |            |                       |
 | created_by       | VARCHAR(256) |            |                       |
 | updated_at       | VARCHAR(64)  |            |                       |
 | updated_by       | VARCHAR(256) |            |                       |
-| deleted_at       | VARCHAR(64)  |            |                       |
-| deleted_by       | VARCHAR(256) |            |                       |
 
 Unique indexes:
 
-- `floating_ips_active_floating_ip_addr`: `(floating_ip_addr)` where `status = 'ACTIVE'`
-- `floating_ips_active_network_internal_ip_addr`: `(network_uuid, internal_ip_addr)` where `status =
-  'ACTIVE'`
+- `floating_ips_floating_ip_addr`: `(floating_ip_addr)`
+- `floating_ips_network_internal_ip_addr`: `(network_uuid, internal_ip_addr)`
 
-MySQL has no partial indexes, so there the unique indexes are built on generated columns
-`active_<column>`, which contain the value of the column, if `status = 'ACTIVE'`, and NULL
-otherwise.
+Detached floating IPs have NULL as `internal_ip_addr`, which never collides within a unique index.
 
 ## network_filters
 
@@ -172,7 +166,7 @@ The view of hanami on the packet filters of the virtual machines, one entry per 
 and direction (`ingress` or `egress`). The filters are applied by the torii of the host of the
 virtual machine. `ip_ranges` and `ports` contain the include-lists in their canonical notation,
 separated by commas, like `10.0.0.0/24,10.0.1.5` or `22,8000-8100`. A filter, whose lists are both
-empty, is marked as deleted.
+empty, doesn't restrict anything, so its entry is removed.
 
 | field                | type         | is primary | constraints           |
 | -------------------- | ------------ | ---------- | --------------------- |
@@ -183,20 +177,13 @@ empty, is marked as deleted.
 | ports                | TEXT         |            | `NOT NULL DEFAULT ''` |
 | owner_id             | VARCHAR(256) |            |                       |
 | project_id           | VARCHAR(256) |            |                       |
-| status               | VARCHAR(8)   |            |                       |
 | created_at           | VARCHAR(64)  |            |                       |
 | created_by           | VARCHAR(256) |            |                       |
 | updated_at           | VARCHAR(64)  |            |                       |
 | updated_by           | VARCHAR(256) |            |                       |
-| deleted_at           | VARCHAR(64)  |            |                       |
-| deleted_by           | VARCHAR(256) |            |                       |
 
 Unique indexes:
 
-- `network_filters_active_virtual_machine_direction`: `(virtual_machine_uuid, direction)` where
-  `status = 'ACTIVE'`
+- `network_filters_virtual_machine_direction`: `(virtual_machine_uuid, direction)`
 
-MySQL has no partial indexes, so there the unique index is built on the generated column
-`active_virtual_machine_uuid`, which contains the value of the column, if `status = 'ACTIVE'`,
-and NULL otherwise. MySQL also has no defaults for `TEXT`-columns, so there `ip_ranges` and
-`ports` are only `NOT NULL`.
+MySQL has no defaults for `TEXT`-columns, so there `ip_ranges` and `ports` are only `NOT NULL`.

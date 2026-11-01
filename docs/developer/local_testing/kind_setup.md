@@ -11,48 +11,6 @@ sakura-hosts, each one a pod of the statefulset `sakura` together with the gatew
 The components only talk https to each other, over a nginx-sidecar with a certificate of
 cert-manager. The dashboard is always part of this setup.
 
-## Architecture
-
-```mermaid
-flowchart TB
-    host["host<br/>10.0.0.1 on veth-kind<br/>api on 127.0.0.1:11416-11422, proxies on 10042"]
-
-    subgraph node["kind-node ainari-control-plane (docker-container, mtu 1600)"]
-        subgraph pods["pod-network 10.244.0.0/16"]
-            public["pod torii-public<br/>torii + tls-sidecar<br/>floating ip-NAT, proxies"]
-            control["pods miko, omamori, izakaya, ryokan, onsen, hanami, dashboard<br/>each with a tls-sidecar<br/>pod mysql-0 with the databases"]
-            subgraph s0["pod sakura-0"]
-                vmm0["torii<br/>TAP-devices"]
-                sak0["sakura<br/>cloud-hypervisor"]
-            end
-            subgraph s1["pod sakura-1"]
-                vmm1["torii<br/>TAP-devices"]
-                sak1["sakura<br/>cloud-hypervisor"]
-            end
-        end
-        router["routing of the node"]
-    end
-
-    host -- "veth-kind / veth-gw (uplink)" --- public
-    host -- "node-ports (port + 20000)" --- control
-    public --- router
-    vmm0 --- router
-    vmm1 --- router
-    vmm0 --- vm0["virtual machines"]
-    vmm1 --- vm1["virtual machines"]
-    control -. "https" .- public
-    control -. "https" .- s0
-    control -. "https" .- s1
-```
-
-The pod-network of kind is routed: every pod has a point-to-point link to the node. The gateways
-don't share a link, so torii addresses its encapsulated packets to the router of the node, which
-it takes from the route of the kernel, and the node forwards them to the other pod.
-
-Every sakura-host registers itself with the name of its pod in the headless service `sakura`
-(`https://sakura-0.sakura.ainari.svc.cluster.local:8443`). Its torii shares the pod, so hanami
-derives the torii of a host from this address.
-
 ## Requirements
 
 - docker (the engine), which builds the images and runs the kind-node

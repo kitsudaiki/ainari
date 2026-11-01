@@ -20,7 +20,7 @@ use crate::core::processing::tasks::Task;
 use crate::core::processing::worker_handler::*;
 use crate::database::task_table;
 
-use ainari_api::common_functions::map_db_write_error;
+use ainari_api::error_mapping::map_db_write_error;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::task_structs::TaskType;
 use ainari_api_structs::user_context::UserContext;

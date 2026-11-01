@@ -20,8 +20,8 @@ use uuid::Uuid;
 use crate::core::proxy_handler::*;
 use crate::database::proxy_table;
 
-use ainari_api::common_functions::map_ainari_error_to_api_response;
-use ainari_api::common_functions::map_db_uuid_get_delete_error;
+use ainari_api::error_mapping::map_ainari_error_to_api_response;
+use ainari_api::error_mapping::map_db_uuid_get_delete_error;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::user_context::UserContext;
 

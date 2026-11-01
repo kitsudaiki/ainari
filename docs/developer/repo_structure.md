@@ -7,13 +7,16 @@ easier for a new person to understand the code.
 
 ```text
 .
+├── .githooks                   # git-hooks
 ├── .github                     # ci-pipeline, issue-templates
+├── .vscode                     # launch-configs to run the stack locally in VSCode
 ├── deploy
 │   ├── k8s                     # gateway, which publishes the stack
 │   ├── operator                # kubernetes-operator, which deploys the whole stack
 │   └── zarf                    # offline-installation of the whole stack with zarf
 ├── dockerfiles
 │   ├── debian_based            # debian-based images for local debugging
+│   ├── dockerhub               # descriptions of the images on Docker Hub
 │   ├── files                   # start-scripts, shared by both variants
 │   └── nix_based               # nix-based images of the ci, with the nix-flake
 ├── docs
@@ -21,12 +24,14 @@ easier for a new person to understand the code.
 │   └── ainari
 ├── scripts
 ├── src
-│   ├── archive
 │   ├── binaries
 │   │   ├── hanami
+│   │   ├── isekai
+│   │   ├── izakaya
 │   │   ├── miko
 │   │   ├── neko
 │   │   ├── omamori
+│   │   ├── omikuji
 │   │   ├── onsen
 │   │   ├── ryokan
 │   │   ├── sakura
@@ -48,6 +53,8 @@ easier for a new person to understand the code.
 │       ├── go
 │       └── python
 ├── testing
+│   ├── ainari_test             # end-to-end tests
+│   ├── kind
 │   ├── local_stack
 │   └── vagrant
 ├── Cargo.toml                  # cargo-workspace of all rust-crates
@@ -56,9 +63,20 @@ easier for a new person to understand the code.
 └── zensical.toml               # config of the documentation
 ```
 
+- **.githooks**
+
+    Git-hooks, at the moment only a pre-commit-hook, which formats the c-files with clang-format.
+
 - **.github**
 
-    The ci-pipeline (`workflows/build_test.yml`), code-scanning and the templates for issues.
+    The ci-pipeline (`workflows/build_test.yml`), the code-scanning with CodeQL and OpenSSF
+    Scorecard, the config of dependabot, the actions to generate the badges and the templates for
+    issues and pull-requests.
+
+- **.vscode**
+
+    Launch-configs and tasks to run and debug the whole stack locally in VSCode without any
+    container. See `.vscode/Readme.md`.
 
 - **deploy**
 
@@ -84,10 +102,13 @@ easier for a new person to understand the code.
 - **dockerfiles**
 
     Dockerfiles of the build-environment, of the services, of torii, of the dashboard, of the
-    documentation and of the container with the tools for the local testing. The Dockerfiles of the
-    images exist in two variants: `nix_based` with the packages pinned by nix, which the CI and the
-    vagrant-setup use, and `debian_based`, which is easier to debug and used by the docker-compose-
-    and kind-setup. See [Packages of the docker-images](docker_images.md).
+    documentation, of the operator and of the container with the tools for the local testing
+    (`Dockerfile_local_test_tools`). The Dockerfiles of the images exist in two variants:
+    `nix_based` with the packages pinned by nix, which the CI and the vagrant-setup use, and
+    `debian_based`, which is easier to debug and used by the docker-compose- and kind-setup. The
+    image of the operator exists only in the nix-based variant. `dockerhub` contains the
+    descriptions of the published images on Docker Hub. See
+    [Packages of the docker-images](docker_images.md).
 
 - **docs**
 
@@ -108,12 +129,6 @@ easier for a new person to understand the code.
 
 - **src**
 
-    - **archive**
-
-        Old archived code, which may be used or refactored again in the future. It was placed into
-        this dedicated directory, because dead code shouldn't be mixed with the rest. At the moment
-        this is only the old ansible-deployment.
-
     - **binaries**
 
         All backend-services, written in rust. This is the main part of the repository.
@@ -127,8 +142,11 @@ easier for a new person to understand the code.
         | `torii-ebpf` | eBPF/XDP-programs of the datapath of torii                                                           |
         | `ryokan`     | manages the onsen-hosts and the images and snapshots stored on them                                  |
         | `onsen`      | storage for the files of the images and snapshots; only reachable over grpc by ryokan and sakura     |
-        | `omamori`    | public-keys and encrypted secrets                                                                    |
-        | `neko`       | root-wrapper, which executes only commands of an allow-list with root-privileges                    |
+        | `omamori`    | key-manager to upload, generate and download keys                                                    |
+        | `omikuji`    | central collector of the error- and audit-logs of all components                                     |
+        | `isekai`     | orchestrates the encrypted backups and restores of virtual machines and whole projects               |
+        | `izakaya`    | key-exchange with MLS, which distributes the IPsec-keys to the sakura-hosts and torii-gateways       |
+        | `neko`       | root-wrapper, which executes only commands of an allow-list with root-privileges                     |
 
     - **cli/ainarictl**
 
@@ -136,7 +154,7 @@ easier for a new person to understand the code.
 
     - **dashboard**
 
-        The web-dashboard, written in Vue and Typescript.
+        The web-dashboard, written in Vue and Typescript. The app itself is located in `app`.
 
     - **libs/rust**
 
@@ -178,11 +196,21 @@ easier for a new person to understand the code.
 
 - **testing**
 
+    - **ainari_test**
+
+        The end-to-end test `vm_lifecycle_test.py`, which walks through the whole life-cycle of
+        virtual machines with the Python-SDK. The single test-steps are split into the suites of
+        `suites`, for example for the authentication, networking, snapshots and backups.
+
+    - **kind**
+
+        Scripts and cluster-config for the test-environment with the operator on a kind-cluster
+        (kubernetes in docker). See [Kind setup](local_testing/kind_setup.md).
+
     - **local_stack**
 
-        Description of the local test-environments and the end-to-end test `vm_lifecycle_test.py`,
-        which walks through the whole life-cycle of virtual machines with the Python-SDK. See [Local
-        test environments](local_testing/local_testing.md).
+        Description, configs and setup-scripts of the local docker-compose test-environment. See
+        [Local test environments](local_testing/local_testing.md).
 
     - **vagrant**
 

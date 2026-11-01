@@ -41,7 +41,10 @@ from ainari_sdk import virtual_machine
 from ainari_test.checks import (CheckFailed, SkipTest, check, check_equal, check_in, check_not_in,
                                 exists, expect_error)
 from ainari_test.framework import Suite
+from ainari_test.ssh import SshError
 from ainari_test.waiting import wait_for_vm_state, wait_until
+
+from . import hosts
 
 suite = Suite("backups", "backup and restore of virtual machines and projects with isekai",
               depends=("ssh",))
@@ -460,6 +463,89 @@ def restore_into_other_project(ctx):
     # the original virtual machine is untouched
     check_equal(virtual_machine.get_virtual_machine(ctx.api, entry["uuid"])["vm_state"],
                 "RUNNING", "state of the original virtual machine")
+
+
+@suite.test("restore a deleted virtual machine", requires=("vm_backup", "floating_ips"))
+def restore_deleted_vm(ctx):
+    """
+    The virtual machine is deleted and restored from its backup into its own project without
+    force, so it gets its UUID, its internal ip-address and its floating ip-address back. The
+    restored virtual machine replaces the deleted one in the state, so the following suites, like
+    the migration, run with it.
+    """
+    entry = ctx.state["virtual_machines"][0]
+    usage_before_delete = hosts.usage_by_host(ctx)
+    virtual_machine.delete_virtual_machine(ctx.api, entry["uuid"])
+    wait_until(lambda: not exists(virtual_machine.get_virtual_machine, ctx.api, entry["uuid"]),
+               ctx.config.delete_timeout, f"{entry['name']} is deleted")
+    # hanami releases the host-resources and the addresses only after the sakura-host deleted the
+    # virtual machine, so the restore can only get the old internal ip-address afterwards
+    expected = {entry["host"]: hosts.vm_resources(ctx, -1)}
+    wait_until(lambda: hosts.usage_changes(usage_before_delete, hosts.usage_by_host(ctx))
+               == expected,
+               ctx.config.delete_timeout, f"resources of {entry['name']} are released")
+
+    # the deletion only detaches the floating ip-address, which keeps its address reserved. The
+    # restore allocates a new floating ip-address, which only gets the old address, if it is free.
+    floating_ip.delete_floating_ip(ctx.api, entry["floating_ip_uuid"])
+    ctx.cleanup.discard(entry["floating_ip_uuid"])
+    wait_until(lambda: not exists(floating_ip.get_floating_ip, ctx.api, entry["floating_ip_uuid"]),
+               ctx.config.delete_timeout, f"floating ip {entry['floating_ip']} is deleted")
+
+    before = list_resources(ctx.api)
+    usage_before_restore = hosts.usage_by_host(ctx)
+    lock_key = register_unlock(ctx, ctx.state["backup_project"])
+    result = backup.restore_backup(ctx.api, ctx.state["vm_backup"], ctx.config.backup_passphrase)
+    check(result["job"] is not None, "restore without job")
+    # the job is awaited first, so a failed check doesn't leave a running restore behind
+    try:
+        job = wait_for_job(ctx, result["job"]["uuid"])
+    finally:
+        # the virtual machine keeps its cleanup-entry, a new floating ip-address is registered
+        register_new_resources(ctx, ctx.api, before)
+    check_unlocked(ctx, ctx.state["backup_project"], "after the restore")
+    ctx.cleanup.discard(lock_key)
+
+    # the UUID of a deleted virtual machine is free again for its own project
+    check_equal(job["job_type"], "RESTORE", "type of the job")
+    check_equal(result["plan"]["overwritten"], [], "overwritten resources without force")
+    check_not_in(entry["uuid"], [item["old_uuid"] for item in job["id_map"]
+                                 if item["resource_type"] == "virtual_machine"],
+                 "deleted virtual machine in the id-map")
+
+    data = wait_for_vm_state(ctx.api, entry["uuid"], "RUNNING", ctx.config.vm_create_timeout)
+    check_equal(data["name"], entry["name"], "name after the restore")
+    check_equal(data["network_uuid"], ctx.state["network"], "network after the restore")
+    check_equal(data["internal_ip"], entry["internal_ip"], "internal ip after the restore")
+
+    # hanami places the restored virtual machine on any shared sakura-host
+    changes = hosts.usage_changes(usage_before_restore, hosts.usage_by_host(ctx))
+    check_equal(list(changes.values()), [hosts.vm_resources(ctx)],
+                "allocated resources of the restored virtual machine")
+    entry["host"] = next(iter(changes))
+    entry["torii_address"] = data["torii_address"]
+
+    restored_fips = [item for item in floating_ip.list_floating_ips(ctx.api)["floating_ips"]
+                     if item["internal_ip"] == entry["internal_ip"]
+                     and item["network_uuid"] == ctx.state["network"]]
+    check_equal(len(restored_fips), 1, "floating ip-addresses of the restored virtual machine")
+    check_equal(restored_fips[0]["floating_ip"], entry["floating_ip"],
+                "floating ip after the restore")
+    entry["floating_ip_uuid"] = restored_fips[0]["uuid"]
+    ctx.log(f"{entry['name']} restored on host {entry['host']} "
+            f"({entry['internal_ip']}, {entry['floating_ip']})")
+
+    # reachable from outside over the floating ip-address and with the content of the backup
+    ctx.ssh.refresh_sudo()
+    marker = ctx.ssh.wait(entry["floating_ip"], f"cat {MARKER}")
+    check_equal(marker, ctx.state["backup_marker"], "marker-file after the restore")
+    # and reachable from the other virtual machines over the internal network
+    for other in ctx.state["virtual_machines"][1:]:
+        try:
+            ctx.ssh.run(other["floating_ip"], f"ping -c 3 -W 2 {entry['internal_ip']}")
+        except SshError:
+            check(False, f"{other['name']} can not ping the restored {entry['name']} "
+                         f"({entry['internal_ip']})")
 
 
 @suite.test("backup of the project locks it", requires=("vm_backup",),

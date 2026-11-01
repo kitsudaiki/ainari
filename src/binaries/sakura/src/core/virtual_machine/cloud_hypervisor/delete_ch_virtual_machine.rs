@@ -20,7 +20,7 @@ use cloud_hypervisor_client::apis::DefaultApi;
 use cloud_hypervisor_client::socket_based_api_client;
 use uuid::Uuid;
 
-use ainari_api::common_functions::*;
+use ainari_api::error_mapping::*;
 use ainari_api_structs::user_context::UserContext;
 use ainari_common::enums::DbError;
 use ainari_common::error::AinariError;
@@ -32,8 +32,8 @@ use crate::database::virtual_machine_table;
 ///
 /// The cloud-hypervisor process of the virtual_machine is stopped, all of its files, like the
 /// boot-disk, the cloud-init seed-image, the API-socket and the serial-log, are removed and at
-/// the end it is marked as deleted in the database. The database-entry is changed last, because
-/// hanami watches it to know, when the virtual_machine is really gone.
+/// the end it is removed from the database. The database-entry is removed last, because hanami
+/// watches it to know, when the virtual_machine is really gone.
 ///
 /// # Arguments
 /// * `uuid` - Unique identifier of the virtual_machine to delete

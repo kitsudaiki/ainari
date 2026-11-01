@@ -31,11 +31,12 @@ use crate::database::network_filter_table;
 use crate::database::network_table::{self, NetworkEntry};
 
 use ainari_api::common_functions::*;
+use ainari_api::error_mapping::*;
 use ainari_api::errors::ErrorResponse;
-use ainari_api_structs::floating_ip_structs::HanamiFloatingIpExport;
-use ainari_api_structs::network_filter_structs::HanamiNetworkFilterExport;
-use ainari_api_structs::network_structs::*;
-use ainari_api_structs::project_structs::ImportedResource;
+use ainari_api_structs::exports::{FloatingIpExport, NetworkExport, NetworkFilterExport};
+use ainari_api_structs::imports::{
+    HanamiProjectImportReq, HanamiProjectImportResp, ImportedResource,
+};
 use ainari_api_structs::user_context::UserContext;
 use ainari_clients::network_filter as network_filter_clients;
 
@@ -137,14 +138,13 @@ pub async fn import_project_internal(
             subnet: network.subnet.clone(),
             owner_id: context.user_id.clone(),
             project_id: project_id.clone(),
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: context.user_id.clone(),
             updated_at: Utc::now(),
             updated_by: context.user_id.clone(),
-            deleted_at: None,
-            deleted_by: None,
             disable_encryption: network.disable_encryption,
+            // an overwritten network keeps its tenant, a new one gets it with its first address
+            vni: None,
         })
         .map_err(|e| {
             map_db_write_error(
@@ -205,7 +205,7 @@ pub async fn import_project_internal(
 /// * `Err(ErrorResponse::Conflict)` - The UUID can't be used, or the subnet or the encryption of
 ///   a network, which is used by virtual_machines, would change
 fn check_network(
-    network: &HanamiNetworkExport,
+    network: &NetworkExport,
     uuid: &Uuid,
     force: bool,
     context: &UserContext,
@@ -213,9 +213,7 @@ fn check_network(
     let existing = network_table::find_network(uuid)
         .map_err(|e| map_db_list_error("networks", e, Some(context)))?;
     let overwritten = check_import_target(
-        existing
-            .as_ref()
-            .map(|n| (n.project_id.as_str(), n.status.as_str())),
+        existing.as_ref().map(|n| n.project_id.as_str()),
         &context.project_id,
         force,
         "Network",
@@ -285,7 +283,7 @@ fn check_virtual_machine(
 /// * `Ok(())` - The filter is applied and stored
 /// * `Err(ErrorResponse)` - The torii or the database failed
 async fn import_network_filter(
-    filter: &HanamiNetworkFilterExport,
+    filter: &NetworkFilterExport,
     virtual_machine_uuid: &Uuid,
     replace: bool,
     context: &UserContext,
@@ -371,7 +369,7 @@ async fn import_network_filter(
 /// * `Ok(Uuid)` - The UUID of the new or already attached floating ip-address
 /// * `Err(ErrorResponse)` - No floating ip-address is free or the attach failed
 async fn import_floating_ip(
-    floating_ip: &HanamiFloatingIpExport,
+    floating_ip: &FloatingIpExport,
     virtual_machine_uuid: Option<&Uuid>,
     context: &UserContext,
 ) -> Result<Uuid, ErrorResponse> {
@@ -448,6 +446,7 @@ mod tests {
     use crate::database::floating_ip_table::FloatingIpEntry;
     use crate::database::meta_virtual_machine_table::MetaVirtualMachineEntry;
     use crate::database::network_filter_table::NetworkFilterEntry;
+    use ainari_api_structs::exports::HanamiProjectExport;
     use ainari_api_structs::network_filter_structs::FilterDirection;
     use ainari_common::enums::ProjectRole;
     use diesel::prelude::*;
@@ -476,14 +475,12 @@ mod tests {
             subnet: subnet.to_string(),
             owner_id: "test-user".to_string(),
             project_id: project.to_string(),
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "test-user".to_string(),
             updated_at: Utc::now(),
             updated_by: "test-user".to_string(),
-            deleted_at: None,
-            deleted_by: None,
             disable_encryption: false,
+            vni: None,
         }
     }
 
@@ -501,13 +498,10 @@ mod tests {
                     proxy_uuid: Uuid::new_v4(),
                     owner_id: "test-user".to_string(),
                     project_id: project.to_string(),
-                    status: "ACTIVE".to_string(),
                     created_at: Utc::now(),
                     created_by: "test-user".to_string(),
                     updated_at: Utc::now(),
                     updated_by: "test-user".to_string(),
-                    deleted_at: None,
-                    deleted_by: None,
                     number_of_cores: 2,
                     memory_size: 2048,
                     disk_size: 20,
@@ -528,13 +522,10 @@ mod tests {
                 virtual_machine_uuid: Some(vm_uuid),
                 owner_id: "test-user".to_string(),
                 project_id: project.to_string(),
-                status: "ACTIVE".to_string(),
                 created_at: Utc::now(),
                 created_by: "test-user".to_string(),
                 updated_at: Utc::now(),
                 updated_by: "test-user".to_string(),
-                deleted_at: None,
-                deleted_by: None,
             })
             .execute(&mut *conn)
             .unwrap();
@@ -551,13 +542,10 @@ mod tests {
             floating_ip_addr: ip,
             owner_id: "test-user".to_string(),
             project_id: project.to_string(),
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "test-user".to_string(),
             updated_at: Utc::now(),
             updated_by: "test-user".to_string(),
-            deleted_at: None,
-            deleted_by: None,
         })
         .unwrap();
         uuid
@@ -639,13 +627,10 @@ mod tests {
             ports: "22".to_string(),
             owner_id: "test-user".to_string(),
             project_id: project.clone(),
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "test-user".to_string(),
             updated_at: Utc::now(),
             updated_by: "test-user".to_string(),
-            deleted_at: None,
-            deleted_by: None,
         })
         .unwrap();
         let attached =
@@ -759,14 +744,14 @@ mod tests {
         let project = new_project();
         let network = Uuid::new_v4();
         let exported = HanamiProjectExport {
-            networks: vec![HanamiNetworkExport {
+            networks: vec![NetworkExport {
                 uuid: network,
                 name: "network".to_string(),
                 subnet: "192.168.40.0/24".to_string(),
                 disable_encryption: false,
             }],
             virtual_machines: vec![],
-            network_filters: vec![HanamiNetworkFilterExport {
+            network_filters: vec![NetworkFilterExport {
                 virtual_machine_uuid: Uuid::new_v4(),
                 direction: FilterDirection::Egress,
                 ip_ranges: vec!["10.0.0.0/8".parse().unwrap()],
@@ -801,7 +786,7 @@ mod tests {
         let taken = Ipv4Addr::new(10, 0, 0, 212);
         add_floating_ip(&project, None, taken);
         let user = context(&project, false, ProjectRole::Admin);
-        let floating = |uuid, ip, virtual_machine_uuid| HanamiFloatingIpExport {
+        let floating = |uuid, ip, virtual_machine_uuid| FloatingIpExport {
             uuid,
             name: "restored".to_string(),
             floating_ip: ip,

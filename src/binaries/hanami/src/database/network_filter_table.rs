@@ -38,13 +38,10 @@ table! {
         ports -> Varchar,
         owner_id -> Varchar,
         project_id -> Varchar,
-        status -> Varchar,
         created_at -> Varchar,
         created_by -> Varchar,
         updated_at -> Varchar,
         updated_by -> Varchar,
-        deleted_at -> Nullable<Varchar>,
-        deleted_by -> Nullable<Varchar>,
     }
 }
 
@@ -68,16 +65,12 @@ pub struct NetworkFilterEntry {
     pub ports: String,
     pub owner_id: String,
     pub project_id: String,
-    pub status: String,
     #[diesel(serialize_as = DbDateTime, deserialize_as = DbDateTime)]
     pub created_at: DateTime<Utc>,
     pub created_by: String,
     #[diesel(serialize_as = DbDateTime, deserialize_as = DbDateTime)]
     pub updated_at: DateTime<Utc>,
     pub updated_by: String,
-    #[diesel(serialize_as = DbOptDateTime, deserialize_as = DbOptDateTime)]
-    pub deleted_at: Option<DateTime<Utc>>,
-    pub deleted_by: Option<String>,
 }
 
 impl NetworkFilterEntry {
@@ -118,7 +111,7 @@ fn split_rules(rules: &str) -> Vec<String> {
 /// The include-lists are the ones, which the torii reported back after it applied the filter,
 /// so they replace the stored ones completely. An existing entry is updated, otherwise a new one
 /// is created. A filter with two empty include-lists doesn't restrict anything, so its entry is
-/// marked as deleted instead.
+/// removed instead.
 ///
 /// There is no permission-check of the virtual_machine, so the caller has to verify, that the
 /// user is allowed to access it.
@@ -130,8 +123,8 @@ fn split_rules(rules: &str) -> Vec<String> {
 /// * `context` - The user context containing information about the user and project
 ///
 /// # Returns
-/// A Result containing the stored entry, which is marked as deleted for empty include-lists, or
-/// a DbError if the entry could not be stored
+/// A Result containing the stored entry, which is not stored for empty include-lists, or a
+/// DbError if the entry could not be stored
 pub fn set_network_filter(
     filter_virtual_machine_uuid: &Uuid,
     filter_direction: FilterDirection,
@@ -171,19 +164,13 @@ pub fn set_network_filter(
             ports: new_ports.clone(),
             owner_id: context.user_id.clone(),
             project_id: context.project_id.clone(),
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: context.user_id.clone(),
             updated_at: Utc::now(),
             updated_by: context.user_id.clone(),
-            deleted_at: None,
-            deleted_by: None,
         };
         if rules.is_empty() {
-            return Ok(NetworkFilterEntry {
-                status: "DELETED".to_string(),
-                ..entry
-            });
+            return Ok(entry);
         }
 
         match add_network_filter(entry.clone()) {
@@ -202,18 +189,18 @@ pub fn set_network_filter(
     Err(enums::DbError::InternalError)
 }
 
-/// Updates the include-lists of the active entry of a packet filter.
+/// Updates the include-lists of the entry of a packet filter.
 ///
 /// # Arguments
 /// * `filter_virtual_machine_uuid` - The UUID of the virtual_machine
 /// * `filter_direction` - The direction of the filter
 /// * `new_ip_ranges` - The stored include-list of the ip-ranges
 /// * `new_ports` - The stored include-list of the ports
-/// * `delete` - True to mark the entry as deleted
+/// * `delete` - True to remove the entry
 /// * `context` - The user context of the user, who updates the filter
 ///
 /// # Returns
-/// A QueryResult containing the updated entry, or None if there is no active entry
+/// A QueryResult containing the updated entry, or None if there is no entry
 fn update_active_entry(
     filter_virtual_machine_uuid: &Uuid,
     filter_direction: FilterDirection,
@@ -229,8 +216,7 @@ fn update_active_entry(
         .filter(
             virtual_machine_uuid
                 .eq(filter_virtual_machine_uuid.to_string())
-                .and(direction.eq(filter_direction.to_string()))
-                .and(status.eq("ACTIVE")),
+                .and(direction.eq(filter_direction.to_string())),
         )
         .select(NetworkFilterEntry::as_select())
         .first::<NetworkFilterEntry>(&mut *conn)
@@ -245,20 +231,17 @@ fn update_active_entry(
     entry.updated_at = now;
     entry.updated_by = context.user_id.clone();
     if delete {
-        entry.status = "DELETED".to_string();
-        entry.deleted_at = Some(now);
-        entry.deleted_by = Some(context.user_id.clone());
+        diesel::delete(network_filters.filter(uuid.eq(entry.uuid.to_string())))
+            .execute(&mut *conn)?;
+        return Ok(Some(entry));
     }
 
     diesel::update(network_filters.filter(uuid.eq(entry.uuid.to_string())))
         .set((
             ip_ranges.eq(&entry.ip_ranges),
             ports.eq(&entry.ports),
-            status.eq(&entry.status),
             updated_at.eq(now.to_rfc3339()),
             updated_by.eq(&entry.updated_by),
-            deleted_at.eq(entry.deleted_at.map(|time| time.to_rfc3339())),
-            deleted_by.eq(&entry.deleted_by),
         ))
         .execute(&mut *conn)?;
 
@@ -308,8 +291,7 @@ pub fn add_network_filter(network_filter: NetworkFilterEntry) -> QueryResult<usi
 
 /// Retrieves the packet filter of one direction of a virtual_machine from the database.
 ///
-/// Only active entries are returned, and the query is filtered based on the user's role and
-/// project membership.
+/// The query is filtered based on the user's role and project membership.
 ///
 /// # Arguments
 /// * `filter_virtual_machine_uuid` - The UUID of the virtual_machine
@@ -331,8 +313,7 @@ pub fn get_network_filter(
         .filter(
             virtual_machine_uuid
                 .eq(filter_virtual_machine_uuid.to_string())
-                .and(direction.eq(filter_direction.to_string()))
-                .and(status.eq("ACTIVE")),
+                .and(direction.eq(filter_direction.to_string())),
         )
         .into_boxed();
 
@@ -368,7 +349,7 @@ pub fn list_network_filters(context: &UserContext) -> QueryResult<Vec<NetworkFil
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::network_filters::dsl::*;
 
-    let mut query = network_filters.filter(status.eq("ACTIVE")).into_boxed();
+    let mut query = network_filters.into_boxed();
 
     // Apply permission-based filtering
     if context.is_admin != true.to_string() {
@@ -380,7 +361,7 @@ pub fn list_network_filters(context: &UserContext) -> QueryResult<Vec<NetworkFil
         .load(&mut *conn)
 }
 
-/// Marks the packet filters of both directions of a virtual_machine as deleted.
+/// Deletes the packet filters of both directions of a virtual_machine.
 ///
 /// The torii drops the filters together with the route towards the virtual_machine, so this only
 /// follows the deletion of the virtual_machine. There is no permission-check of the
@@ -403,18 +384,9 @@ pub fn delete_network_filters_of_virtual_machine(
 
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::network_filters::dsl::*;
-    match diesel::update(
-        network_filters.filter(
-            virtual_machine_uuid
-                .eq(filter_virtual_machine_uuid.to_string())
-                .and(status.eq("ACTIVE")),
-        ),
+    match diesel::delete(
+        network_filters.filter(virtual_machine_uuid.eq(filter_virtual_machine_uuid.to_string())),
     )
-    .set((
-        status.eq("DELETED"),
-        deleted_at.eq(Utc::now().to_rfc3339()),
-        deleted_by.eq(context.user_id.clone()),
-    ))
     .execute(&mut *conn)
     {
         Ok(_) => Ok(()),
@@ -440,7 +412,6 @@ pub fn list_network_filters_of_project(project: &str) -> QueryResult<Vec<Network
     use self::network_filters::dsl::*;
 
     network_filters
-        .filter(status.eq("ACTIVE"))
         .filter(project_id.eq(project))
         .select(NetworkFilterEntry::as_select())
         .load(&mut *conn)
@@ -508,7 +479,6 @@ mod tests {
             &rules,
             &context,
         ));
-        assert_eq!(created.status, "ACTIVE");
         assert_eq!(created.ip_range_list(), vec!["10.0.0.0/24", "10.0.1.5"]);
         assert!(created.port_list().is_empty());
 
@@ -536,23 +506,21 @@ mod tests {
         assert!(get_network_filter(&vm_uuid, FilterDirection::Egress, &context).is_err());
 
         // empty include-lists remove the filter
-        let cleared = expect_entry(set_network_filter(
+        expect_entry(set_network_filter(
             &vm_uuid,
             FilterDirection::Ingress,
             &RouteFilterRules::default(),
             &context,
         ));
-        assert_eq!(cleared.status, "DELETED");
         assert!(get_network_filter(&vm_uuid, FilterDirection::Ingress, &context).is_err());
 
         // clearing a filter, which doesn't exist, leaves nothing behind
-        let cleared = expect_entry(set_network_filter(
+        expect_entry(set_network_filter(
             &vm_uuid,
             FilterDirection::Egress,
             &RouteFilterRules::default(),
             &context,
         ));
-        assert_eq!(cleared.status, "DELETED");
         assert!(get_network_filter(&vm_uuid, FilterDirection::Egress, &context).is_err());
 
         hard_delete_network_filters(&vm_uuid);
@@ -620,13 +588,12 @@ mod tests {
         }
 
         // a new filter can be created again after the deletion
-        let entry = expect_entry(set_network_filter(
+        expect_entry(set_network_filter(
             &vm_uuid,
             FilterDirection::Ingress,
             &rules,
             &context,
         ));
-        assert_eq!(entry.status, "ACTIVE");
 
         hard_delete_network_filters(&vm_uuid);
     }

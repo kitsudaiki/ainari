@@ -53,7 +53,7 @@ use crate::database::address_table;
 use crate::database::host_table::{self, HostEntry};
 use crate::database::network_table;
 
-use ainari_api::common_functions::*;
+use ainari_api::error_mapping::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::mls_structs::*;
 use ainari_api_structs::user_context::UserContext;
@@ -68,10 +68,10 @@ use ainari_common::config::{Endpoint, Endpoints};
 /// * `disable_encryption` - The flag of the network, which was given with its creation
 ///
 /// # Returns
-/// `true` if the encryption is enabled in the config and not disabled for the network. Only then
-/// the network gets encrypted routes and a MLS-group.
+/// `true` if the encryption is not disabled for the network. Only then the network gets
+/// encrypted routes and a MLS-group.
 pub fn network_encrypted(disable_encryption: bool) -> bool {
-    config::CONFIG.network.mls_encryption && !disable_encryption
+    !disable_encryption
 }
 
 /// Decides, if the traffic between two hosts of a network is encrypted.
@@ -370,9 +370,10 @@ mod tests {
         let key = parse_signing_key(DEVELOPMENT_SEED).unwrap();
         let public_key = encode_verifying_key(&key);
 
-        // hanami of the local stack signs with the seed, izakaya and the torii check with the
-        // public key
+        // hanami of the local stack and of the vscode-setup signs with the seed, izakaya and the
+        // torii check with the public key
         assert!(read("docker-compose.yml").contains(DEVELOPMENT_SEED));
+        assert!(read(".vscode/launch.json").contains(DEVELOPMENT_SEED));
         for config in [
             "example_configs/ainari/izakaya.toml",
             "example_configs/ainari/torii.toml",

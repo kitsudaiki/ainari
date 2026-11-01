@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use chrono::{DateTime, Utc};
-use diesel::dsl::count_star;
 use diesel::prelude::*;
 use uuid::Uuid;
 
@@ -32,13 +31,10 @@ table! {
         amount_of_memory -> BigInt,
         owner_id -> Varchar,
         project_id -> Varchar,
-        status -> Varchar,
         created_at -> Varchar,
         created_by -> Varchar,
         updated_at -> Varchar,
         updated_by -> Varchar,
-        deleted_at -> Nullable<Varchar>,
-        deleted_by -> Nullable<Varchar>,
     }
 }
 
@@ -54,22 +50,18 @@ pub struct VmTypeEntry {
     pub amount_of_memory: i64,
     pub owner_id: String,
     pub project_id: String,
-    pub status: String,
     #[diesel(serialize_as = DbDateTime, deserialize_as = DbDateTime)]
     pub created_at: DateTime<Utc>,
     pub created_by: String,
     #[diesel(serialize_as = DbDateTime, deserialize_as = DbDateTime)]
     pub updated_at: DateTime<Utc>,
     pub updated_by: String,
-    #[diesel(serialize_as = DbOptDateTime, deserialize_as = DbOptDateTime)]
-    pub deleted_at: Option<DateTime<Utc>>,
-    pub deleted_by: Option<String>,
 }
 
 /// Adds a new VM-type to the database.
 ///
 /// This function creates a new VmTypeEntry with the provided parameters and inserts it into the database.
-/// The status is set to "ACTIVE" and timestamps are set to the current time.
+/// The timestamps are set to the current time.
 ///
 /// # Arguments
 /// * `vm_type_uuid` - The unique identifier for the VM-type
@@ -99,13 +91,10 @@ pub fn add_new_vm_type(
         amount_of_memory,
         owner_id: context.user_id.clone(),
         project_id: context.project_id.clone(),
-        status: "ACTIVE".to_string(),
         created_at: Utc::now(),
         created_by: context.user_id.clone(),
         updated_at: Utc::now(),
         updated_by: context.user_id.clone(),
-        deleted_at: None,
-        deleted_by: None,
     };
 
     add_vm_type(vm_type)
@@ -142,7 +131,7 @@ pub fn get_vm_type(vm_type_uuid: &Uuid) -> Result<VmTypeEntry, enums::DbError> {
     use self::vm_types::dsl::*;
 
     match vm_types
-        .filter(uuid.eq(vm_type_uuid.to_string()).and(status.eq("ACTIVE")))
+        .filter(uuid.eq(vm_type_uuid.to_string()))
         .select(VmTypeEntry::as_select())
         .first::<VmTypeEntry>(&mut *conn)
     {
@@ -165,10 +154,7 @@ pub fn list_vm_types() -> QueryResult<Vec<VmTypeEntry>> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::vm_types::dsl::*;
 
-    vm_types
-        .filter(status.eq("ACTIVE"))
-        .select(VmTypeEntry::as_select())
-        .load(&mut *conn)
+    vm_types.select(VmTypeEntry::as_select()).load(&mut *conn)
 }
 
 /// Updates the values of a VM-type in the database.
@@ -233,21 +219,20 @@ pub fn update_vm_type(
 /// # Returns
 ///
 /// A QueryResult containing the count of vm_types as an i64
-#[allow(dead_code)]
+#[cfg(test)]
 pub fn count_vm_types_of_project(project: &str) -> QueryResult<i64> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::vm_types::dsl::*;
 
     vm_types
-        .filter(status.eq("ACTIVE"))
         .filter(project_id.eq(project))
-        .select(count_star())
+        .select(diesel::dsl::count_star())
         .first::<i64>(&mut *conn)
 }
 
 /// Force deletes a VM-type from the database.
 ///
-/// This function marks a VM-type as deleted without checking permissions.
+/// This function removes a VM-type without checking permissions.
 /// It's intended for system-level operations where permission checks are not required.
 ///
 /// # Arguments
@@ -259,14 +244,7 @@ pub fn count_vm_types_of_project(project: &str) -> QueryResult<i64> {
 pub fn force_delete_vm_type(vm_type_uuid: &Uuid) -> Result<(), enums::DbError> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::vm_types::dsl::*;
-    match diesel::update(vm_types.filter(uuid.eq(vm_type_uuid.to_string())))
-        .set((
-            status.eq("DELETED"),
-            deleted_at.eq(Utc::now().to_rfc3339()),
-            deleted_by.eq("HOST_INIT"),
-        ))
-        .execute(&mut *conn)
-    {
+    match diesel::delete(vm_types.filter(uuid.eq(vm_type_uuid.to_string()))).execute(&mut *conn) {
         Ok(_) => Ok(()),
         Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
         Err(e) => {
@@ -278,7 +256,7 @@ pub fn force_delete_vm_type(vm_type_uuid: &Uuid) -> Result<(), enums::DbError> {
 
 /// Deletes a VM-type from the database.
 ///
-/// This function marks a VM-type as deleted after verifying that the user has permission to delete it.
+/// This function removes a VM-type after verifying that the user has permission to delete it.
 /// It first checks if the VM-type exists and if the user has the necessary permissions.
 ///
 /// # Arguments
@@ -298,14 +276,7 @@ pub fn delete_vm_type(vm_type_uuid: &Uuid, context: &UserContext) -> Result<(), 
 
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::vm_types::dsl::*;
-    match diesel::update(vm_types.filter(uuid.eq(vm_type_uuid.to_string())))
-        .set((
-            status.eq("DELETED"),
-            deleted_at.eq(Utc::now().to_rfc3339()),
-            deleted_by.eq(context.user_id.clone()),
-        ))
-        .execute(&mut *conn)
-    {
+    match diesel::delete(vm_types.filter(uuid.eq(vm_type_uuid.to_string()))).execute(&mut *conn) {
         Ok(_) => Ok(()),
         Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
         Err(e) => {
@@ -317,7 +288,7 @@ pub fn delete_vm_type(vm_type_uuid: &Uuid, context: &UserContext) -> Result<(), 
 
 /// Deletes all VM-types from the database.
 ///
-/// This function marks all active VM-types as deleted without checking permissions.
+/// This function removes all VM-types without checking permissions.
 /// It's intended for system-level operations where permission checks are not required.
 ///
 /// # Returns
@@ -326,14 +297,7 @@ pub fn delete_vm_type(vm_type_uuid: &Uuid, context: &UserContext) -> Result<(), 
 pub fn delete_all_vm_type() -> Result<(), enums::DbError> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::vm_types::dsl::*;
-    match diesel::update(vm_types.filter(status.eq("ACTIVE")))
-        .set((
-            status.eq("DELETED"),
-            deleted_at.eq(Utc::now().to_rfc3339()),
-            deleted_by.eq("AINARI_START"),
-        ))
-        .execute(&mut *conn)
-    {
+    match diesel::delete(vm_types).execute(&mut *conn) {
         Ok(_) => Ok(()),
         Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
         Err(e) => {
@@ -374,13 +338,10 @@ mod tests {
             amount_of_memory,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
         };
 
         hard_delete_vm_type(&uuid1);
@@ -393,11 +354,8 @@ mod tests {
                 assert_eq!(retrieved_vm_type.amount_of_memory, vm_type.amount_of_memory);
                 assert_eq!(retrieved_vm_type.owner_id, vm_type.owner_id);
                 assert_eq!(retrieved_vm_type.project_id, vm_type.project_id);
-                assert_eq!(retrieved_vm_type.status, vm_type.status);
                 assert_eq!(retrieved_vm_type.created_by, vm_type.created_by);
                 assert_eq!(retrieved_vm_type.updated_by, vm_type.updated_by);
-                assert_eq!(retrieved_vm_type.deleted_at, vm_type.deleted_at);
-                assert_eq!(retrieved_vm_type.deleted_by, vm_type.deleted_by);
             }
             Err(_) => {
                 assert_eq!(true, false);
@@ -426,13 +384,10 @@ mod tests {
             amount_of_memory,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
         };
 
         let vm_type2 = VmTypeEntry {
@@ -442,13 +397,10 @@ mod tests {
             amount_of_memory,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
-            status: "DELETED".to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
         };
 
         hard_delete_vm_type(&uuid1);
@@ -456,6 +408,7 @@ mod tests {
 
         add_vm_type(vm_type1).unwrap();
         add_vm_type(vm_type2).unwrap();
+        hard_delete_vm_type(&uuid2);
         // deleted entries are not listed
         let vm_types = list_vm_types().unwrap();
         assert!(vm_types.iter().any(|v| v.uuid == uuid1));
@@ -489,13 +442,10 @@ mod tests {
             amount_of_memory,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
         };
 
         hard_delete_vm_type(&uuid1);
@@ -533,13 +483,10 @@ mod tests {
             amount_of_memory,
             owner_id: owner_id.clone(),
             project_id: project_id.clone(),
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
         };
 
         let vm_type2 = VmTypeEntry {
@@ -549,13 +496,10 @@ mod tests {
             amount_of_memory,
             owner_id: "other-user".to_string(),
             project_id: project_id.clone(),
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
         };
 
         let vm_type3 = VmTypeEntry {
@@ -565,13 +509,10 @@ mod tests {
             amount_of_memory,
             owner_id: owner_id.clone(),
             project_id: "other-project".to_string(),
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
         };
 
         hard_delete_vm_type(&uuid1);
@@ -608,13 +549,10 @@ mod tests {
             amount_of_memory,
             owner_id: "test-user-42".to_string(),
             project_id: "test_permissions_1".to_string(),
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
         };
 
         let vm_type2 = VmTypeEntry {
@@ -624,13 +562,10 @@ mod tests {
             amount_of_memory,
             owner_id: "test-user-43".to_string(),
             project_id: "test_permissions_1".to_string(),
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
         };
 
         let vm_type3 = VmTypeEntry {
@@ -640,13 +575,10 @@ mod tests {
             amount_of_memory,
             owner_id: "test-user-44".to_string(),
             project_id: "test_permissions_2".to_string(),
-            status: "ACTIVE".to_string(),
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
             updated_by: "admin".to_string(),
-            deleted_at: None,
-            deleted_by: None,
         };
 
         hard_delete_vm_type(&uuid1);

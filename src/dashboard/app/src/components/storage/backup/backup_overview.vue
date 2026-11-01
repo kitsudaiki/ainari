@@ -27,15 +27,6 @@
                 >
                     +
                 </button>
-                <!-- foreign backups can only be imported by admins -->
-                <button
-                    v-if="isAdmin"
-                    class="import-link"
-                    title="Import a backup, which was copied onto a backup-target"
-                    @click="showImportModal = true"
-                >
-                    Import
-                </button>
 
                 <div class="tab">
                     <button
@@ -136,7 +127,6 @@
                                 <th>Backup</th>
                                 <th>Project</th>
                                 <th>State</th>
-                                <th>Step</th>
                                 <th>Created At</th>
                                 <th>Actions</th>
                             </tr>
@@ -148,7 +138,6 @@
                                 <td>{{ backupName(job.backup_uuid) }}</td>
                                 <td>{{ job.project_id }}</td>
                                 <td>{{ job.state }}</td>
-                                <td>{{ job.step }}</td>
                                 <td>{{ common.formatDateTime(job.created_at) }}</td>
                                 <td>
                                     <div
@@ -215,13 +204,6 @@
             :icons="icons"
             @cancel="jobToShow = null"
         />
-
-        <BackupImportModal
-            v-if="showImportModal"
-            :icons="icons"
-            @accept="acceptImportModal"
-            @cancel="showImportModal = false"
-        />
     </div>
     <div v-if="errorPopupMsg" class="error-popup">
         <button class="error-close-btn" @click="errorPopupMsg = ''">✕</button>
@@ -234,14 +216,12 @@ import { ref, computed, watch, onMounted, onBeforeUnmount, inject } from "vue";
 
 import { hasIsekai, isekai } from "@/api";
 import type { BackupJobResp, BackupResp, JobResp } from "@/api";
-import { getAuthContext } from "@/auth_context";
 import common from "@/common";
 import BackupCreateModal from "./backup_create_modal.vue";
 import BackupInfoModal from "./backup_info_modal.vue";
 import BackupRestoreModal from "./backup_restore_modal.vue";
 import BackupDeleteModal from "./backup_delete_modal.vue";
 import BackupJobInfoModal from "./backup_job_info_modal.vue";
-import BackupImportModal from "./backup_import_modal.vue";
 import { handleAxiosError } from "@/handleAxiosError";
 import NoEntries from "@/components/no_entries.vue";
 
@@ -254,14 +234,12 @@ type BackupTab = "backups" | "jobs";
 
 const errorPopupMsg = ref<string>("");
 const isekaiDeployed = hasIsekai();
-const isAdmin = getAuthContext().is_admin === "true";
 const backups = ref<BackupResp[]>([]);
 const jobs = ref<JobResp[]>([]);
 const selectedTab = ref<BackupTab>(props.id ? "jobs" : "backups");
 const jobFilter = ref<string | null>(props.id ?? null);
 const openDropdown = ref<string | null>(null);
 const showCreateModal = ref(false);
-const showImportModal = ref(false);
 const backupToShow = ref<BackupResp | null>(null);
 const backupToRestore = ref<BackupResp | null>(null);
 const backupToDelete = ref<BackupResp | null>(null);
@@ -381,11 +359,6 @@ function openJobInfoModal(job: JobResp) {
     openDropdown.value = null;
 }
 
-async function acceptImportModal() {
-    showImportModal.value = false;
-    await fetchAll();
-}
-
 //=============================================================================
 // Listener
 //=============================================================================
@@ -404,20 +377,9 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-.import-link {
-    float: right;
-    margin: -0.9rem 0.8rem 0 0;
-    background: transparent;
-    border: none;
-    color: var(--color-highlight);
-    font-family: var(--title-font-family);
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-    cursor: pointer;
-}
-
-.import-link:hover {
-    filter: brightness(115%);
+/* the tab-bar ends at the floating add-button, so the margin keeps them apart */
+.add-button {
+    margin-left: 0.75rem;
 }
 
 .job-filter {

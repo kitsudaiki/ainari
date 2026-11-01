@@ -35,7 +35,6 @@ import (
 func testAinari() *ainariv1alpha1.Ainari {
 	a := &ainariv1alpha1.Ainari{ObjectMeta: metav1.ObjectMeta{Name: "ainari", Namespace: "test"}}
 	a.Spec.MySQL.Deploy = true
-	a.Spec.Hanami.Network.MLSEncryption = true
 	a.Spec.Global.WireGuard.Enabled = true
 	a.Spec.Onsen.Replicas = 2
 	a.Spec.Ryokan.Replicas = 1
@@ -116,7 +115,6 @@ func TestResolveCreatesSecretsOnce(t *testing.T) {
 	if _, err := store.Resolve(context.Background(), ainari); err != nil {
 		t.Fatal(err)
 	}
-	ainari.Spec.Hanami.Network.MLSEncryption = false
 	ainari.Spec.Global.WireGuard.Enabled = false
 	if _, err := store.Resolve(context.Background(), ainari); err != nil {
 		t.Fatal(err)
