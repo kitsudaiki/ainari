@@ -18,6 +18,7 @@ use aya::programs::xdp::XdpLinkId;
 use aya::programs::{SchedClassifier, Xdp, XdpMode};
 use aya::{Ebpf, include_bytes_aligned};
 use std::collections::HashMap;
+use std::ffi::CString;
 use std::net::Ipv4Addr;
 use std::process;
 use std::sync::Arc;
@@ -145,7 +146,9 @@ pub fn init_ebpf_interface() -> EBPFInterface {
         .unwrap();
     overlay.load().unwrap();
     if get_ifindex(overlay_iface) > 0 {
-        overlay.attach(overlay_iface, XdpMode::Skb).unwrap();
+        overlay
+            .attach(&CString::new(overlay_iface.as_str()).unwrap(), XdpMode::Skb)
+            .unwrap();
         println!("Attached overlay_ingress to {}", overlay_iface);
     } else {
         println!(
@@ -161,7 +164,12 @@ pub fn init_ebpf_interface() -> EBPFInterface {
         .unwrap();
     underlay.load().unwrap();
     if get_ifindex(underlay_iface) > 0 {
-        underlay.attach(underlay_iface, XdpMode::Skb).unwrap();
+        underlay
+            .attach(
+                &CString::new(underlay_iface.as_str()).unwrap(),
+                XdpMode::Skb,
+            )
+            .unwrap();
         println!("Attached underlay_ingress to {}", underlay_iface);
     } else {
         println!("Warning: Underlay interface {} not found.", underlay_iface);
@@ -263,8 +271,8 @@ fn setup_default_route(
     };
     let target = build_route_target(&req, &ebpf_interf.taps).map_err(anyhow::Error::msg)?;
     ebpf_interf.route_map.insert(
-        RouteKeyPod(RouteKey::default_route(req.vni)),
-        RouteTargetPod(target),
+        &RouteKeyPod(RouteKey::default_route(req.vni)),
+        &RouteTargetPod(target),
         0,
     )?;
 
@@ -322,7 +330,7 @@ fn setup_uplink(
             .program_mut("overlay_ingress")
             .expect("Missing overlay_ingress")
             .try_into()?;
-        overlay.attach(uplink_iface, XdpMode::Skb)?;
+        overlay.attach(&CString::new(uplink_iface)?, XdpMode::Skb)?;
     }
 
     let mut uplinks: AyaHashMap<_, u32, ArpProxyPod> = AyaHashMap::try_from(
@@ -336,14 +344,14 @@ fn setup_uplink(
         _pad: [0; 2],
         vm_ip: 0,
     };
-    uplinks.insert(ifindex, ArpProxyPod(uplink), 0)?;
+    uplinks.insert(&ifindex, &ArpProxyPod(uplink), 0)?;
 
     // The uplink is the one port that faces the outside world, so it is where a
     // floating IP is allowed to name the tenant of a packet. It belongs to the
     // shared tenant itself: everything behind it is outside the virtual network.
     ebpf_interf.iface_map.insert(
-        ifindex,
-        IfaceConfigPod(IfaceConfig {
+        &ifindex,
+        &IfaceConfigPod(IfaceConfig {
             vni: VNI_DEFAULT,
             flags: IFACE_FLAG_FIP,
         }),
@@ -356,7 +364,7 @@ fn setup_uplink(
             .map_mut("GATEWAY_CONFIG")
             .expect("Missing GATEWAY_CONFIG"),
     )?;
-    config.set(CONFIG_UPLINK_MODE, 1, 0)?;
+    config.set(CONFIG_UPLINK_MODE, &1, 0)?;
 
     for dest_ip in [next_hop, Ipv4Addr::UNSPECIFIED] {
         let req = RouteReq {
@@ -370,8 +378,8 @@ fn setup_uplink(
         };
         let target = build_route_target(&req, &ebpf_interf.taps).map_err(anyhow::Error::msg)?;
         ebpf_interf.route_map.insert(
-            RouteKeyPod(RouteKey::new(req.vni, u32::from(dest_ip))),
-            RouteTargetPod(target),
+            &RouteKeyPod(RouteKey::new(req.vni, u32::from(dest_ip))),
+            &RouteTargetPod(target),
             0,
         )?;
 

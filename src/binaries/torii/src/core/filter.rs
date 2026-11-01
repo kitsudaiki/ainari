@@ -193,9 +193,9 @@ pub fn apply_filter(
         FilterSlot::Ingress(route_key) => {
             ebpf_interf
                 .filter_map
-                .insert(RouteKeyPod(route_key), filter, 0)
+                .insert(&RouteKeyPod(route_key), &filter, 0)
         }
-        FilterSlot::Egress(ifindex) => ebpf_interf.egress_filter_map.insert(ifindex, filter, 0),
+        FilterSlot::Egress(ifindex) => ebpf_interf.egress_filter_map.insert(&ifindex, &filter, 0),
     };
     result.map_err(|_| "eBPF Map error (filter)".to_string())?;
     ebpf_interf.filters.insert(key, rules);
