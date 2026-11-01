@@ -58,6 +58,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - fixed all findings of the new CI-checks
 - removed old dead-code marked, which were not valid anymore
+- add migration-lock in DB to fix migration in setups with replicated controller nodes
 
 ### Removed
 

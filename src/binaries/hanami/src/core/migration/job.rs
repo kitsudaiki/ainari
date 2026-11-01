@@ -33,17 +33,19 @@
 //! The token of the admin is renewed during the migration (see `super::session`), because the transfer
 //! of a large disk can take longer than its lifetime.
 
-use std::collections::HashSet;
-use std::sync::Mutex;
+use std::sync::mpsc::{self, RecvTimeoutError};
 use std::thread;
 use std::time::{Duration, Instant};
 
+use chrono::{DateTime, Utc};
+use diesel::QueryResult;
 use uuid::Uuid;
 
 use crate::config;
 use crate::database::address_table::{self, AddressEntry};
 use crate::database::host_table::{self, HostEntry, HostResources};
 use crate::database::meta_virtual_machine_table;
+use crate::database::vm_migration_table::{self, VmMigrationEntry};
 
 use ainari_api::error_mapping::*;
 use ainari_api::errors::ErrorResponse;
@@ -68,50 +70,131 @@ const MAX_TASK_DURATION: Duration = Duration::from_secs(24 * 60 * 60);
 /// can fail, for example while the sakura-host restarts.
 const MAX_FAILED_TASK_CHECKS: u32 = 30;
 
-/// Virtual_machines, which are migrated right now
-static MIGRATING: Mutex<Option<HashSet<Uuid>>> = Mutex::new(None);
+/// Time without a sign of life, after which the mark of a migration is regarded as left behind by
+/// a replica of hanami, which crashed during the migration
+const MARK_TIMEOUT: Duration = Duration::from_secs(10 * 60);
+
+/// Interval, in which a running migration refreshes the sign of life of its mark
+const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(30);
 
 /// Marks a virtual_machine as migrated, as long as it lives.
 ///
 /// Only one migration of a virtual_machine can run at the same time, and the virtual_machine
-/// must not be deleted or get new packet-filters during its migration.
+/// must not be deleted or get new packet-filters during its migration. The mark is stored in the
+/// database, so it is seen by all replicas of hanami. A background-thread refreshes its sign of
+/// life, so the mark of a crashed replica expires after `MARK_TIMEOUT`.
 pub struct MigrationGuard {
     virtual_machine_uuid: Uuid,
+    lock_uuid: Uuid,
+    /// Stops the refresh of the sign of life, when it is dropped
+    stop_heartbeat: Option<mpsc::Sender<()>>,
 }
 
 impl MigrationGuard {
     /// Marks a virtual_machine as migrated.
     ///
     /// # Returns
-    /// The guard, or `None` if the virtual_machine is already migrated
-    pub fn acquire(virtual_machine_uuid: Uuid) -> Option<Self> {
-        let mut migrating = MIGRATING.lock().expect("mutex poisoned");
-        // `then` and not `then_some`, because a guard, which is created and dropped right away,
-        // would remove the mark of the running migration
-        migrating
-            .get_or_insert_with(HashSet::new)
-            .insert(virtual_machine_uuid)
-            .then(|| Self {
-                virtual_machine_uuid,
-            })
+    /// The guard, `None` if the virtual_machine is already migrated, or the error of the database
+    pub fn acquire(virtual_machine_uuid: Uuid) -> QueryResult<Option<Self>> {
+        let now = Utc::now();
+        let entry = VmMigrationEntry {
+            virtual_machine_uuid,
+            lock_uuid: Uuid::new_v4(),
+            owner: std::env::var("HOSTNAME").unwrap_or_else(|_| "unknown".to_string()),
+            started_at: now,
+            heartbeat_at: now,
+        };
+
+        // the existing mark may be removed between the insert and the get, or be stale, so the
+        // insert is tried a second time in that case
+        for _ in 0..2 {
+            if vm_migration_table::add_vm_migration(entry.clone())? {
+                return Ok(Some(Self {
+                    virtual_machine_uuid,
+                    lock_uuid: entry.lock_uuid,
+                    stop_heartbeat: Some(spawn_heartbeat(virtual_machine_uuid, entry.lock_uuid)),
+                }));
+            }
+            match vm_migration_table::get_vm_migration(&virtual_machine_uuid)? {
+                None => continue,
+                Some(existing) if is_stale(&existing, now) => {
+                    log::warn!(
+                        "Take over the mark of the migration of virtual_machine \
+                         '{virtual_machine_uuid}' from replica '{}', which showed no sign of life \
+                         since {}. Its migration may have left something behind, which has to be \
+                         resolved by hand.",
+                        existing.owner,
+                        existing.heartbeat_at
+                    );
+                    vm_migration_table::remove_vm_migration(
+                        &virtual_machine_uuid,
+                        &existing.lock_uuid,
+                    )?;
+                }
+                Some(_) => return Ok(None),
+            }
+        }
+        Ok(None)
     }
 }
 
 impl Drop for MigrationGuard {
     fn drop(&mut self) {
-        if let Some(migrating) = MIGRATING.lock().expect("mutex poisoned").as_mut() {
-            migrating.remove(&self.virtual_machine_uuid);
+        // the heartbeat-thread ends, as soon as its channel is closed
+        drop(self.stop_heartbeat.take());
+        if let Err(e) =
+            vm_migration_table::remove_vm_migration(&self.virtual_machine_uuid, &self.lock_uuid)
+        {
+            log::error!(
+                "Failed to remove the mark of the migration of virtual_machine '{}', so it is \
+                 regarded as migrated for {}min: {e:?}",
+                self.virtual_machine_uuid,
+                MARK_TIMEOUT.as_secs() / 60
+            );
         }
     }
 }
 
-/// Checks, if a virtual_machine is migrated right now.
-pub fn is_migrating(virtual_machine_uuid: &Uuid) -> bool {
-    MIGRATING
-        .lock()
-        .expect("mutex poisoned")
-        .as_ref()
-        .is_some_and(|migrating| migrating.contains(virtual_machine_uuid))
+/// Refreshes the sign of life of a mark in the background, until the returned sender is dropped.
+fn spawn_heartbeat(virtual_machine_uuid: Uuid, lock_uuid: Uuid) -> mpsc::Sender<()> {
+    let (sender, receiver) = mpsc::channel::<()>();
+    thread::spawn(move || {
+        while let Err(RecvTimeoutError::Timeout) = receiver.recv_timeout(HEARTBEAT_INTERVAL) {
+            match vm_migration_table::refresh_vm_migration(
+                &virtual_machine_uuid,
+                &lock_uuid,
+                Utc::now(),
+            ) {
+                Ok(true) => {}
+                Ok(false) => {
+                    log::error!(
+                        "The mark of the migration of virtual_machine '{virtual_machine_uuid}' \
+                         was taken over by another replica, while the migration still runs."
+                    );
+                    return;
+                }
+                // a single failed refresh is tolerated by the timeout of the mark
+                Err(e) => log::warn!(
+                    "Failed to refresh the mark of the migration of virtual_machine \
+                     '{virtual_machine_uuid}': {e:?}"
+                ),
+            }
+        }
+    });
+    sender
+}
+
+/// Checks, if a mark showed no sign of life for longer than `MARK_TIMEOUT`.
+fn is_stale(entry: &VmMigrationEntry, now: DateTime<Utc>) -> bool {
+    (now - entry.heartbeat_at)
+        .to_std()
+        .is_ok_and(|age| age > MARK_TIMEOUT)
+}
+
+/// Checks, if a virtual_machine is migrated right now by any replica of hanami.
+pub fn is_migrating(virtual_machine_uuid: &Uuid) -> QueryResult<bool> {
+    Ok(vm_migration_table::get_vm_migration(virtual_machine_uuid)?
+        .is_some_and(|entry| !is_stale(&entry, Utc::now())))
 }
 
 /// A migration, which was accepted and whose resources are allocated on the target host
@@ -599,23 +682,55 @@ async fn wait_for_task(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serial_test::serial;
 
     #[test]
+    #[serial]
     fn test_migration_guard() {
         let uuid = Uuid::new_v4();
-        assert!(!is_migrating(&uuid));
+        assert!(!is_migrating(&uuid).unwrap());
 
-        let guard = MigrationGuard::acquire(uuid).expect("first migration is accepted");
-        assert!(is_migrating(&uuid));
+        let guard = MigrationGuard::acquire(uuid)
+            .unwrap()
+            .expect("first migration is accepted");
+        assert!(is_migrating(&uuid).unwrap());
         // a second migration of the same virtual_machine is rejected ...
-        assert!(MigrationGuard::acquire(uuid).is_none());
+        assert!(MigrationGuard::acquire(uuid).unwrap().is_none());
         // ... but not of another one
-        let other = MigrationGuard::acquire(Uuid::new_v4()).expect("other migration is accepted");
+        let other = MigrationGuard::acquire(Uuid::new_v4())
+            .unwrap()
+            .expect("other migration is accepted");
 
         drop(guard);
-        assert!(!is_migrating(&uuid));
-        assert!(MigrationGuard::acquire(uuid).is_some());
+        assert!(!is_migrating(&uuid).unwrap());
+        assert!(MigrationGuard::acquire(uuid).unwrap().is_some());
         drop(other);
+    }
+
+    #[test]
+    #[serial]
+    fn test_stale_mark_is_taken_over() {
+        // mark of a replica, which crashed during the migration
+        let uuid = Uuid::new_v4();
+        let past = Utc::now() - chrono::Duration::from_std(MARK_TIMEOUT * 2).unwrap();
+        let crashed = VmMigrationEntry {
+            virtual_machine_uuid: uuid,
+            lock_uuid: Uuid::new_v4(),
+            owner: "crashed-replica".to_string(),
+            started_at: past,
+            heartbeat_at: past,
+        };
+        assert!(vm_migration_table::add_vm_migration(crashed.clone()).unwrap());
+        assert!(!is_migrating(&uuid).unwrap());
+
+        let guard = MigrationGuard::acquire(uuid)
+            .unwrap()
+            .expect("stale mark is taken over");
+        assert!(is_migrating(&uuid).unwrap());
+        // the crashed replica can't remove the new mark anymore
+        assert!(!vm_migration_table::remove_vm_migration(&uuid, &crashed.lock_uuid).unwrap());
+        drop(guard);
+        assert!(!is_migrating(&uuid).unwrap());
     }
 
     #[test]

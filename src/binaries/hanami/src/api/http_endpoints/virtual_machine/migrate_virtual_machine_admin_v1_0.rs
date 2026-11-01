@@ -104,11 +104,13 @@ pub async fn migrate_virtual_machine_admin(
         )));
     }
 
-    let guard = MigrationGuard::acquire(virtual_machine_uuid).ok_or_else(|| {
-        ErrorResponse::Conflict(format!(
-            "Virtual_machine '{virtual_machine_uuid}' is already migrated."
-        ))
-    })?;
+    let guard = MigrationGuard::acquire(virtual_machine_uuid)
+        .map_err(|e| map_db_write_error("mark the migration", e, Some(&context)))?
+        .ok_or_else(|| {
+            ErrorResponse::Conflict(format!(
+                "Virtual_machine '{virtual_machine_uuid}' is already migrated."
+            ))
+        })?;
 
     // fails before anything was changed, if the token of the admin can't be renewed during the
     // migration

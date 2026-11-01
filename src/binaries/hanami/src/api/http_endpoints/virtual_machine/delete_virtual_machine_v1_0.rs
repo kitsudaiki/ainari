@@ -63,7 +63,9 @@ pub async fn delete_virtual_machine(
     context: UserContext,
 ) -> Result<NoContent, ErrorResponse> {
     // the virtual_machine exists on two hosts during its migration
-    if is_migrating(&virtual_machine_uuid) {
+    if is_migrating(&virtual_machine_uuid)
+        .map_err(|e| map_internal_error("check the migration", e, Some(&context)))?
+    {
         return Err(ErrorResponse::Conflict(format!(
             "Virtual_machine '{virtual_machine_uuid}' is migrated right now and can not be deleted."
         )));
