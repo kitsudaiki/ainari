@@ -24,9 +24,12 @@
 #   ainari-onsen     192.168.56.17   one onsen, which stores the images of the virtual machines
 #   ainari-onsen-2   192.168.56.18   the other onsen, onsen-backup with the backups of isekai runs
 #                                    on one of both
-#   ainari-torii     192.168.56.11   the gateway at the edge of the network (torii-public)
-#   ainari-sakura-1  192.168.56.12   the first sakura-host with the torii in front of it
-#   ainari-sakura-2  192.168.56.13   the second sakura-host with the torii in front of it
+#   ainari-torii     192.168.56.11   the gateway at the edge of the network (torii-public),
+#                    192.168.57.11   on the underlay
+#   ainari-sakura-1  192.168.56.12   the first sakura-host with the torii in front of it,
+#                    192.168.57.12   on the underlay
+#   ainari-sakura-2  192.168.56.13   the second sakura-host with the torii in front of it,
+#                    192.168.57.13   on the underlay
 #
 # The dashboard runs with one replica on each of the three management-machines as well.
 #
@@ -37,11 +40,20 @@
 # Used this alternative images instead: https://github.com/alchemy-solutions/vagrant-cloud-images
 BOX = "cloud-image/debian-13"
 
-# Network between the virtual machines. The overlay of torii adds a header to every packet, which
-# runs within the pod-network of flannel, which adds another one, so the network needs a bigger mtu
-# than 1500 to keep the full mtu for the virtual machines of ainari.
+# Network between the virtual machines, which carries the kubernetes-cluster. The traffic of the
+# virtual machines of ainari runs over the underlay below, so the bigger mtu is not required here
+# anymore, but kept to not change the network of existing setups.
 NETWORK_NAME = "ainari-vagrant"
 NETWORK_MTU = 1600
+
+# Underlay of the gateways, over which they exchange the traffic of the virtual machines of ainari,
+# so it doesn't run through the pod-network of flannel. Only the gateway at the edge and the
+# sakura-hosts have an interface in it, which the service ainari-underlay moves into the pod of
+# the gateway, so the virtual machine itself doesn't configure it. The overlay of torii adds a
+# header to every packet, so the network needs a bigger mtu than 1500 to keep the full mtu for the
+# virtual machines of ainari.
+UNDERLAY_NETWORK_NAME = "ainari-vagrant-underlay"
+UNDERLAY_MTU = 1600
 
 # The first machine of the group management is the k3s-server. The sakura-hosts come last, because
 # ansible is attached to the last machine, see below.
@@ -52,9 +64,12 @@ NODES = [
   { name: "ainari-mysql",    ip: "192.168.56.16", cpus: 2, memory: 2048, group: "mysql" },
   { name: "ainari-onsen",    ip: "192.168.56.17", cpus: 2, memory: 2048, group: "onsen" },
   { name: "ainari-onsen-2",  ip: "192.168.56.18", cpus: 2, memory: 2048, group: "onsen" },
-  { name: "ainari-torii",    ip: "192.168.56.11", cpus: 2, memory: 2048, group: "torii" },
-  { name: "ainari-sakura-1", ip: "192.168.56.12", cpus: 4, memory: 6144, group: "sakura" },
-  { name: "ainari-sakura-2", ip: "192.168.56.13", cpus: 4, memory: 6144, group: "sakura" },
+  { name: "ainari-torii",    ip: "192.168.56.11", cpus: 2, memory: 2048, group: "torii",
+    underlay_ip: "192.168.57.11", underlay_mac: "52:54:00:a1:57:11" },
+  { name: "ainari-sakura-1", ip: "192.168.56.12", cpus: 4, memory: 6144, group: "sakura",
+    underlay_ip: "192.168.57.12", underlay_mac: "52:54:00:a1:57:12" },
+  { name: "ainari-sakura-2", ip: "192.168.56.13", cpus: 4, memory: 6144, group: "sakura",
+    underlay_ip: "192.168.57.13", underlay_mac: "52:54:00:a1:57:13" },
 ]
 
 Vagrant.configure("2") do |config|
@@ -71,6 +86,19 @@ Vagrant.configure("2") do |config|
                          libvirt__mtu: NETWORK_MTU,
                          libvirt__dhcp_enabled: false,
                          libvirt__forward_mode: "none"
+
+      # The interface is found by its mac-address, also after it came back from the pod of a
+      # previous gateway.
+      if node[:underlay_ip]
+        machine.vm.network "private_network",
+                           ip: node[:underlay_ip],
+                           mac: node[:underlay_mac],
+                           auto_config: false,
+                           libvirt__network_name: UNDERLAY_NETWORK_NAME,
+                           libvirt__mtu: UNDERLAY_MTU,
+                           libvirt__dhcp_enabled: false,
+                           libvirt__forward_mode: "none"
+      end
 
       machine.vm.provider :libvirt do |libvirt|
         libvirt.cpus = node[:cpus]
@@ -92,10 +120,18 @@ Vagrant.configure("2") do |config|
           ansible.limit = "all"
           ansible.compatibility_mode = "2.0"
           ansible.groups = NODES.group_by { |n| n[:group] }.transform_values { |nodes| nodes.map { |n| n[:name] } }
-          ansible.host_vars = NODES.to_h { |n| [n[:name], { "node_ip" => n[:ip] }] }
+          ansible.host_vars = NODES.to_h do |n|
+            vars = { "node_ip" => n[:ip] }
+            if n[:underlay_ip]
+              vars["underlay_ip"] = n[:underlay_ip]
+              vars["underlay_mac"] = n[:underlay_mac]
+            end
+            [n[:name], vars]
+          end
           ansible.extra_vars = {
             ansible_python_interpreter: "/usr/bin/python3",
             repo_dir: File.expand_path("../..", __dir__),
+            underlay_mtu: UNDERLAY_MTU,
           }
         end
       end

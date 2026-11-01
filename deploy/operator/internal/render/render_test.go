@@ -78,6 +78,7 @@ func testSpec() *ainariv1alpha1.AinariSpec {
 			ServiceType: corev1.ServiceTypeLoadBalancer,
 			Proxy:       ainariv1alpha1.ToriiProxySpec{Domain: "ainari.localhost", Port: 10042},
 			Public:      ainariv1alpha1.ToriiPublicSpec{OverlayIface: "veth-gw", UplinkIface: "veth-gw", UplinkNextHop: "10.0.0.1"},
+			Underlay:    ainariv1alpha1.ToriiUnderlaySpec{Iface: "eth0"},
 		},
 		Dashboard: ainariv1alpha1.DashboardSpec{Enabled: true, Replicas: 1, Image: "kitsudaiki/ainari_dashboard:develop", Domain: "local-ainari"},
 	}
@@ -272,6 +273,84 @@ func TestRenderProxies(t *testing.T) {
 	config = objects["ConfigMap/torii-config"].(*corev1.ConfigMap).Data["torii-public.toml"]
 	if !strings.Contains(config, "public_port = 443") {
 		t.Errorf("the gateway at the edge doesn't know its public port:\n%s", config)
+	}
+}
+
+func TestRenderUnderlay(t *testing.T) {
+	// toriiContainers returns the containers of the gateway at the edge and in front of the
+	// sakura-hosts
+	toriiContainers := func(objects map[string]client.Object) []corev1.Container {
+		var containers []corev1.Container
+		for _, pod := range []corev1.PodSpec{
+			objects["Deployment/torii-public"].(*appsv1.Deployment).Spec.Template.Spec,
+			objects["StatefulSet/sakura"].(*appsv1.StatefulSet).Spec.Template.Spec,
+		} {
+			for _, container := range pod.Containers {
+				if container.Name == "torii" {
+					containers = append(containers, container)
+				}
+			}
+		}
+		return containers
+	}
+	envOf := func(container corev1.Container, name string) (string, bool) {
+		for _, env := range container.Env {
+			if env.Name == name {
+				return env.Value, true
+			}
+		}
+		return "", false
+	}
+
+	// by default the underlay is the pod-network and the gateway at the edge is reached over its
+	// pod
+	spec := testSpec()
+	objects := renderObjects(t, spec)
+	configs := objects["ConfigMap/torii-config"].(*corev1.ConfigMap).Data
+	for _, name := range []string{"torii-public.toml", "torii-vmm.toml"} {
+		if !strings.Contains(configs[name], `underlay_iface = "eth0"`) {
+			t.Errorf("the underlay of %s is not the pod-network:\n%s", name, configs[name])
+		}
+	}
+	if !strings.Contains(configs["torii-vmm.toml"], `default_gateway_ip = "@DEFAULT_GATEWAY_IP@"`) {
+		t.Errorf("the default gateway is not resolved from the pod of the edge:\n%s", configs["torii-vmm.toml"])
+	}
+	for _, container := range toriiContainers(objects) {
+		if _, found := envOf(container, "WAIT_FOR_UNDERLAY"); found {
+			t.Errorf("a gateway waits for the pod-network")
+		}
+	}
+
+	// an underlay of its own is moved into the pods, so the gateways wait for it, and the
+	// gateway at the edge is reached over its address there
+	spec.Torii.Underlay = ainariv1alpha1.ToriiUnderlaySpec{Iface: "underlay0", WaitForIface: true, EdgeAddress: "192.168.57.11"}
+	objects = renderObjects(t, spec)
+	configs = objects["ConfigMap/torii-config"].(*corev1.ConfigMap).Data
+	for _, name := range []string{"torii-public.toml", "torii-vmm.toml"} {
+		if !strings.Contains(configs[name], `underlay_iface = "underlay0"`) {
+			t.Errorf("the underlay of %s is not the configured interface:\n%s", name, configs[name])
+		}
+	}
+	if !strings.Contains(configs["torii-vmm.toml"], `default_gateway_ip = "192.168.57.11"`) {
+		t.Errorf("the default gateway is not the edge on the underlay:\n%s", configs["torii-vmm.toml"])
+	}
+	containers := toriiContainers(objects)
+	if len(containers) != 2 {
+		t.Fatalf("expected the gateway at the edge and one in front of the sakura-hosts, got %d", len(containers))
+	}
+	for _, container := range containers {
+		if value, _ := envOf(container, "WAIT_FOR_UNDERLAY"); value != "underlay0" {
+			t.Errorf("a gateway doesn't wait for its underlay: '%s'", value)
+		}
+		if value, _ := envOf(container, "UNDERLAY_IFACE"); value != "underlay0" {
+			t.Errorf("the start-script of a gateway doesn't know its underlay: '%s'", value)
+		}
+		if _, found := envOf(container, "DEFAULT_GATEWAY_HOST"); found {
+			t.Errorf("a gateway resolves the edge over the pod-network")
+		}
+		if container.StartupProbe == nil {
+			t.Errorf("a gateway, which waits for its underlay, has no startup-probe")
+		}
 	}
 }
 

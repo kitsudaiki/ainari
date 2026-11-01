@@ -134,3 +134,38 @@ pub async fn register_tap(
         handle_response(response, "tap-device", tap_name).await;
     resp
 }
+
+/**
+Reads the underlay (interface name and address) of the gateway.
+
+The address of the underlay is the one, which the other gateways send the traffic of the virtual
+machines to, and the identity of the gateway within the MLS-groups of the networks.
+
+# Arguments
+- `torii_endpoint`: The endpoint configuration for the Torii service
+- `token`: Authentication token for accessing the API
+- `internal_api_key`: Internal API key for privileged operations
+- `insecure_client`: Whether to use an insecure (HTTP) client or secure (HTTPS) client
+
+# Returns
+A `Result` containing the `UnderlayResp` or an `AinariError` if the operation fails.
+*/
+pub async fn get_underlay(
+    torii_endpoint: &ainari_config::Endpoint,
+    token: &String,
+    internal_api_key: &Secret,
+    insecure_client: bool,
+) -> Result<UnderlayResp, AinariError> {
+    let address = torii_endpoint.internal_address.clone();
+    let client = prepare_client(&address, insecure_client);
+    let url = format!("{address}/v1alpha/network_interface/underlay/internal");
+
+    let response = client
+        .get(url)
+        .insert_header(("Authorization", format!("Bearer {}", token)))
+        .insert_header(("X-Internal-API-Key", internal_api_key.reveal()))
+        .send()
+        .await;
+
+    handle_response(response, "underlay", "").await
+}

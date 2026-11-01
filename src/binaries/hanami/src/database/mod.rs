@@ -19,6 +19,7 @@ pub mod host_table;
 pub mod meta_virtual_machine_table;
 pub mod network_filter_table;
 pub mod network_table;
+pub mod vm_migration_table;
 pub mod vm_type_table;
 
 use std::net::Ipv4Addr;

@@ -16,3 +16,7 @@
 k3s_version: "v1.36.4+k3s1"
 # the same version as in testing/kind/setup_kind_stack.sh
 cert_manager_version: "v1.18.2"
+
+# name of the interface of the underlay within the pods of the gateways (torii.underlay.iface in
+# testing/vagrant/ainari.yaml)
+underlay_iface: underlay0

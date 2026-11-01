@@ -101,6 +101,12 @@ spec:
     public:
       # the veth-pair towards the host is moved into the pod by testing/kind/setup_kind_stack.sh
       waitForIface: veth-gw
+    # The gateways exchange the traffic of the virtual machines over a bridge within the node and
+    # not over the pod-network. testing/kind/ainari-underlay.sh connects their pods to it.
+    underlay:
+      iface: underlay0
+      waitForIface: true
+      edgeAddress: 172.31.0.10
 
   dashboard:
     image: ainari/dashboard:local

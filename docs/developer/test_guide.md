@@ -1,5 +1,36 @@
 # How to test
 
+## TL;DR
+
+To run the automated tests against one of the local virtual test-envirtonments, use the following commands:
+
+- Prepare local python-env:
+
+    ```bash
+    python3 -m venv .venv
+    .venv/bin/pip install -r src/sdk/python/ainari_sdk/requirements.txt
+    ```
+
+- usage:
+    - Create test resources for manually testing:
+
+        ```bash
+        .venv/bin/python testing/ainari_test/prepare_resources.py
+        ```
+
+    - Run automated tests:
+
+        ```bash
+        .venv/bin/python testing/ainari_test/vm_lifecycle_test.py
+        ```
+
+    - Run tests against the network-encryption:
+
+        ```bash
+        .venv/bin/python testing/ainari_test/prepare_resources.py
+        .venv/bin/python testing/ainari_test/verify_encryption_test.py
+        ```
+
 ## Prepare test environment for manually tests
 
 `testing/local_stack/prepare_resources.py` prepares virtual machines for testing
@@ -168,9 +199,26 @@ The traffic between two virtual machines of a network, which run on different sa
 encrypted with IPsec (see
 [Key-exchange of the network-encryption](sequence_diagrams/network_crypto_key_exchange.md)). These
 steps check it in the docker-compose setup (`make up local`) with the two virtual machines of
-`vm_lifecycle_test.py`. Below, virtual machine 1 runs behind `torii-vmm` (`172.30.0.20`) and
-virtual machine 2 behind `torii-vmm-2` (`172.30.0.21`). All commands run in the root of the
-repository.
+`vm_lifecycle_test.py`. The gateways exchange this traffic over the docker-network
+`ainari-underlay` (interface `underlay0`), which carries nothing else. Below, virtual machine 1 runs
+behind `torii-vmm` (`172.31.0.20` on the underlay) and virtual machine 2 behind `torii-vmm-2`
+(`172.31.0.21`). All commands run in the root of the repository.
+
+`testing/local_stack/verify_encryption_test.py` runs the steps 1 to 11 automatically, except the
+logs of step 4, whose result step 5 checks in the kernel, and the comparison of step 12. It picks
+two running virtual machines of the same network on different sakura-hosts by itself, prints
+every check and ends with the exit-code `0`, if all of them passed. The captures need root, so it
+asks for the password of sudo at its start:
+
+```bash
+.venv/bin/python testing/local_stack/prepare_resources.py
+.venv/bin/python testing/local_stack/verify_encryption_test.py
+```
+
+It uses the ssh-key of `prepare_resources.py`. For the virtual machines of
+`vm_lifecycle_test.py --keep`, set `AINARI_SSH_KEY=temporary_files/ainari_test/id_ed25519`. The
+script doesn't print the keys of the SAs. The steps below are the same checks by hand, for
+example to look closer at a failed one.
 
 1. Check, that the virtual machines run on different hosts:
 
@@ -238,7 +286,7 @@ repository.
 
     ```bash
     for c in torii-vmm torii-vmm-2; do echo "== $c"; docker exec $c sh -c \
-      'ip rule; echo "rp_filter all=$(cat /proc/sys/net/ipv4/conf/all/rp_filter) eth0=$(cat /proc/sys/net/ipv4/conf/eth0/rp_filter) tap=$(cat /proc/sys/net/ipv4/conf/tap-*/rp_filter)"'; done
+      'ip rule; echo "rp_filter all=$(cat /proc/sys/net/ipv4/conf/all/rp_filter) underlay0=$(cat /proc/sys/net/ipv4/conf/underlay0/rp_filter) tap=$(cat /proc/sys/net/ipv4/conf/tap-*/rp_filter)"'; done
     ```
 
     `torii-vmm` shows the following, `torii-vmm-2` the same with swapped addresses:
@@ -248,7 +296,7 @@ repository.
     1001: from all iif tap-00000001 unreachable
     1100: from 192.168.100.3 to 192.168.100.2 lookup 101
     1101: from 192.168.100.3 to 192.168.100.2 unreachable
-    rp_filter all=0 eth0=2 tap=0
+    rp_filter all=0 underlay0=2 tap=0
     ```
 
     The rules `1000` and `1001` let only the address of the virtual machine into the table of its
@@ -276,36 +324,32 @@ repository.
     The packet-counters increase, and every SPI has the same count on both gateways: sent on the
     one, received on the other one.
 
-9. Check, that only ESP crosses the underlay. The image of torii has no `tcpdump`, so it runs on
-    the host within the network-namespace of the gateway. Start each capture, while the ping of
-    step 7 runs:
+9. Check, that only ESP crosses the underlay. The bridge of `ainari-underlay` on the host sees the
+    traffic between all gateways. Start each capture, while the ping of step 7 runs:
 
     ```bash
-    PID=$(docker inspect -f '{{.State.Pid}}' torii-vmm-netns)
-    sudo nsenter -t $PID -n tcpdump -ni eth0 'host 172.30.0.21 and esp'            # ESP in both directions
-    sudo nsenter -t $PID -n tcpdump -ni eth0 'host 172.30.0.21 and udp port 5555'  # nothing
-    sudo nsenter -t $PID -n tcpdump -ni eth0 'icmp and net 192.168.100.0/24'        # nothing
+    UNDERLAY="br-$(docker network inspect -f '{{printf "%.12s" .Id}}' ainari_ainari-underlay)"
+    sudo tcpdump -ni "$UNDERLAY" 'host 172.31.0.20 and host 172.31.0.21 and esp'            # ESP in both directions
+    sudo tcpdump -ni "$UNDERLAY" 'host 172.31.0.20 and host 172.31.0.21 and udp port 5555'  # nothing
+    sudo tcpdump -ni "$UNDERLAY" 'icmp and net 192.168.100.0/24'                             # nothing
     ```
 
-    Between `172.30.0.20` and `172.30.0.21` there are only ESP-packets with the SPIs of step 5,
+    Between `172.31.0.20` and `172.31.0.21` there are only ESP-packets with the SPIs of step 5,
     no unencrypted overlay-traffic (UDP `5555`) and no addresses of the virtual machines in clear.
 
     !!! info
 
-        The ssh-session itself appears as UDP `5555` from and to `172.30.0.10`. This is expected:
+        The ssh-session itself appears as UDP `5555` from and to `172.31.0.10`. This is expected:
         the traffic towards the gateway at the edge of the network is never encrypted.
 
-10. Check, that no decrypted packet leaves the receiving gateway in clear:
+10. Check, that no traffic of the virtual machines leaves a gateway over `ainari-net`, for
+    example a decrypted packet, which the receiving gateway sends to its default route. The image
+    of torii has no `tcpdump`, so it runs on the host within the network-namespace of the gateway:
 
     ```bash
     PID2=$(docker inspect -f '{{.State.Pid}}' torii-vmm-2-netns)
-    sudo nsenter -t $PID2 -n tcpdump -ni eth0 -e 'icmp and net 192.168.100.0/24'
+    sudo nsenter -t $PID2 -n tcpdump -ni eth0 'esp or udp port 5555 or net 192.168.100.0/24'   # nothing
     ```
-
-    The only packets are the ones with the MAC-address of `eth0` of `torii-vmm-2` itself as
-    destination (`docker exec torii-vmm-2 cat /sys/class/net/eth0/address`), which the kernel
-    passes to itself after the decryption. There must be no packet towards the docker-gateway
-    `172.30.0.1`.
 
 11. Optional: check, that a forged source-address is not encrypted:
 
@@ -324,5 +368,7 @@ repository.
 
     In the kind-setup, the gateways are the containers `torii` of the pods `sakura-0` and
     `sakura-1`, for example `kubectl -n ainari exec sakura-0 -c torii -- ip xfrm state`. Their
-    underlay-addresses are the addresses of the pods. For the captures, the network-namespace of a
-    pod is found with `crictl` within the node-container `ainari-control-plane`.
+    underlay is the bridge `br-underlay` within the node-container `ainari-control-plane`, with
+    `172.31.0.10` for `torii-public`, `172.31.0.20` for `sakura-0` and `172.31.0.21` for
+    `sakura-1`. The captures of step 9 run within the network-namespace of the node:
+    `sudo nsenter -t $(docker inspect -f '{{.State.Pid}}' ainari-control-plane) -n tcpdump -ni br-underlay …`.

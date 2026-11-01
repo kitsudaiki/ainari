@@ -83,7 +83,9 @@ pub async fn resolve_filter_target(
 
     // the packet-filters are copied to the torii of the new host during a migration, so a
     // change in between could get lost
-    if is_migrating(virtual_machine_uuid) {
+    if is_migrating(virtual_machine_uuid)
+        .map_err(|e| map_internal_error("check the migration", e, Some(context)))?
+    {
         return Err(ErrorResponse::Conflict(format!(
             "Virtual_machine '{virtual_machine_uuid}' is migrated right now, so its \
              packet-filters can not be changed."

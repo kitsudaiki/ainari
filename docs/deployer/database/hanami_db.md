@@ -187,3 +187,25 @@ Unique indexes:
 - `network_filters_virtual_machine_direction`: `(virtual_machine_uuid, direction)`
 
 MySQL has no defaults for `TEXT`-columns, so there `ip_ranges` and `ports` are only `NOT NULL`.
+
+## virtual_machine_migrations
+
+Marks of the virtual machines, which are migrated right now, one entry per virtual machine. The
+marks are shared by all replicas of hanami, so a virtual machine can not be migrated a second time,
+deleted or get new packet-filters during its migration, independent of the replica, which handles
+the request. The entry is removed at the end of the migration.
+
+| field                | type         | is primary | constraints |
+| -------------------- | ------------ | ---------- | ----------- |
+| virtual_machine_uuid | VARCHAR(40)  | x          | `NOT NULL`  |
+| lock_uuid            | VARCHAR(40)  |            | `NOT NULL`  |
+| owner                | VARCHAR(256) |            | `NOT NULL`  |
+| started_at           | VARCHAR(64)  |            | `NOT NULL`  |
+| heartbeat_at         | VARCHAR(64)  |            | `NOT NULL`  |
+
+`lock_uuid` identifies a single mark, so a replica only refreshes and removes its own one. `owner`
+is the hostname of the replica, which runs the migration, which is the name of its pod within
+Kubernetes. The running migration refreshes `heartbeat_at` every 30 seconds. A mark without a
+refresh for 10 minutes was left behind by a replica, which crashed during the migration, so it is
+ignored and taken over by the next migration of the virtual machine. Such a migration may have
+left the virtual machine frozen on its source host, which has to be cleaned up by hand.

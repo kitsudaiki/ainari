@@ -36,6 +36,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - first version of AI_POLICY.md
     - resouces overview for the kuberentes-operator
     - first security-concept
+- new script to automatically check, if the tenant traffic between sakura-hosts in the 
+  test-envrionment is encrpted
 
 ### Changed
 
@@ -49,11 +51,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - changed image-icon in dashboard
 - moved internally used common functions like the error-mapper into separate files
   for cleaner code in the ainari-libraries
+- tenant traffic now runs over a separate network and not in the same network like the 
+  management-traffic
 
 ### Fixed
 
 - fixed all findings of the new CI-checks
 - removed old dead-code marked, which were not valid anymore
+- add migration-lock in DB to fix migration in setups with replicated controller nodes
 
 ### Removed
 

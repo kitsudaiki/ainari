@@ -24,7 +24,9 @@ use crate::core::delete_watcher::spawn_delete_watcher;
 use crate::core::floating_ip::detach_floating_ip;
 use crate::core::migration::job::is_migrating;
 use crate::core::mls::{network_encrypted, revoke_membership};
-use crate::core::routing::{delete_routes_to, resolve_address, torii_of_host};
+use crate::core::routing::{
+    delete_routes_to, edge_underlay_address, host_underlay_address, torii_of_host,
+};
 use crate::database::address_table;
 use crate::database::floating_ip_table;
 use crate::database::host_table::{self, HostResources};
@@ -61,7 +63,9 @@ pub async fn delete_virtual_machine(
     context: UserContext,
 ) -> Result<NoContent, ErrorResponse> {
     // the virtual_machine exists on two hosts during its migration
-    if is_migrating(&virtual_machine_uuid) {
+    if is_migrating(&virtual_machine_uuid)
+        .map_err(|e| map_internal_error("check the migration", e, Some(&context)))?
+    {
         return Err(ErrorResponse::Conflict(format!(
             "Virtual_machine '{virtual_machine_uuid}' is migrated right now and can not be deleted."
         )));
@@ -354,7 +358,7 @@ pub(super) async fn cleanup_network(
         Err(_) => true,
     };
     if encrypted {
-        leave_group_of_network(endpoints, &address.host_address, address.vni).await?;
+        leave_group_of_network(endpoints, &address.host_address, address.vni, context).await?;
     }
 
     Ok(())
@@ -369,6 +373,7 @@ pub(super) async fn cleanup_network(
 /// * `endpoints` - Endpoints of the components, which contains the izakaya
 /// * `host_address` - Address of the host, which has no virtual_machine of the network anymore
 /// * `vni` - Tenant of the network
+/// * `context` - User context containing authentication information
 ///
 /// # Returns
 /// * `Ok(())` if the membership is revoked
@@ -377,9 +382,10 @@ async fn leave_group_of_network(
     endpoints: &Endpoints,
     host_address: &str,
     vni: u32,
+    context: &UserContext,
 ) -> Result<(), ErrorResponse> {
-    let external_torii_ip = resolve_address(&endpoints.torii.internal_address).await?;
-    let host_ip = resolve_address(host_address).await?;
+    let external_torii_ip = edge_underlay_address(&endpoints.torii, Some(context)).await?;
+    let host_ip = host_underlay_address(&endpoints.torii, host_address, Some(context)).await?;
 
     // the torii at the edge of the network is never a member of a group
     if host_ip == external_torii_ip {

@@ -61,8 +61,8 @@ func (r *renderer) torii() ([]client.Object, error) {
 		configMap(nginxConfigName("torii"), map[string]string{"nginx.conf": nginxConfig}),
 		persistentVolumeClaim("torii-pvc", r.storageClass(spec.StorageClass), spec.StorageSize),
 		r.toriiDeployment(),
-		// Resolves to the address of the pod itself, which hanami compares with the address of
-		// the torii of every sakura-host.
+		// Resolves to the address of the pod itself, which the gateways in front of the
+		// sakura-hosts use as default gateway, as long as the underlay is the pod-network.
 		headlessService(toriiPublicApp, toriiPublicApp, servicePort("tls", toriiTLSPort, toriiTLSPort)),
 		tlsService("torii", toriiPublicApp, toriiTLSPort),
 		r.toriiGatewayService(),
@@ -76,6 +76,17 @@ func (r *renderer) torii() ([]client.Object, error) {
 func (r *renderer) toriiContainer(configTemplate string) corev1.Container {
 	spec := &r.Spec.Torii
 	privileged := true
+	env := []corev1.EnvVar{
+		envValue("RUST_LOG", r.rustLog("debug")),
+		envValue("CONFIG_TEMPLATE", configTemplate),
+		envInternalAPIKey(),
+		// the start-script of the image turns off the checksum offloading on the underlay
+		envValue("UNDERLAY_IFACE", spec.Underlay.Iface),
+	}
+	if spec.Underlay.WaitForIface {
+		// the underlay is moved into the pod from the outside, see start_torii.sh
+		env = append(env, envValue("WAIT_FOR_UNDERLAY", spec.Underlay.Iface))
+	}
 	return corev1.Container{
 		Name:            "torii",
 		Image:           spec.Image,
@@ -84,11 +95,7 @@ func (r *renderer) toriiContainer(configTemplate string) corev1.Container {
 		// the eBPF-datapath is attached to the interfaces of the pod and the TAP-devices are
 		// created over /dev/net/tun
 		SecurityContext: &corev1.SecurityContext{Privileged: &privileged},
-		Env: []corev1.EnvVar{
-			envValue("RUST_LOG", r.rustLog("debug")),
-			envValue("CONFIG_TEMPLATE", configTemplate),
-			envInternalAPIKey(),
-		},
+		Env:             env,
 		VolumeMounts: []corev1.VolumeMount{
 			{Name: "torii-config", MountPath: "/etc/ainari/templates", ReadOnly: true},
 			{Name: "torii-scripts", MountPath: "/etc/ainari/scripts", ReadOnly: true},

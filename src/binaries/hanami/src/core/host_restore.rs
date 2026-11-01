@@ -33,7 +33,8 @@ use uuid::Uuid;
 use crate::config;
 use crate::core::mls::{grant_membership, is_encrypted, network_encrypted, revoke_membership};
 use crate::core::routing::{
-    ensure_route, list_routes, overlay_route, resolve_address, torii_of_host,
+    edge_underlay_address, ensure_route, host_underlay_address, list_routes, overlay_route,
+    torii_of_host, underlay_address,
 };
 use crate::database::address_table::{self, AddressEntry};
 use crate::database::host_table;
@@ -147,9 +148,10 @@ async fn restore_host(
     let host_torii = torii_of_host(&endpoints.torii, &host.address)?;
     wait_for_torii(&host_torii, &context).await?;
 
-    // the address is resolved only now, because a new pod gets its address with its start
-    let host_ip = resolve_address(&host.address).await?;
-    let external_torii_ip = resolve_address(&endpoints.torii.internal_address).await?;
+    // the torii is asked for its underlay only now, because a new pod gets its address with its
+    // start
+    let host_ip = underlay_address(&host_torii, &endpoints.torii, Some(&context)).await?;
+    let external_torii_ip = edge_underlay_address(&endpoints.torii, Some(&context)).await?;
     log::info!(
         "Restore the network of {} virtual_machine(s) of host '{}' at {host_ip}",
         addresses.len(),
@@ -297,7 +299,8 @@ async fn restore_connections(
         if other.uuid == address.uuid || other.host_address.is_empty() || !is_in_use(&other) {
             continue;
         }
-        let other_host_ip = resolve_address(&other.host_address).await?;
+        let other_host_ip =
+            host_underlay_address(&endpoints.torii, &other.host_address, Some(context)).await?;
         // the torii of the host routes between its own TAP-devices
         if other_host_ip == host_ip {
             continue;

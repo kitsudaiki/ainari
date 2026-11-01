@@ -742,6 +742,10 @@ type ToriiSpec struct {
 	// +kubebuilder:default={}
 	// +optional
 	Public ToriiPublicSpec `json:"public"`
+
+	// +kubebuilder:default={}
+	// +optional
+	Underlay ToriiUnderlaySpec `json:"underlay"`
 }
 
 // ToriiProxySpec configures the proxies of the gateway at the edge, which make the external api
@@ -804,6 +808,30 @@ type ToriiPublicSpec struct {
 	// the uplink is already there.
 	// +optional
 	WaitForIface string `json:"waitForIface,omitempty"`
+}
+
+// ToriiUnderlaySpec configures the underlay, over which the gateways exchange the traffic of the
+// virtual machines. By default this is the pod-network. hanami asks every gateway for the address
+// of its underlay, so it can also be a network of its own, whose interface is moved into the pods
+// of the gateways from the outside (for example by the service ainari-underlay of testing/vagrant).
+// +kubebuilder:validation:XValidation:rule="!has(self.iface) || self.iface == 'eth0' || (has(self.edgeAddress) && size(self.edgeAddress) > 0)",message="torii.underlay.edgeAddress is required, if the underlay is not the pod-network"
+type ToriiUnderlaySpec struct {
+	// interface of the underlay within the pods of all gateways
+	// +kubebuilder:default="eth0"
+	// +optional
+	Iface string `json:"iface"`
+
+	// The interface of the underlay is moved into the pods from the outside, so the gateways wait
+	// for it and its address, before they start.
+	// +optional
+	WaitForIface bool `json:"waitForIface,omitempty"`
+
+	// Underlay-address of the gateway at the edge, to which the gateways in front of the
+	// sakura-hosts send everything, which they have no route for. Required, if the underlay is not
+	// the pod-network. If empty, the address of the pod of the gateway at the edge is used.
+	// +kubebuilder:validation:Format=ipv4
+	// +optional
+	EdgeAddress string `json:"edgeAddress,omitempty"`
 }
 
 // DashboardSpec configures the web-dashboard.

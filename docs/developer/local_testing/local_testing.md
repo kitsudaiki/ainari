@@ -36,7 +36,7 @@ all required tools, for a test without installing them on the host.
 | Address of the api                  | `http://127.0.0.1:<port>`             | `https://127.0.0.1:<port>`                      | `https://192.168.56.10:<port>`                          |
 | Address of the proxies of torii     | `https://<vm-uuid>.ainari.localhost:10042` | `https://<vm-uuid>.ainari.localhost:10042` | `https://<vm-uuid>.192-168-56-11.sslip.io:10042` |
 | Dashboard                           | has to be deployed manually           | yes, port 11422                                 | yes, port 11422                                         |
-| Network between the gateways        | one docker-bridge (shared link)       | routed pod-network of kind                      | flannel (vxlan) between the virtual machines            |
+| Network between the gateways        | docker-network `ainari-underlay` (`172.31.0.0/24`) | bridge `br-underlay` within the node (`172.31.0.0/24`) | libvirt-network `ainari-vagrant-underlay` (`192.168.57.0/24`) |
 | Uplink of the edge-gateway          | `veth-host` on the host               | `veth-kind` on the host                         | `veth-uplink` on the virtual machine `ainari-torii`     |
 | Reaching the floating ip-addresses  | directly over `veth-host`             | directly over `veth-kind`                       | over the route `10.0.0.0/24 via 192.168.56.11`          |
 | NAT of the virtual machines         | on the host                           | on the host                                     | on the virtual machine `ainari-torii`                   |

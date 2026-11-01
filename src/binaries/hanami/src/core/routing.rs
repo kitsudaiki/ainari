@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::net::{Ipv4Addr, SocketAddr, ToSocketAddrs};
+use std::net::Ipv4Addr;
 
 use crate::config;
 
@@ -20,6 +20,7 @@ use ainari_api::error_mapping::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::route_structs::{RouteReq, RouteResp};
 use ainari_api_structs::user_context::UserContext;
+use ainari_clients::network_interface as network_interface_clients;
 use ainari_clients::route as route_clients;
 use ainari_common::config::Endpoint;
 
@@ -59,60 +60,104 @@ pub fn torii_of_host(
     })
 }
 
-/// Resolves the host of an address into an ip-address
+/// Asks a torii for the address of its underlay
 ///
-/// The addresses of the sakura-hosts are ip-addresses already, which are returned as they are.
-/// An address with a dns-name, like the configured address of a torii, is resolved by the
-/// resolver of the system.
+/// The underlay is not derived from the address of the api of the torii, so it can be a network of
+/// its own. The other gateways send the traffic of the virtual_machines to this address, and it is
+/// the identity of the torii within the MLS-groups of the networks.
 ///
 /// # Arguments
-/// * `address` - Address to resolve, like `http://10.0.0.5:11420` or `http://sakura:11420`
+/// * `torii` - Endpoint of the torii, which is asked
+/// * `edge` - Endpoint of the torii at the edge of the network
+/// * `context` - User context containing authentication information, `None` for background-jobs
 ///
 /// # Returns
-/// * `Ok(Ipv4Addr)` with the address of the host
-/// * `Err(ErrorResponse)` if the host has no ipv4-address or can not be resolved
-pub async fn resolve_address(address: &str) -> Result<Ipv4Addr, ErrorResponse> {
-    let host = address_host(address).to_string();
+/// * `Ok(Ipv4Addr)` with the address of the underlay
+/// * `Err(ErrorResponse)` if the torii can not be asked or has no underlay, see
+///   `underlay_or_edge`
+pub async fn underlay_address(
+    torii: &Endpoint,
+    edge: &Endpoint,
+    context: Option<&UserContext>,
+) -> Result<Ipv4Addr, ErrorResponse> {
+    let token = context
+        .map(|context| context.token.clone())
+        .unwrap_or_default();
+    let underlay = network_interface_clients::get_underlay(
+        torii,
+        &token,
+        &config::INTERNAL_API_KEY,
+        config::CONFIG.skip_tls_verification,
+    )
+    .await
+    .map_err(|e| map_ainari_error_to_api_response(e, context))?;
 
-    // an address, which is already an ip-address, doesn't have to be resolved
-    if let Ok(ip) = host.parse::<Ipv4Addr>() {
-        return Ok(ip);
-    }
+    underlay_or_edge(underlay.address, torii, edge)
+}
 
-    // the resolver of the standard-library blocks, so it is not called within the async-runtime
-    let lookup_host = host.clone();
-    let resolved = actix_web::rt::task::spawn_blocking(move || {
-        (lookup_host.as_str(), 0u16)
-            .to_socket_addrs()
-            .map(|mut addrs| {
-                addrs.find_map(|addr| match addr {
-                    SocketAddr::V4(addr) => Some(*addr.ip()),
-                    SocketAddr::V6(_) => None,
-                })
-            })
-    })
-    .await;
+/// Asks the torii of a sakura-host for the address of its underlay
+///
+/// # Arguments
+/// * `edge` - Endpoint of the torii at the edge of the network
+/// * `host_address` - Address of the sakura-host
+/// * `context` - User context containing authentication information, `None` for background-jobs
+///
+/// # Returns
+/// * `Ok(Ipv4Addr)` with the address of the underlay, see `underlay_address`
+/// * `Err(ErrorResponse)` if the torii can not be asked or has no underlay
+pub async fn host_underlay_address(
+    edge: &Endpoint,
+    host_address: &str,
+    context: Option<&UserContext>,
+) -> Result<Ipv4Addr, ErrorResponse> {
+    underlay_address(&torii_of_host(edge, host_address)?, edge, context).await
+}
 
-    match resolved {
-        Ok(Ok(Some(ip))) => Ok(ip),
-        Ok(Ok(None)) => {
+/// Asks the torii at the edge of the network for the address of its underlay
+///
+/// # Arguments
+/// * `edge` - Endpoint of the torii at the edge of the network
+/// * `context` - User context containing authentication information, `None` for background-jobs
+///
+/// # Returns
+/// * `Ok(Ipv4Addr)` with the address of the underlay, see `underlay_address`
+/// * `Err(ErrorResponse)` if the torii can not be asked
+pub async fn edge_underlay_address(
+    edge: &Endpoint,
+    context: Option<&UserContext>,
+) -> Result<Ipv4Addr, ErrorResponse> {
+    underlay_address(edge, edge, context).await
+}
+
+/// Checks the underlay-address, which a torii reported.
+///
+/// A torii without underlay is only valid as the single torii of a single-node setup, which is
+/// the torii of the host and the edge of the network at the same time. It gets the unspecified
+/// address, so it is the same as the edge for all comparisons, and it is never the target of a
+/// route. Every other torii without underlay can't be reached by the other gateways, for example
+/// because the interface of its underlay has no address yet.
+///
+/// # Arguments
+/// * `address` - Underlay-address, which the torii reported
+/// * `torii` - Endpoint of the torii
+/// * `edge` - Endpoint of the torii at the edge of the network
+///
+/// # Returns
+/// * `Ok(Ipv4Addr)` with the address of the underlay
+/// * `Err(ErrorResponse)` if the torii has no underlay
+fn underlay_or_edge(
+    address: Option<Ipv4Addr>,
+    torii: &Endpoint,
+    edge: &Endpoint,
+) -> Result<Ipv4Addr, ErrorResponse> {
+    match address {
+        Some(address) => Ok(address),
+        None if torii.internal_address == edge.internal_address => Ok(Ipv4Addr::UNSPECIFIED),
+        None => {
             ainari_api::report_internal_error!(
                 None,
-                "Host '{host}' of address '{address}' has no ipv4-address."
-            );
-            Err(ErrorResponse::InternalError("Internal Error".to_string()))
-        }
-        Ok(Err(e)) => {
-            ainari_api::report_internal_error!(
-                None,
-                "Failed to resolve host '{host}' of address '{address}': {e}"
-            );
-            Err(ErrorResponse::InternalError("Internal Error".to_string()))
-        }
-        Err(e) => {
-            ainari_api::report_internal_error!(
-                None,
-                "Failed to run the resolver for host '{host}': {e}"
+                "The torii '{}' has no address on its underlay",
+                torii.internal_address
             );
             Err(ErrorResponse::InternalError("Internal Error".to_string()))
         }
@@ -404,22 +449,30 @@ mod tests {
         assert!(torii_of_host(&torii, "http://10.0.0.5:11420").is_err());
     }
 
-    #[actix_rt::test]
-    async fn test_resolve_address() {
-        // an address, which already contains an ip-address, is taken as it is
+    #[test]
+    fn test_underlay_or_edge() {
+        let edge = torii_endpoint("http://10.0.0.254:10419");
+        let host_torii = torii_endpoint("http://10.0.0.5:10419");
+        let address = Ipv4Addr::new(192, 168, 57, 12);
+
+        // a reported address is taken as it is
         assert_eq!(
-            resolve_address("http://10.0.0.5:11420").await.unwrap(),
-            Ipv4Addr::new(10, 0, 0, 5)
+            underlay_or_edge(Some(address), &host_torii, &edge).unwrap(),
+            address
+        );
+        assert_eq!(
+            underlay_or_edge(Some(address), &edge, &edge).unwrap(),
+            address
         );
 
-        // a host, which is addressed by a dns-name, is resolved
+        // the single torii of a single-node setup is the edge and has no underlay
         assert_eq!(
-            resolve_address("http://localhost:11420").await.unwrap(),
-            Ipv4Addr::LOCALHOST
+            underlay_or_edge(None, &edge, &edge).unwrap(),
+            Ipv4Addr::UNSPECIFIED
         );
 
-        // an address without a host can not be resolved
-        assert!(resolve_address("http://:11420").await.is_err());
+        // the torii of another host without underlay can't be reached
+        assert!(underlay_or_edge(None, &host_torii, &edge).is_err());
     }
 
     fn route(gateway_ip: Option<Ipv4Addr>, target_iface: &str, encrypted: bool) -> RouteResp {

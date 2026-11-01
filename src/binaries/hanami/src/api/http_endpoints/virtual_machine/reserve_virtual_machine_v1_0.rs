@@ -22,7 +22,10 @@ use validator::Validate;
 
 use crate::config;
 use crate::core::mls::{grant_membership, is_encrypted, network_encrypted};
-use crate::core::routing::{create_overlay_route, resolve_address, torii_of_host};
+use crate::core::routing::{
+    create_overlay_route, edge_underlay_address, host_underlay_address, torii_of_host,
+    underlay_address,
+};
 use crate::database::address_table;
 use crate::database::address_table::{AddressEntry, PredefinedAddressError};
 use crate::database::host_table;
@@ -672,10 +675,10 @@ async fn prepare_network(
     .await
     .map_err(|e| map_ainari_error_to_api_response(e, Some(context)))?;
 
-    // the addresses are compared and sent as ip-addresses, so a host, which is addressed by a
-    // dns-name, is resolved here
-    let host_ip = resolve_address(&selected_host.address).await?;
-    let external_torii_ip = resolve_address(&endpoints.torii.internal_address).await?;
+    // the torii are asked for their underlay, which can be another network than the one of their
+    // api
+    let host_ip = underlay_address(&host_torii, &endpoints.torii, Some(context)).await?;
+    let external_torii_ip = edge_underlay_address(&endpoints.torii, Some(context)).await?;
 
     // in a single-torii setup the torii of the host is the torii, which is reachable from the
     // outside, so the traffic already ends on the TAP-device and no second route is required
@@ -790,7 +793,9 @@ async fn connect_to_virtual_machines_of_network(
             continue;
         }
 
-        let other_host_ip = resolve_address(&other_address.host_address).await?;
+        let other_host_ip =
+            host_underlay_address(&endpoints.torii, &other_address.host_address, Some(context))
+                .await?;
         other_addresses.push((other_address, other_host_ip));
     }
 

@@ -2463,6 +2463,50 @@
           }
         }
       },
+      "ImageExport": {
+        "description": "Image or snapshot, like it is exported from ryokan into a backup. The location of its file is not part of it, because the file is stored within the backup itself.",
+        "type": "object",
+        "required": [
+          "file_size",
+          "file_type",
+          "is_snapshot",
+          "name",
+          "secret_uuid",
+          "uuid"
+        ],
+        "properties": {
+          "file_size": {
+            "description": "size of the unencrypted file in bytes",
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "file_type": {
+            "description": "type of the unencrypted file (e.g. \"qcow2\")",
+            "type": "string",
+            "maxLength": 31,
+            "minLength": 1
+          },
+          "is_snapshot": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1
+          },
+          "secret_uuid": {
+            "description": "secret, which encrypts the file of the image",
+            "type": "string",
+            "format": "uuid"
+          },
+          "uuid": {
+            "description": "UUID of the image at the time of the backup",
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
       "ImageInitReq": {
         "title": "ImageInitReq",
         "type": "object",
@@ -2786,50 +2830,6 @@
         "properties": {
           "api": {
             "type": "boolean"
-          }
-        }
-      },
-      "ImageExport": {
-        "description": "Image or snapshot, like it is exported from ryokan into a backup. The location of its file is not part of it, because the file is stored within the backup itself.",
-        "type": "object",
-        "required": [
-          "file_size",
-          "file_type",
-          "is_snapshot",
-          "name",
-          "secret_uuid",
-          "uuid"
-        ],
-        "properties": {
-          "file_size": {
-            "description": "size of the unencrypted file in bytes",
-            "type": "integer",
-            "format": "uint64",
-            "minimum": 0.0
-          },
-          "file_type": {
-            "description": "type of the unencrypted file (e.g. \"qcow2\")",
-            "type": "string",
-            "maxLength": 31,
-            "minLength": 1
-          },
-          "is_snapshot": {
-            "type": "boolean"
-          },
-          "name": {
-            "type": "string",
-            "maxLength": 255,
-            "minLength": 1
-          },
-          "secret_uuid": {
-            "description": "secret, which encrypts the file of the image",
-            "type": "string",
-            "format": "uuid"
-          },
-          "uuid": {
-            "description": "UUID of the image at the time of the backup",
-            "type": "string",
-            "format": "uuid"
           }
         }
       },

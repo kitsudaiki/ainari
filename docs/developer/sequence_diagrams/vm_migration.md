@@ -99,7 +99,7 @@ sequenceDiagram
     H->>DB: VM, its current host and the target host
     H->>H: target is not the current host (400),<br/>both hosts exist (404)
     H->>DB: address of the VM, has a host-address (409)
-    H->>H: mark the VM as migrated (409, if it is already)
+    H->>DB: mark the VM as migrated (409, if it is already)
     H->>M: PUT /v1alpha/token
     M-->>H: new token with its lifetime
     H->>DB: allocate the resources of the VM on the target host,<br/>same isolation as the current host (409)
@@ -282,7 +282,7 @@ sequenceDiagram
     end
     S-->>H: Finished
     H->>DB: release the resources of the VM on the source host
-    H->>H: unmark the VM
+    H->>DB: unmark the VM
 ```
 
 The TAP-device stays on the source host, like with the deletion of a virtual machine, because
@@ -327,13 +327,17 @@ sequenceDiagram
         end
     end
     H->>DB: release the resources of the VM on the target host
-    H->>H: unmark the VM
+    H->>DB: unmark the VM
 ```
 
 ## Limits
 
 - The job lives only in the memory of hanami. If hanami restarts during a migration, the VM stays
   frozen in the state `MIGRATING` on the source host and has to be cleaned up by hand.
+- The mark of a migrated VM is stored in the database, so all replicas of hanami reject a second
+  migration, a deletion and changes of the packet-filters of the VM. The running migration
+  refreshes the mark every 30 seconds. The mark of a replica, which crashed during the migration,
+  expires after 10 minutes without a refresh.
 - The task-queues of sakura only live in its memory. At its start, sakura marks all tasks as failed,
   which didn't end before its restart. So a step of a migration, which was interrupted by a restart
   of its host, fails and the migration is rolled back.

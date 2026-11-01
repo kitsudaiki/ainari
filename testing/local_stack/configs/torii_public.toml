@@ -28,7 +28,7 @@ port = 10042
 
 [network]
 overlay_iface = "veth-gw"
-underlay_iface = "eth0"
+underlay_iface = "underlay0"
 # the floating ip-addresses are served on the veth-pair towards the host
 uplink_iface = "veth-gw"
 # address of the host on that veth-pair
