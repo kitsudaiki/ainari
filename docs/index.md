@@ -67,6 +67,16 @@ See more in the [About-section](/home/about/) of the documentation.
 
 </div>
 
+### Dashboard documentation
+
+See: [Dashboard documentation](/user/dashboard/dashboard/)
+
+<p align="center">
+  <a href="user/dashboard/img/overview.jpg">
+    <img src="user/dashboard/img/overview.jpg" alt="Overview of the Ainari dashboard" />
+  </a>
+</p>
+
 ## Author
 
 Tobias Anker

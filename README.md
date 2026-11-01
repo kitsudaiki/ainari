@@ -63,6 +63,16 @@ on `develop`-branch and for each tag.
 
 - [client and SDK](https://files.ainari.cloud/)
 
+## Dashboard
+
+See: [Dashboard documentation](https://docs.ainari.cloud/user/dashboard/dashboard/)
+
+<p align="center">
+  <a href="docs/user/dashboard/img/overview.jpg">
+    <img src="docs/user/dashboard/img/overview.jpg" alt="Overview of the Ainari dashboard" />
+  </a>
+</p>
+
 ## Vulnerability-scan
 
 Vulnerabilities of the images of the `develop`-branch, scanned by
