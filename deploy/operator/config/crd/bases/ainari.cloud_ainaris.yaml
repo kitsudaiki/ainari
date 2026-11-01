@@ -881,6 +881,37 @@ spec:
                     description: size of the volume
                     pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                     x-kubernetes-int-or-string: true
+                  underlay:
+                    default: {}
+                    description: |-
+                      ToriiUnderlaySpec configures the underlay, over which the gateways exchange the traffic of the
+                      virtual machines. By default this is the pod-network. hanami asks every gateway for the address
+                      of its underlay, so it can also be a network of its own, whose interface is moved into the pods
+                      of the gateways from the outside (for example by the service ainari-underlay of testing/vagrant).
+                    properties:
+                      edgeAddress:
+                        description: |-
+                          Underlay-address of the gateway at the edge, to which the gateways in front of the
+                          sakura-hosts send everything, which they have no route for. Required, if the underlay is not
+                          the pod-network. If empty, the address of the pod of the gateway at the edge is used.
+                        format: ipv4
+                        type: string
+                      iface:
+                        default: eth0
+                        description: interface of the underlay within the pods of
+                          all gateways
+                        type: string
+                      waitForIface:
+                        description: |-
+                          The interface of the underlay is moved into the pods from the outside, so the gateways wait
+                          for it and its address, before they start.
+                        type: boolean
+                    type: object
+                    x-kubernetes-validations:
+                    - message: torii.underlay.edgeAddress is required, if the underlay
+                        is not the pod-network
+                      rule: '!has(self.iface) || self.iface == ''eth0'' || (has(self.edgeAddress)
+                        && size(self.edgeAddress) > 0)'
                 type: object
             required:
             - miko

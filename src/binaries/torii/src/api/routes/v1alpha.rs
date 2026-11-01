@@ -122,6 +122,10 @@ pub fn v1alpha_routes() -> Scope {
                 .service(
                     resource("/tap/internal")
                         .route(post().to(register_tap_internal_v1_0::register_tap_internal)),
+                )
+                .service(
+                    resource("/underlay/internal")
+                        .route(get().to(get_underlay_internal_v1_0::get_underlay_internal)),
                 ),
         )
 }

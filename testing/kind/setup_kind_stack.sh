@@ -61,8 +61,9 @@ NAMESPACE="ainari"
 CERT_MANAGER_VERSION="v1.18.2"
 KIND="${KIND:-kind}"
 
-# The overlay adds a header to every packet, so the underlay needs a bigger mtu. The pods get the
-# mtu of the network of the node, so the cluster runs in a docker-network of its own.
+# The cluster runs in a docker-network of its own. The traffic of the virtual machines runs over
+# the underlay of testing/kind/ainari-underlay.sh, so the bigger mtu is not required here anymore,
+# but kept to not change the network of existing setups.
 DOCKER_NETWORK="ainari-kind"
 DOCKER_NETWORK_MTU=1600
 
@@ -268,6 +269,14 @@ fi
 # The node creates its own /dev/kvm, which belongs to the kvm-group of the node and not to the
 # one of the host. Sakura runs as a normal user and needs that group to open the virtual machines.
 NODE_KVM_GID="$(docker exec "$NODE" stat -c '%g' /dev/kvm)"
+
+# The gateways exchange the traffic of the virtual machines over an underlay of their own, a bridge
+# within the node, which the script connects every new pod of a gateway to. It runs in the
+# background within the node, the one of a previous run is replaced.
+echo "Starting the underlay of the gateways within $NODE ..."
+docker cp "$PROJECT_DIR/testing/kind/ainari-underlay.sh" "$NODE:/usr/local/bin/ainari-underlay.sh" > /dev/null
+docker exec "$NODE" sh -c 'kill "$(cat /run/ainari-underlay.pid 2> /dev/null)" 2> /dev/null || true'
+docker exec -d "$NODE" sh -c 'exec bash /usr/local/bin/ainari-underlay.sh > /var/log/ainari-underlay.log 2>&1'
 
 if [ "$USE_ZARF" == true ]; then
     mkdir -p "$CA_DIR"

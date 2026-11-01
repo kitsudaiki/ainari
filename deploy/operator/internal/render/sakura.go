@@ -76,10 +76,12 @@ func (r *renderer) sakuraStatefulSet() *appsv1.StatefulSet {
 	// the gateway in front of this sakura-host, which owns the TAP-devices of its virtual
 	// machines
 	torii := r.toriiContainer("/etc/ainari/templates/torii-vmm.toml")
-	torii.Env = append(torii.Env,
-		envValue("DEFAULT_GATEWAY_HOST", fmt.Sprintf("torii-public.%s.svc.cluster.local", r.Namespace)),
-		envPodName(),
-	)
+	torii.Env = append(torii.Env, envPodName())
+	if r.Spec.Torii.Underlay.EdgeAddress == "" {
+		// the underlay is the pod-network, so the gateway at the edge is reached over its pod
+		torii.Env = append(torii.Env,
+			envValue("DEFAULT_GATEWAY_HOST", fmt.Sprintf("torii-public.%s.svc.cluster.local", r.Namespace)))
+	}
 	// The database of the gateway lies in the directory of the pod on the node, so a recreated
 	// pod restores its TAP-devices, routes, packet-filters and MLS-state from it.
 	torii.VolumeMounts = append([]corev1.VolumeMount{
@@ -87,6 +89,12 @@ func (r *renderer) sakuraStatefulSet() *appsv1.StatefulSet {
 	}, torii.VolumeMounts...)
 	torii.ReadinessProbe = probe(httpsGet("/v1alpha/is_ready", toriiTLSPort), readiness)
 	torii.LivenessProbe = probe(httpsGet("/v1alpha/is_ready", toriiTLSPort), liveness)
+	if r.Spec.Torii.Underlay.WaitForIface {
+		// the gateway waits for its underlay, before it starts, which can take a while
+		torii.StartupProbe = &corev1.Probe{
+			ProbeHandler: httpsGet("/v1alpha/is_ready", toriiTLSPort), PeriodSeconds: 5, TimeoutSeconds: 2, FailureThreshold: 120,
+		}
+	}
 
 	sakura := corev1.Container{
 		Name:            "sakura",

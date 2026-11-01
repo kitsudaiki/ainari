@@ -13,8 +13,12 @@ address = {{ quote mikoAddress }}
 [network]
 # there is no overlay-interface here, the TAP-devices are attached when they are created
 overlay_iface = "none"
-underlay_iface = "eth0"
+underlay_iface = {{ quote .Spec.Torii.Underlay.Iface }}
+{{- if .Spec.Torii.Underlay.EdgeAddress }}
+default_gateway_ip = {{ quote .Spec.Torii.Underlay.EdgeAddress }}
+{{- else }}
 default_gateway_ip = "@DEFAULT_GATEWAY_IP@"
+{{- end }}
 
 # key-exchange of the IPsec-keys of the encrypted routes over MLS-groups, which izakaya
 # coordinates. The gateway only joins the group of a network with a grant of hanami.

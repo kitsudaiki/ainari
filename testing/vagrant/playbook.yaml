@@ -27,6 +27,9 @@
 #   torii       the gateway at the edge of the network
 #   sakura      the sakura-hosts, each with the torii in front of it
 #
+# The gateways of the groups torii and sakura exchange the traffic of the virtual machines over an
+# underlay-network of their own, whose interface the service ainari-underlay moves into their pods.
+#
 # Only modules of ansible-core are used, so no collections have to be installed.
 
 ---
@@ -44,7 +47,7 @@
         cache_valid_time: 3600
 
     # Vagrant adds a management-interface with its own default route, so k3s would pick that
-    # interface. The cluster has to use the private network instead, which has the bigger mtu.
+    # interface. The cluster has to use the private network instead.
     - name: Find the interface of the private network
       ansible.builtin.shell: |
         set -o pipefail
@@ -177,6 +180,63 @@
         name: ainari-uplink
         enabled: true
         state: "{{ 'restarted' if (uplink_script.changed or uplink_service.changed) else 'started' }}"
+        daemon_reload: true
+
+
+- name: Move the underlay into the pods of the gateways
+  hosts: torii:sakura
+  become: true
+  vars:
+    # the gateway at the edge runs in the pod of torii-public, the gateway in front of a
+    # sakura-host in the pod of sakura
+    underlay_app: "{{ 'torii-public' if 'torii' in group_names else 'sakura' }}"
+  tasks:
+    - name: Install the underlay-script
+      ansible.builtin.copy:
+        src: files/ainari-underlay.sh
+        dest: /usr/local/bin/ainari-underlay.sh
+        mode: "0755"
+      register: underlay_script
+
+    - name: Configure the underlay of this gateway
+      ansible.builtin.copy:
+        dest: /etc/default/ainari-underlay
+        mode: "0644"
+        content: |
+          UNDERLAY_APP={{ underlay_app }}
+          UNDERLAY_MAC={{ underlay_mac }}
+          UNDERLAY_ADDRESS={{ underlay_ip }}/24
+          UNDERLAY_MTU={{ underlay_mtu }}
+          UNDERLAY_IFACE={{ underlay_iface }}
+      register: underlay_config
+
+    - name: Install the service of the underlay
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/ainari-underlay.service
+        mode: "0644"
+        content: |
+          [Unit]
+          Description=Underlay of the ainari-gateway on this node
+          After=k3s-agent.service
+          Wants=k3s-agent.service
+
+          [Service]
+          EnvironmentFile=/etc/default/ainari-underlay
+          ExecStart=/usr/local/bin/ainari-underlay.sh
+          Restart=always
+          RestartSec=5
+
+          [Install]
+          WantedBy=multi-user.target
+      register: underlay_service
+
+    - name: Start the service of the underlay
+      ansible.builtin.systemd_service:
+        name: ainari-underlay
+        enabled: true
+        state: >-
+          {{ 'restarted' if (underlay_script.changed or underlay_config.changed or underlay_service.changed)
+             else 'started' }}
         daemon_reload: true
 
 

@@ -72,3 +72,14 @@ pub struct IfaceConfigResp {
     pub vni: u32,
     pub fip_port: bool,
 }
+
+/// Underlay of a gateway, over which it exchanges the traffic of the virtual machines with the
+/// other gateways.
+#[derive(Debug, Deserialize, Serialize, Clone, JsonSchema, ApiComponent)]
+pub struct UnderlayResp {
+    /// Interface of the underlay, as configured
+    pub iface_name: String,
+    /// Address of the underlay-interface. `None`, if the gateway has no underlay, like the single
+    /// gateway of a single-node setup, or the interface has no address yet.
+    pub address: Option<Ipv4Addr>,
+}

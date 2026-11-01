@@ -25,9 +25,9 @@ address = "http://miko:11417"
 [network]
 # there is no overlay-interface here, the TAP-devices are attached when they are created
 overlay_iface = "none"
-underlay_iface = "eth0"
+underlay_iface = "underlay0"
 # underlay-address of the torii at the edge of the network
-default_gateway_ip = "172.30.0.10"
+default_gateway_ip = "172.31.0.10"
 
 # key-exchange of the IPsec-keys of the encrypted routes over MLS-groups, which izakaya
 # coordinates. The gateway only joins the group of a network with a membership-grant of hanami.

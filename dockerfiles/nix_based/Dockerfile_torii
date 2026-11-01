@@ -127,8 +127,9 @@ if [ -n "$WAIT_FOR_IFACE" ]; then
 fi
 
 # No checksum offloading on the underlay: the datapath rewrites addresses with incremental
-# checksum updates, which are only correct on complete checksums.
-ethtool -K eth0 tx off rx off
+# checksum updates, which are only correct on complete checksums. UNDERLAY_IFACE is the
+# underlay_iface of the config, if it is not the default eth0.
+ethtool -K "${UNDERLAY_IFACE:-eth0}" tx off rx off
 
 exec /app/torii
 EOF

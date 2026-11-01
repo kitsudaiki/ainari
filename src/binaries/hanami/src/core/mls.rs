@@ -48,7 +48,7 @@ use std::time::Duration;
 use chrono::Utc;
 
 use crate::config;
-use crate::core::routing::resolve_address;
+use crate::core::routing::{edge_underlay_address, host_underlay_address};
 use crate::database::address_table;
 use crate::database::host_table::{self, HostEntry};
 use crate::database::network_table;
@@ -207,9 +207,9 @@ async fn refresh_grants() -> Result<usize, String> {
     let endpoints = get_endpoints(&config::CONFIG.miko, config::CONFIG.skip_tls_verification)
         .await
         .map_err(|e| format!("Failed to get the endpoints from miko: {e}"))?;
-    let external_torii_ip = resolve_address(&endpoints.torii.internal_address)
+    let external_torii_ip = edge_underlay_address(&endpoints.torii, None)
         .await
-        .map_err(|e| format!("Failed to resolve the torii at the edge: {e:?}"))?;
+        .map_err(|e| format!("Failed to get the underlay of the torii at the edge: {e:?}"))?;
 
     let addresses = address_table::list_addresses()
         .map_err(|e| format!("Failed to list the addresses: {e}"))?;
@@ -235,7 +235,7 @@ async fn refresh_grants() -> Result<usize, String> {
             Ok(Some(key)) => key,
             _ => continue,
         };
-        let host_ip = match resolve_address(&host_address).await {
+        let host_ip = match host_underlay_address(&endpoints.torii, &host_address, None).await {
             Ok(ip) if ip != external_torii_ip => ip,
             _ => continue,
         };

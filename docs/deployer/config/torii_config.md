@@ -57,12 +57,13 @@ external api of the sakura-hosts.
 
 ### `network` Configuration
 
-The whole section is optional.
+The whole section is optional. How the interfaces fit together is shown in the
+[network overview](../installation/network_overview.md).
 
 | Parameter            | Type    | Default     | Description                                                                                                                                                  |
 | -------------------- | ------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `overlay_iface`      | string  | `"veth-gw"` | Interface of the overlay network, `overlay_ingress` is attached to it.                                                                                       |
-| `underlay_iface`     | string  | `"eth0"`    | Interface of the underlay network, `underlay_ingress` is attached to it.                                                                                     |
+| `underlay_iface`     | string  | `"eth0"`    | Interface of the underlay network, `underlay_ingress` is attached to it. Its address is the one, which the other gateways send the traffic of the virtual machines to, hanami asks the gateway for it. |
 | `uplink_iface`       | string  | -           | Interface facing the outside, on which the floating IPs are served. Only the gateway at the edge of the network has one. Requires `uplink_next_hop`.         |
 | `uplink_next_hop`    | string  | -           | Next hop behind the uplink, which all traffic leaving the virtual network is sent to. Requires `uplink_iface`.                                               |
 | `default_gateway_ip` | string  | -           | Underlay-address of the gateway at the edge of the network. A gateway without uplink sends everything it has no route for there. Can not be combined with `uplink_iface`. |

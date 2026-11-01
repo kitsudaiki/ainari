@@ -328,6 +328,12 @@ func TestValidation(t *testing.T) {
 		"external mysql without credentials": func(spec map[string]any) {
 			spec["mysql"] = map[string]any{"deploy": false, "host": "mysql.example"}
 		},
+		"own underlay without the address of the edge": func(spec map[string]any) {
+			spec["torii"] = map[string]any{"underlay": map[string]any{"iface": "underlay0"}}
+		},
+		"invalid address of the edge": func(spec map[string]any) {
+			spec["torii"] = map[string]any{"underlay": map[string]any{"iface": "underlay0", "edgeAddress": "torii-public"}}
+		},
 	} {
 		t.Run(name, func(t *testing.T) {
 			spec := minimalSpec()

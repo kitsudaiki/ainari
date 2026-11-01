@@ -205,6 +205,27 @@ tags in the following steps.
           name additionally as `torii.public.waitForIface`. `testing/kind/setup_kind_stack.sh`
           shows an example, which injects a veth-pair into the pod.
 
+    - Underlay
+
+        - The gateways exchange the traffic of the virtual machines over their underlay. By
+          default this is the pod-network (`eth0`), so the traffic between the sakura-hosts runs
+          through the CNI of the cluster.
+        - To use a network of its own instead, move an interface of that network into the pods of
+          `torii-public` and `sakura` and set:
+
+            ```yaml
+            torii:
+              underlay:
+                iface: "UNDERLAY_IFACE"     # name of the interface within the pods
+                waitForIface: true          # the gateways wait for it, before they start
+                edgeAddress: "EDGE_ADDRESS" # address of torii-public on that network
+            ```
+
+        - The gateways in front of the sakura-hosts send everything, which they have no route
+          for, to `EDGE_ADDRESS`. Hanami asks every gateway for the address of its underlay.
+          `testing/vagrant` (service `ainari-underlay`) and `testing/kind`
+          (`testing/kind/ainari-underlay.sh`) show examples.
+
     - Encryption
 
         - The traffic between the virtual machines of a network is always encrypted. Single

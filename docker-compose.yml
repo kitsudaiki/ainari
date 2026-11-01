@@ -11,16 +11,17 @@
 #                                   |
 #                                   v  veth-gw (uplink)
 #   =====================================================================
-#                     [ torii-public ]  172.30.0.10
+#                     [ torii-public ]  172.30.0.10, underlay 172.31.0.10
 #     floating ip-NAT 10.0.0.x <--> 192.168.100.x (the virtual machines)
 #     proxies on 10042 --> the sakura-hosts, picked by the server name
 #     routes 192.168.100.x --> the torii of the host of that address
 #   =====================================================================
-#                                   |  underlay (eth0, 172.30.0.0/16)
+#                                   |  underlay (underlay0, 172.31.0.0/24)
 #                  +----------------+----------------+
 #                  v                                 v
 #   ================================   ================================
 #      [ torii-vmm ]  172.30.0.20        [ torii-vmm-2 ]  172.30.0.21
+#        underlay 172.31.0.20              underlay 172.31.0.21
 #     routes 192.168.100.x --> the      the same for the virtual
 #     tap-device of the virtual         machines of the second host
 #     machine
@@ -28,6 +29,11 @@
 #     network-namespace and runs        network-namespace and runs
 #     cloud-hypervisor                  cloud-hypervisor
 #   ================================   ================================
+#
+# The gateways exchange the traffic of the virtual machines over the network ainari-underlay of
+# their own, which only they are attached to, as the interface underlay0. All other traffic, like
+# the api-calls of the components, runs over ainari-net (eth0). Hanami asks every gateway for its
+# address on the underlay.
 #
 # Every gateway runs in a network-namespace, which is owned by a small holder-container
 # (torii-public-netns, torii-vmm-netns, torii-vmm-2-netns), like the pause-container of a pod in
@@ -295,8 +301,12 @@ services:
     networks:
       ainari-net:
         ipv4_address: 172.30.0.10
+        interface_name: eth0
         aliases:
           - torii-public
+      ainari-underlay:
+        ipv4_address: 172.31.0.10
+        interface_name: underlay0
 
   # gateway at the edge of the network: it serves the floating ip-addresses on the veth-pair
   # towards the host and proxies the api of the sakura-hosts
@@ -318,6 +328,8 @@ services:
       # resolves the address of the host on it, before it programs its routes
       - WAIT_FOR_IFACE=veth-gw
       - UPLINK_NEXT_HOP=10.0.0.1
+      # underlay_iface of the config, which gets no checksum offloading
+      - UNDERLAY_IFACE=underlay0
     volumes:
       - ./testing/local_stack/configs/torii_public.toml:/etc/ainari/torii.toml:ro
       - /sys/kernel/debug:/sys/kernel/debug:ro
@@ -339,12 +351,17 @@ services:
     networks:
       ainari-net:
         ipv4_address: 172.30.0.20
+        interface_name: eth0
         # The sakura-host in this network-namespace has no network of its own, so it has no
         # name in the dns of docker. This alias gives it one: it is the address, which sakura
-        # registers in hanami, and hanami derives the address of this gateway from it again.
+        # registers in hanami, and hanami derives the address of the api of this gateway from it
+        # again.
         aliases:
           - sakura
           - torii-vmm
+      ainari-underlay:
+        ipv4_address: 172.31.0.20
+        interface_name: underlay0
 
   # gateway in front of the first sakura-host: it owns the TAP-devices of the virtual machines
   # of that host
@@ -359,6 +376,8 @@ services:
       - CONFIG_FILE=/etc/ainari/torii.toml
       - RUST_LOG=${RUST_LOG:-info}
       - INTERNAL_API_KEY=${INTERNAL_API_KEY:-local-internal-api-key}
+      # underlay_iface of the config, which gets no checksum offloading
+      - UNDERLAY_IFACE=underlay0
     devices:
       - "/dev/net/tun:/dev/net/tun"
     volumes:
@@ -438,9 +457,13 @@ services:
     networks:
       ainari-net:
         ipv4_address: 172.30.0.21
+        interface_name: eth0
         aliases:
           - sakura-2
           - torii-vmm-2
+      ainari-underlay:
+        ipv4_address: 172.31.0.21
+        interface_name: underlay0
 
   # gateway in front of the second sakura-host, with the same role and the same config as
   # torii-vmm, only on another address of the underlay
@@ -455,6 +478,8 @@ services:
       - CONFIG_FILE=/etc/ainari/torii.toml
       - RUST_LOG=${RUST_LOG:-info}
       - INTERNAL_API_KEY=${INTERNAL_API_KEY:-local-internal-api-key}
+      # underlay_iface of the config, which gets no checksum offloading
+      - UNDERLAY_IFACE=underlay0
     devices:
       - "/dev/net/tun:/dev/net/tun"
     volumes:
@@ -512,12 +537,20 @@ services:
 networks:
   ainari-net:
     driver: bridge
+    ipam:
+      config:
+        - subnet: 172.30.0.0/16
+  # Underlay of the gateways, which carries the traffic of the virtual machines. It is internal,
+  # so it has no route to the outside: only the gateways are attached to it.
+  ainari-underlay:
+    driver: bridge
+    internal: true
     driver_opts:
       # the overlay adds a header to every packet, so the underlay needs a bigger mtu
       com.docker.network.driver.mtu: "1600"
     ipam:
       config:
-        - subnet: 172.30.0.0/16
+        - subnet: 172.31.0.0/24
 
 # The setup keeps no state on purpose: every run of testing/local_stack/setup_local_stack.sh starts with
 # empty databases, so a test never sees the virtual machines of a previous run. The databases and

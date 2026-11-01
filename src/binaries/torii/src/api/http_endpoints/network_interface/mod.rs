@@ -13,4 +13,5 @@
 // limitations under the License.
 
 pub mod config_interface_internal_v1_0;
+pub mod get_underlay_internal_v1_0;
 pub mod register_tap_internal_v1_0;

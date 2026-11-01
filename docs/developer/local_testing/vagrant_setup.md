@@ -208,11 +208,6 @@ virtual machines keep running, when the container is left; they are destroyed wi
   machine and runs over all of them.
 - **Uplink:** `vagrant ssh ainari-torii -c 'sudo journalctl -u ainari-uplink'` shows, when the
   uplink was moved into a pod of `torii-public`.
-- **Underlay:** `vagrant ssh ainari-sakura-1 -c 'sudo journalctl -u ainari-underlay'` shows, when
-  the underlay was moved into a pod of `sakura`, on `ainari-torii` into a pod of `torii-public`.
-  The traffic between the gateways can be captured on the bridge of the libvirt-network
-  `ainari-vagrant-underlay` on the host, for example with
-  `sudo tcpdump -ni "$(virsh net-info ainari-vagrant-underlay | awk '/Bridge/ {print $2}')" esp`.
 - **grpc:** the connection between ryokan, sakura and onsen is still plain grpc, because the
   grpc-client has no tls-support yet.
 - **Conflicts:** the setup-script refuses to start, if an interface of the host has an address in

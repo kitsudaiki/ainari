@@ -84,10 +84,12 @@ sequenceDiagram
     H->>TB: register TAP and the local route of the new VM
     TB->>TB: rule "from VM iif TAP lookup tenant-table",<br/>everything else of the TAP is unreachable
     TB->>TB: exempt the TAP from the reverse-path filter<br/>(the other interfaces keep theirs)
+    H->>TB: GET /network_interface/underlay/internal
+    TB-->>H: underlay-address 10.0.0.2
     H->>TB: GET /network_crypto/mls/identity/internal
     TB->>TB: create the MLS-identity with the first call<br/>(underlay-address + signature-key)
     TB-->>H: client_id 10.0.0.2, signature_key K
-    H->>H: client_id has to be the address of the host
+    H->>H: client_id has to be the underlay-address of the host
     H->>DB: pin K for the host, if no key is pinned yet
     DB-->>H: pinned key
     alt pinned key is K
@@ -544,7 +546,8 @@ sequenceDiagram
     loop until the torii answers
         H->>TN: list routes
     end
-    H->>H: resolve the new address of the host (10.42.8.13)
+    H->>TN: GET /network_interface/underlay/internal
+    TN-->>H: new underlay-address of the host (10.42.8.13)
     loop every VM of the host
         H->>E: route to the VM over 10.42.8.13 (updated in place)
     end

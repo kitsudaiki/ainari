@@ -36,7 +36,8 @@ use uuid::Uuid;
 use crate::config;
 use crate::core::mls::{grant_membership, is_encrypted, network_encrypted, revoke_membership};
 use crate::core::routing::{
-    delete_routes_to, ensure_route, overlay_route, resolve_address, torii_of_host,
+    delete_routes_to, edge_underlay_address, ensure_route, host_underlay_address, overlay_route,
+    torii_of_host, underlay_address,
 };
 use crate::database::address_table::{self, AddressEntry};
 use crate::database::host_table::HostEntry;
@@ -90,7 +91,7 @@ impl VmNetwork {
             network_table::is_encryption_disabled(&address.network_uuid).map_err(|e| {
                 map_db_uuid_get_delete_error("network", &address.network_uuid, e, Some(context))
             })?;
-        let external_torii_ip = resolve_address(&endpoints.torii.internal_address).await?;
+        let external_torii_ip = edge_underlay_address(&endpoints.torii, Some(context)).await?;
 
         Ok(Self {
             virtual_machine_uuid,
@@ -119,7 +120,7 @@ impl VmNetwork {
         context: &UserContext,
     ) -> Result<(), ErrorResponse> {
         let torii = torii_of_host(&self.endpoints.torii, &host.address)?;
-        let host_ip = resolve_address(&host.address).await?;
+        let host_ip = underlay_address(&torii, &self.endpoints.torii, Some(context)).await?;
 
         network_interface_clients::register_tap(
             &torii,
@@ -187,7 +188,8 @@ impl VmNetwork {
         host: &HostEntry,
         context: &UserContext,
     ) -> Result<(), ErrorResponse> {
-        let host_ip = resolve_address(&host.address).await?;
+        let host_ip =
+            host_underlay_address(&self.endpoints.torii, &host.address, Some(context)).await?;
         let ip = self.address.internal_ip;
         let vni = self.address.vni;
 
@@ -241,8 +243,8 @@ impl VmNetwork {
         host_address: &str,
         context: &UserContext,
     ) -> Result<(), ErrorResponse> {
-        let host_ip = resolve_address(host_address).await?;
         let torii = torii_of_host(&self.endpoints.torii, host_address)?;
+        let host_ip = underlay_address(&torii, &self.endpoints.torii, Some(context)).await?;
 
         // The edge of the network keeps its routes towards the virtual_machines, which are the
         // way to them from outside, and a host keeps them for its other virtual_machines of the
@@ -313,7 +315,9 @@ impl VmNetwork {
             {
                 continue;
             }
-            let other_host_ip = resolve_address(&other.host_address).await?;
+            let other_host_ip =
+                host_underlay_address(&self.endpoints.torii, &other.host_address, Some(context))
+                    .await?;
             others.push((other, other_host_ip));
         }
         Ok(others)

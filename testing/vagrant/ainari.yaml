@@ -142,6 +142,14 @@ spec:
       # the veth-pair towards the virtual machine ainari-torii is moved into the pod by the
       # service ainari-uplink, which the playbook installs there
       waitForIface: veth-gw
+    # The gateways exchange the traffic of the virtual machines over the underlay-network of
+    # vagrant and not over the pod-network of flannel. Its interface is moved into the pods of
+    # torii-public and sakura by the service ainari-underlay, which the playbook installs there.
+    underlay:
+      iface: underlay0
+      waitForIface: true
+      # address of ainari-torii on the underlay (testing/vagrant/Vagrantfile)
+      edgeAddress: 192.168.57.11
 
   # one replica of the dashboard on each of the three management-nodes, like the
   # control-components

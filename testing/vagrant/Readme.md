@@ -33,9 +33,9 @@ installed.
 - The nine virtual machines need about 34 GiB free memory and 40 GiB free disk on the host, see
   [Vagrant setup](../../docs/developer/local_testing/vagrant_setup.md).
 - Adding the route needs root, so the script asks for the password of sudo.
-- The floating ip-addresses `10.0.0.0/24` and the private network `192.168.56.0/24` of vagrant must
-  not be used by any other interface of the host, so the setup can't run together with the other
-  local setups.
+- The floating ip-addresses `10.0.0.0/24`, the private network `192.168.56.0/24` and the
+  underlay-network `192.168.57.0/24` of vagrant must not be used by any other interface of the
+  host, so the setup can't run together with the other local setups.
 - The first start takes long, because the virtual machines are installed and the images are copied
   into all of them.
 - `--down` destroys the virtual machines, but keeps the saved images and the CA in
