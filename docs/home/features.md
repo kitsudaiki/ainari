@@ -19,9 +19,7 @@ base capabilities of uploading resources and creating a virtual machine based on
     If there is a version on a feature, which doesn't exist yet, then this feature is not 
     release at the moment and and is only available on the develop brauch.
 
-## Security
-
-### Encrypted Images
+## Encrypted Images
 
 **Status: <span style="color:#4caf50">implemented</span> (since v0.20.0)**
 
@@ -29,14 +27,14 @@ All uploaded images are always encrypted with AES-256-GCM before storing them wi
 backend. So even if the Storage Data Plane is compromised, the data within the images are safe and
 can not be stolen or manipulated.
 
-### Encrypted Snapshots
+## Encrypted Snapshots
 
 **Status: <span style="color:#4caf50">implemented</span> (since v0.20.0)**
 
 Snapshots of root disks of virtual machines are handled as images again and so they are also always
 AES-256-GCM encrypted before moving them from the compute host to the storage backend.
 
-### "dumb" compute hosts
+## "dumb" compute hosts
 
 **Status: <span style="color:#4caf50">implemented</span> (since v0.20.0)**
 
@@ -52,7 +50,7 @@ sufficient to take over the entire deployment. Without additional tokens of othe
 in the config of the compute host are not enough to steal other information outside of the
 compute-host.
 
-### Using Cloud-Hypervisor
+## Using Cloud-Hypervisor
 
 **Status: <span style="color:#4caf50">implemented</span> (since v0.20.0)**
 
@@ -60,14 +58,39 @@ To manage the virtual machine, the
 [Cloud-Hypervisor](https://github.com/cloud-hypervisor/cloud-hypervisor) is used. In contrast to
 qemu it has a minimal code base and is written in Rust.
 
-### Filter for network traffic
+## OpenAPI specs generated from source-code
+
+**Status: <span style="color:#4caf50">implemented</span> (since v0.20.0)**
+
+OpenAPI specs are generated out of the source-code with the help of the
+[apistos](https://github.com/netwo-io/apistos) crates. This ensures, that the API documentation is
+always up-to-date.
+
+## Own network stack with eBPF
+
+**Status: <span style="color:#4caf50">implemented</span> (since v0.20.0)**
+
+The stack doesn't rely on third party software for its software-defined network (SDN), like OVN, OVS
+or Linux-Bridges. The only Linux network element used are tap-devices, to connect the virtual
+machines with the network layer. The network layer is written entirely in Rust, which runs in the
+kernel space with the help of [eBPF](https://ebpf.io/).
+
+## Deployable on Kubernetes
+
+**Status: <span style="color:#4caf50">implemented</span> (since v0.20.0)**
+
+The whole stack is deployable on Kubernetes by providing a kubernetes-operator and docker-images.
+See
+[Kubernetes installation-guide](/deployer/installation/kubernetes_installation/)
+
+## Filter for network traffic
 
 **Status: <span style="color:#4caf50">implemented</span> (since v0.21.0)**
 
 Network rules can be set, to limit incoming and outgoing network traffic to specific ports and
 ip-address ranges.
 
-### Reproducible builds
+## Reproducible builds
 
 **Status: <span style="color:#4caf50">implemented</span> (since v0.21.0)**
 
@@ -77,14 +100,14 @@ to ensure, that all the other packages in the docker-images are pinned to specif
 versions too. For easier debugging, the local test-setups can use debian-based images
 instead.
 
-### SBOM
+## SBOM
 
 **Status: <span style="color:#4caf50">implemented</span> (since v0.21.0)**
 
 An automatic summary of all packages with versions used within the Nix-based docker-images,
 to keep track of CVEs and which versions are affected by them.
 
-### Encrypted tenant networks
+## Encrypted tenant networks
 
 **Status: <span style="color:#4caf50">implemented</span> (since v0.22.0)**
 
@@ -92,7 +115,7 @@ Network traffic between virtual machines can be encrypted with IPsec and AES-256
 It is planned to use MLS with the [OpenMLS-library](https://github.com/openmls/openmls) for the
 key-exchange.
 
-### Project host isolation
+## Project host isolation
 
 **Status: <span style="color:#4caf50">implemented</span> (since v0.22.0)**
 
@@ -102,14 +125,14 @@ hardware as you. In this case an attacker, who tries to steal your data by break
 virtual machine, has to be in the same project as you, to get the chance to be on the same compute
 host.
 
-### Bring your own key
+## Bring your own key
 
 **Status: <span style="color:#4caf50">implemented</span> (since v0.22.0)**
 
 Instead of letting the backend generate a key, users can upload their own keys to the key management
 and use them, in case they do not trust the random function of the backend.
 
-### Audit-Log
+## Audit-Log
 
 **Status: <span style="color:#4caf50">implemented</span> (since v0.22.0)**
 
@@ -123,141 +146,50 @@ task log it is visible which action (create, snapshot create, snapshot restore, 
 which user, at which point in time and if this task was successful. This log is visible by the user,
 as long as the virtual machine lives.
 
-### Encrypted backups
-
-**Status: <span style="color:#4caf50">implemented</span> (since v0.23.0)**
-
-The VM- and Project-Backups are always encrypted with a key provided by
-the user when creating the backup.
-
-### Backend in Rust
-
-**Status: <span style="color:#4caf50">Current state</span>**
-
-The entire backend is written in Rust. Besides the low-level network layer, the code avoids `unsafe`
-marked code too.
-
-### Hold your own key
-
-**Status: <span style="color:#e53935">planned</span>**
-
-Users can hold their keys themselves, instead of using the key management in the backend. In case of
-an action on a virtual machine, like creating and restoring an encrypted snapshot, the user can
-provide the key directly themselves over an end-to-end encrypted path. In case of the dashboard, the
-user gets a popup to enter the keys, whenever required by the backend. The keys are then only stored
-in the memory of the specific compute host and only as long as necessary for the task.
-
-### 2-factor authentication
-
-**Status: <span style="color:#e53935">planned</span>**
-
-To make logins much more secure, a second factor like OTP can be used as second login factor.
-
-### Optional four-eyes principle for projects
-
-**Status: <span style="color:#e53935">planned</span>**
-
-Projects can be marked as 4-eyes principle necessary. If this is enabled, every action triggered by
-a user against a virtual machine, must be approved by another user of the same project, in order to
-be started.
-
-### VPN-as-a-Service
-
-**Status: <span style="color:#e53935">planned</span>**
-
-A prepared mini-VM is deployed within the tenant network with a wireguard endpoint.
-So a user can connect over the wireguard tunnel to this VM and access all VMs within the
-tenant network over it. In combination with the tenant network encryption this makes it
-possible to secure the whole traffic even when the wiregard-VM and the target-VM are on
-different compute-hosts.
-
-### Encrypted volumes
-
-**Status: <span style="color:#e53935">planned</span>**
-
-!!! info
-
-    There are no remote mounted volumes in general, so there is nothing to encrypt here currently
-
-Remote mounted volumes will be encrypted as LUKS format with AES-256-XTS encryption.
-
-### Yubikey support for key management
-
-**Status: <span style="color:#e53935">planned</span>**
-
-As minimal HSM solution, [YubiKey](https://www.yubico.com/der-yubikey/?lang=de) can be used for
-hardware encryption for the key management of the stack.
-
-### AMD SEV SNP support
-
-**Status: <span style="color:#e53935">planned</span>**
-
-!!! info
-
-    Even though the current cloud hypervisor already supports it, it cannot be tested currently
-    without the necessary hardware :(
-
-To encrypt the memory of the virtual machine itself, AMD SEV SNP can be enabled for virtual
-machines. That way, even a snapshot of the memory of the compute host contains only encrypted user
-information. Besides this, it provides attestation features.
-
-## Other
-
-### OpenAPI specs generated from source-code
-
-**Status: <span style="color:#4caf50">implemented</span> (since v0.20.0)**
-
-OpenAPI specs are generated out of the source-code with the help of the
-[apistos](https://github.com/netwo-io/apistos) crates. This ensures, that the API documentation is
-always up-to-date.
-
-### Own network stack with eBPF
-
-**Status: <span style="color:#4caf50">implemented</span> (since v0.20.0)**
-
-The stack doesn't rely on third party software for its software-defined network (SDN), like OVN, OVS
-or Linux-Bridges. The only Linux network element used are tap-devices, to connect the virtual
-machines with the network layer. The network layer is written entirely in Rust, which runs in the
-kernel space with the help of [eBPF](https://ebpf.io/).
-
-### Deployable on Kubernetes
-
-**Status: <span style="color:#4caf50">implemented</span> (since v0.20.0)**
-
-The whole stack is deployable on Kubernetes by providing a kubernetes-operator and docker-images.
-See
-[Kubernetes installation-guide](/deployer/installation/kubernetes_installation/)
-
-### Built-in central error-logging
+## Built-in central error-logging
 
 **Status: <span style="color:#4caf50">implemented</span> (since v0.22.0)**
 
 Any internal error is sent to a central error-log, with all information around the error with
 user-id and so on, to make problems of users easier to find and debug.
 
-### Kubernetes Operator
-
-**Status: <span style="color:#4caf50">implemented</span> (since v0.22.0)**
-
-The complete stack is deployed by a kubernetes operator from a single custom-resource of the kind
-`Ainari`. So only the operator has to be deployed by the user and the rest, including all keys and
-passwords, is handled by the operator.
-
-### Offline deployable
+## Offline deployable
 
 **Status: <span style="color:#4caf50">implemented</span> (since v0.22.0)**
 
 The whole stack can be packed as offline installation package using [Zarf](https://zarf.dev/). So it
 can be deployed on a kubernetes in an air-gaped environment, where not internet access is available.
 
-### Project-Backups
+## Kubernetes Operator
+
+**Status: <span style="color:#4caf50">implemented</span> (since v0.22.0)**
+
+The complete stack is deployed by a kubernetes operator from a single custom-resource of the kind
+`Ainari`. So only the operator has to be deployed by the user and the rest, including is handled
+by the operator.
+
+## Project-Backups
 
 **Status: <span style="color:#4caf50">implemented</span> (since v0.23.0)**
 
 Entire projects can be backuped with network configurations and so on, to restore not only the
 disks for VMs, but entire projects with network-configuration, VM-configuration and so on.
 
-### Easy local development
+## Encrypted backups
+
+**Status: <span style="color:#4caf50">implemented</span> (since v0.23.0)**
+
+The VM- and Project-Backups are always encrypted with a key provided by
+the user when creating the backup.
+
+## Backend in Rust
+
+**Status: <span style="color:#4caf50">Current state</span>**
+
+The entire backend is written in Rust. Besides the low-level network layer, the code avoids `unsafe`
+marked code too.
+
+## Easy local development
 
 **Status: <span style="color:#4caf50">Current state</span>**
 
@@ -267,7 +199,7 @@ stack as [Local deployment](/developer/local_testing/local_testing/). Besides th
 can also be deployed and live-debugged with breakpoints in VSCode/VSCodium, as shown in the
 [Developer documentation](/developer/development/).
 
-### No heavy message queue
+## No heavy message queue
 
 **Status: <span style="color:#4caf50">Current state</span>**
 
@@ -275,7 +207,7 @@ Compared to Openstack, there is no heavy message queue, like RabbitMQ. Instead o
 virtual machine was reserved on a compute-host, the user communicates directly with the compute host
 itself. So there is no high traffic through the control plane.
 
-### Monorepo
+## Monorepo
 
 **Status: <span style="color:#4caf50">Current state</span>**
 
@@ -288,7 +220,71 @@ A Monorepo makes implementing new features and updating dependencies much easier
 identify which versions of the different components belong together. Based on my experiences I made,
 a Monorepo makes much more sense for this project, even it contains microservices.
 
-### Load-balancer-as-a-Service
+## Hold your own key
+
+**Status: <span style="color:#e53935">planned</span>**
+
+Users can hold their keys themselves, instead of using the key management in the backend. In case of
+an action on a virtual machine, like creating and restoring an encrypted snapshot, the user can
+provide the key directly themselves over an end-to-end encrypted path. In case of the dashboard, the
+user gets a popup to enter the keys, whenever required by the backend. The keys are then only stored
+in the memory of the specific compute host and only as long as necessary for the task.
+
+## 2-factor authentication
+
+**Status: <span style="color:#e53935">planned</span>**
+
+To make logins much more secure, a second factor like OTP can be used as second login factor.
+
+## Optional four-eyes principle for projects
+
+**Status: <span style="color:#e53935">planned</span>**
+
+Projects can be marked as 4-eyes principle necessary. If this is enabled, every action triggered by
+a user against a virtual machine, must be approved by another user of the same project, in order to
+be started.
+
+## VPN-as-a-Service
+
+**Status: <span style="color:#e53935">planned</span>**
+
+A prepared mini-VM is deployed within the tenant network with a wireguard endpoint.
+So a user can connect over the wireguard tunnel to this VM and access all VMs within the
+tenant network over it. In combination with the tenant network encryption this makes it
+possible to secure the whole traffic even when the wiregard-VM and the target-VM are on
+different compute-hosts.
+
+## Encrypted volumes
+
+**Status: <span style="color:#e53935">planned</span>**
+
+!!! info
+
+    There are no remote mounted volumes in general, so there is nothing to encrypt here currently
+
+Remote mounted volumes will be encrypted as LUKS format with AES-256-XTS encryption.
+
+## Yubikey support for key management
+
+**Status: <span style="color:#e53935">planned</span>**
+
+As minimal HSM solution, [YubiKey](https://www.yubico.com/der-yubikey/?lang=de) can be used for
+hardware encryption for the key management of the stack.
+
+## AMD SEV SNP support
+
+**Status: <span style="color:#e53935">planned</span>**
+
+!!! info
+
+    Even though the current cloud hypervisor already supports it, it cannot be tested currently
+    without the necessary hardware :(
+
+To encrypt the memory of the virtual machine itself, AMD SEV SNP can be enabled for virtual
+machines. That way, even a snapshot of the memory of the compute host contains only encrypted user
+information. Besides this, it provides attestation features.
+
+## Load-balancer-as-a-Service
 
 **Status: <span style="color:#e53935">planned</span>**
 
