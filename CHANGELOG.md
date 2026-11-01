@@ -32,6 +32,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - docker-scout check
 - when sakura restarts, now the list of existing VMs instead of deleted VMs is send to hanami 
   to sync the database of hanami
+- added to docs:
+    - first version of AI_POLICY.md
+    - resouces overview for the kuberentes-operator
+    - first security-concept
 
 ### Changed
 
@@ -42,10 +46,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - database rows are now not marked as deleted anymore, but instead hard deleted from the db
 - update virtual-machine- and host-rows in dashboard, so the content is not so pressed anymore
 - update the icon of the image in the sidebar of the dashboard
+- changed image-icon in dashboard
+- moved internally used common functions like the error-mapper into separate files
+  for cleaner code in the ainari-libraries
 
 ### Fixed
 
 - fixed all findings of the new CI-checks
+- removed old dead-code marked, which were not valid anymore
+
+### Removed
+
+- removed flag from operator to disable izakaya
+- removed `deleted_at`, `deleted_by` and `status` columns from database-tables
 
 ## v0.22.0
 
