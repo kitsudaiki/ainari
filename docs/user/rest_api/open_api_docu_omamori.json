@@ -1275,71 +1275,6 @@
           }
         }
       },
-      "PublicKeyExport": {
-        "description": "Public-key, like it is exported from omamori into a backup. The fingerprint is not part of it, because it is calculated from the key again, when it is imported.",
-        "type": "object",
-        "required": [
-          "name",
-          "public_key",
-          "uuid"
-        ],
-        "properties": {
-          "name": {
-            "type": "string",
-            "maxLength": 255,
-            "minLength": 1
-          },
-          "public_key": {
-            "description": "the ssh-public-key in its one-line openssh-representation",
-            "type": "string",
-            "maxLength": 4096,
-            "minLength": 8
-          },
-          "uuid": {
-            "description": "UUID of the public-key at the time of the backup",
-            "type": "string",
-            "format": "uuid"
-          }
-        }
-      },
-      "SecretExport": {
-        "description": "Secret, like it is exported from omamori into a backup. The payload never leaves the omamori in plain text, but is wrapped with the wrap-key of the backup.",
-        "type": "object",
-        "required": [
-          "name",
-          "owned_by",
-          "uuid",
-          "wrapped_payload"
-        ],
-        "properties": {
-          "name": {
-            "type": "string",
-            "maxLength": 255,
-            "minLength": 1
-          },
-          "owned_by": {
-            "description": "kind of owner of the secret, like `user` or `image`",
-            "type": "string",
-            "maxLength": 63,
-            "minLength": 1
-          },
-          "resource_uuid": {
-            "description": "resource, which owns the secret, if it is not owned by a user",
-            "type": "string",
-            "format": "uuid",
-            "nullable": true
-          },
-          "uuid": {
-            "description": "UUID of the secret at the time of the backup",
-            "type": "string",
-            "format": "uuid"
-          },
-          "wrapped_payload": {
-            "description": "base64-encoded payload, which is wrapped with the wrap-key (AES-256-GCM with the UUID of the secret as additional data)",
-            "type": "string"
-          }
-        }
-      },
       "ProjectResourceCountInternalResp": {
         "title": "ProjectResourceCountInternalResp",
         "type": "object",
@@ -1372,6 +1307,33 @@
             "type": "string"
           },
           "uuid": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "PublicKeyExport": {
+        "description": "Public-key, like it is exported from omamori into a backup. The fingerprint is not part of it, because it is calculated from the key again, when it is imported.",
+        "type": "object",
+        "required": [
+          "name",
+          "public_key",
+          "uuid"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1
+          },
+          "public_key": {
+            "description": "the ssh-public-key in its one-line openssh-representation",
+            "type": "string",
+            "maxLength": 4096,
+            "minLength": 8
+          },
+          "uuid": {
+            "description": "UUID of the public-key at the time of the backup",
             "type": "string",
             "format": "uuid"
           }
@@ -1578,6 +1540,44 @@
             "minLength": 8,
             "maxItems": 4096,
             "minItems": 8
+          }
+        }
+      },
+      "SecretExport": {
+        "description": "Secret, like it is exported from omamori into a backup. The payload never leaves the omamori in plain text, but is wrapped with the wrap-key of the backup.",
+        "type": "object",
+        "required": [
+          "name",
+          "owned_by",
+          "uuid",
+          "wrapped_payload"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1
+          },
+          "owned_by": {
+            "description": "kind of owner of the secret, like `user` or `image`",
+            "type": "string",
+            "maxLength": 63,
+            "minLength": 1
+          },
+          "resource_uuid": {
+            "description": "resource, which owns the secret, if it is not owned by a user",
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "uuid": {
+            "description": "UUID of the secret at the time of the backup",
+            "type": "string",
+            "format": "uuid"
+          },
+          "wrapped_payload": {
+            "description": "base64-encoded payload, which is wrapped with the wrap-key (AES-256-GCM with the UUID of the secret as additional data)",
+            "type": "string"
           }
         }
       },

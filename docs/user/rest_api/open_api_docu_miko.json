@@ -1796,44 +1796,6 @@
           }
         }
       },
-      "QuotaExport": {
-        "description": "Quota of a project, like it is stored in a backup.",
-        "type": "object",
-        "required": [
-          "max_floating_ip",
-          "max_image",
-          "max_network",
-          "max_secret",
-          "max_virtual_machine"
-        ],
-        "properties": {
-          "max_floating_ip": {
-            "type": "integer",
-            "format": "int32",
-            "minimum": 0.0
-          },
-          "max_image": {
-            "type": "integer",
-            "format": "int32",
-            "minimum": 0.0
-          },
-          "max_network": {
-            "type": "integer",
-            "format": "int32",
-            "minimum": 0.0
-          },
-          "max_secret": {
-            "type": "integer",
-            "format": "int32",
-            "minimum": 0.0
-          },
-          "max_virtual_machine": {
-            "type": "integer",
-            "format": "int32",
-            "minimum": 0.0
-          }
-        }
-      },
       "PassphraseChangeAdminReq": {
         "title": "PassphraseChangeAdminReq",
         "type": "object",
@@ -2244,6 +2206,44 @@
           },
           "project_id": {
             "type": "string"
+          }
+        }
+      },
+      "QuotaExport": {
+        "description": "Quota of a project, like it is stored in a backup.",
+        "type": "object",
+        "required": [
+          "max_floating_ip",
+          "max_image",
+          "max_network",
+          "max_secret",
+          "max_virtual_machine"
+        ],
+        "properties": {
+          "max_floating_ip": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0.0
+          },
+          "max_image": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0.0
+          },
+          "max_network": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0.0
+          },
+          "max_secret": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0.0
+          },
+          "max_virtual_machine": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0.0
           }
         }
       },

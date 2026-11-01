@@ -2529,6 +2529,37 @@
           }
         }
       },
+      "FloatingIpExport": {
+        "description": "Floating ip-address, like it is exported from hanami into a backup. It is allocated again from the pool of the target on restore, so the address is only a preference.",
+        "type": "object",
+        "required": [
+          "floating_ip",
+          "name",
+          "uuid"
+        ],
+        "properties": {
+          "floating_ip": {
+            "type": "string",
+            "format": "ipv4"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1
+          },
+          "uuid": {
+            "description": "UUID of the floating ip-address at the time of the backup",
+            "type": "string",
+            "format": "uuid"
+          },
+          "virtual_machine_uuid": {
+            "description": "virtual_machine, which the floating ip-address was attached to",
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          }
+        }
+      },
       "FloatingIpListResp": {
         "title": "FloatingIpListResp",
         "type": "object",
@@ -2587,101 +2618,6 @@
             "type": "string"
           },
           "uuid": {
-            "type": "string",
-            "format": "uuid"
-          }
-        }
-      },
-      "FloatingIpExport": {
-        "description": "Floating ip-address, like it is exported from hanami into a backup. It is allocated again from the pool of the target on restore, so the address is only a preference.",
-        "type": "object",
-        "required": [
-          "floating_ip",
-          "name",
-          "uuid"
-        ],
-        "properties": {
-          "floating_ip": {
-            "type": "string",
-            "format": "ipv4"
-          },
-          "name": {
-            "type": "string",
-            "maxLength": 255,
-            "minLength": 1
-          },
-          "uuid": {
-            "description": "UUID of the floating ip-address at the time of the backup",
-            "type": "string",
-            "format": "uuid"
-          },
-          "virtual_machine_uuid": {
-            "description": "virtual_machine, which the floating ip-address was attached to",
-            "type": "string",
-            "format": "uuid",
-            "nullable": true
-          }
-        }
-      },
-      "NetworkExport": {
-        "description": "Network, like it is exported from hanami into a backup.",
-        "type": "object",
-        "required": [
-          "disable_encryption",
-          "name",
-          "subnet",
-          "uuid"
-        ],
-        "properties": {
-          "disable_encryption": {
-            "type": "boolean"
-          },
-          "name": {
-            "type": "string",
-            "maxLength": 255,
-            "minLength": 1
-          },
-          "subnet": {
-            "type": "string",
-            "maxLength": 63,
-            "minLength": 1
-          },
-          "uuid": {
-            "description": "UUID of the network at the time of the backup",
-            "type": "string",
-            "format": "uuid"
-          }
-        }
-      },
-      "NetworkFilterExport": {
-        "description": "Packet filter of one direction of a virtual_machine, like it is exported from hanami into a backup.",
-        "type": "object",
-        "required": [
-          "direction",
-          "ip_ranges",
-          "ports",
-          "virtual_machine_uuid"
-        ],
-        "properties": {
-          "direction": {
-            "$ref": "#/components/schemas/FilterDirection"
-          },
-          "ip_ranges": {
-            "description": "include-list of the ip-ranges",
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "ports": {
-            "description": "include-list of the ports",
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "virtual_machine_uuid": {
-            "description": "virtual_machine at the time of the backup, which the filter belongs to",
             "type": "string",
             "format": "uuid"
           }
@@ -2922,6 +2858,70 @@
           },
           "subnet": {
             "type": "string"
+          }
+        }
+      },
+      "NetworkExport": {
+        "description": "Network, like it is exported from hanami into a backup.",
+        "type": "object",
+        "required": [
+          "disable_encryption",
+          "name",
+          "subnet",
+          "uuid"
+        ],
+        "properties": {
+          "disable_encryption": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1
+          },
+          "subnet": {
+            "type": "string",
+            "maxLength": 63,
+            "minLength": 1
+          },
+          "uuid": {
+            "description": "UUID of the network at the time of the backup",
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "NetworkFilterExport": {
+        "description": "Packet filter of one direction of a virtual_machine, like it is exported from hanami into a backup.",
+        "type": "object",
+        "required": [
+          "direction",
+          "ip_ranges",
+          "ports",
+          "virtual_machine_uuid"
+        ],
+        "properties": {
+          "direction": {
+            "$ref": "#/components/schemas/FilterDirection"
+          },
+          "ip_ranges": {
+            "description": "include-list of the ip-ranges",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "ports": {
+            "description": "include-list of the ports",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "virtual_machine_uuid": {
+            "description": "virtual_machine at the time of the backup, which the filter belongs to",
+            "type": "string",
+            "format": "uuid"
           }
         }
       },
