@@ -1,4 +1,4 @@
-## About
+# About
 
 This project contains an entire IaaS (Infrastructure-as-a-Service) stack to manage virtual machines
 and networks between them. It is focused on security and easy handling for users, admins and

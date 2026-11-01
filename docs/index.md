@@ -67,7 +67,7 @@ See more in the [About-section](/home/about/) of the documentation.
 
 </div>
 
-### Dashboard documentation
+### Dashboard
 
 See: [Dashboard documentation](/user/dashboard/dashboard/)
 

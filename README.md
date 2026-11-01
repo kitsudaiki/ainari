@@ -29,7 +29,7 @@ See more in the [About-section](https://docs.ainari.cloud/home/about/) of the do
 
 - [Features](https://docs.ainari.cloud/home/features/)
 
-- [Architecture Overview](https://docs.ainari.cloud/home/overview/)
+- [Architecture Overview](https://docs.ainari.cloud/home/architecture_overview/)
 
 - [Security Concepts](https://docs.ainari.cloud/home/security_concpets/)
 
