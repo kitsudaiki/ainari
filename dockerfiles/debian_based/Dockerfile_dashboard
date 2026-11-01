@@ -21,8 +21,8 @@ ARG VITE_MIKO_API_URL
 ENV VITE_MIKO_API_URL=$VITE_MIKO_API_URL
 
 # Install dependencies
-COPY ./src/dashboard/app/package.json ./src/dashboard/app/package-lock.json* ./
-RUN npm install
+COPY ./src/dashboard/app/package.json ./src/dashboard/app/package-lock.json ./
+RUN npm ci
 
 # Copy app source
 COPY ./src/dashboard/app .
@@ -31,7 +31,7 @@ COPY ./src/dashboard/app .
 RUN npm run build
 
 # Step 2: Serve with Nginx
-FROM nginx:alpine
+FROM nginx:alpine@sha256:785835ea65db4bba6f021acc0f3be91b0fef76a53fe41f8588c6698d2aed0606
 
 # Copy the built files to Nginx html folder
 COPY --from=build /app/dist /usr/share/nginx/html

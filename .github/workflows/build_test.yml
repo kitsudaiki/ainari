@@ -40,7 +40,6 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y protobuf-compiler gcc ssh curl zstd pkg-config libssl-dev libsqlite3-dev libmariadb-dev
-          sudo curl https://sh.rustup.rs -sSf | sh -s -- -y
 
       - name: Install Rust Nightly
         run: |
@@ -371,7 +370,6 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y protobuf-compiler gcc g++ ssh curl zstd pkg-config libssl-dev libsqlite3-dev libmariadb-dev
-          sudo curl https://sh.rustup.rs -sSf | sh -s -- -y
       -
         name: Install Rust Nightly
         run: |
