@@ -28,10 +28,11 @@ config:
     siblings_only: true
 
   # HTML, which is used on purpose by the docs, for example for the colored status of the
-  # features and md_in_html.
+  # features, md_in_html and the screenshot of the dashboard, which opens the image on click.
   MD033:
     allowed_elements:
       - span
+      - a
       - img
       - br
       - p

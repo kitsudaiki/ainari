@@ -1,47 +1,56 @@
-## About
+# About
 
 This project contains an entire IaaS (Infrastructure-as-a-Service) stack to manage virtual machines
 and networks between them. It is focused on security and easy handling for users, admins and
-developers, not on scalability. It is entirely a spare-time project of mine, without a bigger
-purpose I need it for. At work I have and had a lot to do with the IaaS Openstack in many ways:
-administration, deployment and even modifications of the code. At my time in the company SecuStack,
-which was closed years ago, we developed and implemented security features directly into the
-existing code of Openstack. I saw many bad things in the handling and the code and the Ainari
-project here became basically a platform, where I currently implement my own vision of an IaaS, by
-implementing my own architecture, avoiding every pain point I had with Openstack, implementing
-security features we had or at least planned for Openstack back then, and implementing my own
-feature ideas. See [feature overview](/home/features/).
+developers, not primarily on scalability. It is entirely a spare-time project of mine, without any
+bigger purpose behind it. At work I have had a lot to do with the IaaS OpenStack in many ways:
+administration, deployment and even modifications of the code. During my time at the company
+SecuStack, which was closed years ago, we developed and implemented security features directly into
+the source code of OpenStack. I saw many bad things in the handling and the code, and this project
+basically became a platform where I implement my own vision of an IaaS: building my own
+architecture, avoiding every pain point I had with OpenStack, adding the security features we had or
+at least planned for OpenStack back then, and realising my own feature ideas. See the
+[feature overview](/home/features/).
 
 Originally the project started years ago with an experimental neural network in C++. Later it was
-moved to the server side with a REST-API. Then came a user-management, key-management, installation
-automation, dashboard and so on. Over time, this effectively turned it into a
+moved to the server side with a REST-API. Then came user management, key management, installation
+automation, a dashboard and so on. Over time, this effectively turned it into a
 Neural-Network-as-a-Service. Not because I needed it, but because I like programming and I was
-simply interested in implementing features into a project freely. In 2025 I manually refactored the
-entire C++ code base into Rust and the simple dashboard from plain JavaScript into Vue.js with
-TypeScript. The problem was that the experimental neural network core was still an experimental
-construction site, which worked well for small tests, but was never as good as hoped and was
-rewritten nearly every year for new conceptual ideas. So the infrastructure had a much better
-quality than the core and was way over the top for what the neural network was usable for. So in
-late summer 2026 the experimental neural network core was pulled out of this repo here and moved
-into the small side-project [Saki](https://github.com/kitsudaiki/saki), where it runs as a small
-library, which can be included in Python scripts. To reuse the remaining infrastructure of this
-project and give it a real productive purpose, Ainari was moved into the direction of an IaaS
-project. Instead of managing neural networks, virtual machines are now managed and datasets were
-replaced by disk-images. Big parts were already compatible with the new direction and required no or
-only a bit of modification work for the new core function. Version
+simply interested in freely implementing features in a project. In 2025 I manually refactored the
+entire C++ code base into Rust and the simple dashboard from plain HTML/CSS/JavaScript into Vue.js
+with TypeScript. The problem was that the experimental neural network core was still an
+experimental work in progress, which worked well for small tests, but was never as good as hoped and
+was rewritten nearly every year for new conceptual ideas. So the infrastructure had a much better
+quality than the core and was far more than the neural network actually needed. So in late summer
+2026 the experimental neural network core was moved out of this repository into the small
+side-project [Saki](https://github.com/kitsudaiki/saki), where it runs as a small library, which can
+be included in Python scripts. To reuse the remaining infrastructure of this project and give it a
+real productive purpose, Ainari was moved into the direction of an IaaS project. Instead of neural
+networks, it now manages virtual machines, and datasets were replaced by disk images. Big parts were
+already compatible with the new direction and required little or no modification for the new core
+function. The previous version was already influenced by my work experience, but with this new
+project purpose I was then able to implement all the IaaS ideas I have had since I started working
+with OpenStack. I should have done this much earlier. Version
 [v0.11.1](https://github.com/kitsudaiki/ainari/tree/v0.11.1) is the last version with the old
-neural network core.
+neural network core. I kept the old project name because I liked it.
 
 Until I started to push the project into this new direction, everything in the project, except some
-tiny code snippets, was written by hand: backend, frontend, documentation and automation. Because I
-ran into big problems while implementing the new desired network stack for the new IaaS approach
-with eBPF, I was more or less forced into using AI coding tools. The low-level network stuff with
-silently dropped packets in kernel space was horrible to debug. I have to admit that I was impressed
-by how well it was debugged and fixed by AI and how much time and nerves it saved me. Since then, I
-have been using AI more actively, to speed up the progress. I still fix many things myself, review
-each generated piece of code and make manual modifications to it. In the end I have to admit that I
-actually use more AI in this project now than I ever expected. But because the very big foundation
-of the project was clearly structured and written by hand, and because I keep control over
-everything generated, this project has nearly no technical debt. Whenever I see something to
-refactor in this project, I do it, because I know I avoid a lot of pain if I fix it as soon as
-possible.
+tiny code snippets, was written by hand: backend, frontend, documentation and automation. Even the
+entire translation from C++ into Rust and the rework of the dashboard were done by hand. But because
+I ran into big problems while implementing the desired new network stack with eBPF for the new IaaS
+approach, I was more or less forced into using AI coding tools. The low-level network packet
+handling with silently dropped packets in kernel space was horrible to debug. That was the point
+where I gave a coding agent a try at fixing the NAT problem of the network stack. It was very
+successful in this task and I have to admit that I was impressed by how well the AI debugged and
+fixed it and how much time and frustration it saved me. Since then, I have been using AI more
+actively to speed up the progress. In the end I have to admit that I actually use more AI in this
+project now than I ever expected. At this point, two months after the shift to the IaaS concept,
+most of the code is already written by AI, but despite this, I have never spent a single cent
+outside of my basic 20 Dollar/month AI subscription. I still fix many things myself, review each
+generated piece of code and make manual modifications to it. Together with the clearly structured
+hand-written foundation of the project and because I keep control over everything generated by AI,
+this project still has almost no technical debt. Whenever I see something to refactor in this
+project, I do it, because I know I avoid a lot of pain if I fix it as soon as possible. That way I
+not only keep my token spending low, but I would also still be able to continue the work on the
+project in case I lose access to any coding assistant. So I prevent the project from being totally
+dependent on AI. Even though I currently generate a huge amount of code, it is far from vibe-coding.

@@ -10,7 +10,7 @@ Log in with the ID and the passphrase of your user. The optional project-ID sele
 in which you want to work. Without it, you are logged in into your default-project. An invalid
 project-ID, or a project, to which you are not assigned, is rejected with an `Unauthorized` error.
 
-![Login](img/login.jpg)
+[![Login](img/login.jpg)](img/login.jpg)
 
 ## Switch project
 
@@ -24,7 +24,7 @@ selected project afterwards.
 After the login the overview shows, how many resources of each type exist compared to the quota of
 the project, and a list of the virtual machines.
 
-![Overview](img/overview.jpg)
+[![Overview](img/overview.jpg)](img/overview.jpg)
 
 On the left side is the navigation to all other pages. The entries under **Admin** are only shown
 for admins.
@@ -47,11 +47,11 @@ ssh-keygen -t ed25519 -f ~/.ssh/ainari_key
 Go to **Security > Public Keys**, click **+**, enter a name and paste the content of the file
 `~/.ssh/ainari_key.pub` in its one-line format:
 
-![Upload public key](img/public_key_upload.jpg)
+[![Upload public key](img/public_key_upload.jpg)](img/public_key_upload.jpg)
 
 The new key is listed together with its fingerprint:
 
-![Public keys](img/public_key_overview.jpg)
+[![Public keys](img/public_key_overview.jpg)](img/public_key_overview.jpg)
 
 ### 2. Upload an image
 
@@ -63,7 +63,7 @@ wget https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.i
 
 Go to **Storage > Image**, click **+**, enter a name and select the downloaded file:
 
-![Upload image](img/image_upload.jpg)
+[![Upload image](img/image_upload.jpg)](img/image_upload.jpg)
 
 The image is stored encrypted. By default a new secret is generated for it. To encrypt it with an
 already existing secret of **Security > Secrets** instead, select it in the **Secret**-dropdown.
@@ -72,16 +72,16 @@ The upload takes a while, depending on the size of the image. A progress-bar sho
 of the file and afterwards, that ryokan encrypts and stores the image. **Cancel** aborts the upload.
 Afterwards the image is listed:
 
-![Images](img/image_overview.jpg)
+[![Images](img/image_overview.jpg)](img/image_overview.jpg)
 
 ### 3. Create a network
 
 Go to **Network > Networks**, click **+** and enter a name and the subnet of the network in
 CIDR-notation. The first address of the subnet is the gateway of the virtual machines.
 
-![Create network](img/network_create.jpg)
+[![Create network](img/network_create.jpg)](img/network_create.jpg)
 
-![Networks](img/network_overview.jpg)
+[![Networks](img/network_overview.jpg)](img/network_overview.jpg)
 
 ### 4. Create the virtual machine
 
@@ -89,7 +89,7 @@ Go to **Workload > Virtual Machines** and click **+**. Enter a name and the disk
 select the vm-type, which defines the number of cores and the memory of the virtual machine, and
 select the network, the image and the public key of the previous steps:
 
-![Create virtual machine](img/virtual_machine_create.jpg)
+[![Create virtual machine](img/virtual_machine_create.jpg)](img/virtual_machine_create.jpg)
 
 With **Isolated host** the virtual machine is only placed on a host, which an admin isolated for
 single projects (see [Admin](#admin)). Otherwise it is only placed on hosts, which are not isolated.
@@ -97,7 +97,7 @@ single projects (see [Admin](#admin)). Otherwise it is only placed on hosts, whi
 The virtual machine is created in the background. Its state is shown in the column **State** and
 changes to `RUNNING`, as soon as it is booted:
 
-![Virtual machines](img/virtual_machine_overview.jpg)
+[![Virtual machines](img/virtual_machine_overview.jpg)](img/virtual_machine_overview.jpg)
 
 ### 5. Add a floating IP
 
@@ -105,11 +105,11 @@ The floating IP makes the virtual machine reachable from the network outside of 
 **Network > Floating IPs**, click **+**, enter a name and select the virtual machine, to attach the
 floating IP directly. Without an address, a free one is selected.
 
-![Create floating IP](img/floating_ip_create.jpg)
+[![Create floating IP](img/floating_ip_create.jpg)](img/floating_ip_create.jpg)
 
 The floating IP is listed with the internal IP of the virtual machine, which it is attached to:
 
-![Floating IPs](img/floating_ip_overview.jpg)
+[![Floating IPs](img/floating_ip_overview.jpg)](img/floating_ip_overview.jpg)
 
 ### 6. Log in over ssh
 
@@ -139,9 +139,9 @@ The menu in the column **Actions** provides:
 | Migrate               | move the virtual machine to another host, only visible for admins     |
 | Delete                | delete the virtual machine                                            |
 
-![Actions of a virtual machine](img/virtual_machine_actions.jpg)
+[![Actions of a virtual machine](img/virtual_machine_actions.jpg)](img/virtual_machine_actions.jpg)
 
-![Info of a virtual machine](img/virtual_machine_info.jpg)
+[![Info of a virtual machine](img/virtual_machine_info.jpg)](img/virtual_machine_info.jpg)
 
 !!! info
 
@@ -166,7 +166,7 @@ migration runs in the background, while the state of the virtual machine is `MIG
 start, stop and snapshots, with their state and time-stamps. **Info** shows the messages of a task,
 for example the reason of an error, and **Abort** stops a task, which is still waiting.
 
-![Tasks](img/task_overview.jpg)
+[![Tasks](img/task_overview.jpg)](img/task_overview.jpg)
 
 ### Network filter
 
@@ -183,9 +183,9 @@ range like `10.0.0.5-10.0.0.9`, a port a single port like `22` or a range like `
 **Remove** in the menu of a rule deletes it again. The **←** button leads back to the virtual
 machines.
 
-![Network filter](img/network_filter_overview.jpg)
+[![Network filter](img/network_filter_overview.jpg)](img/network_filter_overview.jpg)
 
-![Add filter rules](img/network_filter_add.jpg)
+[![Add filter rules](img/network_filter_add.jpg)](img/network_filter_add.jpg)
 
 !!! info
 
@@ -238,7 +238,7 @@ machine, **Detach** releases it again, so it can be attached to another virtual 
 is created automatically, which is used to encrypt the file of the image, unless an existing secret
 was selected at the upload or at the creation of the snapshot.
 
-![Secrets](img/secret_overview.jpg)
+[![Secrets](img/secret_overview.jpg)](img/secret_overview.jpg)
 
 ### Public Keys
 
@@ -252,7 +252,7 @@ These pages are only available for admins.
 - **User** lists all users. **+** creates a new user with ID, name and passphrase, optional as
     admin. **Info** shows the details of a user and **Delete** removes the user.
 
-    ![Users](img/admin_user.jpg)
+    [![Users](img/admin_user.jpg)](img/admin_user.jpg)
 
 - **Project** lists the projects. **+** creates a new project with ID and name. The column
     **Lock** shows the reason, while a project is locked by a backup, a restore or an admin.
@@ -261,20 +261,20 @@ These pages are only available for admins.
     the whole project, also if the admin is not assigned to it, and **Restore backup** selects one
     of the backups of the project and restores it into the project, after its plan was shown.
 
-    ![Projects](img/admin_project.jpg)
+    [![Projects](img/admin_project.jpg)](img/admin_project.jpg)
 
 - **Quota** lists the maximum number of resources of each project. **Change Quota** sets new limits.
 
-    ![Quotas](img/admin_quota.jpg)
+    [![Quotas](img/admin_quota.jpg)](img/admin_quota.jpg)
 
 - **VM Types** lists the vm-types with their number of cores and their memory in MiB. **+**
     creates a new vm-type with name, number of cores and memory. **Info** shows the details of a
     vm-type, **Edit** changes its values and **Delete** removes it. Every user can select the
     vm-types, when creating a virtual machine.
 
-    ![VM types](img/admin_vm_type.jpg)
+    [![VM types](img/admin_vm_type.jpg)](img/admin_vm_type.jpg)
 
-    ![Create vm-type](img/admin_vm_type_create.jpg)
+    [![Create vm-type](img/admin_vm_type_create.jpg)](img/admin_vm_type_create.jpg)
 
 - **Host** lists the hosts with their usage in the tab **SAKURA**, which run the virtual machines,
     and the hosts in the tab **ONSEN**, which store the images. **Delete** removes a host.
@@ -285,9 +285,9 @@ These pages are only available for admins.
     machine is deleted. **Set host isolation** changes the flag, which is only possible, while no
     virtual machine runs on the host.
 
-    ![Hosts](img/admin_host.jpg)
+    [![Hosts](img/admin_host.jpg)](img/admin_host.jpg)
 
-    ![Set host isolation](img/admin_host_isolation.jpg)
+    [![Set host isolation](img/admin_host_isolation.jpg)](img/admin_host_isolation.jpg)
 
     The column **Backup Target** shows, if an onsen-host only stores the backups of isekai. **Set
     backup target** changes the flag, which is only possible, while the host stores no images or
@@ -299,12 +299,12 @@ These pages are only available for admins.
     which no user caused, have no user and project. Long messages are shortened in the table,
     **Info** shows the complete entry.
 
-    ![Error log](img/admin_error_log.jpg)
+    [![Error log](img/admin_error_log.jpg)](img/admin_error_log.jpg)
 
-    ![Error log entry](img/admin_error_log_info.jpg)
+    [![Error log entry](img/admin_error_log_info.jpg)](img/admin_error_log_info.jpg)
 
 - **Audit Log** lists the newest 100 requests against the api of all components, with the newest
     first. Every entry contains the component and its host, the user and project of the request,
     the type of the request and the called endpoint. **Info** shows the complete entry.
 
-    ![Audit log](img/admin_audit_log.jpg)
+    [![Audit log](img/admin_audit_log.jpg)](img/admin_audit_log.jpg)

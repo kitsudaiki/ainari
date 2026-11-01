@@ -15,7 +15,7 @@ Report](https://rust-reportcard.xuri.me/badge/github.com/kitsudaiki/ainari?style
 Scorecard](https://img.shields.io/ossf-scorecard/github.com/kitsudaiki/ainari?branch=develop&style=flat-square&label=OpenSSF-Scorecard)](https://scorecard.dev/viewer/?uri=github.com/kitsudaiki/ainari)
 
 <p align="center">
-  <img src="docs/img/ainari_logo.jpg" alt="Ainari logo" width="500" height="500" />
+  <img src="docs/img/ainari_logo.png" alt="Ainari logo" width="500" height="500" />
 </p>
 
 ## **IMPORTANT**: This project is still a prototype and NOT ready for any productive usage
@@ -29,7 +29,7 @@ See more in the [About-section](https://docs.ainari.cloud/home/about/) of the do
 
 - [Features](https://docs.ainari.cloud/home/features/)
 
-- [Architecture Overview](https://docs.ainari.cloud/home/overview/)
+- [Architecture Overview](https://docs.ainari.cloud/home/architecture_overview/)
 
 - [Security Concepts](https://docs.ainari.cloud/home/security_concpets/)
 
@@ -62,6 +62,16 @@ on `develop`-branch and for each tag.
 - [Docker-images](https://hub.docker.com/u/kitsudaiki)
 
 - [client and SDK](https://files.ainari.cloud/)
+
+## Dashboard
+
+See: [Dashboard documentation](https://docs.ainari.cloud/user/dashboard/dashboard/)
+
+<p align="center">
+  <a href="docs/user/dashboard/img/overview.jpg">
+    <img src="docs/user/dashboard/img/overview.jpg" alt="Overview of the Ainari dashboard" />
+  </a>
+</p>
 
 ## Vulnerability-scan
 

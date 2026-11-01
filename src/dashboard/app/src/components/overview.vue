@@ -210,9 +210,18 @@ onMounted(() => {
     width: auto;
     margin: 1rem 0 0.5rem 0;
 }
-/* Columns 2 through n-1 share remaining space equally */
-th:not(:first-child):not(:last-child),
-td:not(:first-child):not(:last-child) {
-    width: 30%;
+/* uuid and name only take the width of their content, so the address gets the remaining
+   space and is shown in a single line */
+.overview-table th:nth-child(1),
+.overview-table td:nth-child(1),
+.overview-table th:nth-child(2),
+.overview-table td:nth-child(2) {
+    width: 1%;
+    white-space: nowrap;
+    padding-right: 3rem;
+}
+
+.overview-table td:nth-child(3) {
+    white-space: nowrap;
 }
 </style>
