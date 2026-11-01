@@ -5,7 +5,7 @@
 # Ainari
 
 <p align="center">
-  <img src="img/ainari_logo.jpg" alt="Ainari logo" width="500" height="500" />
+  <img src="img/ainari_logo.png" alt="Ainari logo" width="500" height="500" />
 </p>
 
 Ainari is a secure and easy to use, deploy and develop IaaS stack to manage virtual machines.

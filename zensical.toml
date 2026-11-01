@@ -20,7 +20,7 @@ nav = [
     "home/architecture_overview.md",
     "home/features.md",
     "home/security_concpets.md",
-    "home/design_decisions.md",
+    # "home/design_decisions.md",
     "home/license.md",
     "home/CHANGELOG.md",
   ] },
@@ -104,7 +104,7 @@ nav = [
 
 [project.theme]
 language = "en"
-logo = "img/ainari_logo_mini.jpg"
+logo = "img/ainari_logo_mini.png"
 features = [
   "navigation.tabs",
   # "navigation.sections",

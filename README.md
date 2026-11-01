@@ -15,7 +15,7 @@ Report](https://rust-reportcard.xuri.me/badge/github.com/kitsudaiki/ainari?style
 Scorecard](https://img.shields.io/ossf-scorecard/github.com/kitsudaiki/ainari?branch=develop&style=flat-square&label=OpenSSF-Scorecard)](https://scorecard.dev/viewer/?uri=github.com/kitsudaiki/ainari)
 
 <p align="center">
-  <img src="docs/img/ainari_logo.jpg" alt="Ainari logo" width="500" height="500" />
+  <img src="docs/img/ainari_logo.png" alt="Ainari logo" width="500" height="500" />
 </p>
 
 ## **IMPORTANT**: This project is still a prototype and NOT ready for any productive usage
