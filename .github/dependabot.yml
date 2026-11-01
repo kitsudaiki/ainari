@@ -26,7 +26,9 @@ updates:
         versions: '> 3.20.3'
 
   - package-ecosystem: gomod
-    directory: "/src/cli/ainarictl/"
+    directories:
+      - "/src/cli/ainarictl/"
+      - "/deploy/operator/"
     schedule:
       interval: daily
       time: "12:00"
