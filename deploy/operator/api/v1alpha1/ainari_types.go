@@ -919,7 +919,3 @@ type AinariList struct {
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []Ainari `json:"items"`
 }
-
-func init() {
-	SchemeBuilder.Register(&Ainari{}, &AinariList{})
-}

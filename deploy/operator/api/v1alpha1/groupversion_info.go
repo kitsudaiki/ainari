@@ -18,8 +18,9 @@
 package v1alpha1
 
 import (
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"sigs.k8s.io/controller-runtime/pkg/scheme"
 )
 
 var (
@@ -27,8 +28,15 @@ var (
 	GroupVersion = schema.GroupVersion{Group: "ainari.cloud", Version: "v1alpha1"}
 
 	// SchemeBuilder registers the types of the API.
-	SchemeBuilder = &scheme.Builder{GroupVersion: GroupVersion}
+	SchemeBuilder = runtime.NewSchemeBuilder(addKnownTypes)
 
 	// AddToScheme adds the types of the API to a scheme.
 	AddToScheme = SchemeBuilder.AddToScheme
 )
+
+// addKnownTypes registers the types of the API in the given scheme.
+func addKnownTypes(scheme *runtime.Scheme) error {
+	scheme.AddKnownTypes(GroupVersion, &Ainari{}, &AinariList{})
+	metav1.AddToGroupVersion(scheme, GroupVersion)
+	return nil
+}
