@@ -409,9 +409,21 @@ in
       packages = [ pkgs.zensical ];
     };
 
-    # generates the SBOMs of the runtime-environments (scripts/generate_sbom.sh)
+    # generates the SBOMs of the docker-images (scripts/generate_sbom.sh): sbomnix for the
+    # runtime-environments, cargo-cyclonedx for the rust-binaries, syft for the operator and the
+    # dashboard and cyclonedx-cli to merge them. cargo-cyclonedx needs cargo and rustc for the
+    # metadata of the workspace, and go builds the operator, which syft scans.
     sbom = pkgs.mkShell {
-      packages = [ pkgs.sbomnix ];
+      packages = [
+        pkgs.sbomnix
+        pkgs.cargo
+        pkgs.rustc
+        pkgs.cargo-cyclonedx
+        pkgs.syft
+        pkgs.cyclonedx-cli
+        pkgs.jq
+        go
+      ];
     };
   };
 }

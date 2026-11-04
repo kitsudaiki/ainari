@@ -1099,3 +1099,62 @@ jobs:
         name: Upload pip-package
         run: |
           scp /tmp/ainari_python_build_result/ainari_sdk-$PYTHON_PACKAGE_VERSION-py2.py3-none-any.whl ${{ secrets.SHARE_SSH_ACCESS }}:~/ainari_file_share/$BRANCH_NAME/python-package/
+
+
+
+  sbom:
+    name: "Generate SBOM"
+    needs: [ docker_merge ]
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/develop' || github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') }}
+    strategy:
+      fail-fast: false
+      matrix:
+        image: [ miko, omamori, izakaya, omikuji, isekai, hanami, ryokan, onsen, sakura, torii, dashboard, docs, operator ]
+        # every platform on its own runner, so the container of nix runs without the emulation of QEMU
+        platform:
+          - { name: "linux/amd64", runner: "ubuntu-24.04"     }
+          - { name: "linux/arm64", runner: "ubuntu-24.04-arm" }
+    runs-on: ${{ matrix.platform.runner }}
+    steps:
+      -
+        name: Prepare
+        run: |
+          platform=${{ matrix.platform.name }}
+          echo "PLATFORM_PAIR=${platform//\//-}" >> $GITHUB_ENV
+      -
+        name: Set branch name as environment variable
+        run: |
+          if [[ ${GITHUB_REF#} == refs/tags/* ]]; then \
+              echo "BRANCH_NAME=$(echo ${GITHUB_REF#refs/tags/} | sed 's/^v//')" | sed 's#/#\-#' >> $GITHUB_ENV; \
+          else \
+              echo "BRANCH_NAME=$(echo ${GITHUB_REF#refs/heads/})" | sed 's#/#\-#' >> $GITHUB_ENV; \
+          fi
+      -
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      -
+        name: Generate SBOM
+        run: ./scripts/generate_sbom.sh --platform ${{ matrix.platform.name }} ${{ matrix.image }}
+      -
+        name: Upload SBOM
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: sbom-${{ matrix.image }}-${{ env.PLATFORM_PAIR }}
+          path: temporary_files/sbom/${{ env.PLATFORM_PAIR }}/
+          if-no-files-found: error
+      -
+        name: Prepare ssh-keys
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SHARE_SSH_PUBLIC_KEY }}" > ~/.ssh/id_rsa.pub
+          echo "${{ secrets.SHARE_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          echo "${{ secrets.SHARE_SSH_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/id_rsa
+      -
+        name: Upload SBOM to the file-share
+        run: |
+          # every image gets its own directory, because every job writes its own versions.csv
+          target="ainari_file_share/$BRANCH_NAME/sbom/$PLATFORM_PAIR/${{ matrix.image }}"
+          ssh ${{ secrets.SHARE_SSH_ACCESS }} "mkdir -p ~/$target"
+          scp -r temporary_files/sbom/$PLATFORM_PAIR/. ${{ secrets.SHARE_SSH_ACCESS }}:~/$target/

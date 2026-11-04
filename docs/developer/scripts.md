@@ -230,15 +230,23 @@ ZARF_BINARY=/usr/local/bin/zarf ./scripts/create_zarf_package.sh
 
 ### Purpose
 
-Generates an SBOM of every docker-image, which is built with nix, with
-[sbomnix](https://github.com/tiiuae/sbomnix). It lists all packages of the runtime-environment of
-the image, which are exactly the packages within the image, with their versions, licenses,
-patches, CPEs and purls. See [Packages of the docker-images](docker_images.md) for how the packages
-of the images are pinned.
+Generates an SBOM of every docker-image, which is built with nix. Every part of an image is
+described by the tool, which knows it best, and the parts are merged hierarchically with
+[cyclonedx-cli](https://github.com/CycloneDX/cyclonedx-cli) into one SBOM per image:
 
-The SBOMs are generated out of the flake of `dockerfiles/nix_based/nix`, so the images don't have
-to be built before. Nix doesn't have to be installed on the host, the script runs within the same
-image of nix like the Dockerfiles, and sbomnix itself is pinned by the flake as well.
+| Part of the image | Tool | Source |
+| --- | --- | --- |
+| nix runtime-environment | [sbomnix](https://github.com/tiiuae/sbomnix) | flake of `dockerfiles/nix_based/nix`, with versions, licenses, patches, CPEs and purls |
+| rust-binaries (incl. the eBPF-programs of the torii) | [cargo-cyclonedx](https://github.com/CycloneDX/cyclonedx-rust-cargo) | `Cargo.lock`, for the target of the platform |
+| kubernetes-operator | [syft](https://github.com/anchore/syft) | go build-info of the binary, which the script builds like `Dockerfile_operator` |
+| dashboard | syft | `src/dashboard/app/package-lock.json` without the dev-dependencies |
+
+See [Packages of the docker-images](docker_images.md) for how the packages of the images are
+pinned.
+
+None of the images has to be built before. Nix doesn't have to be installed on the host, the script
+runs within the same image of nix like the Dockerfiles, and all tools are pinned by the flake as
+well.
 
 ### Usage
 
@@ -252,16 +260,17 @@ The result is written to `temporary_files/sbom/<PLATFORM>/`:
 
 | File | Content |
 | --- | --- |
-| `<IMAGE>.cdx.json` | SBOM in the format CycloneDX |
-| `<IMAGE>.spdx.json` | SBOM in the format SPDX |
-| `<IMAGE>.csv` | all fields of sbomnix as table |
-| `versions.csv` | overview of all images with the columns `image`, `package` and `version` |
+| `<IMAGE>.cdx.json` | SBOM of the whole image in the format CycloneDX, with every part as component |
+| `<IMAGE>.spdx.json` | SBOM of the whole image in the format SPDX, converted out of the CycloneDX. It contains all packages, but no dependency-graph. |
+| `versions.csv` | overview of all images with the columns `image`, `ecosystem`, `package` and `version` |
+| `parts/` | the SBOMs of the single tools and the CSV with all fields of sbomnix |
 
-The nix-store of the container is kept in the docker-volume `ainari-sbom-nix`, so the packages are
-only downloaded and built once. It is removed with:
+The nix-store of the container is kept in the docker-volume `ainari-sbom-nix` and the downloaded
+crates and go-modules in `ainari-sbom-cache`, so they are only downloaded once. They are removed
+with:
 
 ```bash
-docker volume rm ainari-sbom-nix
+docker volume rm ainari-sbom-nix ainari-sbom-cache
 ```
 
 ### Limitations
