@@ -61,11 +61,13 @@ The rest of this page describes the nix-based variant.
 
 ## SBOM of the images
 
-`scripts/generate_sbom.sh` generates an SBOM of every image with
-[sbomnix](https://github.com/tiiuae/sbomnix), which is pinned by the flake as well.
+`scripts/generate_sbom.sh` generates an SBOM of every image, see
+[generate_sbom.sh](scripts.md#generate_sbomsh).
 
-- It lists all packages of the runtime-environment, which are exactly the packages within the
-  image, with their versions, licenses, patches, CPEs and purls.
+- The nix runtime-environment is described by [sbomnix](https://github.com/tiiuae/sbomnix), with
+  versions, licenses, patches, CPEs and purls, the rust-binaries by cargo-cyclonedx and the
+  operator and the dashboard by syft. The parts are merged into one SBOM per image.
+- All tools are pinned by the flake as well.
 - The images don't have to be built before and nix doesn't have to be installed on the host.
 
 ```bash
@@ -78,11 +80,13 @@ The result is written to `temporary_files/sbom/<PLATFORM>/`:
 
 - `<IMAGE>.cdx.json` (CycloneDX)
 - `<IMAGE>.spdx.json` (SPDX)
-- `<IMAGE>.csv`
 - `versions.csv` with the packages and versions of all images
+- `parts/` with the SBOMs of the single tools
 
-The compiled rust-crates, the npm-packages and the go-modules are not part of these SBOMs, they are
-pinned by `Cargo.lock`, `package-lock.json` and `deploy/operator/go.sum`.
+The pipeline (`.github/workflows/build_test.yml`, job `sbom`) generates the SBOMs of all images for
+both platforms after the images are pushed. They are uploaded as artifacts
+`sbom-<IMAGE>-<PLATFORM>` of the workflow-run and to the file-share into
+`ainari_file_share/<BRANCH>/sbom/<PLATFORM>/<IMAGE>/`.
 
 ## Update the packages
 

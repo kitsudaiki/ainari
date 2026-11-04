@@ -100,7 +100,7 @@ fn program_floating_ip(
     };
     if ebpf_interf
         .fip_dnat_map
-        .insert(u32::from(floating_ip), FipTargetPod(target), 0)
+        .insert(&u32::from(floating_ip), &FipTargetPod(target), 0)
         .is_err()
     {
         ainari_api::report_internal_error!(None, "eBPF Map error (DNAT)");
@@ -110,7 +110,7 @@ fn program_floating_ip(
     let snat_key = RouteKeyPod(RouteKey::new(vni, u32::from(internal_ip)));
     if ebpf_interf
         .fip_snat_map
-        .insert(snat_key, u32::from(floating_ip), 0)
+        .insert(&snat_key, &u32::from(floating_ip), 0)
         .is_err()
     {
         ainari_api::report_internal_error!(None, "eBPF Map error (SNAT)");

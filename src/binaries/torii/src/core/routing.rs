@@ -125,7 +125,7 @@ pub async fn add_route(
     ebpf_interf.routes.insert(route_uuid, route.clone());
     let result = ebpf_interf
         .route_map
-        .insert(route_key, RouteTargetPod(target), 0)
+        .insert(&route_key, &RouteTargetPod(target), 0)
         .map_err(|e| {
             ainari_api::report_internal_error!(None, "eBPF Map error: {e}");
             ErrorResponse::InternalError("Internal Error".to_string())
@@ -159,7 +159,10 @@ fn undo_add_route(
         Some(previous_target) => {
             if let Some(route) = ebpf_interf.routes.remove(route_uuid) {
                 let route_key = RouteKeyPod(RouteKey::new(route.vni, u32::from(route.dest_ip)));
-                if let Err(e) = ebpf_interf.route_map.insert(route_key, previous_target, 0) {
+                if let Err(e) = ebpf_interf
+                    .route_map
+                    .insert(&route_key, &previous_target, 0)
+                {
                     log::error!(
                         "Failed to restore the previous target of {}: {e}",
                         route.dest_ip
@@ -282,7 +285,7 @@ pub async fn update_route(
         if let Some(overwritten_target) = overwritten_target
             && let Err(map_err) = ebpf_interf
                 .route_map
-                .insert(updated_key, overwritten_target, 0)
+                .insert(&updated_key, &overwritten_target, 0)
         {
             log::error!("Failed to restore the target of {}: {map_err}", req.dest_ip);
         }
@@ -313,7 +316,10 @@ fn program_route(
 
     // ATOMIC KERNEL UPDATE: overwriting the key redirects the traffic instantly,
     // without a delete/create gap.
-    if let Err(e) = ebpf_interf.route_map.insert(RouteKeyPod(to_key), target, 0) {
+    if let Err(e) = ebpf_interf
+        .route_map
+        .insert(&RouteKeyPod(to_key), &target, 0)
+    {
         ainari_api::report_internal_error!(None, "eBPF Map error on update: {e}");
         return Err(ErrorResponse::InternalError("Internal Error".to_string()));
     }

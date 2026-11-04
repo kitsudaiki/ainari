@@ -18,6 +18,7 @@
 
 use aya::programs::tc::{TcAttachType, qdisc_add_clsact};
 use aya::programs::{SchedClassifier, Xdp, XdpMode};
+use std::ffi::CString;
 use std::net::Ipv4Addr;
 
 use crate::config::CONFIG;
@@ -98,7 +99,7 @@ pub async fn configure_interface(
         let previous_cfg = ebpf_interf.iface_map.get(&ifindex, 0).ok();
         let result = ebpf_interf
             .iface_map
-            .insert(ifindex, IfaceConfigPod(cfg), 0)
+            .insert(&ifindex, &IfaceConfigPod(cfg), 0)
             .map_err(|e| {
                 ainari_api::report_internal_error!(None, "eBPF Map error (interface): {e}");
                 ErrorResponse::InternalError("Internal Error".to_string())
@@ -107,7 +108,7 @@ pub async fn configure_interface(
 
         if result.is_err() {
             let reverted = match previous_cfg {
-                Some(previous_cfg) => ebpf_interf.iface_map.insert(ifindex, previous_cfg, 0),
+                Some(previous_cfg) => ebpf_interf.iface_map.insert(&ifindex, &previous_cfg, 0),
                 None => ebpf_interf.iface_map.remove(&ifindex),
             };
             if let Err(e) = reverted {
@@ -285,7 +286,7 @@ pub async fn register_tap(req: &TapReq) -> Result<(), ErrorResponse> {
         };
         if ebpf_interf
             .arp_proxy_map
-            .insert(ifindex, ArpProxyPod(proxy), 0)
+            .insert(&ifindex, &ArpProxyPod(proxy), 0)
             .is_err()
         {
             ainari_api::report_internal_error!(None, "eBPF Map error (ARP proxy)");
@@ -300,7 +301,7 @@ pub async fn register_tap(req: &TapReq) -> Result<(), ErrorResponse> {
         };
         if ebpf_interf
             .iface_map
-            .insert(ifindex, IfaceConfigPod(cfg), 0)
+            .insert(&ifindex, &IfaceConfigPod(cfg), 0)
             .is_err()
         {
             ainari_api::report_internal_error!(None, "eBPF Map error (interface)");
@@ -333,7 +334,14 @@ pub async fn register_tap(req: &TapReq) -> Result<(), ErrorResponse> {
             let overlay_prog: Result<&mut Xdp, _> = program.try_into();
 
             if let Ok(overlay) = overlay_prog {
-                match overlay.attach(name, XdpMode::Skb) {
+                let attached = CString::new(name.as_str())
+                    .map_err(|e| e.to_string())
+                    .and_then(|iface| {
+                        overlay
+                            .attach(&iface, XdpMode::Skb)
+                            .map_err(|e| e.to_string())
+                    });
+                match attached {
                     Err(e) => println!(
                         "Note: eBPF attach on {} failed (maybe already attached?): {}",
                         name, e
@@ -448,7 +456,8 @@ fn attach_tap_egress(
     ebpf_interf: &mut EBPFInterface,
     name: &str,
 ) -> Result<aya::programs::tc::SchedClassifierLinkId, String> {
-    let _ = qdisc_add_clsact(name);
+    let iface = CString::new(name).map_err(|e| e.to_string())?;
+    let _ = qdisc_add_clsact(&iface);
 
     let program = ebpf_interf
         .bpf
@@ -458,7 +467,7 @@ fn attach_tap_egress(
         .try_into()
         .map_err(|e| format!("tap_egress is no TC program: {e}"))?;
     tap_egress
-        .attach(name, TcAttachType::Egress)
+        .attach(&iface, TcAttachType::Egress)
         .map_err(|e| e.to_string())
 }
 
