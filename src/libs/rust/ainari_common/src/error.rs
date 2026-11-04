@@ -76,6 +76,17 @@ impl AinariError {
     pub fn internal(message: impl Into<String>) -> Self {
         AinariError::InternalError(InternalErrorDetails::new(message))
     }
+
+    /// Message of the error, which can be shown to the user.
+    ///
+    /// The details of an internal error are only allowed in the error-log, so they are replaced
+    /// by a generic message. The messages of all other errors are meant for the user.
+    pub fn user_message(&self) -> String {
+        match self {
+            AinariError::InternalError(_) => "Internal error".to_string(),
+            _ => self.to_string(),
+        }
+    }
 }
 
 impl fmt::Display for AinariError {
@@ -132,6 +143,16 @@ mod tests {
         let details = details.clone().with_ids("user-1", "project-1");
         assert_eq!(details.user_id, "user-1");
         assert_eq!(details.project_id, "project-1");
+    }
+
+    #[test]
+    fn test_user_message() {
+        // the details of an internal error must not reach the user
+        let error = AinariError::internal("write error: No space left on device (os error 28)");
+        assert_eq!(error.user_message(), "Internal error");
+
+        let error = AinariError::NotFound("VM 1 doesn't exist".to_string());
+        assert_eq!(error.user_message(), "Not found: VM 1 doesn't exist");
     }
 
     #[test]

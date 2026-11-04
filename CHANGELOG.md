@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Added SBOM-creation for npm packages of the dashboard and go packages of the
+  kubernetes operator too
+- SBOM is now create in the CI and pushed to the file-share
+
+### Fixed
+
+- internal error-messages of tasks and jobs were written into the task messages, 
+  which was wrong, because internal error-messages are only allowed to be 
+  pushed into the error-log, but the user is never alloed to see them
+- fixed backup conflict while create project-backup for multiple VMs of the same 
+  project within the same host
+
 ## v0.23.0
 
 ### BREAKING-CHANGES

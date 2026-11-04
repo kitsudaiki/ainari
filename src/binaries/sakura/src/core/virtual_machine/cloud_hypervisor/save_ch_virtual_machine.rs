@@ -227,11 +227,12 @@ pub async fn save_backup_disk(
     .await?;
 
     log::info!("Start disk of VM {uuid} for backup {backup_uuid}");
-    // the temp-directory is named after the backup, so two backups of the same virtual_machine
-    // don't share it
+    // the temp-directory gets a new name for every disk. A backup contains all virtual_machines of
+    // the project, which are saved in parallel and can run on the same host, so neither the uuid
+    // of the backup nor the one of the virtual_machine is unique on its own.
     save_ch_virtual_machine(
         uuid,
-        backup_uuid,
+        &Uuid::new_v4(),
         secret_uuid,
         context,
         async |local_path: &str, _: &FileInfo| {

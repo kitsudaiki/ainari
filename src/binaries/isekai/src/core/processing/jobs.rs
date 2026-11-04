@@ -98,6 +98,8 @@ pub async fn process_job(job: Job) {
         }
         Err(e) => {
             let message = e.to_string();
+            // the messages are returned by the REST-API, so they must not contain internal details
+            let user_message = e.user_message();
             match e {
                 // the job is processed in the background, so its error is never converted into a
                 // response and has to be reported here
@@ -115,7 +117,7 @@ pub async fn process_job(job: Job) {
                 }
                 _ => log::error!("Job {} ({}) failed: {message}", job.uuid, job.job_type()),
             }
-            let _ = job_table::add_message_to_job(&job.uuid, &message);
+            let _ = job_table::add_message_to_job(&job.uuid, &user_message);
             let _ = job_table::update_job_state(&job.uuid, JobState::Error);
         }
     }
