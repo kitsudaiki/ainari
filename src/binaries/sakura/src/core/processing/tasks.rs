@@ -263,6 +263,8 @@ pub async fn process_task(task: &mut Task) -> Result<(), AinariError> {
         }
         Err(e) => {
             let message = e.to_string();
+            // the messages are returned by the REST-API, so they must not contain internal details
+            let user_message = e.user_message();
             match e {
                 // the task is processed in the background, so its error is never converted into
                 // a response and has to be reported here
@@ -284,7 +286,7 @@ pub async fn process_task(task: &mut Task) -> Result<(), AinariError> {
                     task.description
                 ),
             }
-            let _ = task_table::add_message_to_task(&task.uuid, &message);
+            let _ = task_table::add_message_to_task(&task.uuid, &user_message);
             let _ = task_table::update_task_state(&task.uuid, &TaskState::Error);
         }
     }
