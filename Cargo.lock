@@ -334,7 +334,7 @@ dependencies = [
 
 [[package]]
 name = "ainari_api"
-version = "0.22.0"
+version = "0.23.0"
 dependencies = [
  "actix-rt",
  "actix-web",
@@ -362,7 +362,7 @@ dependencies = [
 
 [[package]]
 name = "ainari_api_structs"
-version = "0.22.0"
+version = "0.23.0"
 dependencies = [
  "actix-rt",
  "actix-web",
@@ -387,7 +387,7 @@ dependencies = [
 
 [[package]]
 name = "ainari_clients"
-version = "0.22.0"
+version = "0.23.0"
 dependencies = [
  "actix-rt",
  "actix-web",
@@ -416,7 +416,7 @@ dependencies = [
 
 [[package]]
 name = "ainari_common"
-version = "0.22.0"
+version = "0.23.0"
 dependencies = [
  "aes-gcm 0.11.1",
  "apistos-schemars",
@@ -443,7 +443,7 @@ dependencies = [
 
 [[package]]
 name = "ainari_files"
-version = "0.22.0"
+version = "0.23.0"
 dependencies = [
  "ainari_common",
  "base64 0.23.1",
@@ -457,7 +457,7 @@ dependencies = [
 
 [[package]]
 name = "ainari_hardware"
-version = "0.22.0"
+version = "0.23.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -2393,7 +2393,7 @@ dependencies = [
 
 [[package]]
 name = "hanami"
-version = "0.22.0"
+version = "0.23.0"
 dependencies = [
  "actix-multipart",
  "actix-rt",
@@ -2927,7 +2927,7 @@ checksum = "a6cb138bb79a146c1bd460005623e142ef0181e3d0219cb493e02f7d08a35695"
 
 [[package]]
 name = "isekai"
-version = "0.22.0"
+version = "0.23.0"
 dependencies = [
  "actix-rt",
  "actix-web",
@@ -2985,7 +2985,7 @@ checksum = "8f42a60cbdf9a97f5d2305f08a87dc4e09308d1276d28c869c684d7777685682"
 
 [[package]]
 name = "izakaya"
-version = "0.22.0"
+version = "0.23.0"
 dependencies = [
  "actix-rt",
  "actix-web",
@@ -3461,7 +3461,7 @@ dependencies = [
 
 [[package]]
 name = "miko"
-version = "0.22.0"
+version = "0.23.0"
 dependencies = [
  "actix-multipart",
  "actix-rt",
@@ -3614,7 +3614,7 @@ dependencies = [
 
 [[package]]
 name = "neko"
-version = "0.22.0"
+version = "0.23.0"
 dependencies = [
  "env_logger",
  "log",
@@ -3815,7 +3815,7 @@ dependencies = [
 
 [[package]]
 name = "omamori"
-version = "0.22.0"
+version = "0.23.0"
 dependencies = [
  "actix-multipart",
  "actix-rt",
@@ -3853,7 +3853,7 @@ dependencies = [
 
 [[package]]
 name = "omikuji"
-version = "0.22.0"
+version = "0.23.0"
 dependencies = [
  "actix-rt",
  "actix-web",
@@ -3890,7 +3890,7 @@ checksum = "384b8ab6d37215f3c5301a95a4accb5d64aa607f1fcb26a11b5303878451b4fe"
 
 [[package]]
 name = "onsen"
-version = "0.22.0"
+version = "0.23.0"
 dependencies = [
  "actix-multipart",
  "actix-rt",
@@ -4714,7 +4714,7 @@ checksum = "cf54715a573b99ac80df0bc206da022bcd442c974952c7b9720069370852e21f"
 
 [[package]]
 name = "ryokan"
-version = "0.22.0"
+version = "0.23.0"
 dependencies = [
  "actix-multipart",
  "actix-rt",
@@ -4756,7 +4756,7 @@ checksum = "9774ba4a74de5f7b1c1451ed6cd5285a32eddb5cccb8cc655a4e50009e06477f"
 
 [[package]]
 name = "sakura"
-version = "0.22.0"
+version = "0.23.0"
 dependencies = [
  "actix-multipart",
  "actix-rt",
@@ -5551,7 +5551,7 @@ dependencies = [
 
 [[package]]
 name = "torii"
-version = "0.22.0"
+version = "0.23.0"
 dependencies = [
  "actix-multipart",
  "actix-rt",
@@ -5595,7 +5595,7 @@ dependencies = [
 
 [[package]]
 name = "torii-ebpf"
-version = "0.22.0"
+version = "0.23.0"
 dependencies = [
  "aya-ebpf",
  "aya-log-ebpf",
@@ -5606,7 +5606,7 @@ dependencies = [
 
 [[package]]
 name = "torii_common"
-version = "0.22.0"
+version = "0.23.0"
 dependencies = [
  "aya 0.16.0",
 ]
