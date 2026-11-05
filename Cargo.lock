@@ -874,9 +874,22 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "eace5970943931fea46a8cbdca208a8f6a9e0413d85a5a6c4e168f0b909570bc"
 dependencies = [
  "aya-build",
- "aya-ebpf-bindings",
- "aya-ebpf-cty",
- "aya-ebpf-macros",
+ "aya-ebpf-bindings 0.2.0",
+ "aya-ebpf-cty 0.3.0",
+ "aya-ebpf-macros 0.2.0",
+ "rustversion",
+]
+
+[[package]]
+name = "aya-ebpf"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7998c4bcc24fb07447fe3018679f7ee1402ac9f27771753bb8890fc17ed967f4"
+dependencies = [
+ "aya-build",
+ "aya-ebpf-bindings 0.3.0",
+ "aya-ebpf-cty 0.4.0",
+ "aya-ebpf-macros 0.4.0",
  "rustversion",
 ]
 
@@ -887,7 +900,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf1f19286ebbda6673099b68d049034838f08e4939cef66c998a8d3e62825d76"
 dependencies = [
  "aya-build",
- "aya-ebpf-cty",
+ "aya-ebpf-cty 0.3.0",
+]
+
+[[package]]
+name = "aya-ebpf-bindings"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1f524fa99b4f6a4304d6f69a8f2591a716bfe3d82ca6b21e56561c262b6777a4"
+dependencies = [
+ "aya-build",
+ "aya-ebpf-cty 0.4.0",
 ]
 
 [[package]]
@@ -895,6 +918,15 @@ name = "aya-ebpf-cty"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0884264bc8a51a49fed03df8feada3a21d703cf501dae33c28bdba5d2313ef33"
+dependencies = [
+ "aya-build",
+]
+
+[[package]]
+name = "aya-ebpf-cty"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8b5264d5e8093e23c4ec11bfddf9c5d29adb70bd22d0af684af65dd25616d517"
 dependencies = [
  "aya-build",
 ]
@@ -912,13 +944,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "aya-ebpf-macros"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4d4de6938af16fd321f0f9a9fa2a0ba6777bd2665b7b09d3ab68a40c1e592631"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 3.0.6",
+]
+
+[[package]]
 name = "aya-log"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "476912cd6322ecf481a48f9db82207406a472563875eef014e927800522aac5c"
 dependencies = [
  "aya 0.14.0",
- "aya-log-common",
+ "aya-log-common 0.2.0",
  "log",
  "thiserror",
 ]
@@ -933,36 +976,45 @@ dependencies = [
 ]
 
 [[package]]
-name = "aya-log-ebpf"
-version = "0.2.0"
+name = "aya-log-common"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9d6b48fdc4454a2474f89970d6c6fdd1f9a9da5190d3c824d9341c6666831316"
+checksum = "ab343b69a6419491a44f99d37e1782226f0c59bcf1c26e00e3df537a5f87d676"
 dependencies = [
- "aya-ebpf",
- "aya-log-common",
+ "num_enum",
+]
+
+[[package]]
+name = "aya-log-ebpf"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8effcef81d5ab7f5eff3a967e798040ffbdb91ef5fdcb2b885eb93412a6f5d77"
+dependencies = [
+ "aya-ebpf 0.3.0",
+ "aya-log-common 0.3.0",
  "aya-log-ebpf-macros",
 ]
 
 [[package]]
 name = "aya-log-ebpf-macros"
-version = "0.2.0"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "13a22cc8e903fb5241357d2f48f26afc3fb9dcb7febe54405e94707cf73e5918"
+checksum = "bfe1f6fbd691b3bc4f4dd381d1d5f1cfbac34a542613deb557f9aa2c38eeffd4"
 dependencies = [
- "aya-log-common",
+ "aya-log-common 0.3.0",
  "aya-log-parser",
  "proc-macro2",
  "quote",
- "syn 2.0.119",
+ "syn 3.0.6",
 ]
 
 [[package]]
 name = "aya-log-parser"
-version = "0.2.0"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f52d032162a42a191cd9b4ac35a212848c08b9335d2c9a92eaef8f281792757a"
+checksum = "f69a4f6f99011e722c53c77afecb24dbf02d87d9cd93ae6ef541cbbf814cdcd1"
 dependencies = [
- "aya-log-common",
+ "aya-log-common 0.3.0",
 ]
 
 [[package]]
@@ -5597,7 +5649,7 @@ dependencies = [
 name = "torii-ebpf"
 version = "0.23.0"
 dependencies = [
- "aya-ebpf",
+ "aya-ebpf 0.2.1",
  "aya-log-ebpf",
  "network-types",
  "torii_common",
