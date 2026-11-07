@@ -103,7 +103,7 @@ HOST_REGISTRATION_TIMEOUT = 300
 # others store the images.
 NUMBER_OF_ONSEN_HOSTS = int(os.getenv("AINARI_ONSEN_HOSTS", "2"))
 # address of the onsen, which is preferred as backup-target
-BACKUP_ONSEN_ADDRESS = os.getenv("AINARI_BACKUP_ONSEN_ADDRESS", "http://onsen-backup:50051")
+BACKUP_ONSEN_ADDRESS = os.getenv("AINARI_BACKUP_ONSEN_ADDRESS", "http://onsen-backup:10426")
 
 # passphrase of the backup of the project, which is required again for its restore
 BACKUP_PASSPHRASE = os.getenv("AINARI_BACKUP_PASSPHRASE", "local-stack-backup-passphrase")

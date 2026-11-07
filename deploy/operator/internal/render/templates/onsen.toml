@@ -1,8 +1,11 @@
 debug = {{ .Spec.Global.Debug }}
 log_path = ""
 skip_tls_verification = true
-# @HOSTNAME@ is replaced by the name of the pod, when it starts
-address = "http://@HOSTNAME@.{{ .Service }}.{{ .Namespace }}.svc.cluster.local:50051"
+# Address of the tls-termination of this pod, over which ryokan and sakura reach the internal
+# api. @HOSTNAME@ is replaced by the name of the pod, when it starts.
+address = "https://@HOSTNAME@.{{ .Service }}.{{ .Namespace }}.svc.cluster.local:{{ .Port }}"
+
+{{ api "onsen" }}
 
 [storage]
 location = "/etc/ainari/onsen/"

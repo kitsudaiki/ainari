@@ -342,6 +342,53 @@ func TestRenderUnderlay(t *testing.T) {
 	}
 }
 
+func TestRenderOnsenAPI(t *testing.T) {
+	objects := renderObjects(t, testSpec())
+
+	for _, name := range []string{"onsen", "onsen-backup"} {
+		// every pod is reached over its own tls-termination in front of the internal api
+		config := objects["ConfigMap/"+name+"-config"].(*corev1.ConfigMap).Data["onsen.toml"]
+		for _, wanted := range []string{"internal_port = 10426", "public_port = 11426", `internal_ip = "127.0.0.1"`} {
+			if !strings.Contains(config, wanted) {
+				t.Errorf("'%s' is missing in the config of %s:\n%s", wanted, name, config)
+			}
+		}
+		nginx := objects["ConfigMap/"+name+"-nginx-config"].(*corev1.ConfigMap).Data["internal.conf"]
+		for _, wanted := range []string{"listen 8443 ssl;", "proxy_pass http://127.0.0.1:10426/;", "client_max_body_size 0;", "proxy_buffering off;"} {
+			if !strings.Contains(nginx, wanted) {
+				t.Errorf("'%s' is missing in the nginx-config of %s:\n%s", wanted, name, nginx)
+			}
+		}
+
+		template := objects["StatefulSet/"+name].(*appsv1.StatefulSet).Spec.Template
+		containers := template.Spec.Containers
+		if len(containers) != 2 || containers[1].Name != "tls-termination" {
+			t.Errorf("%s has no tls-termination", name)
+		}
+		if containers[0].ReadinessProbe == nil || containers[0].LivenessProbe == nil {
+			t.Errorf("%s has no probes", name)
+		}
+
+		ports := objects["Service/"+name].(*corev1.Service).Spec.Ports
+		if len(ports) != 1 || ports[0].Port != 8443 {
+			t.Errorf("the headless service of %s has the ports %v", name, ports)
+		}
+
+		// the certificate is valid for the names of all pods, but has no domain of a TLSRoute
+		cert := objects["Certificate/"+name+"-cert"].(*unstructured.Unstructured)
+		dnsNames, _, _ := unstructured.NestedStringSlice(cert.Object, "spec", "dnsNames")
+		if len(dnsNames) != 1 || dnsNames[0] != "*."+name+".test.svc.cluster.local" {
+			t.Errorf("the certificate of %s has the names %v", name, dnsNames)
+		}
+	}
+
+	// the other components keep the limit of the body
+	nginx := objects["ConfigMap/miko-nginx-config"].(*corev1.ConfigMap).Data["internal.conf"]
+	if !strings.Contains(nginx, "client_max_body_size 1G;") || strings.Contains(nginx, "proxy_buffering off;") {
+		t.Errorf("the nginx-config of miko has the settings for large files:\n%s", nginx)
+	}
+}
+
 func TestRenderOnsenVolumePerPod(t *testing.T) {
 	spec := testSpec()
 	spec.Onsen.Replicas = 2
@@ -468,11 +515,11 @@ func TestRenderIsekai(t *testing.T) {
 		t.Errorf("the onsen of the backups runs on the nodes with the label %s", label)
 	}
 	backupConfig := objects["ConfigMap/onsen-backup-config"].(*corev1.ConfigMap).Data["onsen.toml"]
-	if !strings.Contains(backupConfig, `address = "http://@HOSTNAME@.onsen-backup.test.svc.cluster.local:50051"`) {
+	if !strings.Contains(backupConfig, `address = "https://@HOSTNAME@.onsen-backup.test.svc.cluster.local:8443"`) {
 		t.Errorf("the onsen of the backups has the wrong address:\n%s", backupConfig)
 	}
 	onsenConfig := objects["ConfigMap/onsen-config"].(*corev1.ConfigMap).Data["onsen.toml"]
-	if !strings.Contains(onsenConfig, `address = "http://@HOSTNAME@.onsen.test.svc.cluster.local:50051"`) {
+	if !strings.Contains(onsenConfig, `address = "https://@HOSTNAME@.onsen.test.svc.cluster.local:8443"`) {
 		t.Errorf("onsen has the wrong address:\n%s", onsenConfig)
 	}
 }

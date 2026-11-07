@@ -37,7 +37,7 @@ use ainari_api::error_mapping::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::image_structs::*;
 use ainari_api_structs::user_context::UserContext;
-use ainari_clients::onsen_file_transfer::upload_file_to_onsen;
+use ainari_clients::storage;
 use ainari_files::file_encryption::encrypt_file;
 use ainari_files::file_info::get_disk_image_info;
 
@@ -185,10 +185,13 @@ pub async fn upload_binary(
                     map_db_uuid_get_delete_error("image", &image_uuid, e, Some(&context))
                 })?;
 
-            upload_file_to_onsen(
+            storage::upload_file(
                 &selected_onsen.address,
+                &context.token,
+                &config::INTERNAL_API_KEY,
                 &upload_file_path_str,
                 &encrypted_result_path,
+                config::CONFIG.skip_tls_verification,
             )
             .await
             .map_err(|e| map_ainari_error_to_api_response(e, Some(&context)))?;

@@ -140,7 +140,7 @@ easier for a new person to understand the code.
         | `torii`      | gateway with the routes, proxies, packet-filters and NAT of the virtual networks                     |
         | `torii-ebpf` | eBPF/XDP-programs of the datapath of torii                                                           |
         | `ryokan`     | manages the onsen-hosts and the images and snapshots stored on them                                  |
-        | `onsen`      | storage for the files of the images and snapshots; only reachable over grpc by ryokan and sakura     |
+        | `onsen`      | storage for the files of the images and snapshots; only internal endpoints for ryokan and sakura     |
         | `omamori`    | key-manager to upload, generate and download keys                                                    |
         | `omikuji`    | central collector of the error- and audit-logs of all components                                     |
         | `isekai`     | orchestrates the encrypted backups and restores of virtual machines and whole projects               |
@@ -170,7 +170,8 @@ easier for a new person to understand the code.
 
         - **ainari_clients**
 
-            Client-functions for the communication between the services, over http and grpc.
+            Client-functions for the communication between the services over http and with the
+            root-wrapper neko over grpc.
 
         - **ainari_common**
 

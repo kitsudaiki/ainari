@@ -11,12 +11,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - removed the field `global.wireguard` from the `Ainari`-CRD, so it has to be removed from
   existing resources
+- onsen requires the new config-group `[api]` and registers the address of its internal api
+  (default port `10426`, in kubernetes `https://<pod>.<service>.<namespace>.svc.cluster.local:8443`)
+  instead of the grpc-address with port `50051`. Ryokan knows the onsen-hosts and the location of
+  the images and snapshots by these addresses, so an existing deployment registers its onsen-hosts
+  as new hosts, their backup-target marks have to be set again and the existing images and
+  snapshots can't be read anymore without updating their `onsen_address` in the database of ryokan.
 
 ### Added
 
 - Added SBOM-creation for npm packages of the dashboard and go packages of the
   kubernetes operator too
 - SBOM is now create in the CI and pushed to the file-share
+- REST-API of onsen with internal endpoints for the files and directories, which replaces the
+  grpc-connection from ryokan and sakura to onsen. Like the APIs of all other components, it
+  checks the token of the user against miko and is secured by TLS in kubernetes.
 
 ### Fixed
 
@@ -31,6 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - removed the wireguard-tunnel between ryokan, onsen and sakura from the kubernetes-operator,
   together with the wireguard-tools, iptables, iproute2 and sudo in the images of ryokan, onsen
   and sakura
+- removed the grpc-server of onsen and its protobuf-definition `onsen_upload.proto`
 
 ## v0.23.0
 

@@ -255,6 +255,7 @@ ARG DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends openssl \
+                       curl \
                        libsqlite3-0 && \
     apt-get clean autoclean && \
     apt-get autoremove --yes

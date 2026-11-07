@@ -18,6 +18,7 @@ use apistos::api_operation;
 use uuid::Uuid;
 use validator::Validate;
 
+use crate::config;
 use crate::database::image_table;
 use crate::onsen_functions::select_onsen;
 
@@ -26,7 +27,7 @@ use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::backup_structs::*;
 use ainari_api_structs::image_structs::ImageStatus;
 use ainari_api_structs::user_context::UserContext;
-use ainari_clients::onsen_file_transfer;
+use ainari_clients::storage;
 use ainari_common::error::AinariError;
 
 #[api_operation(
@@ -110,11 +111,14 @@ pub async fn copy_backup_file_internal(
         }
     };
 
-    let size = onsen_file_transfer::copy_file(
+    let size = storage::copy_file(
         &source_address,
         &source_path,
         &target_address,
         &target_path,
+        &context.token,
+        &config::INTERNAL_API_KEY,
+        config::CONFIG.skip_tls_verification,
     )
     .await
     .map_err(|e| match e {

@@ -31,9 +31,9 @@ use ainari_api::error_mapping::*;
 use ainari_api_structs::user_context::UserContext;
 use ainari_clients::endpoints::get_endpoints;
 use ainari_clients::image::*;
-use ainari_clients::onsen_file_transfer::*;
 use ainari_clients::public_key::get_public_key;
 use ainari_clients::secret::get_secret_payload;
+use ainari_clients::storage;
 use ainari_common::config::Endpoints;
 use ainari_common::error::AinariError;
 use ainari_common::functions::create_directory;
@@ -545,10 +545,13 @@ async fn download_and_convert_image(
     let local_converted_file_path = format!("{target_dir}/boot_disk");
 
     // download encrypted image
-    download_file(
+    storage::download_file(
         &image_resp.onsen_address,
+        &context.token,
+        &config::INTERNAL_API_KEY,
         &image_resp.file_path,
         &local_encrypted_file_path,
+        config::CONFIG.skip_tls_verification,
     )
     .await
     .map_err(|e| {

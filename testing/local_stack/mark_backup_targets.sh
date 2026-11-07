@@ -18,7 +18,7 @@
 # them and ryokan never puts normal images or snapshots there. The onsen-hosts register themselves
 # shortly after their start, so they are awaited. They are found by their names, which are the
 # names of their pods in kubernetes (onsen-backup-0, ...), or by their addresses, which contain the
-# name of their container or service (http://onsen-backup:50051, ...). A host, which is already
+# name of their container or service (http://onsen-backup:10426, ...). A host, which is already
 # marked, stays marked.
 #
 # Usage:

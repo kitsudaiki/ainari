@@ -11,7 +11,7 @@ ainari_api_structs = { path = "../ainari_api_structs" }
 # web-server
 actix-web = "4"
 futures-util = "0.3"
-tokio = { version = "1", features = ["fs"] }
+tokio = { version = "1", features = ["fs", "io-util"] }
 actix-rt = "2.10"
 awc = { version = "3.8.1", default-features = false, features = ["openssl"] }
 # openapi-generator
@@ -31,12 +31,10 @@ once_cell = "1.21"
 log = "0.4"
 # ssl
 openssl = "0.10"
-# file-transfer
+# grpc-client of the neko-root-wrapper
 tonic = "0.14"
 prost = "0.14"
-# only if you need the Prost codec at runtime
 tonic-prost = "0.14"
-async-stream = "0.3"
 
 [build-dependencies]
 tonic-prost-build = "0.14"

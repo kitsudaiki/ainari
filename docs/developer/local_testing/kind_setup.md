@@ -216,8 +216,6 @@ new container, started with the same command.
   `127.0.0.1` by the `extraPortMappings` of `testing/kind/cluster.yaml`.
 - **kvm:** the kind-node creates its own `/dev/kvm`, so sakura gets the kvm-group of the node, not
   the one of the host. The setup-script reads it from the node.
-- **grpc:** the connection between ryokan, sakura and onsen is still plain grpc, because the
-  grpc-client has no tls-support yet.
 - **Conflicts:** the setup-script refuses to start, if another interface of the host has an
   address in `10.0.0.0/24`, for example the one of the docker-compose setup. Stop the other setup
   first.

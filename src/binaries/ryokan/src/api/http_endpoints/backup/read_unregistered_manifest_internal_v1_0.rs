@@ -18,6 +18,7 @@ use base64::Engine;
 use base64::engine::general_purpose::STANDARD as BASE64;
 use uuid::Uuid;
 
+use crate::config;
 use crate::database::backup_table;
 use crate::database::host_table;
 
@@ -26,7 +27,7 @@ use ainari_api::error_mapping::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::backup_structs::*;
 use ainari_api_structs::user_context::UserContext;
-use ainari_clients::onsen_file_transfer;
+use ainari_clients::storage;
 use ainari_common::error::AinariError;
 
 #[api_operation(
@@ -76,18 +77,24 @@ pub async fn read_unregistered_manifest_internal(
         backup_table::backup_directory_path(&query.backup_uuid),
         super::MANIFEST_FILE
     );
-    let content =
-        onsen_file_transfer::download_data(&host.address, &manifest_path, MAX_BACKUP_FILE_SIZE)
-            .await
-            .map_err(|e| match e {
-                AinariError::NotFound(_) => ErrorResponse::NotFound(format!(
-                    "Package '{}' on onsen-host '{}' has no '{}'.",
-                    query.backup_uuid,
-                    *host_uuid,
-                    super::MANIFEST_FILE
-                )),
-                e => map_ainari_error_to_api_response(e, Some(&context)),
-            })?;
+    let content = storage::download_data(
+        &host.address,
+        &context.token,
+        &config::INTERNAL_API_KEY,
+        &manifest_path,
+        MAX_BACKUP_FILE_SIZE,
+        config::CONFIG.skip_tls_verification,
+    )
+    .await
+    .map_err(|e| match e {
+        AinariError::NotFound(_) => ErrorResponse::NotFound(format!(
+            "Package '{}' on onsen-host '{}' has no '{}'.",
+            query.backup_uuid,
+            *host_uuid,
+            super::MANIFEST_FILE
+        )),
+        e => map_ainari_error_to_api_response(e, Some(&context)),
+    })?;
 
     Ok(Json(BackupFileResp {
         path: super::MANIFEST_FILE.to_string(),

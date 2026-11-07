@@ -139,7 +139,7 @@ mod tests {
         let mut package = BackupResp {
             uuid: entry.uuid,
             host_uuid: Uuid::new_v4(),
-            onsen_address: "http://onsen:50051".to_string(),
+            onsen_address: "http://onsen:10426".to_string(),
             directory_path: format!("backups/{}", entry.uuid),
             backup_status: BackupStatus::Creating,
             file_count: 0,

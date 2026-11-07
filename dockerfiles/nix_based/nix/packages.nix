@@ -278,7 +278,13 @@ in
         mariadb-connector-c
       ]
     );
-    runtime-onsen = mkRuntime "onsen" (serviceLibraries ++ [ pkgs.openssl ]);
+    runtime-onsen = mkRuntime "onsen" (
+      serviceLibraries
+      ++ [
+        pkgs.curl
+        pkgs.openssl
+      ]
+    );
     runtime-sakura = mkRuntime "sakura" (
       serviceLibraries
       ++ [

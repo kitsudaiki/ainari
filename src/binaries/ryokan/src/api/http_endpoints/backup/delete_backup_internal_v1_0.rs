@@ -17,6 +17,7 @@ use apistos::actix::NoContent;
 use apistos::api_operation;
 use uuid::Uuid;
 
+use crate::config;
 use crate::database::backup_table::{self, StatusChange};
 use crate::database::host_table;
 
@@ -24,7 +25,7 @@ use ainari_api::error_mapping::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::backup_structs::*;
 use ainari_api_structs::user_context::UserContext;
-use ainari_clients::onsen_file_transfer;
+use ainari_clients::storage;
 use ainari_common::enums;
 
 #[api_operation(
@@ -72,9 +73,15 @@ pub async fn delete_backup_internal(
 
     match host_table::get_host(&backup.host_uuid, &context) {
         Ok(host) => {
-            onsen_file_transfer::delete_directory(&host.address, &backup.directory_path)
-                .await
-                .map_err(|e| map_ainari_error_to_api_response(e, Some(&context)))?;
+            storage::delete_directory(
+                &host.address,
+                &context.token,
+                &config::INTERNAL_API_KEY,
+                &backup.directory_path,
+                config::CONFIG.skip_tls_verification,
+            )
+            .await
+            .map_err(|e| map_ainari_error_to_api_response(e, Some(&context)))?;
         }
         // the files are gone together with the host, so only the database-entry is left
         Err(enums::DbError::NotFound) => {

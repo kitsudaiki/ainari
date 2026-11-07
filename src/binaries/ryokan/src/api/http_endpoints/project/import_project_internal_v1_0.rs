@@ -20,6 +20,7 @@ use std::path::{Component, Path as FilePath};
 use uuid::Uuid;
 use validator::Validate;
 
+use crate::config;
 use crate::database::host_table;
 use crate::database::image_table::{self, ImageEntry};
 
@@ -31,7 +32,7 @@ use ainari_api_structs::imports::{
     ImportedResource, RyokanProjectImportReq, RyokanProjectImportResp,
 };
 use ainari_api_structs::user_context::UserContext;
-use ainari_clients::onsen_file_transfer::delete_file_from_onsen;
+use ainari_clients::storage;
 
 /// Directory on the onsen, which contains the files of the images.
 const IMAGE_DIRECTORY: &str = "images";
@@ -131,7 +132,14 @@ pub async fn import_project_internal(
         // because the image itself was already imported.
         if let Some(old) = &existing
             && (old.onsen_address != import.onsen_address || old.file_path != import.file_path)
-            && let Err(e) = delete_file_from_onsen(&old.onsen_address, &old.file_path).await
+            && let Err(e) = storage::delete_file(
+                &old.onsen_address,
+                &context.token,
+                &config::INTERNAL_API_KEY,
+                &old.file_path,
+                config::CONFIG.skip_tls_verification,
+            )
+            .await
         {
             log::warn!("Failed to delete the old file of the overwritten image '{uuid}': {e}");
         }
@@ -229,7 +237,7 @@ mod tests {
         let host = HostEntry {
             uuid: Uuid::new_v4(),
             name: "onsen".to_string(),
-            address: format!("http://{}:50051", Uuid::new_v4()),
+            address: format!("http://{}:10426", Uuid::new_v4()),
             is_backup_target,
             created_at: Utc::now(),
             created_by: "admin".to_string(),
@@ -474,7 +482,7 @@ mod tests {
         );
 
         // files on a backup-target, an unknown onsen or outside of the images are rejected
-        for onsen in [backup_target.address.as_str(), "http://unknown:50051"] {
+        for onsen in [backup_target.address.as_str(), "http://unknown:10426"] {
             assert!(matches!(
                 import(&target, &exported.images, onsen, false, id_map(), &admin).await,
                 Err(ErrorResponse::BadRequest(_))

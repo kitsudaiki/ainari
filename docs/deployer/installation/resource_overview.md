@@ -33,6 +33,8 @@ Resources without a condition are always created. The conditions refer to the fi
 | `izakaya-cert`      |                                      | TLS of izakaya                                 |
 | `sakura-cert`       |                                      | TLS of the sakura-hosts                        |
 | `sakura-proxy-cert` |                                      | wildcard-certificate of the proxies to the VMs |
+| `onsen-cert`        |                                      | TLS of the onsen-pods                          |
+| `onsen-backup-cert` |                                      | TLS of the onsen-pods for backups              |
 | `torii-cert`        |                                      | TLS of the torii-gateways                      |
 | `dashboard-cert`    | `dashboard.enabled`                  | TLS of the dashboard                           |
 
@@ -61,6 +63,8 @@ Resources without a condition are always created. The conditions refer to the fi
 | `izakaya-nginx-config`   |                                | nginx-config of the TLS-sidecar of izakaya       |
 | `sakura-nginx-config`    |                                | nginx-config of the TLS-sidecars of sakura       |
 | `torii-nginx-config`     |                                | nginx-config of the TLS-sidecars of torii        |
+| `onsen-nginx-config`     |                                | nginx-config of the TLS-sidecars of onsen        |
+| `onsen-backup-nginx-config` |                             | nginx-config of the TLS-sidecars of the backup-onsen |
 | `dashboard-nginx-config` | `dashboard.enabled`            | nginx-config of the TLS-sidecar of the dashboard |
 | `mysql-init`             | `mysql.deploy`                 | script, which creates the databases and users    |
 
@@ -107,8 +111,8 @@ stay, when the `Ainari`-resource is deleted, and are taken over by the next one.
 | `isekai-external`       |                                | public api of isekai                             |
 | `dashboard-external`    | `dashboard.enabled`            | public access to the dashboard                   |
 | `ryokan`                |                                | headless, DNS-names of the pods                  |
-| `onsen`                 |                                | headless, gRPC of the onsen-pods                 |
-| `onsen-backup`          |                                | headless, gRPC of the backup-onsen               |
+| `onsen`                 |                                | headless, internal api of the onsen-pods         |
+| `onsen-backup`          |                                | headless, internal api of the backup-onsen       |
 | `sakura`                |                                | headless, apis of the sakura-pods                |
 | `torii-public`          |                                | headless, api of the public torii-pods           |
 | `torii-gateway-service` |                                | proxy-port of the gateway to the VMs             |
@@ -178,6 +182,8 @@ existing certificates are not signed by, until they are issued again.
 | `sakura-tls-secret`       |                                      | internal TLS-sidecar of sakura                    |
 | `sakura-proxy-tls-secret` |                                      | external TLS-sidecar of sakura for the VM-proxies |
 | `torii-tls-secret`        |                                      | TLS-sidecars of the public and the VMM-torii      |
+| `onsen-tls-secret`        |                                      | TLS-sidecars of onsen                             |
+| `onsen-backup-tls-secret` |                                      | TLS-sidecars of the backup-onsen                  |
 | `dashboard-tls-secret`    | `dashboard.enabled`                  | TLS-sidecar of the dashboard                      |
 
 For every issuance of a certificate, cert-manager additionally creates a `CertificateRequest`

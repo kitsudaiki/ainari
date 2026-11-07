@@ -29,6 +29,7 @@ pub mod write_backup_file_internal_v1_0;
 use std::path::{Component, Path};
 use uuid::Uuid;
 
+use crate::config;
 use crate::database::backup_table::{self, BackupEntry, PackageInfo};
 use crate::database::host_table::{self, HostEntry};
 use crate::onsen_functions::{RemoteFile, list_files_recursive};
@@ -37,7 +38,7 @@ use ainari_api::error_mapping::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::backup_structs::*;
 use ainari_api_structs::user_context::UserContext;
-use ainari_clients::onsen_file_transfer;
+use ainari_clients::storage;
 use ainari_common::enums;
 use ainari_common::error::AinariError;
 
@@ -230,7 +231,7 @@ async fn read_package_info(
     directory_path: &str,
     context: &UserContext,
 ) -> Result<Option<PackageInfo>, ErrorResponse> {
-    let files = match list_files_recursive(onsen_address, directory_path).await {
+    let files = match list_files_recursive(onsen_address, &context.token, directory_path).await {
         Ok(files) => files,
         // nothing was written into the package yet
         Err(AinariError::NotFound(_)) => Vec::new(),
@@ -241,9 +242,15 @@ async fn read_package_info(
     }
 
     let manifest_path = format!("{directory_path}/{MANIFEST_FILE}");
-    let manifest_info = onsen_file_transfer::get_file_info(onsen_address, &manifest_path)
-        .await
-        .map_err(|e| map_ainari_error_to_api_response(e, Some(context)))?;
+    let manifest_info = storage::get_file_info(
+        onsen_address,
+        &context.token,
+        &config::INTERNAL_API_KEY,
+        &manifest_path,
+        config::CONFIG.skip_tls_verification,
+    )
+    .await
+    .map_err(|e| map_ainari_error_to_api_response(e, Some(context)))?;
 
     let (file_count, total_size) = summarize(&files).ok_or_else(|| {
         ainari_api::report_internal_error!(

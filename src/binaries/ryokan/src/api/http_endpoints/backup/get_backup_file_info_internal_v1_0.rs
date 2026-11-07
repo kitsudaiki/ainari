@@ -18,11 +18,13 @@ use apistos::api_operation;
 use uuid::Uuid;
 use validator::Validate;
 
+use crate::config;
+
 use ainari_api::error_mapping::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::backup_structs::*;
 use ainari_api_structs::user_context::UserContext;
-use ainari_clients::onsen_file_transfer;
+use ainari_clients::storage;
 use ainari_common::error::AinariError;
 
 #[api_operation(
@@ -64,15 +66,21 @@ pub async fn get_backup_file_info_internal(
     let host = super::get_backup_host(&backup, &context)?;
 
     let file_path = format!("{}/{}", backup.directory_path, query.path);
-    let info = onsen_file_transfer::get_file_info(&host.address, &file_path)
-        .await
-        .map_err(|e| match e {
-            AinariError::NotFound(_) => ErrorResponse::NotFound(format!(
-                "File '{}' not found in backup with UUID '{}'.",
-                query.path, *backup_uuid
-            )),
-            e => map_ainari_error_to_api_response(e, Some(&context)),
-        })?;
+    let info = storage::get_file_info(
+        &host.address,
+        &context.token,
+        &config::INTERNAL_API_KEY,
+        &file_path,
+        config::CONFIG.skip_tls_verification,
+    )
+    .await
+    .map_err(|e| match e {
+        AinariError::NotFound(_) => ErrorResponse::NotFound(format!(
+            "File '{}' not found in backup with UUID '{}'.",
+            query.path, *backup_uuid
+        )),
+        e => map_ainari_error_to_api_response(e, Some(&context)),
+    })?;
 
     Ok(Json(BackupFileInfoResp {
         path: query.path.clone(),

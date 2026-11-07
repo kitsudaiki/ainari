@@ -12,13 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-/// Build-script, which generates the grpc-clients from the protobuf-definitions.
-///
-/// Provides the client-side of the onsen-file-transfer and of the neko-root-wrapper.
+/// Build-script, which generates the grpc-client of the neko-root-wrapper from its
+/// protobuf-definition.
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("cargo:rerun-if-changed=src/proto/onsen_upload.proto");
-
-    tonic_prost_build::compile_protos("src/proto/onsen_upload.proto")?;
     tonic_prost_build::compile_protos("src/proto/neko_wrapper.proto")?;
     Ok(())
 }

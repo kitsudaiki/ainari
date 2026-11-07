@@ -208,8 +208,6 @@ virtual machines keep running, when the container is left; they are destroyed wi
   machine and runs over all of them.
 - **Uplink:** `vagrant ssh ainari-torii -c 'sudo journalctl -u ainari-uplink'` shows, when the
   uplink was moved into a pod of `torii-public`.
-- **grpc:** the connection between ryokan, sakura and onsen is still plain grpc, because the
-  grpc-client has no tls-support yet.
 - **Conflicts:** the setup-script refuses to start, if an interface of the host has an address in
   `10.0.0.0/24`, for example the one of the docker-compose or the kind-setup. Stop the other
   setup first.

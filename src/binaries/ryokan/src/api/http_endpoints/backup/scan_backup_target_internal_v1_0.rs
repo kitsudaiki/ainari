@@ -17,6 +17,7 @@ use actix_web::web::Path;
 use apistos::api_operation;
 use uuid::Uuid;
 
+use crate::config;
 use crate::database::backup_table;
 use crate::database::host_table;
 use crate::onsen_functions::BACKUP_DIRECTORY;
@@ -25,9 +26,9 @@ use ainari_api::common_functions::*;
 use ainari_api::error_mapping::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::backup_structs::*;
+use ainari_api_structs::storage_structs::StorageDirectoryEntry;
 use ainari_api_structs::user_context::UserContext;
-use ainari_clients::onsen_file_transfer;
-use ainari_clients::onsen_file_transfer::data::DirectoryEntry;
+use ainari_clients::storage;
 use ainari_common::error::AinariError;
 
 #[api_operation(
@@ -61,7 +62,7 @@ pub async fn scan_backup_target_internal(
         )));
     }
 
-    let entries = list_or_empty(&host.address, BACKUP_DIRECTORY)
+    let entries = list_or_empty(&host.address, &context.token, BACKUP_DIRECTORY)
         .await
         .map_err(|e| map_ainari_error_to_api_response(e, Some(&context)))?;
 
@@ -74,7 +75,7 @@ pub async fn scan_backup_target_internal(
         }
 
         let package_path = backup_table::backup_directory_path(&backup_uuid);
-        let files = list_or_empty(&host.address, &package_path)
+        let files = list_or_empty(&host.address, &context.token, &package_path)
             .await
             .map_err(|e| map_ainari_error_to_api_response(e, Some(&context)))?;
         let has_manifest = files
@@ -89,12 +90,22 @@ pub async fn scan_backup_target_internal(
     Ok(Json(BackupScanResp { backups }))
 }
 
-/// Lists a directory of an onsen, where a not existing directory counts as empty.
+/// Lists a directory of an onsen on behalf of the user of the token, where a not existing
+/// directory counts as empty.
 async fn list_or_empty(
     onsen_address: &str,
+    token: &str,
     dir_path: &str,
-) -> Result<Vec<DirectoryEntry>, AinariError> {
-    match onsen_file_transfer::list_directory(onsen_address, dir_path).await {
+) -> Result<Vec<StorageDirectoryEntry>, AinariError> {
+    match storage::list_directory(
+        onsen_address,
+        token,
+        &config::INTERNAL_API_KEY,
+        dir_path,
+        config::CONFIG.skip_tls_verification,
+    )
+    .await
+    {
         Ok(entries) => Ok(entries),
         Err(AinariError::NotFound(_)) => Ok(Vec::new()),
         Err(e) => Err(e),
@@ -103,7 +114,7 @@ async fn list_or_empty(
 
 /// Returns the UUIDs of the packages within the backup-directory. Files and directories, whose
 /// name is no UUID, are no packages and are skipped.
-fn package_uuids(entries: &[DirectoryEntry]) -> Vec<Uuid> {
+fn package_uuids(entries: &[StorageDirectoryEntry]) -> Vec<Uuid> {
     entries
         .iter()
         .filter(|entry| entry.is_dir)
@@ -120,8 +131,8 @@ fn package_uuids(entries: &[DirectoryEntry]) -> Vec<Uuid> {
 mod tests {
     use super::*;
 
-    fn entry(name: &str, is_dir: bool) -> DirectoryEntry {
-        DirectoryEntry {
+    fn entry(name: &str, is_dir: bool) -> StorageDirectoryEntry {
+        StorageDirectoryEntry {
             name: name.to_string(),
             is_dir,
             size: 0,

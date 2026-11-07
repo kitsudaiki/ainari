@@ -3,7 +3,14 @@
 debug = true
 log_path = "/var/log"
 skip_tls_verification = true
-address = "http://onsen-backup:50051"
+# the internal api, over which ryokan and the sakura-hosts reach this host
+address = "http://onsen-backup:10426"
+
+[api]
+public_ip = "0.0.0.0"
+public_port = 11426
+internal_ip = "0.0.0.0"
+internal_port = 10426
 
 [miko]
 address = "http://miko:11417"

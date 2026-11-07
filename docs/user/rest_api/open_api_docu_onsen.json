@@ -1,0 +1,481 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Onsen-API-Documentation",
+    "contact": {
+      "email": "tobias.anker@kitsunemimi.moe"
+    },
+    "license": {
+      "name": "Apache 2.0",
+      "url": "http://www.apache.org/licenses/LICENSE-2.0.html"
+    },
+    "version": "unknown"
+  },
+  "servers": [],
+  "paths": {
+    "/v1alpha/version": {
+      "get": {
+        "tags": [
+          "version"
+        ],
+        "summary": "Get version",
+        "description": "Get the version of the binary consisting of Tag or Branch-name together with the commit-hash.",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VersionResp"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/is_ready": {
+      "get": {
+        "tags": [
+          "version"
+        ],
+        "summary": "Get ready status",
+        "description": "Get status of the service endpoint.",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadyResp"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/file/internal": {
+      "put": {
+        "tags": [
+          "file"
+        ],
+        "summary": "Upload file (internal)",
+        "description": "Store the body of the request as file under the query-parameter `path`,\\\nwhich is relative to the storage-location. An existing file is overwritten and missing directories\\\nare created.\\\n\\\nThe body is streamed directly into the file, so it can have any size. If the upload breaks off\\\nbefore the announced `Content-Length` was received, the incomplete file is deleted again.\\\n\\\nThis is an internal call, which is protected by the internal api-key and the token of a user.",
+        "parameters": [
+          {
+            "name": "path",
+            "in": "query",
+            "description": "path relative to the storage-location, an empty path is the storage-location itself",
+            "required": false,
+            "schema": {
+              "description": "path relative to the storage-location, an empty path is the storage-location itself",
+              "default": "",
+              "type": "string",
+              "maxLength": 1024
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/octet-stream": {
+              "schema": {
+                "$ref": "#/components/schemas/FileContent"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      },
+      "get": {
+        "tags": [
+          "file"
+        ],
+        "summary": "Download file (internal)",
+        "description": "Stream the content of the file under the query-parameter `path`, which is\\\nrelative to the storage-location.\\\n\\\nThe size of the file is sent in the header `Content-Length`, so the caller detects a download,\\\nwhich broke off. Symbolic links are not followed.\\\n\\\nThis is an internal call, which is protected by the internal api-key and the token of a user.",
+        "parameters": [
+          {
+            "name": "path",
+            "in": "query",
+            "description": "path relative to the storage-location, an empty path is the storage-location itself",
+            "required": false,
+            "schema": {
+              "description": "path relative to the storage-location, an empty path is the storage-location itself",
+              "default": "",
+              "type": "string",
+              "maxLength": 1024
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "file"
+        ],
+        "summary": "Delete file (internal)",
+        "description": "Delete the file under the query-parameter `path`, which is relative to the\\\nstorage-location. Deleting a not existing file is no error. A symbolic link is removed itself and\\\nnot followed.\\\n\\\nThis is an internal call, which is protected by the internal api-key and the token of a user.",
+        "parameters": [
+          {
+            "name": "path",
+            "in": "query",
+            "description": "path relative to the storage-location, an empty path is the storage-location itself",
+            "required": false,
+            "schema": {
+              "description": "path relative to the storage-location, an empty path is the storage-location itself",
+              "default": "",
+              "type": "string",
+              "maxLength": 1024
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/file/info/internal": {
+      "get": {
+        "tags": [
+          "file"
+        ],
+        "summary": "Get file-info (internal)",
+        "description": "Get the size and the hex-encoded sha256-checksum of the file under the\\\nquery-parameter `path`, which is relative to the storage-location. The whole file is read for the\\\nchecksum, which takes its time for large files. Symbolic links are not followed.\\\n\\\nThis is an internal call, which is protected by the internal api-key and the token of a user.",
+        "parameters": [
+          {
+            "name": "path",
+            "in": "query",
+            "description": "path relative to the storage-location, an empty path is the storage-location itself",
+            "required": false,
+            "schema": {
+              "description": "path relative to the storage-location, an empty path is the storage-location itself",
+              "default": "",
+              "type": "string",
+              "maxLength": 1024
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StorageFileInfoResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
+    "/v1alpha/directory/internal": {
+      "get": {
+        "tags": [
+          "directory"
+        ],
+        "summary": "List directory (internal)",
+        "description": "List the direct entries of the directory under the query-parameter `path`,\\\nwhich is relative to the storage-location, sorted by name. An empty path lists the\\\nstorage-location itself. Symbolic links are listed as files with the size of the link.\\\n\\\nThis is an internal call, which is protected by the internal api-key and the token of a user.",
+        "parameters": [
+          {
+            "name": "path",
+            "in": "query",
+            "description": "path relative to the storage-location, an empty path is the storage-location itself",
+            "required": false,
+            "schema": {
+              "description": "path relative to the storage-location, an empty path is the storage-location itself",
+              "default": "",
+              "type": "string",
+              "maxLength": 1024
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StorageDirectoryResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Requested object not found"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "directory"
+        ],
+        "summary": "Delete directory (internal)",
+        "description": "Delete the directory under the query-parameter `path`, which is relative to\\\nthe storage-location, with all of its content. Deleting a not existing directory is no error.\\\nSymbolic links within the directory are removed, but not followed. The storage-location itself\\\ncan not be deleted.\\\n\\\nThis is an internal call, which is protected by the internal api-key and the token of a user.",
+        "parameters": [
+          {
+            "name": "path",
+            "in": "query",
+            "description": "path relative to the storage-location, an empty path is the storage-location itself",
+            "required": false,
+            "schema": {
+              "description": "path relative to the storage-location, an empty path is the storage-location itself",
+              "default": "",
+              "type": "string",
+              "maxLength": 1024
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "FileContent": {
+        "title": "FileContent",
+        "description": "Content of the uploaded file",
+        "type": "string",
+        "format": "binary"
+      },
+      "ReadyResp": {
+        "title": "ReadyResp",
+        "type": "object",
+        "required": [
+          "api"
+        ],
+        "properties": {
+          "api": {
+            "type": "boolean"
+          }
+        }
+      },
+      "StorageDirectoryEntry": {
+        "description": "Entry of a directory within the storage-location.",
+        "type": "object",
+        "required": [
+          "is_dir",
+          "name",
+          "size"
+        ],
+        "properties": {
+          "is_dir": {
+            "description": "true, if the entry is a directory",
+            "type": "boolean"
+          },
+          "name": {
+            "description": "name of the entry within the directory",
+            "type": "string"
+          },
+          "size": {
+            "description": "size in bytes, 0 for directories",
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          }
+        }
+      },
+      "StorageDirectoryResp": {
+        "title": "StorageDirectoryResp",
+        "description": "Direct entries of a directory within the storage-location.",
+        "type": "object",
+        "required": [
+          "entries"
+        ],
+        "properties": {
+          "entries": {
+            "description": "the entries sorted by name",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StorageDirectoryEntry"
+            }
+          }
+        }
+      },
+      "StorageFileInfoResp": {
+        "title": "StorageFileInfoResp",
+        "description": "Size and checksum of a file within the storage-location.",
+        "type": "object",
+        "required": [
+          "sha256",
+          "size"
+        ],
+        "properties": {
+          "sha256": {
+            "description": "hex-encoded sha256 of the content of the file",
+            "type": "string"
+          },
+          "size": {
+            "description": "size of the file in bytes",
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          }
+        }
+      },
+      "VersionResp": {
+        "title": "VersionResp",
+        "type": "object",
+        "required": [
+          "commit_hash",
+          "timestamp",
+          "version"
+        ],
+        "properties": {
+          "commit_hash": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "user_context": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  },
+  "externalDocs": {
+    "description": "Find out more about Swagger",
+    "url": "http://swagger.io"
+  }
+}

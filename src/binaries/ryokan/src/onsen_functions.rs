@@ -14,13 +14,14 @@
 
 use rand::prelude::IndexedRandom;
 
+use crate::config;
 use crate::database::host_table;
 use crate::database::host_table::HostEntry;
 
 use ainari_api::errors::ErrorResponse;
+use ainari_api_structs::storage_structs::StorageDirectoryEntry;
 use ainari_api_structs::user_context::UserContext;
-use ainari_clients::onsen_file_transfer;
-use ainari_clients::onsen_file_transfer::data::DirectoryEntry;
+use ainari_clients::storage;
 use ainari_common::error::AinariError;
 
 /// Directory on a backup-target, which contains the backups.
@@ -108,6 +109,7 @@ pub struct RemoteFile {
 /// # Arguments
 ///
 /// * `onsen_address` - Address of the onsen-host
+/// * `token` - Token of the user, on whose behalf the onsen is asked
 /// * `dir_path` - Path of the directory relative to the storage-location of the onsen
 ///
 /// # Returns
@@ -117,6 +119,7 @@ pub struct RemoteFile {
 /// * `Err(AinariError)` - The onsen could not be asked.
 pub async fn list_files_recursive(
     onsen_address: &str,
+    token: &str,
     dir_path: &str,
 ) -> Result<Vec<RemoteFile>, AinariError> {
     let mut files = Vec::new();
@@ -125,7 +128,15 @@ pub async fn list_files_recursive(
 
     while let Some(relative_dir) = pending.pop() {
         let full_path = join_path(dir_path, &relative_dir);
-        for entry in onsen_file_transfer::list_directory(onsen_address, &full_path).await? {
+        for entry in storage::list_directory(
+            onsen_address,
+            token,
+            &config::INTERNAL_API_KEY,
+            &full_path,
+            config::CONFIG.skip_tls_verification,
+        )
+        .await?
+        {
             let relative_path = join_path(&relative_dir, &entry.name);
             if entry.is_dir {
                 pending.push(relative_path);
@@ -166,7 +177,14 @@ pub async fn has_backups(
     onsen_address: &str,
     context: &UserContext,
 ) -> Result<bool, ErrorResponse> {
-    let listing = onsen_file_transfer::list_directory(onsen_address, BACKUP_DIRECTORY).await;
+    let listing = storage::list_directory(
+        onsen_address,
+        &context.token,
+        &config::INTERNAL_API_KEY,
+        BACKUP_DIRECTORY,
+        config::CONFIG.skip_tls_verification,
+    )
+    .await;
     is_listing_not_empty(listing).map_err(|e| {
         ainari_api::report_internal_error!(
             Some(context),
@@ -179,7 +197,7 @@ pub async fn has_backups(
 /// Checks, if a directory-listing of the onsen contains any entries. A not existing directory
 /// counts as empty.
 fn is_listing_not_empty(
-    listing: Result<Vec<DirectoryEntry>, AinariError>,
+    listing: Result<Vec<StorageDirectoryEntry>, AinariError>,
 ) -> Result<bool, AinariError> {
     match listing {
         Ok(entries) => Ok(!entries.is_empty()),
@@ -230,7 +248,7 @@ mod tests {
         HostEntry {
             uuid: Uuid::new_v4(),
             name: "onsen".to_string(),
-            address: format!("http://{}:50051", Uuid::new_v4()),
+            address: format!("http://{}:10426", Uuid::new_v4()),
             is_backup_target,
             created_at: Utc::now(),
             created_by: "admin".to_string(),
@@ -250,7 +268,7 @@ mod tests {
 
     #[test]
     fn test_is_listing_not_empty() {
-        let entry = DirectoryEntry {
+        let entry = StorageDirectoryEntry {
             name: "backup".to_string(),
             is_dir: true,
             size: 0,

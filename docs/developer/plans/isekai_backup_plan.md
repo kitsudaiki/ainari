@@ -180,7 +180,7 @@ onsen about the bundles, so isekai doesn't need a connection to the onsen):
       with `force` (its old file is deleted, if the location changed) and a deleted one is
       restored. `id_map` is applied to the images and their `secret_uuid`.
 
-### 4.2 onsen – gRPC (`onsen_upload.proto`)
+### 4.2 onsen – internal api (formerly gRPC `onsen_upload.proto`)
 
 - New RPCs: `ListDirectory(path)`, `DeleteDirectory(path)`, `GetFileInfo(path)` (size + sha256).
   `is_safe_subpath` is used for all of them like for the existing RPCs.

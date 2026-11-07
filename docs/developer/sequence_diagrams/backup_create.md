@@ -36,7 +36,7 @@ flowchart LR
     user -- "POST /v1alpha/backup" --> isekai
     isekai -- "lock, export" --> miko
     isekai -- "package, files, copies" --> ryokan
-    ryokan -- "grpc" --> onsen
+    ryokan -- "files, copies" --> onsen
     isekai -- "disk-secrets, export" --> omamori
     isekai -- "export, hosts" --> hanami
     isekai -- "export, backup-task" --> sakura
@@ -226,7 +226,7 @@ sequenceDiagram
         S->>S: copy the root-disk (a running VM is paused)
         S->>O: payload of the secret of the disk
         S->>S: encrypt the copy
-        S->>ON: upload the encrypted disk (grpc)
+        S->>ON: upload the encrypted disk
         S->>S: remove the temporary files
         opt the VM was shut down for the backup
             S->>S: start the VM again, also if the copy failed
