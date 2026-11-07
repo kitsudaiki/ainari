@@ -1,14 +1,8 @@
 debug = {{ .Spec.Global.Debug }}
 log_path = ""
 skip_tls_verification = true
-{{- if .Spec.Global.WireGuard.Enabled }}
-# @WIREGUARD_ADDRESS@ is replaced by the address of the pod within the wireguard-tunnel, when it
-# starts, over which ryokan and sakura reach it
-address = "http://@WIREGUARD_ADDRESS@:50051"
-{{- else }}
 # @HOSTNAME@ is replaced by the name of the pod, when it starts
 address = "http://@HOSTNAME@.{{ .Service }}.{{ .Namespace }}.svc.cluster.local:50051"
-{{- end }}
 
 [storage]
 location = "/etc/ainari/onsen/"

@@ -139,7 +139,7 @@ the image-quota and don't appear in `list_image` / `get_image`, because they are
 table.
 
 New internal endpoints for isekai and sakura (ryokan is the only component, which talks with the
-onsen about the bundles, so isekai doesn't need a wireguard-tunnel):
+onsen about the bundles, so isekai doesn't need a connection to the onsen):
 
 - `POST   /v1alpha/backup/internal` `{ uuid, project_id, host_uuid? }` – creates the package in
   state `CREATING`
@@ -185,7 +185,7 @@ onsen about the bundles, so isekai doesn't need a wireguard-tunnel):
 - New RPCs: `ListDirectory(path)`, `DeleteDirectory(path)`, `GetFileInfo(path)` (size + sha256).
   `is_safe_subpath` is used for all of them like for the existing RPCs.
 - Optional, if the copy-performance over ryokan isn't enough: `PushFile(path, target_onsen,
-  target_path)` for direct onsen-to-onsen transfer. This needs additional wireguard-peers between
+  target_path)` for direct onsen-to-onsen transfer. This needs additional connections between
   the onsens, so it is not part of the first version.
 
 ### 4.3 sakura
@@ -530,7 +530,7 @@ endpoints additionally require the internal API-key.
 - `dockerfiles/{debian_based,nix_based}`: new target `isekai` in `Dockerfile_services` / nix-flake.
 - `docker-compose.yml`: isekai-service + a second onsen as backup-target.
 - `deploy/operator`: isekai-deployment, `Ainari`-CRD extended by isekai and a backup-onsen with its
-  own volume (`backupStorage`). No wireguard-peer is needed for isekai. Zarf-package: add image.
+  own volume (`backupStorage`). Zarf-package: add image.
 - `scripts/`: OpenAPI-collector and docker-build-script extended.
 - CLI `ainarictl`: `backup create|list|get|delete`, `backup restore`, `backup scan|import`,
   `onsen-host set-backup-target`. Passphrase only interactive or from a file/env, never as an

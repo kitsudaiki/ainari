@@ -41,11 +41,11 @@ func (r *renderer) sakura() ([]client.Object, error) {
 	return []client.Object{
 		configMap("sakura-config", map[string]string{"sakura.toml": config}),
 		nginxConfig,
-		headlessService("sakura", "sakura", append([]corev1.ServicePort{
+		headlessService("sakura", "sakura",
 			servicePort("tls", internalTLSPort, internalTLSPort),
 			servicePort("external-tls", externalTLSPort, externalTLSPort),
 			servicePort("torii-tls", toriiTLSPort, toriiTLSPort),
-		}, r.wireGuardServicePorts()...)...),
+		),
 		r.certificate("sakura", r.Spec.Sakura.Domain, "*.sakura"),
 		r.proxyCertificate(),
 		r.sakuraStatefulSet(),
@@ -141,12 +141,6 @@ func (r *renderer) sakuraStatefulSet() *appsv1.StatefulSet {
 	}
 	volumes = append(volumes, toriiVolumes()...)
 	volumes = append(volumes, tlsVolumes("sakura")...)
-	var wireGuardSync []corev1.Container
-	if r.Spec.Global.WireGuard.Enabled {
-		sakura.VolumeMounts = append(sakura.VolumeMounts, wireGuardMount())
-		volumes = append(volumes, wireGuardVolumes("sakura")...)
-		wireGuardSync = append(wireGuardSync, r.wireGuardSidecar(spec.Image, spec.ImagePullPolicy))
-	}
 
 	// tls-termination of the internal api (8443) for hanami and of the external api (9443), which
 	// the proxies of the torii at the edge forward the clients to. The clients get the
@@ -158,7 +152,6 @@ func (r *renderer) sakuraStatefulSet() *appsv1.StatefulSet {
 		r.tlsSidecar("external-tls-termination", nginxConfigName("sakura"), "external.conf", proxyCertsVolume),
 		toriiTLS,
 	}
-	containers = append(containers, wireGuardSync...)
 
 	return &appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{Name: "sakura", Labels: appLabels("sakura")},

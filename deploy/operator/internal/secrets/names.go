@@ -46,12 +46,8 @@ var (
 	MySQLRootPassword = Ref{Secret: generatedMySQLSecret, Key: "root_password"}
 )
 
-const (
-	// secret with the passwords of the deployed mysql-server
-	generatedMySQLSecret = "mysql-credentials"
-	// secret with the private keys of all pods of the wireguard-tunnel
-	wireGuardKeysSecret = "wireguard-keys"
-)
+// secret with the passwords of the deployed mysql-server
+const generatedMySQLSecret = "mysql-credentials"
 
 // MySQLPassword returns the password of the database-user of a component, which is either in the
 // generated secret of the deployed server or in the given secret of the external one.

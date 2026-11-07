@@ -18,7 +18,6 @@ import (
 	"context"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -280,15 +279,13 @@ func TestReconcileChangesOfTheSpec(t *testing.T) {
 		t.Errorf("the config of the dashboard still exists, although it is disabled")
 	}
 
-	// the running pods of ryokan get the new onsen-pods as peers, beside the onsen of the backups
-	wgRyokan := &corev1.Secret{}
-	if !env.exists(t, wgRyokan, "changes", "wg-ryokan-secret") {
-		t.Fatal("the wireguard-secret of ryokan is missing")
+	// a changed number of replicas reaches the statefulset
+	onsen := &appsv1.StatefulSet{}
+	if !env.exists(t, onsen, "changes", "onsen") {
+		t.Fatal("the statefulset of onsen is missing")
 	}
-	peers := strings.Split(strings.TrimSpace(string(wgRyokan.Data["ryokan-0.peers"])), "\n")
-	if len(peers) != 3+1 {
-		t.Errorf("ryokan has %d peers instead of the 3 onsen-pods and the onsen of the backups: %v",
-			len(peers), peers)
+	if *onsen.Spec.Replicas != 3 {
+		t.Errorf("onsen has %d replicas instead of 3", *onsen.Spec.Replicas)
 	}
 }
 

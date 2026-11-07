@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### BREAKING-CHANGES
+
+- removed the field `global.wireguard` from the `Ainari`-CRD, so it has to be removed from
+  existing resources
+
 ### Added
 
 - Added SBOM-creation for npm packages of the dashboard and go packages of the
@@ -20,6 +25,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   pushed into the error-log, but the user is never alloed to see them
 - fixed backup conflict while create project-backup for multiple VMs of the same 
   project within the same host
+
+### Removed
+
+- removed the wireguard-tunnel between ryokan, onsen and sakura from the kubernetes-operator,
+  together with the wireguard-tools, iptables, iproute2 and sudo in the images of ryokan, onsen
+  and sakura
 
 ## v0.23.0
 

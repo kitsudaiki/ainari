@@ -246,11 +246,6 @@ RUN nix build --no-link path:/nix-flake#runtime-ryokan
 COPY --from=builder /out/ryokan /rootfs/home/ainari/ryokan
 COPY dockerfiles/files/start_ryokan.sh /rootfs/home/ainari/start_ryokan.sh
 RUN /nix-flake/make_rootfs.sh /rootfs runtime-ryokan ainari && \
-    # Allow the user to create the wireguard-connection. The wg-quick of the image doesn't set
-    # 'net.ipv4.conf.all.src_valid_mark', which is not permitted within the pod, see
-    # dockerfiles/nix_based/nix/packages.nix.
-    echo "ainari ALL=(ALL) NOPASSWD: /usr/bin/wg-quick" > /rootfs/etc/sudoers.d/ainari && \
-    chmod 0440 /rootfs/etc/sudoers.d/ainari && \
     mkdir -p /rootfs/etc/ainari && \
     chown 1000:1000 /rootfs/etc/ainari /rootfs/home/ainari/ryokan /rootfs/home/ainari/start_ryokan.sh && \
     chmod +x /rootfs/home/ainari/ryokan /rootfs/home/ainari/start_ryokan.sh
@@ -276,9 +271,6 @@ RUN nix build --no-link path:/nix-flake#runtime-onsen
 COPY --from=builder /out/onsen /rootfs/home/ainari/onsen
 COPY dockerfiles/files/start_onsen.sh /rootfs/home/ainari/start_onsen.sh
 RUN /nix-flake/make_rootfs.sh /rootfs runtime-onsen ainari && \
-    # Allow the user to create the wireguard-connection
-    echo "ainari ALL=(ALL) NOPASSWD: /usr/bin/wg-quick" > /rootfs/etc/sudoers.d/ainari && \
-    chmod 0440 /rootfs/etc/sudoers.d/ainari && \
     mkdir -p /rootfs/etc/ainari && \
     chown 1000:1000 /rootfs/etc/ainari /rootfs/home/ainari/onsen /rootfs/home/ainari/start_onsen.sh && \
     chmod +x /rootfs/home/ainari/onsen /rootfs/home/ainari/start_onsen.sh
@@ -309,9 +301,6 @@ ARG KVM_GID=993
 COPY --from=builder /out/sakura /rootfs/home/ainari/sakura
 COPY dockerfiles/files/start_sakura.sh /rootfs/home/ainari/start_sakura.sh
 RUN /nix-flake/make_rootfs.sh /rootfs runtime-sakura ainari && \
-    # Allow the user to create the wireguard-connection
-    echo "ainari ALL=(ALL) NOPASSWD: /usr/bin/wg-quick" > /rootfs/etc/sudoers.d/ainari && \
-    chmod 0440 /rootfs/etc/sudoers.d/ainari && \
     echo "kvm:x:${KVM_GID}:ainari" >> /rootfs/etc/group && \
     mkdir -p /rootfs/etc/ainari/virtual_machines && \
     chown -R 1000:1000 /rootfs/etc/ainari && \

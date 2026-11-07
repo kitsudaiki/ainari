@@ -15,7 +15,6 @@
 package secrets
 
 import (
-	"crypto/ecdh"
 	"crypto/ed25519"
 	"crypto/rand"
 	"encoding/base64"
@@ -45,15 +44,6 @@ func generateKey() string {
 	return base64.StdEncoding.EncodeToString(randomBytes())
 }
 
-// generateWireGuardKey returns a random private key of wireguard, like 'wg genkey'.
-func generateWireGuardKey() string {
-	key := randomBytes()
-	// clamping of curve25519
-	key[0] &= 248
-	key[31] = (key[31] & 127) | 64
-	return base64.StdEncoding.EncodeToString(key)
-}
-
 // decodeKey decodes a base64-encoded key of keySize bytes.
 func decodeKey(encoded string) ([]byte, error) {
 	key, err := base64.StdEncoding.DecodeString(encoded)
@@ -64,19 +54,6 @@ func decodeKey(encoded string) ([]byte, error) {
 		return nil, fmt.Errorf("expected %d bytes, got %d", keySize, len(key))
 	}
 	return key, nil
-}
-
-// wireGuardPublicKey derives the public key of a private key of wireguard, like 'wg pubkey'.
-func wireGuardPublicKey(privateKey string) (string, error) {
-	seed, err := decodeKey(privateKey)
-	if err != nil {
-		return "", err
-	}
-	key, err := ecdh.X25519().NewPrivateKey(seed)
-	if err != nil {
-		return "", err
-	}
-	return base64.StdEncoding.EncodeToString(key.PublicKey().Bytes()), nil
 }
 
 // ed25519PublicKey derives the public key of an Ed25519 private key, which is given as its seed.

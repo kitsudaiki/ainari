@@ -88,8 +88,7 @@ easier for a new person to understand the code.
     - **operator**
 
         The kubernetes-operator, which deploys the whole stack from a single custom-resource of the
-        kind `Ainari`, including the wireguard-configs between onsen, ryokan and sakura and all keys
-        and passwords. See [Kubernetes-installation](../../deployer/installation/kubernetes_installation.md)
+        kind `Ainari`, including all keys and passwords. See [Kubernetes-installation](../../deployer/installation/kubernetes_installation.md)
         and `deploy/operator/README.md`.
 
     - **zarf**

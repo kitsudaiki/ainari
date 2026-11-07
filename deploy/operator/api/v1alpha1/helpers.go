@@ -14,8 +14,6 @@
 
 package v1alpha1
 
-import "fmt"
-
 // ComponentDatabase is the database of a component on the mysql-server.
 // +kubebuilder:object:generate=false
 type ComponentDatabase struct {
@@ -57,51 +55,4 @@ func (d *MySQLDatabasesSpec) ByComponent() []ComponentDatabase {
 		databases = append(databases, database)
 	}
 	return databases
-}
-
-// WireGuardMember is a pod, which takes part in the wireguard-tunnel.
-// +kubebuilder:object:generate=false
-type WireGuardMember struct {
-	// name of the component, for example 'onsen'
-	Component string
-	// ordinal of the pod within the statefulset of the component
-	Ordinal int32
-}
-
-// PodName returns the name of the pod of the member.
-func (m WireGuardMember) PodName() string {
-	return fmt.Sprintf("%s-%d", m.Component, m.Ordinal)
-}
-
-// WireGuardComponents are the components, whose pods take part in the wireguard-tunnel, in a
-// fixed order. The order defines the addresses of the pods within the tunnel, so new components
-// are only appended.
-var WireGuardComponents = []string{"onsen", "ryokan", "sakura", "onsen-backup"}
-
-// IsOnsen checks, if a component stores files, which ryokan and sakura reach over the tunnel:
-// onsen itself and the onsen of the backups.
-func IsOnsen(component string) bool {
-	return component == "onsen" || component == "onsen-backup"
-}
-
-// WireGuardMembers returns all pods, which take part in the wireguard-tunnel, or nothing, if it
-// is disabled.
-func (s *AinariSpec) WireGuardMembers() []WireGuardMember {
-	if !s.Global.WireGuard.Enabled {
-		return nil
-	}
-	replicas := map[string]int32{
-		"onsen":        s.Onsen.Replicas,
-		"ryokan":       s.Ryokan.Replicas,
-		"sakura":       s.Sakura.Replicas,
-		"onsen-backup": s.Isekai.BackupStorage.Replicas,
-	}
-
-	var members []WireGuardMember
-	for _, component := range WireGuardComponents {
-		for ordinal := int32(0); ordinal < replicas[component]; ordinal++ {
-			members = append(members, WireGuardMember{Component: component, Ordinal: ordinal})
-		}
-	}
-	return members
 }

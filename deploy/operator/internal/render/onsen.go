@@ -60,9 +60,7 @@ func (r *renderer) onsen() ([]client.Object, error) {
 		configName := storage.name + "-config"
 		objects = append(objects,
 			configMap(configName, map[string]string{"onsen.toml": config}),
-			headlessService(storage.name, storage.name, append([]corev1.ServicePort{
-				servicePort("grpc", onsenGRPCPort, onsenGRPCPort),
-			}, r.wireGuardServicePorts()...)...),
+			headlessService(storage.name, storage.name, servicePort("grpc", onsenGRPCPort, onsenGRPCPort)),
 			r.onsenStatefulSet(storage, configName),
 		)
 	}
@@ -77,37 +75,21 @@ func (r *renderer) onsenStatefulSet(storage onsenStorage, configName string) *ap
 		Name:            "onsen",
 		Image:           spec.Image,
 		ImagePullPolicy: r.pullPolicy(spec.ImagePullPolicy),
-		// The config contains the address of this pod, which is only known, when it starts. With
-		// wireguard it is the address of the pod within the tunnel, which is read from the config
-		// of its interface.
+		// the config contains the address of this pod, which is only known, when it starts
 		Command: []string{"/bin/sh", "-c",
-			`WIREGUARD_ADDRESS="$(sed -n 's|^Address = \([0-9.]*\)/.*|\1|p' /etc/wireguard/wg0.conf 2> /dev/null)"; ` +
-				`sed -e "s/@HOSTNAME@/$HOSTNAME/g" -e "s/@WIREGUARD_ADDRESS@/$WIREGUARD_ADDRESS/g" /etc/ainari/templates/onsen.toml > /tmp/onsen.toml && ` +
+			`sed "s/@HOSTNAME@/$HOSTNAME/g" /etc/ainari/templates/onsen.toml > /tmp/onsen.toml && ` +
 				`exec /home/ainari/start_onsen.sh`},
 		Env: []corev1.EnvVar{
 			envValue("CONFIG_FILE", "/tmp/onsen.toml"),
 			envValue("RUST_LOG", r.rustLog("debug,h2=info")),
 			envInternalAPIKey(),
 			envSecret("ONSEN_REGISTRATION_KEY", secrets.OnsenRegistrationKey),
-			envPodName(),
 		},
 		Ports: []corev1.ContainerPort{{Name: "grpc", ContainerPort: onsenGRPCPort}},
 		VolumeMounts: []corev1.VolumeMount{
 			{Name: "data", MountPath: "/etc/ainari/onsen/"},
 			{Name: "onsen-config", MountPath: "/etc/ainari/templates", ReadOnly: true},
 		},
-		SecurityContext: &corev1.SecurityContext{
-			Capabilities: &corev1.Capabilities{
-				Add: []corev1.Capability{"NET_ADMIN", "SYS_MODULE"},
-			},
-		},
-	}
-	var sidecars []corev1.Container
-	volumes := []corev1.Volume{configMapVolume("onsen-config", configName)}
-	if r.Spec.Global.WireGuard.Enabled {
-		main.VolumeMounts = append(main.VolumeMounts, wireGuardMount())
-		volumes = append(volumes, wireGuardVolumes(storage.name)...)
-		sidecars = append(sidecars, r.wireGuardSidecar(spec.Image, spec.ImagePullPolicy))
 	}
 
 	return &appsv1.StatefulSet{
@@ -122,8 +104,8 @@ func (r *renderer) onsenStatefulSet(storage onsenStorage, configName string) *ap
 				Spec: corev1.PodSpec{
 					Affinity:       r.affinity(storage.name, storage.name+"-node"),
 					InitContainers: []corev1.Container{r.waitForMiko()},
-					Containers:     append([]corev1.Container{main}, sidecars...),
-					Volumes:        volumes,
+					Containers:     []corev1.Container{main},
+					Volumes:        []corev1.Volume{configMapVolume("onsen-config", configName)},
 				},
 			},
 			VolumeClaimTemplates: []corev1.PersistentVolumeClaim{

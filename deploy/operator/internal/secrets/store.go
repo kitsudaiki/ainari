@@ -33,9 +33,6 @@ const LabelGenerated = "ainari.cloud/generated"
 type generatedSecret struct {
 	name string
 	keys []generatedKey
-	// A secret, which gets new keys over time, like the one with the keys of the pods of the
-	// wireguard-tunnel, can't be immutable. Its existing keys are kept anyway.
-	growing bool
 }
 
 // generatedKey is a key of a generated secret.
@@ -99,7 +96,7 @@ func (s *Store) create(ctx context.Context, namespace string, spec generatedSecr
 	for key, value := range s.Labels {
 		labels[key] = value
 	}
-	immutable := !spec.growing
+	immutable := true
 
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{

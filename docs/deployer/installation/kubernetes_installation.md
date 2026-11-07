@@ -265,13 +265,6 @@ tags in the following steps.
         - The parameters of the key-derivation of the passphrases of the backups are set with
           `isekai.kdf`.
 
-    - Wireguard
-
-        - The connections of ryokan and sakura to onsen and to the onsen of the backups run
-          through wireguard. The operator creates the keys and configs of all pods itself, also
-          for multiple replicas of onsen, ryokan and sakura, and updates the running pods, when
-          the number of replicas changes.
-
     - Without gateway
 
         - Set `global.gateway.enabled: false` and `global.externalServices.enabled: true`. Then
@@ -318,7 +311,6 @@ restart of the operator or a change of the resource. They have no owner, so they
 | `mls-grant-signing-key`   | key, with which hanami signs, which gateway may take part in the key-exchange of which network |
 | `omamori-encryption-key`  | key, with which omamori encrypts the stored secrets             |
 | `mysql-credentials`       | passwords of the deployed mysql-server                          |
-| `wireguard-keys`          | private keys of the pods of the wireguard-tunnel                |
 
 The passphrase of the admin-user is read with:
 

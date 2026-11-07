@@ -44,8 +44,6 @@ spec:
     storageClass: local-path
     # the images are built locally and imported into the nodes, they can not be pulled
     imagePullPolicy: IfNotPresent
-    wireguard:
-      enabled: false
     # The CA is created once by testing/vagrant/setup_vagrant_stack.sh in temporary_files/vagrant
     # and stays the same over all runs. The api is reached over the addresses of the virtual
     # machines.

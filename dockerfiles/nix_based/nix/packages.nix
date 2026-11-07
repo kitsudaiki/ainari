@@ -131,25 +131,6 @@ let
     if pkgs.stdenv.hostPlatform.isAarch64 then "CLOUDHV_EFI.fd" else "CLOUDHV.fd"
   }";
 
-  # wg-quick sets 'net.ipv4.conf.all.src_valid_mark', which is not permitted within a container
-  # and lets wg-quick fail. The setting is only needed for a default-route through the tunnel.
-  wireguard-tools = pkgs.wireguard-tools.overrideAttrs (old: {
-    postPatch = (old.postPatch or "") + ''
-      grep -q src_valid_mark wg-quick/linux.bash
-      sed -i '/src_valid_mark/d' wg-quick/linux.bash
-    '';
-  });
-
-  # The images only have a rule without password for wg-quick, so sudo is built
-  # without PAM, which would otherwise need its own configuration within the images.
-  sudo =
-    (pkgs.sudo.override {
-      pam = null;
-    }).overrideAttrs
-      (old: {
-        configureFlags = old.configureFlags ++ [ "--without-pam" ];
-      });
-
   # ==========================================
   # runtime-environments
   # ==========================================
@@ -202,14 +183,6 @@ let
     pkgs.stdenv.cc.cc.lib
     pkgs.openssl.out
     pkgs.sqlite.out
-  ];
-
-  # tools, which the services with a wireguard-connection need
-  wireguardPackages = [
-    wireguard-tools
-    pkgs.iptables
-    pkgs.iproute2
-    sudo
   ];
 
   # the dashboard is served by nginx with the same settings like in the official nginx-image
@@ -299,17 +272,15 @@ in
     );
     runtime-ryokan = mkRuntime "ryokan" (
       serviceLibraries
-      ++ wireguardPackages
       ++ [
         pkgs.curl
         pkgs.openssl
         mariadb-connector-c
       ]
     );
-    runtime-onsen = mkRuntime "onsen" (serviceLibraries ++ wireguardPackages ++ [ pkgs.openssl ]);
+    runtime-onsen = mkRuntime "onsen" (serviceLibraries ++ [ pkgs.openssl ]);
     runtime-sakura = mkRuntime "sakura" (
       serviceLibraries
-      ++ wireguardPackages
       ++ [
         pkgs.curl
         pkgs.openssl

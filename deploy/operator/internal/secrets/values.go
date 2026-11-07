@@ -25,14 +25,4 @@ type Values struct {
 
 	// key of omamori, which is part of its config
 	OmamoriEncryptionKey string
-
-	// keys of the pods of the wireguard-tunnel by the name of the pod, empty if
-	// global.wireguard is disabled
-	WireGuard map[string]KeyPair
-}
-
-// KeyPair is a base64-encoded key-pair.
-type KeyPair struct {
-	PrivateKey string
-	PublicKey  string
 }

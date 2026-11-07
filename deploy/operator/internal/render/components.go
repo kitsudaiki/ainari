@@ -27,8 +27,6 @@ const (
 	// tls-termination of every torii, also the one in the pod of a sakura-host, where 8443
 	// already belongs to sakura
 	toriiTLSPort = 8444
-	// port of the wireguard-tunnel
-	wireGuardPort = 51820
 	// grpc-port of onsen
 	onsenGRPCPort = 50051
 )

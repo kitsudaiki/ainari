@@ -46,8 +46,8 @@ Torii is the gateway-component, is configured by hanami and handles 2 different 
 The Onsen is the storage-pool all images and snapshots from the Ryokan and Sakura are stored
 here. This component is/must not be accessible from the internet. Its also doesn't check JWT-tokens,
 because it doesn't contain a REST-API. It interacts with the Ryokan and Sakura over a
-grpc-connection and protobuffer-messages. In the kubernetes-setup these 2 connections are secured by
-a wireguard-tunnel.
+grpc-connection and protobuffer-messages. All images and snapshots are already encrypted, before
+they are sent to the Onsen.
 
 ### Ryokan
 
