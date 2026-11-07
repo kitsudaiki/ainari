@@ -23,8 +23,8 @@ use ainari_api_structs::image_structs::ImageInternalResp;
 use ainari_api_structs::user_context::UserContext;
 use ainari_clients::endpoints::get_endpoints;
 use ainari_clients::image::get_image;
-use ainari_clients::onsen_file_transfer::download_file;
 use ainari_clients::secret::get_secret_payload;
+use ainari_clients::storage;
 use ainari_common::error::AinariError;
 use ainari_common::functions::create_directory;
 use ainari_common::secret::Secret;
@@ -113,7 +113,14 @@ pub async fn restore_ch_virtual_machine(
         log::error!("Failed to mark VM {uuid} as restoring: {e}");
     }
 
-    let restore_result = replace_root_disk(image_uuid, &image_resp, &secret, &root_disk_path).await;
+    let restore_result = replace_root_disk(
+        image_uuid,
+        &image_resp,
+        &secret,
+        &root_disk_path,
+        &context.token,
+    )
+    .await;
 
     // the cloud-hypervisor process keeps the configuration of the virtual_machine while it is
     // shut down and opens the disk again at boot, so the virtual_machine starts with the new disk
@@ -140,6 +147,7 @@ pub async fn restore_ch_virtual_machine(
 /// * `image_resp` - Storage-location of the image from ryokan
 /// * `secret` - Secret to decrypt the snapshot
 /// * `root_disk_path` - Path of the root-disk, which is replaced
+/// * `token` - Token of the user, on whose behalf the snapshot is downloaded from onsen
 ///
 /// # Returns
 /// * `Ok(())` if the root-disk was replaced
@@ -149,6 +157,7 @@ async fn replace_root_disk(
     image_resp: &ImageInternalResp,
     secret: &Secret,
     root_disk_path: &str,
+    token: &str,
 ) -> Result<(), AinariError> {
     // the same snapshot can be restored into multiple virtual_machines at the same time, so each
     // restore gets its own temp-directory
@@ -161,10 +170,13 @@ async fn replace_root_disk(
     let new_root_disk_path = format!("{root_disk_path}.restore");
 
     let result = async {
-        download_file(
+        storage::download_file(
             &image_resp.onsen_address,
+            token,
+            &config::INTERNAL_API_KEY,
             &image_resp.file_path,
             &local_encrypted_file_path,
+            config::CONFIG.skip_tls_verification,
         )
         .await
         .map_err(|e| {

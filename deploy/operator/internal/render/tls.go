@@ -90,7 +90,8 @@ func (r *renderer) certificate(name, domain string, services ...string) *unstruc
 	for _, service := range services {
 		dnsNames = append(dnsNames, fmt.Sprintf("%s.%s.svc.cluster.local", service, r.Namespace))
 	}
-	if r.Spec.Global.Gateway.Enabled {
+	// a component without external api has no TLSRoute and so no domain
+	if r.Spec.Global.Gateway.Enabled && domain != "" {
 		dnsNames = append(dnsNames, domain)
 	}
 	for _, extra := range r.Spec.Global.Certificates.ExtraDNSNames {
@@ -140,6 +141,10 @@ type nginxParams struct {
 	RedirectDomain string
 	// additionally redirects http on port 8080 to https
 	HTTPRedirect bool
+	// The component transfers whole files, like the disk-images of onsen. The size of the body is
+	// not limited, the responses are not buffered and the timeouts are long enough for a request,
+	// which hashes a large file, before it answers.
+	LargeFiles bool
 }
 
 // nginxConfig returns the config of a nginx-sidecar, which terminates tls and forwards the

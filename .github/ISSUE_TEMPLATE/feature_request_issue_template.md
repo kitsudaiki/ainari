@@ -13,6 +13,14 @@ assignees: kitsudaiki
 
 <!-- A concise description of the new feature or the improvement of an existing feature, which you have in mind. -->
 
+### Implementation
+
+<!-- basic information, how the new feature could or should be implemenated. Which components have to be updated and so on. -->
+
+### Impact on existing code
+
+<!-- What has to be changed in existing code especially breaking changes (API-changes, DB-schema changes, ...) -->
+
 ### Acceptance Criteria
 
 <!--

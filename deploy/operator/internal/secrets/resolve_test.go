@@ -16,8 +16,6 @@ package secrets
 
 import (
 	"context"
-	"encoding/base64"
-	"encoding/hex"
 	"strings"
 	"testing"
 
@@ -35,10 +33,6 @@ import (
 func testAinari() *ainariv1alpha1.Ainari {
 	a := &ainariv1alpha1.Ainari{ObjectMeta: metav1.ObjectMeta{Name: "ainari", Namespace: "test"}}
 	a.Spec.MySQL.Deploy = true
-	a.Spec.Global.WireGuard.Enabled = true
-	a.Spec.Onsen.Replicas = 2
-	a.Spec.Ryokan.Replicas = 1
-	a.Spec.Sakura.Replicas = 1
 	return a
 }
 
@@ -83,7 +77,7 @@ func TestResolveCreatesSecretsOnce(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if values.MLSGrantPublicKey == "" || values.OmamoriEncryptionKey == "" || len(values.WireGuard) != 4 {
+	if values.MLSGrantPublicKey == "" || values.OmamoriEncryptionKey == "" {
 		t.Errorf("incomplete values: %+v", values)
 	}
 
@@ -115,7 +109,7 @@ func TestResolveCreatesSecretsOnce(t *testing.T) {
 	if _, err := store.Resolve(context.Background(), ainari); err != nil {
 		t.Fatal(err)
 	}
-	ainari.Spec.Global.WireGuard.Enabled = false
+	ainari.Spec.Onsen.Replicas = 3
 	if _, err := store.Resolve(context.Background(), ainari); err != nil {
 		t.Fatal(err)
 	}
@@ -158,41 +152,6 @@ func TestResolveKeepsExistingSecrets(t *testing.T) {
 	}
 	if len(mysql.Data["root_password"]) == 0 || len(mysql.Data["izakaya_password"]) == 0 {
 		t.Errorf("the missing passwords were not added")
-	}
-}
-
-func TestResolveAddsWireGuardKeysOfNewPods(t *testing.T) {
-	store, _ := newStore()
-	ainari := testAinari()
-	first, err := store.Resolve(context.Background(), ainari)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	ainari.Spec.Onsen.Replicas = 3
-	second, err := store.Resolve(context.Background(), ainari)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if second.WireGuard["onsen-0"] != first.WireGuard["onsen-0"] {
-		t.Errorf("the key of an existing pod changed")
-	}
-	if second.WireGuard["onsen-2"].PrivateKey == "" {
-		t.Errorf("the new pod got no key")
-	}
-
-	// a removed pod keeps its key, so it gets the same one again, when it comes back
-	ainari.Spec.Onsen.Replicas = 1
-	if _, err := store.Resolve(context.Background(), ainari); err != nil {
-		t.Fatal(err)
-	}
-	ainari.Spec.Onsen.Replicas = 3
-	third, err := store.Resolve(context.Background(), ainari)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if third.WireGuard["onsen-2"] != second.WireGuard["onsen-2"] {
-		t.Errorf("the key of a pod changed, after it was removed and added again")
 	}
 }
 
@@ -246,23 +205,6 @@ func TestResolveExternalMySQL(t *testing.T) {
 	}
 	if err := c.Get(context.Background(), types.NamespacedName{Namespace: "test", Name: generatedMySQLSecret}, &corev1.Secret{}); err == nil {
 		t.Errorf("passwords are generated for an external server")
-	}
-}
-
-func TestWireGuardPublicKey(t *testing.T) {
-	// test-vector of RFC 7748, section 6.1
-	private, _ := hex.DecodeString("77076d0a7318a57d3c16c17251b26645df4c2f87ebc0992ab177fba51db92c2a")
-	public, err := wireGuardPublicKey(base64.StdEncoding.EncodeToString(private))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if want, _ := hex.DecodeString("8520f0098930a754748b7ddcb43ef75a0dbf3a0d26381af4eba4a98eaa9b4e6a"); public != base64.StdEncoding.EncodeToString(want) {
-		t.Errorf("wrong public key %s", public)
-	}
-
-	key, _ := base64.StdEncoding.DecodeString(generateWireGuardKey())
-	if key[0]&7 != 0 || key[31]&128 != 0 || key[31]&64 == 0 {
-		t.Errorf("the generated key is not clamped")
 	}
 }
 

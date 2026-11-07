@@ -3,7 +3,14 @@ debug = true
 log_type = "stdout"
 log_path = "/var/log/"
 skip_tls_verification = true
-address = "http://127.0.0.1:50051"
+# address of the internal api, which is registered at ryokan
+address = "http://127.0.0.1:10426"
+
+[api]
+public_ip = "0.0.0.0"
+public_port = 11426
+internal_ip = "0.0.0.0"
+internal_port = 10426
 
 [miko]
 address = "http://127.0.0.1:11417"

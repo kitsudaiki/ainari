@@ -78,8 +78,10 @@ ports and IP-ranges.
   before they are moved to the storage, so data can neither be read nor be manipulated unnoticed.
 - **Encrypted backups:** VM- and project-backups are encrypted with a key derived from a passphrase
   of the user (Argon2id + HKDF-SHA256).
-- **Isolated storage network:** The Onsen has no REST-API, is not reachable from the internet and is
-  connected to Ryokan and Sakura over gRPC through a wireguard-tunnel in the Kubernetes setup.
+- **Isolated storage:** The Onsen is not reachable from the internet. Its REST-API only has
+  internal endpoints, which are only reachable over its internal port and only accept requests
+  with the internal API-key and a valid user token. Ryokan and Sakura reach it over TLS within the
+  cluster network.
 
 ### Untrusted key generation in the backend
 

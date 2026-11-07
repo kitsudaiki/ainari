@@ -852,13 +852,6 @@ jobs:
   #         kubectl create namespace cert-manager
   #         helm install cert-manager jetstack/cert-manager --namespace cert-manager --set installCRDs=true
   #     -
-  #       name: Create wireguard-configs
-  #       run: |
-  #         sudo apt-get install -y wireguard-tools
-  #         pip3 install jinja2
-  #         cd ${GITHUB_REPOSITORY#*/}/deploy/k8s
-  #         python3 wg_gen.py --namespace default
-  #     -
   #       name: Label nodes
   #       run: |
   #         kubectl label nodes --all hanami-node=true

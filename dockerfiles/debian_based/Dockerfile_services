@@ -226,24 +226,12 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends openssl \
                        curl \
                        libsqlite3-0 \
-                       libmariadb3 \
-                       wireguard-tools \
-                       iptables-persistent \
-                       iproute2 \
-                       sudo && \
+                       libmariadb3 && \
     apt-get clean autoclean &&\
     apt-get autoremove --yes
 
-# horrible dirty workaround to prevent the error
-# sysctl: permission denied on key "net.ipv4.conf.all.src_valid_mark"
-# when starting wireguard inside the pod. Didn't found a better solution so far...
-RUN sed -i '/src_valid_mark/d' /usr/bin/wg-quick
-
 # Create ainari user and set up directories
 RUN useradd -m ainari
-
-# Allow the user to creage the wireguard-connection
-RUN echo "ainari ALL=(ALL) NOPASSWD: /usr/bin/wg-quick" >> /etc/sudoers
 
 COPY --from=builder /out/ryokan /home/ainari/ryokan
 COPY dockerfiles/files/start_ryokan.sh /home/ainari/start_ryokan.sh
@@ -267,24 +255,13 @@ ARG DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends openssl \
-                       libsqlite3-0 \
-                       wireguard-tools \
-                       iptables-persistent \
-                       iproute2 \
-                       sudo && \
+                       curl \
+                       libsqlite3-0 && \
     apt-get clean autoclean && \
     apt-get autoremove --yes
 
-# horrible dirty workaround to prevent the error
-# sysctl: permission denied on key "net.ipv4.conf.all.src_valid_mark"
-# when starting wireguard inside the pod. Didn't found a better solution so far...
-RUN sed -i '/src_valid_mark/d' /usr/bin/wg-quick
-
 # Create ainari user and set up directories
 RUN useradd -m ainari
-
-# Allow the user to creage the wireguard-connection
-RUN echo "ainari ALL=(ALL) NOPASSWD: /usr/bin/wg-quick" >> /etc/sudoers
 
 COPY --from=builder /out/onsen /home/ainari/onsen
 COPY dockerfiles/files/start_onsen.sh /home/ainari/start_onsen.sh
@@ -315,24 +292,12 @@ RUN apt-get update && \
                        libsqlite3-0 \
                        qemu-utils \
                        cloud-image-utils \
-                       libcap2-bin \
-                       wireguard-tools \
-                       iptables-persistent \
-                       iproute2 \
-                       sudo && \
+                       libcap2-bin && \
     apt-get clean autoclean &&\
     apt-get autoremove --yes
 
-# horrible dirty workaround to prevent the error
-# sysctl: permission denied on key "net.ipv4.conf.all.src_valid_mark"
-# when starting wireguard inside the pod. Didn't found a better solution so far...
-RUN sed -i '/src_valid_mark/d' /usr/bin/wg-quick
-
 # Create ainari user and set up directories
 RUN useradd -m ainari
-
-# Allow the user to creage the wireguard-connection
-RUN echo "ainari ALL=(ALL) NOPASSWD: /usr/bin/wg-quick" >> /etc/sudoers
 
 # The virtual machines are opened through /dev/kvm, which belongs to the group 'kvm' on the host.
 # The id of that group differs between hosts, so it can be overwritten at build-time and the

@@ -48,7 +48,6 @@ and stores it in a secret of the namespace:
 | `miko-admin`              | passphrase of the admin                                         |
 | `omamori-encryption-key`  | key, with which omamori encrypts the stored secrets             |
 | `mysql-credentials`       | passwords of the deployed mysql-server                          |
-| `wireguard-keys`          | private keys of the pods of the wireguard-tunnel                |
 
 These secrets are never overwritten, so no key or password, which data depends on, gets lost:
 
@@ -56,8 +55,7 @@ These secrets are never overwritten, so no key or password, which data depends o
   someone else. Only keys, which it misses, are added. This way own values can be given, for
   example the passphrase of the admin:
   `kubectl create secret generic miko-admin --from-literal=passphrase=<passphrase>`
-- The operator creates them `immutable`, so nobody can change them by accident. Only
-  `wireguard-keys` gets new keys for new pods, but never changes the existing ones.
+- The operator creates them `immutable`, so nobody can change them by accident.
 - They have no owner, so they stay, when the `Ainari` is deleted, and a new one takes them over
   again, together with the volumes of mysql. They are labeled with
   `ainari.cloud/generated=true` and have to be deleted by hand to remove a stack
@@ -74,22 +72,6 @@ The passphrase of the generated admin:
 ```bash
 kubectl get secret -n ainari miko-admin -o jsonpath='{.data.passphrase}' | base64 -d
 ```
-
-## Wireguard
-
-The connections of ryokan and sakura to onsen run through wireguard, if `global.wireguard` is
-enabled. The operator creates the keys and configs itself.
-
-- every pod of onsen, `onsen-backup`, ryokan and sakura has its own key and address within
-  `10.10.0.0/16`
-- every onsen, also the one of the backups, is a peer of every ryokan and every sakura, so all of
-  them reach every onsen and every onsen reaches every ryokan, also with several replicas of each
-  of them
-- the peers are reached over the names of their pods, like
-  `onsen-1.onsen.<namespace>.svc.cluster.local`, so onsen, ryokan and sakura run as statefulsets
-- every pod has the sidecar `wireguard-sync`, which keeps the peers of its interface in sync with
-  the secret `wg-<component>-secret`, so a change of the number of replicas reaches the running
-  pods without a restart
 
 ## Backups
 

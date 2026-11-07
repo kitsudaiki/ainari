@@ -12,8 +12,8 @@ shown and described below:
 Miko is the most trustworthy component of the setup and provides the authentication service. It
 provides user-, project- and quota-management. Whenever a user want to interact with the backend, he
 must at first login in his user-account over Miko, which returns a JWT-token. This this token the
-user can also access all other component, except the Onsen. Each components checks the provided
-JWT-tokens against Miko, to check if the token is valid.
+user can also access all other component. Each components checks the provided JWT-tokens against
+Miko, to check if the token is valid.
 
 ### Sakura
 
@@ -44,10 +44,11 @@ Torii is the gateway-component, is configured by hanami and handles 2 different 
 ### Onsen
 
 The Onsen is the storage-pool all images and snapshots from the Ryokan and Sakura are stored
-here. This component is/must not be accessible from the internet. Its also doesn't check JWT-tokens,
-because it doesn't contain a REST-API. It interacts with the Ryokan and Sakura over a
-grpc-connection and protobuffer-messages. In the kubernetes-setup these 2 connections are secured by
-a wireguard-tunnel.
+here. This component is/must not be accessible from the internet. Its REST-API only has internal
+endpoints, which are protected by the internal API-key and, like for all other components, by the
+JWT-token of the user, which is checked against Miko. The Ryokan and Sakura store and read the files
+over this API on behalf of the user, which is secured by TLS like the APIs of all other components.
+All images and snapshots are already encrypted, before they are sent to the Onsen.
 
 ### Ryokan
 

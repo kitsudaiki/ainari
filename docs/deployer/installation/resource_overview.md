@@ -33,6 +33,8 @@ Resources without a condition are always created. The conditions refer to the fi
 | `izakaya-cert`      |                                      | TLS of izakaya                                 |
 | `sakura-cert`       |                                      | TLS of the sakura-hosts                        |
 | `sakura-proxy-cert` |                                      | wildcard-certificate of the proxies to the VMs |
+| `onsen-cert`        |                                      | TLS of the onsen-pods                          |
+| `onsen-backup-cert` |                                      | TLS of the onsen-pods for backups              |
 | `torii-cert`        |                                      | TLS of the torii-gateways                      |
 | `dashboard-cert`    | `dashboard.enabled`                  | TLS of the dashboard                           |
 
@@ -61,19 +63,16 @@ Resources without a condition are always created. The conditions refer to the fi
 | `izakaya-nginx-config`   |                                | nginx-config of the TLS-sidecar of izakaya       |
 | `sakura-nginx-config`    |                                | nginx-config of the TLS-sidecars of sakura       |
 | `torii-nginx-config`     |                                | nginx-config of the TLS-sidecars of torii        |
+| `onsen-nginx-config`     |                                | nginx-config of the TLS-sidecars of onsen        |
+| `onsen-backup-nginx-config` |                             | nginx-config of the TLS-sidecars of the backup-onsen |
 | `dashboard-nginx-config` | `dashboard.enabled`            | nginx-config of the TLS-sidecar of the dashboard |
 | `mysql-init`             | `mysql.deploy`                 | script, which creates the databases and users    |
-| `wireguard-scripts`      | `global.wireguard.enabled`     | sync-script of the wireguard-sidecars            |
 
 ## Secret
 
 | Name                     | Condition                  | Used for                                                  |
 | ------------------------ | -------------------------- | --------------------------------------------------------- |
 | `omamori-config`         |                            | config-file of omamori, which contains its encryption-key |
-| `wg-onsen-secret`        | `global.wireguard.enabled` | wireguard-configs and peers of the onsen-pods             |
-| `wg-onsen-backup-secret` | `global.wireguard.enabled` | wireguard-configs and peers of the onsen-pods for backups |
-| `wg-ryokan-secret`       | `global.wireguard.enabled` | wireguard-configs and peers of the ryokan-pods            |
-| `wg-sakura-secret`       | `global.wireguard.enabled` | wireguard-configs and peers of the sakura-pods            |
 
 ### Generated secrets
 
@@ -90,7 +89,6 @@ stay, when the `Ainari`-resource is deleted, and are taken over by the next one.
 | `omamori-encryption-key`  |                                | key, with which omamori encrypts the secrets   |
 | `mls-grant-signing-key`   |                                | key, with which hanami signs the MLS-grants    |
 | `mysql-credentials`       | `mysql.deploy`                 | root-password and passwords of the databases   |
-| `wireguard-keys`          | `global.wireguard.enabled`     | private wireguard-keys of all tunnel-pods      |
 
 ## Service
 
@@ -112,10 +110,10 @@ stay, when the `Ainari`-resource is deleted, and are taken over by the next one.
 | `omikuji-external`      |                                | public api of omikuji                            |
 | `isekai-external`       |                                | public api of isekai                             |
 | `dashboard-external`    | `dashboard.enabled`            | public access to the dashboard                   |
-| `ryokan`                |                                | headless, DNS-names and wireguard of the pods    |
-| `onsen`                 |                                | headless, gRPC and wireguard of the onsen-pods   |
-| `onsen-backup`          |                                | headless, gRPC and wireguard of the backup-onsen |
-| `sakura`                |                                | headless, apis and wireguard of the sakura-pods  |
+| `ryokan`                |                                | headless, DNS-names of the pods                  |
+| `onsen`                 |                                | headless, internal api of the onsen-pods         |
+| `onsen-backup`          |                                | headless, internal api of the backup-onsen       |
+| `sakura`                |                                | headless, apis of the sakura-pods                |
 | `torii-public`          |                                | headless, api of the public torii-pods           |
 | `torii-gateway-service` |                                | proxy-port of the gateway to the VMs             |
 | `mysql`                 | `mysql.deploy`                 | access to the MySQL-database                     |
@@ -184,6 +182,8 @@ existing certificates are not signed by, until they are issued again.
 | `sakura-tls-secret`       |                                      | internal TLS-sidecar of sakura                    |
 | `sakura-proxy-tls-secret` |                                      | external TLS-sidecar of sakura for the VM-proxies |
 | `torii-tls-secret`        |                                      | TLS-sidecars of the public and the VMM-torii      |
+| `onsen-tls-secret`        |                                      | TLS-sidecars of onsen                             |
+| `onsen-backup-tls-secret` |                                      | TLS-sidecars of the backup-onsen                  |
 | `dashboard-tls-secret`    | `dashboard.enabled`                  | TLS-sidecar of the dashboard                      |
 
 For every issuance of a certificate, cert-manager additionally creates a `CertificateRequest`

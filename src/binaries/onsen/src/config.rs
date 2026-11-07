@@ -43,8 +43,12 @@ pub struct Config {
     #[serde(default = "default_insecure_clients")]
     pub skip_tls_verification: bool,
 
-    /// Network address for the application to bind to or connect to.
+    /// Address of the internal api of this host, which is registered at the ryokan, so the
+    /// ryokan and the sakura-hosts reach it over this address.
     pub address: String,
+
+    /// Addresses and ports of the http-server.
+    pub api: ainari_config::Api,
 
     /// Configuration for storage settings.
     pub storage: Storage,

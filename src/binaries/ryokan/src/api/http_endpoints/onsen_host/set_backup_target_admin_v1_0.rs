@@ -65,7 +65,7 @@ pub async fn set_backup_target_admin(
     }
 
     // update the mark in the database
-    let changed = host_table::set_backup_target(&host_uuid, body.is_backup_target, &context)
+    let changed = host_table::mark_as_backup_target(&host_uuid, body.is_backup_target, &context)
         .map_err(|e| map_db_uuid_get_delete_error("onsen-host", &host_uuid, e, Some(&context)))?;
     if !changed && body.is_backup_target {
         return Err(ErrorResponse::Conflict(format!(

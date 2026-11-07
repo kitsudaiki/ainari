@@ -22,8 +22,7 @@ import (
 )
 
 // ryokan handles the images of the virtual machines, which are stored by onsen. It runs as
-// statefulset, so every pod has a fixed name, which the onsen-pods reach it over within the
-// wireguard-tunnel.
+// statefulset, so every pod has a fixed name, which the onsen-pods reach it over.
 func (r *renderer) ryokan() ([]client.Object, error) {
 	spec := &r.Spec.Ryokan
 	config, err := r.execute("ryokan.toml", r)
@@ -47,21 +46,12 @@ func (r *renderer) ryokan() ([]client.Object, error) {
 		},
 		securityContext: &corev1.SecurityContext{
 			SeccompProfile: &corev1.SeccompProfile{Type: corev1.SeccompProfileTypeRuntimeDefault},
-			Capabilities: &corev1.Capabilities{
-				Add: []corev1.Capability{"NET_ADMIN", "SYS_MODULE"},
-			},
 		},
-	}
-	if r.Spec.Global.WireGuard.Enabled {
-		b.env = append(b.env, envPodName())
-		b.volumes = wireGuardVolumes("ryokan")
-		b.volumeMounts = []corev1.VolumeMount{wireGuardMount()}
-		b.sidecars = []corev1.Container{r.wireGuardSidecar(spec.Image, spec.ImagePullPolicy)}
 	}
 
 	objects, err := r.backendObjects(b)
 	if err != nil {
 		return nil, err
 	}
-	return append(objects, headlessService("ryokan", "ryokan", r.wireGuardServicePorts()...)), nil
+	return append(objects, headlessService("ryokan", "ryokan")), nil
 }

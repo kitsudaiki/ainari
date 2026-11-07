@@ -81,19 +81,6 @@ if [ -d "$ENV_PATH/etc" ]; then
     cp -a "$ENV_PATH/etc/." "$ROOTFS/etc/"
 fi
 
-# A setuid-bit is not possible within the nix-store, so sudo is copied out of it
-if [ -e "$ENV_PATH/bin/sudo" ]; then
-    rm "$ROOTFS/usr/bin/sudo"
-    cp "$(readlink -f "$ENV_PATH/bin/sudo")" "$ROOTFS/usr/bin/sudo"
-    chmod 4755 "$ROOTFS/usr/bin/sudo"
-    # the sample-configs of sudo are replaced by an empty config, which only includes the rules
-    # of the Dockerfile in /etc/sudoers.d
-    rm -rf "$ROOTFS/etc/sudoers" "$ROOTFS/etc/sudoers.d"
-    mkdir -p "$ROOTFS/etc/sudoers.d"
-    echo "@includedir /etc/sudoers.d" > "$ROOTFS/etc/sudoers"
-    chmod 0440 "$ROOTFS/etc/sudoers"
-fi
-
 mkdir -p "$ROOTFS/tmp" "$ROOTFS/var/tmp" "$ROOTFS/run" "$ROOTFS/root" "$ROOTFS/home"
 chmod 1777 "$ROOTFS/tmp" "$ROOTFS/var/tmp"
 chmod 0700 "$ROOTFS/root"

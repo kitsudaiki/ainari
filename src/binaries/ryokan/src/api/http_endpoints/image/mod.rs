@@ -29,9 +29,9 @@ use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::image_structs::ImageStatus;
 use ainari_api_structs::user_context::UserContext;
 use ainari_clients::endpoints::get_endpoints;
-use ainari_clients::onsen_file_transfer::delete_file_from_onsen;
 use ainari_clients::quota::get_quota;
 use ainari_clients::secret::delete_secret;
+use ainari_clients::storage;
 use uuid::Uuid;
 
 /// Validates that the provided image type is one of the supported types.
@@ -153,7 +153,15 @@ async fn remove_failed_image(
     }
 
     // onsen accepts the deletion of a file, which doesn't exist
-    if let Err(e) = delete_file_from_onsen(onsen_address, file_path).await {
+    if let Err(e) = storage::delete_file(
+        onsen_address,
+        &context.token,
+        &config::INTERNAL_API_KEY,
+        file_path,
+        config::CONFIG.skip_tls_verification,
+    )
+    .await
+    {
         log::error!("Failed to delete file of failed image {image_uuid}: {e}");
     }
 

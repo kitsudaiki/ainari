@@ -101,14 +101,6 @@ type GlobalSpec struct {
 	// +optional
 	Certificates CertificatesSpec `json:"certificates"`
 
-	// The connections of ryokan and sakura to onsen run through wireguard. Every pod of onsen,
-	// ryokan and sakura gets its own key and address within 10.10.0.0/16 and every onsen is
-	// connected with every ryokan and every sakura. The operator creates the keys and configs and
-	// updates the peers of the running pods, when the number of replicas changes.
-	// +kubebuilder:default={}
-	// +optional
-	WireGuard WireGuardSpec `json:"wireguard"`
-
 	// Every component runs only on the nodes with its label (for example 'hanami-node=true') and
 	// never twice on the same node. A cluster with only one node needs this to be disabled.
 	// +kubebuilder:default=true
@@ -179,13 +171,6 @@ type CertificatesSpec struct {
 	// additional addresses, which every certificate is valid for
 	// +optional
 	ExtraIPAddresses []string `json:"extraIpAddresses,omitempty"`
-}
-
-// WireGuardSpec configures the tunnel between ryokan, onsen and sakura.
-type WireGuardSpec struct {
-	// +kubebuilder:default=true
-	// +optional
-	Enabled bool `json:"enabled"`
 }
 
 // ExternalServiceType is the type of the services, which publish the apis outside of the

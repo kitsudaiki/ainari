@@ -40,11 +40,13 @@ type onsenTemplateData struct {
 	*renderer
 	// headless service of the statefulset, over which the pods are reachable
 	Service string
+	// port of the tls-termination of the internal api of every pod
+	Port int32
 }
 
 // onsen stores the images of ryokan and, with its second statefulset, the backups of isekai. Every
-// pod registers itself at ryokan with its own address, over which ryokan and sakura reach it with
-// grpc, so it has no tls-termination.
+// pod registers itself at ryokan with the address of its own tls-termination, over which ryokan
+// and sakura reach its internal api, because a file is always stored on one specific pod.
 func (r *renderer) onsen() ([]client.Object, error) {
 	backups := &r.Spec.Isekai.BackupStorage
 
@@ -53,16 +55,25 @@ func (r *renderer) onsen() ([]client.Object, error) {
 		{"onsen", r.Spec.Onsen.Replicas, r.Spec.Onsen.StorageClass, r.Spec.Onsen.StorageSize},
 		{"onsen-backup", backups.Replicas, backups.StorageClass, backups.StorageSize},
 	} {
-		config, err := r.execute("onsen.toml", onsenTemplateData{renderer: r, Service: storage.name})
+		config, err := r.execute("onsen.toml", onsenTemplateData{
+			renderer: r, Service: storage.name, Port: internalTLSPort,
+		})
+		if err != nil {
+			return nil, err
+		}
+		nginx, err := r.nginxConfig(nginxParams{
+			Listen: internalTLSPort, Upstream: portsOf("onsen").Internal, LargeFiles: true,
+		})
 		if err != nil {
 			return nil, err
 		}
 		configName := storage.name + "-config"
 		objects = append(objects,
 			configMap(configName, map[string]string{"onsen.toml": config}),
-			headlessService(storage.name, storage.name, append([]corev1.ServicePort{
-				servicePort("grpc", onsenGRPCPort, onsenGRPCPort),
-			}, r.wireGuardServicePorts()...)...),
+			configMap(nginxConfigName(storage.name), map[string]string{"internal.conf": nginx}),
+			headlessService(storage.name, storage.name, servicePort("tls", internalTLSPort, internalTLSPort)),
+			// every pod is reached over its own name within the headless service
+			r.certificate(storage.name, "", "*."+storage.name),
 			r.onsenStatefulSet(storage, configName),
 		)
 	}
@@ -77,38 +88,26 @@ func (r *renderer) onsenStatefulSet(storage onsenStorage, configName string) *ap
 		Name:            "onsen",
 		Image:           spec.Image,
 		ImagePullPolicy: r.pullPolicy(spec.ImagePullPolicy),
-		// The config contains the address of this pod, which is only known, when it starts. With
-		// wireguard it is the address of the pod within the tunnel, which is read from the config
-		// of its interface.
+		// the config contains the address of this pod, which is only known, when it starts
 		Command: []string{"/bin/sh", "-c",
-			`WIREGUARD_ADDRESS="$(sed -n 's|^Address = \([0-9.]*\)/.*|\1|p' /etc/wireguard/wg0.conf 2> /dev/null)"; ` +
-				`sed -e "s/@HOSTNAME@/$HOSTNAME/g" -e "s/@WIREGUARD_ADDRESS@/$WIREGUARD_ADDRESS/g" /etc/ainari/templates/onsen.toml > /tmp/onsen.toml && ` +
+			`sed "s/@HOSTNAME@/$HOSTNAME/g" /etc/ainari/templates/onsen.toml > /tmp/onsen.toml && ` +
 				`exec /home/ainari/start_onsen.sh`},
 		Env: []corev1.EnvVar{
 			envValue("CONFIG_FILE", "/tmp/onsen.toml"),
 			envValue("RUST_LOG", r.rustLog("debug,h2=info")),
 			envInternalAPIKey(),
 			envSecret("ONSEN_REGISTRATION_KEY", secrets.OnsenRegistrationKey),
-			envPodName(),
 		},
-		Ports: []corev1.ContainerPort{{Name: "grpc", ContainerPort: onsenGRPCPort}},
 		VolumeMounts: []corev1.VolumeMount{
 			{Name: "data", MountPath: "/etc/ainari/onsen/"},
 			{Name: "onsen-config", MountPath: "/etc/ainari/templates", ReadOnly: true},
 		},
-		SecurityContext: &corev1.SecurityContext{
-			Capabilities: &corev1.Capabilities{
-				Add: []corev1.Capability{"NET_ADMIN", "SYS_MODULE"},
-			},
-		},
+		ReadinessProbe: probe(curlReady(portsOf("onsen").Public), readiness),
+		LivenessProbe:  probe(curlReady(portsOf("onsen").Public), liveness),
 	}
-	var sidecars []corev1.Container
-	volumes := []corev1.Volume{configMapVolume("onsen-config", configName)}
-	if r.Spec.Global.WireGuard.Enabled {
-		main.VolumeMounts = append(main.VolumeMounts, wireGuardMount())
-		volumes = append(volumes, wireGuardVolumes(storage.name)...)
-		sidecars = append(sidecars, r.wireGuardSidecar(spec.Image, spec.ImagePullPolicy))
-	}
+	// tls-termination of the internal api, which ryokan and sakura reach
+	tls := r.tlsSidecar("tls-termination", nginxConfigName(storage.name), "internal.conf", tlsCertsVolume)
+	tls.Ports = []corev1.ContainerPort{{Name: "tls", ContainerPort: internalTLSPort}}
 
 	return &appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{Name: storage.name, Labels: appLabels(storage.name)},
@@ -122,8 +121,10 @@ func (r *renderer) onsenStatefulSet(storage onsenStorage, configName string) *ap
 				Spec: corev1.PodSpec{
 					Affinity:       r.affinity(storage.name, storage.name+"-node"),
 					InitContainers: []corev1.Container{r.waitForMiko()},
-					Containers:     append([]corev1.Container{main}, sidecars...),
-					Volumes:        volumes,
+					Containers:     []corev1.Container{main, tls},
+					Volumes: append([]corev1.Volume{
+						configMapVolume("onsen-config", configName),
+					}, tlsVolumes(storage.name)...),
 				},
 			},
 			VolumeClaimTemplates: []corev1.PersistentVolumeClaim{

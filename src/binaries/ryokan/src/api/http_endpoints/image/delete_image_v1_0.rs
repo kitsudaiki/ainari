@@ -24,8 +24,8 @@ use ainari_api::error_mapping::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::user_context::UserContext;
 use ainari_clients::endpoints::get_endpoints;
-use ainari_clients::onsen_file_transfer::delete_file_from_onsen;
 use ainari_clients::secret::delete_secret;
+use ainari_clients::storage;
 
 #[api_operation(
     tag = "image",
@@ -48,9 +48,15 @@ pub async fn delete_image(
         .map_err(|e| map_db_uuid_get_delete_error("image", &image_uuid, e, Some(&context)))?;
 
     // delete image-payload from onsen
-    delete_file_from_onsen(&image_data.onsen_address, &image_data.file_path)
-        .await
-        .map_err(|e| map_ainari_error_to_api_response(e, Some(&context)))?;
+    storage::delete_file(
+        &image_data.onsen_address,
+        &context.token,
+        &config::INTERNAL_API_KEY,
+        &image_data.file_path,
+        config::CONFIG.skip_tls_verification,
+    )
+    .await
+    .map_err(|e| map_ainari_error_to_api_response(e, Some(&context)))?;
 
     // delete secret from omamori
     let miko_endpoint = &config::CONFIG.miko;

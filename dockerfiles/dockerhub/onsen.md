@@ -6,9 +6,10 @@ Storage-pool of Ainari for the images and snapshots of the virtual machines.
 
 ## About
 
-Onsen is the storage-pool, where all images and snapshots of Ryokan and Sakura are stored. It has
-no REST-API and must not be reachable from the internet. Ryokan and Sakura talk to it over gRPC,
-which is secured by a wireguard-tunnel in the kubernetes-setup.
+Onsen is the storage-pool, where all images and snapshots of Ryokan and Sakura are stored. It must
+not be reachable from the internet. Its REST-API only has internal endpoints, which are protected by
+the internal API-key and the token of the user, over which Ryokan and Sakura store and read the
+images and snapshots, which are already encrypted.
 
 It is one component of [Ainari](https://github.com/kitsudaiki/ainari), a secure and easy to use,
 deploy and develop IaaS stack to manage virtual machines.

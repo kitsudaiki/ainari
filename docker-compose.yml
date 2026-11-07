@@ -195,6 +195,10 @@ services:
       - ONSEN_REGISTRATION_KEY=${ONSEN_REGISTRATION_KEY:-local-onsen-registration-key}
     volumes:
       - ./testing/local_stack/configs/onsen.toml:/etc/ainari/onsen.toml:ro
+    # only the version, the ready-status and the openapi-spec are reachable over the public port,
+    # the internal endpoints with the files are only reachable within the docker-network
+    ports:
+      - "11426:11426"
     depends_on:
       - miko
       - ryokan

@@ -232,7 +232,7 @@ pub fn list_hosts(_: &UserContext) -> QueryResult<Vec<HostEntry>> {
 /// * `Ok(false)` if the host can not be marked, because images are stored on it, or can not be
 ///   unmarked, because backups are registered on it
 /// * `Err(enums::DbError)` if the host doesn't exist or the update failed
-pub fn set_backup_target(
+pub fn mark_as_backup_target(
     host_uuid: &Uuid,
     backup_target: bool,
     context: &UserContext,
@@ -616,7 +616,7 @@ mod tests {
         let host = HostEntry {
             uuid: Uuid::new_v4(),
             name: "onsen".to_string(),
-            address: format!("http://{}:50051", Uuid::new_v4()),
+            address: format!("http://{}:10426", Uuid::new_v4()),
             is_backup_target: false,
             created_at: Utc::now(),
             created_by: "admin".to_string(),
@@ -665,7 +665,7 @@ mod tests {
 
         // mark and unmark an empty host
         assert!(matches!(
-            set_backup_target(&host.uuid, true, &context),
+            mark_as_backup_target(&host.uuid, true, &context),
             Ok(true)
         ));
         assert!(is_marked(&host.uuid));
@@ -676,14 +676,14 @@ mod tests {
                 .any(|h| h.uuid == host.uuid && h.is_backup_target)
         );
         assert!(matches!(
-            set_backup_target(&host.uuid, false, &context),
+            mark_as_backup_target(&host.uuid, false, &context),
             Ok(true)
         ));
         assert!(!is_marked(&host.uuid));
 
         // unknown or deleted host
         assert!(matches!(
-            set_backup_target(&Uuid::new_v4(), true, &context),
+            mark_as_backup_target(&Uuid::new_v4(), true, &context),
             Err(enums::DbError::NotFound)
         ));
 
@@ -694,7 +694,7 @@ mod tests {
             ..context.clone()
         };
         assert!(matches!(
-            set_backup_target(&host.uuid, true, &observer),
+            mark_as_backup_target(&host.uuid, true, &observer),
             Err(enums::DbError::PermissionDenied)
         ));
 
@@ -710,7 +710,7 @@ mod tests {
 
         // a host with an image can not become a backup-target
         assert!(matches!(
-            set_backup_target(&host.uuid, true, &context),
+            mark_as_backup_target(&host.uuid, true, &context),
             Ok(false)
         ));
         assert!(!is_marked(&host.uuid));
@@ -718,7 +718,7 @@ mod tests {
         // after the image was deleted, it can
         assert!(image_table::delete_image(&image_uuid, &context).is_ok());
         assert!(matches!(
-            set_backup_target(&host.uuid, true, &context),
+            mark_as_backup_target(&host.uuid, true, &context),
             Ok(true)
         ));
 
@@ -732,7 +732,7 @@ mod tests {
         let context = admin_context();
         let host = add_test_host();
         assert!(matches!(
-            set_backup_target(&host.uuid, true, &context),
+            mark_as_backup_target(&host.uuid, true, &context),
             Ok(true)
         ));
         {
@@ -745,7 +745,7 @@ mod tests {
         let backup_uuid = Uuid::new_v4();
         backup_table::add_new_backup(&backup_uuid, &host.uuid, "project", None, &context).unwrap();
         assert!(matches!(
-            set_backup_target(&host.uuid, false, &context),
+            mark_as_backup_target(&host.uuid, false, &context),
             Ok(false)
         ));
         assert!(is_marked(&host.uuid));
@@ -764,7 +764,7 @@ mod tests {
         );
         assert!(backup_table::delete_backup(&backup_uuid, &context).is_ok());
         assert!(matches!(
-            set_backup_target(&host.uuid, false, &context),
+            mark_as_backup_target(&host.uuid, false, &context),
             Ok(true)
         ));
         let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
@@ -785,14 +785,14 @@ mod tests {
         let context = admin_context();
         let host = add_test_host();
         assert!(matches!(
-            set_backup_target(&host.uuid, true, &context),
+            mark_as_backup_target(&host.uuid, true, &context),
             Ok(true)
         ));
 
         {
             let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
             assert!(is_backup_target_address(&mut conn, &host.address).unwrap());
-            assert!(!is_backup_target_address(&mut conn, "http://unknown:50051").unwrap());
+            assert!(!is_backup_target_address(&mut conn, "http://unknown:10426").unwrap());
         }
 
         // adding an image on a backup-target is a hard error, even if the host was selected

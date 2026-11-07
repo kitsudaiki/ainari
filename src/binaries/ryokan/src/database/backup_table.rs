@@ -468,7 +468,7 @@ mod tests {
         let host = HostEntry {
             uuid: Uuid::new_v4(),
             name: "onsen".to_string(),
-            address: format!("http://{}:50051", Uuid::new_v4()),
+            address: format!("http://{}:10426", Uuid::new_v4()),
             is_backup_target,
             created_at: Utc::now(),
             created_by: "admin".to_string(),

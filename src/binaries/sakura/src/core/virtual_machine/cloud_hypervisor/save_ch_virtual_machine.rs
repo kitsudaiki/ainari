@@ -25,8 +25,8 @@ use ainari_api_structs::user_context::UserContext;
 use ainari_clients::backup::prepare_backup_disk;
 use ainari_clients::endpoints::get_endpoints;
 use ainari_clients::image::{get_image, update_image_status};
-use ainari_clients::onsen_file_transfer::upload_file;
 use ainari_clients::secret::get_secret_payload;
+use ainari_clients::storage;
 use ainari_common::error::AinariError;
 use ainari_common::functions::create_directory;
 use ainari_files::file_encryption::encrypt_file;
@@ -166,11 +166,18 @@ pub async fn save_snapshot_image(
             )
             .await?;
 
-            upload_file(&image_resp.onsen_address, &image_resp.file_path, local_path)
-                .await
-                .map_err(|e| {
-                    AinariError::internal(format!("Failed to upload snapshot-file to onsen: {e}"))
-                })?;
+            storage::upload_file(
+                &image_resp.onsen_address,
+                &context.token,
+                &config::INTERNAL_API_KEY,
+                &image_resp.file_path,
+                local_path,
+                config::CONFIG.skip_tls_verification,
+            )
+            .await
+            .map_err(|e| {
+                AinariError::internal(format!("Failed to upload snapshot-file to onsen: {e}"))
+            })?;
 
             // only now the snapshot is complete and can be restored
             update_image_status(
@@ -236,11 +243,16 @@ pub async fn save_backup_disk(
         secret_uuid,
         context,
         async |local_path: &str, _: &FileInfo| {
-            upload_file(&target.onsen_address, &target.file_path, local_path)
-                .await
-                .map_err(|e| {
-                    AinariError::internal(format!("Failed to upload disk into backup: {e}"))
-                })
+            storage::upload_file(
+                &target.onsen_address,
+                &context.token,
+                &config::INTERNAL_API_KEY,
+                &target.file_path,
+                local_path,
+                config::CONFIG.skip_tls_verification,
+            )
+            .await
+            .map_err(|e| AinariError::internal(format!("Failed to upload disk into backup: {e}")))
         },
     )
     .await?;

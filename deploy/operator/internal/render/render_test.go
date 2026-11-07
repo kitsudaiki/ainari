@@ -15,7 +15,6 @@
 package render_test
 
 import (
-	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -36,7 +35,6 @@ func testSpec() *ainariv1alpha1.AinariSpec {
 	return &ainariv1alpha1.AinariSpec{
 		Global: ainariv1alpha1.GlobalSpec{
 			Gateway:          ainariv1alpha1.GatewaySpec{Enabled: true, Name: "ainari-gateway", Namespace: "ainari-gateway", Listener: "tls-passthrough"},
-			WireGuard:        ainariv1alpha1.WireGuardSpec{Enabled: true},
 			StrictScheduling: true,
 			NginxImage:       "nginx:latest",
 			ExternalServices: ainariv1alpha1.ExternalServicesSpec{Type: ainariv1alpha1.ExternalServiceNodePort, NodePortOffset: 20000},
@@ -84,25 +82,18 @@ func testSpec() *ainariv1alpha1.AinariSpec {
 	}
 }
 
-// testSecrets returns secret values, which fit to the spec, with a distinct key-pair of
-// wireguard for every pod of the tunnel.
-func testSecrets(spec *ainariv1alpha1.AinariSpec) *secrets.Values {
-	values := &secrets.Values{
+// testSecrets returns the secret values, which the renderer writes into the configs.
+func testSecrets() *secrets.Values {
+	return &secrets.Values{
 		MLSGrantPublicKey:    "cOldUtphCTOrQbFpXGDZPIcPfDomKajUzOLVyM8whxo=",
 		OmamoriEncryptionKey: "q9vN4CjOQm5wKzyzjZtS7t4oQp8oQK1JvU5xgq8vFzE=",
-		WireGuard:            map[string]secrets.KeyPair{},
 	}
-	for _, member := range spec.WireGuardMembers() {
-		name := member.PodName()
-		values.WireGuard[name] = secrets.KeyPair{PrivateKey: "private-" + name, PublicKey: "public-" + name}
-	}
-	return values
 }
 
 // renderObjects renders a spec and indexes the objects by their kind and name.
 func renderObjects(t *testing.T, spec *ainariv1alpha1.AinariSpec) map[string]client.Object {
 	t.Helper()
-	objects, err := render.Render(render.Input{Namespace: "test", Spec: spec, Secrets: testSecrets(spec)})
+	objects, err := render.Render(render.Input{Namespace: "test", Spec: spec, Secrets: testSecrets()})
 	if err != nil {
 		t.Fatalf("failed to render: %v", err)
 	}
@@ -131,11 +122,9 @@ func TestRenderDefaultStack(t *testing.T) {
 		"Deployment/miko", "Deployment/hanami", "Deployment/omamori", "Deployment/izakaya",
 		"Deployment/omikuji", "TLSRoute/omikuji-route",
 		"Deployment/isekai", "TLSRoute/isekai-route", "StatefulSet/onsen-backup",
-		"Secret/wg-onsen-backup-secret",
 		"Deployment/torii-public", "Deployment/dashboard",
 		"StatefulSet/mysql", "StatefulSet/ryokan", "StatefulSet/onsen", "StatefulSet/sakura",
 		"Issuer/ainari-ca-issuer", "Certificate/miko-cert", "TLSRoute/miko-route",
-		"Secret/wg-onsen-secret", "ConfigMap/wireguard-scripts",
 	} {
 		if _, ok := objects[key]; !ok {
 			t.Errorf("the object %s is missing", key)
@@ -159,14 +148,13 @@ func TestRenderOptionalComponents(t *testing.T) {
 	spec := testSpec()
 	spec.Dashboard.Enabled = false
 	spec.Global.Gateway.Enabled = false
-	spec.Global.WireGuard.Enabled = false
 	spec.MySQL.Deploy = false
 	spec.MySQL.Host = "mysql.example"
 	spec.MySQL.CredentialsSecret = "external-mysql"
 	objects := renderObjects(t, spec)
 
 	for key := range objects {
-		for _, unwanted := range []string{"dashboard", "TLSRoute/", "wg-", "wireguard", "StatefulSet/mysql"} {
+		for _, unwanted := range []string{"dashboard", "TLSRoute/", "StatefulSet/mysql"} {
 			if strings.Contains(key, unwanted) {
 				t.Errorf("the object %s is rendered, although it is disabled", key)
 			}
@@ -354,84 +342,50 @@ func TestRenderUnderlay(t *testing.T) {
 	}
 }
 
-func TestRenderWireGuardMesh(t *testing.T) {
-	spec := testSpec()
-	spec.Onsen.Replicas = 3
-	spec.Ryokan.Replicas = 2
-	spec.Sakura.Replicas = 4
-	spec.Isekai.BackupStorage.Replicas = 2
-	objects := renderObjects(t, spec)
+func TestRenderOnsenAPI(t *testing.T) {
+	objects := renderObjects(t, testSpec())
 
-	// every pod gets its own address and lists the pods of the other side as peers
-	addresses := map[string]string{}
-	peersOf := map[string][]string{}
-	for _, component := range []string{"onsen", "ryokan", "sakura", "onsen-backup"} {
-		data := objects["Secret/wg-"+component+"-secret"].(*corev1.Secret).Data
-		replicas := map[string]int{"onsen": 3, "ryokan": 2, "sakura": 4, "onsen-backup": 2}[component]
-		if len(data) != 2*replicas {
-			t.Fatalf("the secret of %s has %d keys instead of %d", component, len(data), 2*replicas)
-		}
-		for i := 0; i < replicas; i++ {
-			pod := fmt.Sprintf("%s-%d", component, i)
-			config := string(data[pod+".conf"])
-			if !strings.Contains(config, "PrivateKey = private-"+pod) {
-				t.Errorf("the config of %s has the wrong key:\n%s", pod, config)
-			}
-			for _, line := range strings.Split(config, "\n") {
-				if address, ok := strings.CutPrefix(line, "Address = "); ok {
-					addresses[pod] = strings.TrimSuffix(address, "/16")
-				}
-			}
-			for _, line := range strings.Split(strings.TrimSpace(string(data[pod+".peers"])), "\n") {
-				fields := strings.Fields(line)
-				if len(fields) != 3 {
-					t.Fatalf("invalid peer of %s: '%s'", pod, line)
-				}
-				peer := strings.TrimPrefix(fields[0], "public-")
-				peersOf[pod] = append(peersOf[pod], peer+" "+fields[1]+" "+fields[2])
+	for _, name := range []string{"onsen", "onsen-backup"} {
+		// every pod is reached over its own tls-termination in front of the internal api
+		config := objects["ConfigMap/"+name+"-config"].(*corev1.ConfigMap).Data["onsen.toml"]
+		for _, wanted := range []string{"internal_port = 10426", "public_port = 11426", `internal_ip = "127.0.0.1"`} {
+			if !strings.Contains(config, wanted) {
+				t.Errorf("'%s' is missing in the config of %s:\n%s", wanted, name, config)
 			}
 		}
-	}
+		nginx := objects["ConfigMap/"+name+"-nginx-config"].(*corev1.ConfigMap).Data["internal.conf"]
+		for _, wanted := range []string{"listen 8443 ssl;", "proxy_pass http://127.0.0.1:10426/;", "client_max_body_size 0;", "proxy_buffering off;"} {
+			if !strings.Contains(nginx, wanted) {
+				t.Errorf("'%s' is missing in the nginx-config of %s:\n%s", wanted, name, nginx)
+			}
+		}
 
-	seen := map[string]string{}
-	for pod, address := range addresses {
-		if other, ok := seen[address]; ok {
-			t.Errorf("%s and %s have the same address %s", pod, other, address)
-		}
-		seen[address] = pod
-	}
-
-	// both onsen are connected with all others, ryokan and sakura only with both onsen
-	for pod, peers := range peersOf {
-		wantedPeers := 3 + 2
-		if strings.HasPrefix(pod, "onsen") {
-			wantedPeers = 2 + 4
-		}
-		if len(peers) != wantedPeers {
-			t.Errorf("%s has %d peers instead of %d: %v", pod, len(peers), wantedPeers, peers)
-		}
-		for _, peer := range peers {
-			fields := strings.Fields(peer)
-			name := fields[0]
-			if strings.HasPrefix(pod, "onsen") == strings.HasPrefix(name, "onsen") {
-				t.Errorf("%s has the peer %s of the same side", pod, name)
-			}
-			if fields[1] != addresses[name]+"/32" {
-				t.Errorf("the peer %s of %s has the address %s instead of %s", name, pod, fields[1], addresses[name])
-			}
-			component := name[:strings.LastIndex(name, "-")]
-			if want := fmt.Sprintf("%s.%s.test.svc.cluster.local:51820", name, component); fields[2] != want {
-				t.Errorf("the peer %s of %s has the endpoint %s instead of %s", name, pod, fields[2], want)
-			}
-		}
-	}
-
-	// every pod of the tunnel runs the sidecar, which keeps its peers in sync
-	for _, name := range []string{"onsen", "ryokan", "sakura", "onsen-backup"} {
 		template := objects["StatefulSet/"+name].(*appsv1.StatefulSet).Spec.Template
-		if !hasContainer(template.Spec.Containers, "wireguard-sync") {
-			t.Errorf("%s has no sidecar wireguard-sync", name)
+		containers := template.Spec.Containers
+		if len(containers) != 2 || containers[1].Name != "tls-termination" {
+			t.Errorf("%s has no tls-termination", name)
 		}
+		if containers[0].ReadinessProbe == nil || containers[0].LivenessProbe == nil {
+			t.Errorf("%s has no probes", name)
+		}
+
+		ports := objects["Service/"+name].(*corev1.Service).Spec.Ports
+		if len(ports) != 1 || ports[0].Port != 8443 {
+			t.Errorf("the headless service of %s has the ports %v", name, ports)
+		}
+
+		// the certificate is valid for the names of all pods, but has no domain of a TLSRoute
+		cert := objects["Certificate/"+name+"-cert"].(*unstructured.Unstructured)
+		dnsNames, _, _ := unstructured.NestedStringSlice(cert.Object, "spec", "dnsNames")
+		if len(dnsNames) != 1 || dnsNames[0] != "*."+name+".test.svc.cluster.local" {
+			t.Errorf("the certificate of %s has the names %v", name, dnsNames)
+		}
+	}
+
+	// the other components keep the limit of the body
+	nginx := objects["ConfigMap/miko-nginx-config"].(*corev1.ConfigMap).Data["internal.conf"]
+	if !strings.Contains(nginx, "client_max_body_size 1G;") || strings.Contains(nginx, "proxy_buffering off;") {
+		t.Errorf("the nginx-config of miko has the settings for large files:\n%s", nginx)
 	}
 }
 
@@ -498,15 +452,6 @@ func TestRenderDebug(t *testing.T) {
 	}
 }
 
-func hasContainer(containers []corev1.Container, name string) bool {
-	for _, c := range containers {
-		if c.Name == name {
-			return true
-		}
-	}
-	return false
-}
-
 func TestRenderOmikuji(t *testing.T) {
 	objects := renderObjects(t, testSpec())
 
@@ -527,9 +472,7 @@ func TestRenderOmikuji(t *testing.T) {
 }
 
 func TestRenderIsekai(t *testing.T) {
-	spec := testSpec()
-	spec.Global.WireGuard.Enabled = false
-	objects := renderObjects(t, spec)
+	objects := renderObjects(t, testSpec())
 
 	// miko hands out the address of isekai to the clients and the other components
 	mikoConfig := objects["ConfigMap/miko-config"].(*corev1.ConfigMap).Data["miko.toml"]
@@ -572,11 +515,11 @@ func TestRenderIsekai(t *testing.T) {
 		t.Errorf("the onsen of the backups runs on the nodes with the label %s", label)
 	}
 	backupConfig := objects["ConfigMap/onsen-backup-config"].(*corev1.ConfigMap).Data["onsen.toml"]
-	if !strings.Contains(backupConfig, `address = "http://@HOSTNAME@.onsen-backup.test.svc.cluster.local:50051"`) {
+	if !strings.Contains(backupConfig, `address = "https://@HOSTNAME@.onsen-backup.test.svc.cluster.local:8443"`) {
 		t.Errorf("the onsen of the backups has the wrong address:\n%s", backupConfig)
 	}
 	onsenConfig := objects["ConfigMap/onsen-config"].(*corev1.ConfigMap).Data["onsen.toml"]
-	if !strings.Contains(onsenConfig, `address = "http://@HOSTNAME@.onsen.test.svc.cluster.local:50051"`) {
+	if !strings.Contains(onsenConfig, `address = "https://@HOSTNAME@.onsen.test.svc.cluster.local:8443"`) {
 		t.Errorf("onsen has the wrong address:\n%s", onsenConfig)
 	}
 }

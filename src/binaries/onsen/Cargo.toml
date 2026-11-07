@@ -13,10 +13,13 @@ ainari_api_structs = { path = "../../libs/rust/ainari_api_structs" }
 ainari_clients = { path = "../../libs/rust/ainari_clients" }
 # web-server
 actix-web = "4"
-actix-multipart = "0.8"
 futures-util = "0.3"
 tokio = { version = "1", features = ["full"] }
 actix-rt = "2.10"
+# openapi-generator
+schemars = { package = "apistos-schemars", version = "0.8", features = ["chrono", "uuid1", "url", "rust_decimal"] }
+apistos = { version = "0.9", features = ["extras"] }
+validator = { version = "0.21", features = ["derive"] }
 # read some hardware-information
 sysinfo = "0.39.6"
 # serialize
@@ -42,16 +45,6 @@ bytemuck = "1.25"
 # checksum of files
 sha2 = "0.11"
 hex = "0.4"
-# file-server
-tonic = "0.14"
-prost = "0.14"
-# only if you need the Prost codec at runtime
-tonic-prost = "0.14"
-async-stream = "0.3"
-futures-core = "0.3"
-
-[build-dependencies]
-tonic-prost-build = "0.14"
 
 [dev-dependencies]
 serial_test = "4"

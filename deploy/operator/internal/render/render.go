@@ -43,7 +43,6 @@ func Render(in Input) ([]client.Object, error) {
 
 	builders := []func() ([]client.Object, error){
 		r.issuer,
-		r.wireGuard,
 		r.mysql,
 		r.miko,
 		r.hanami,

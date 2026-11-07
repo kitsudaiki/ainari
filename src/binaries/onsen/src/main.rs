@@ -14,36 +14,45 @@
 
 #![forbid(unsafe_code)]
 
+mod api;
 mod config;
-mod file_operations;
-mod ryokan_interaction;
-mod server;
+mod core;
 
 use std::fs;
 
+use ainari_api::omikuji_logging::OmikujiLogging;
+
 /// Entrypoint of the onsen.
 ///
-/// Storage-pool, which holds the payloads of the images and snapshots. It provides no REST-api
-/// and is not reachable from the internet; the ryokan and the sakura talk to it over grpc.
+/// Storage-pool, which holds the payloads of the images and snapshots. It is not reachable from
+/// the internet and only provides internal endpoints, over which the ryokan and the sakura-hosts
+/// store and read the files.
 ///
 /// Creates the storage-directory, registers this host on the ryokan and then hands over to the
-/// grpc-server, which blocks until the service is stopped.
+/// http-server, which blocks until the service is stopped.
 ///
 /// # Returns
 ///
 /// `Ok(())` after a clean shutdown, or the error, which made the startup fail.
-#[tokio::main]
+#[actix_web::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = &config::CONFIG;
     ainari_common::logger::init_logger(config.log_type, &config.log_path, "onsen", config.debug)?;
 
+    OmikujiLogging::new(
+        "onsen",
+        &config.miko,
+        &config::INTERNAL_API_KEY,
+        config.skip_tls_verification,
+    )
+    .init();
+
     // create directories if they not exist
-    let location = config::CONFIG.storage.location.clone();
-    fs::create_dir_all(location)?;
+    fs::create_dir_all(&config.storage.location)?;
 
-    ryokan_interaction::register_host().await?;
+    core::ryokan_interaction::register_host().await?;
 
-    server::run_server().await?;
+    api::http_server::run_server().await?;
 
     Ok(())
 }
