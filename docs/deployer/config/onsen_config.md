@@ -35,9 +35,21 @@ port. The public port only provides the version, the ready-status and the openap
 
 ### `storage` Configuration
 
-| Parameter  | Type   | Default    | Description                           |
-| ---------- | ------ | ---------- | ------------------------------------- |
-| `location` | string | _required_ | Directory where files will be stored. |
+Every onsen uses exactly one storage-backend, which is selected by `backend`. The section of the
+selected backend must exist, otherwise the onsen stops at the startup with an error.
+
+| Parameter  | Type   | Default   | Description                                                                                      |
+| ---------- | ------ | --------- | ------------------------------------------------------------------------------------------------ |
+| `backend`  | string | `"local"` | Storage-backend of this onsen. Only `"local"` is available at the moment.                         |
+| `location` | string | –         | **Deprecated**, use `[storage.local] location` instead. It is still read and mapped to the local backend, but can't be combined with the section `[storage.local]`. |
+
+### `storage.local` Configuration
+
+Local storage-backend, which stores the files on the local disk of the onsen-host.
+
+| Parameter  | Type   | Default    | Description                                                              |
+| ---------- | ------ | ---------- | ------------------------------------------------------------------------ |
+| `location` | string | _required_ | Directory where files will be stored. It is created, if it doesn't exist. |
 
 ## Example
 

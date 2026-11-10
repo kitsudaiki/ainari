@@ -17,7 +17,7 @@ use apistos::actix::NoContent;
 use apistos::api_operation;
 
 use crate::api::http_endpoints::*;
-use crate::core::file_operations;
+use crate::core::backend::{Backend, FileBackend};
 
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::storage_structs::StoragePathQuery;
@@ -38,12 +38,13 @@ This is an internal call, which is protected by the internal api-key and the tok
 )]
 pub async fn delete_directory_internal(
     query: Query<StoragePathQuery>,
-    storage: Data<StorageLocation>,
+    backend: Data<Backend>,
     context: UserContext,
 ) -> Result<NoContent, ErrorResponse> {
     validate_query(&query)?;
 
-    file_operations::delete_directory(&storage.0, &query.path)
+    backend
+        .delete_directory(&query.path)
         .await
         .map_err(|e| map_storage_error(e, &context))?;
 

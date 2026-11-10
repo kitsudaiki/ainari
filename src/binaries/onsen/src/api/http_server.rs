@@ -22,14 +22,13 @@ use apistos::info::{Contact, License};
 use apistos::paths::ExternalDocumentation;
 use apistos::spec::Spec;
 use std::net::TcpListener;
-use std::path::PathBuf;
 
 use ainari_api::auth_middleware::*;
 use ainari_api::cors_middleware::cors_middleware;
 use ainari_api::endpoints::get_version_v1_0::GIT_VERSION;
 
-use crate::api::http_endpoints::StorageLocation;
 use crate::config;
+use crate::core::backend::Backend;
 
 use super::routes::v1alpha::v1alpha_routes;
 
@@ -40,10 +39,14 @@ use super::routes::v1alpha::v1alpha_routes;
 /// the version and the ready-status. Like for all other components, every request needs the token
 /// of a user, which is validated by miko, and the internal endpoints also the internal API-key.
 ///
+/// # Arguments
+///
+/// * `backend` - Storage-backend, where the files are stored
+///
 /// # Returns
 ///
 /// `Ok(())` after the server was stopped, or the error, which made the server fail to start.
-pub async fn run_server() -> std::io::Result<()> {
+pub async fn run_server(backend: Backend) -> std::io::Result<()> {
     log::debug!("initialize server");
 
     // get server-address from config
@@ -70,8 +73,7 @@ pub async fn run_server() -> std::io::Result<()> {
     // the internal endpoints are only reachable over the internal port
     .restrict_internal_endpoints(api.internal_port);
 
-    let storage = StorageLocation(PathBuf::from(&config::CONFIG.storage.location));
-    create_server(public, internal, api_validation_config, storage)?.await
+    create_server(public, internal, api_validation_config, backend)?.await
 }
 
 /// Creates the http-server of the onsen on already bound sockets.
@@ -81,7 +83,7 @@ pub async fn run_server() -> std::io::Result<()> {
 /// * `public` - Socket of the public address
 /// * `internal` - Socket of the internal address
 /// * `api_validation_config` - Settings of the authorization of the requests
-/// * `storage` - Storage-location, where the files are stored
+/// * `backend` - Storage-backend, where the files are stored
 ///
 /// # Returns
 ///
@@ -91,8 +93,10 @@ pub fn create_server(
     public: TcpListener,
     internal: TcpListener,
     api_validation_config: ApiValidationConfig,
-    storage: StorageLocation,
+    backend: Backend,
 ) -> std::io::Result<Server> {
+    let backend = web::Data::new(backend);
+
     // init server with openapi-docu-generator
     let server = HttpServer::new(move || {
         let spec = Spec {
@@ -121,7 +125,7 @@ pub fn create_server(
         App::new()
             .document(spec)
             .app_data(web::Data::new(api_validation_config.clone())) // provide validation configs to the middleware
-            .app_data(web::Data::new(storage.clone()))
+            .app_data(backend.clone())
             .wrap(from_fn(authorization_middleware))
             .wrap(from_fn(cors_middleware))
             .wrap(Logger::default())
@@ -138,6 +142,8 @@ pub fn create_server(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::LocalStorage;
+    use crate::core::backend::local::LocalBackend;
     use actix_web::{HttpRequest, HttpResponse};
     use ainari_api_structs::auth_structs::UserTokenValidateResp;
     use ainari_api_structs::user_context::UserContext;
@@ -146,6 +152,7 @@ mod tests {
     use ainari_common::constants::CHUNK_SIZE;
     use ainari_common::error::AinariError;
     use ainari_common::secret::Secret;
+    use std::path::PathBuf;
     use uuid::Uuid;
 
     /// Onsen on free local ports with a temporary storage-location, which is deleted at the end
@@ -209,7 +216,7 @@ mod tests {
     }
 
     /// Starts an onsen on free local ports, which validates the tokens against a fake miko.
-    fn start_onsen() -> TestOnsen {
+    async fn start_onsen() -> TestOnsen {
         let public = TcpListener::bind("127.0.0.1:0").unwrap();
         let internal = TcpListener::bind("127.0.0.1:0").unwrap();
         let public_address = format!("http://{}", public.local_addr().unwrap());
@@ -227,9 +234,12 @@ mod tests {
             .restrict_internal_endpoints(api.internal_port);
 
         let storage = std::env::temp_dir().join(format!("onsen_test_{}", Uuid::new_v4()));
-        std::fs::create_dir_all(&storage).unwrap();
-        let server =
-            create_server(public, internal, config, StorageLocation(storage.clone())).unwrap();
+        let backend = LocalBackend::new(&LocalStorage {
+            location: storage.to_string_lossy().to_string(),
+        })
+        .await
+        .unwrap();
+        let server = create_server(public, internal, config, Backend::Local(backend)).unwrap();
         actix_rt::spawn(server);
 
         TestOnsen {
@@ -241,7 +251,7 @@ mod tests {
 
     #[actix_rt::test]
     async fn test_transfer_files() {
-        let onsen = start_onsen();
+        let onsen = start_onsen().await;
         let key = Secret::from(API_KEY);
         let address = onsen.address.as_str();
 
@@ -340,8 +350,8 @@ mod tests {
 
     #[actix_rt::test]
     async fn test_copy_file_between_onsens() {
-        let source = start_onsen();
-        let target = start_onsen();
+        let source = start_onsen().await;
+        let target = start_onsen().await;
         let key = Secret::from(API_KEY);
 
         let content: Vec<u8> = (0..CHUNK_SIZE * 2 + 123).map(|i| (i % 251) as u8).collect();
@@ -426,7 +436,7 @@ mod tests {
 
     #[actix_rt::test]
     async fn test_openapi_spec() {
-        let onsen = start_onsen();
+        let onsen = start_onsen().await;
         let client = ainari_clients::prepare_client(&onsen.public_address, false);
         let mut response = client
             .get(format!("{}/openapi.json", onsen.public_address))
@@ -457,7 +467,7 @@ mod tests {
 
     #[actix_rt::test]
     async fn test_internal_endpoints_are_protected() {
-        let onsen = start_onsen();
+        let onsen = start_onsen().await;
 
         // a wrong internal API-key
         assert!(matches!(

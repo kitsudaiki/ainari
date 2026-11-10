@@ -132,10 +132,9 @@ nfs_export = "/var/lib/ainari/onsen/volumes"
 
 ```text
 src/binaries/onsen/src/
-├── backend/
+├── core/backend/
 │   ├── mod.rs           # traits FileBackend + VolumeBackend, enum Backend from the config
-│   └── local.rs         # files: existing file_operations; volumes: sparse files + NFS-info
-├── core/file_operations.rs   # unchanged, used by both FileBackends
+│   └── local.rs         # files: the former core/file_operations.rs; volumes: sparse files + NFS-info
 └── api/http_endpoints/volume/…
 ```
 
@@ -460,7 +459,7 @@ only depends on the steps in its column "Depends on".
 | Step | Content                                                                                                                                              | Depends on | Done when                                                                    |
 | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- | ---------------------------------------------------------------------------- |
 | V1.1 | New config `[storage] backend` + `[storage.local]`, old `storage.location` still readable, example-config, config-docs                               | –          | both config-formats are parsed, all existing tests pass                       |
-| V1.2 | Traits `FileBackend` / `VolumeBackend`, enum `Backend`, local `FileBackend` on `core/file_operations.rs`, file- and directory-endpoints use the trait | V1.1       | file-API unchanged (existing http-tests of onsen pass)                        |
+| V1.2 | Traits `FileBackend` / `VolumeBackend`, enum `Backend`, local `FileBackend` with the functions of `core/file_operations.rs` merged into `core/backend/local.rs`, file- and directory-endpoints use the trait | V1.1       | file-API unchanged (existing http-tests of onsen pass)                        |
 
 ### V2 – onsen: volumes of the local backend
 

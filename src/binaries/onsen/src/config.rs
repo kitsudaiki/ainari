@@ -65,14 +65,83 @@ fn default_insecure_clients() -> bool {
     false
 }
 
+/// Type of the storage-backend, which is selected by `[storage] backend`.
+///
+/// It is an enum, so an unknown backend already fails at the parsing of the config.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum StorageBackendType {
+    /// Files on the local disk of the onsen-host
+    #[default]
+    Local,
+}
+
+/// Configuration of the local storage-backend (`[storage.local]`).
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+pub struct LocalStorage {
+    /// Directory, where the files are stored
+    pub location: String,
+}
+
+/// Selected storage-backend with its configuration.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum StorageBackend {
+    /// Files on the local disk of the onsen-host
+    Local(LocalStorage),
+}
+
 /// Configuration structure for storage settings.
 ///
-/// This struct contains the location where the application should store its data.
+/// It holds exactly one storage-backend, which is selected by `[storage] backend`. The section of
+/// the selected backend must exist, otherwise the parsing of the config fails.
 #[derive(Debug, Deserialize)]
+#[serde(try_from = "StorageSections")]
 pub struct Storage {
-    /// Path to the storage location.
-    /// This could be a directory path or a specific file path depending on implementation.
-    pub location: String,
+    /// Selected storage-backend with its configuration
+    pub backend: StorageBackend,
+    /// The config still uses the old `[storage] location`, which is mapped to the local backend
+    pub uses_legacy_location: bool,
+}
+
+/// `[storage]`-section like it is written in the config-file, before it is checked.
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct StorageSections {
+    #[serde(default)]
+    backend: StorageBackendType,
+    /// old format, which is mapped to `[storage.local] location`
+    location: Option<String>,
+    local: Option<LocalStorage>,
+}
+
+impl TryFrom<StorageSections> for Storage {
+    type Error = String;
+
+    fn try_from(sections: StorageSections) -> Result<Self, Self::Error> {
+        let uses_legacy_location = sections.location.is_some();
+        let local = match (sections.location, sections.local) {
+            (Some(_), Some(_)) => {
+                return Err(
+                    "'storage.location' and the section [storage.local] are both set, \
+                    only [storage.local] should be used"
+                        .to_string(),
+                );
+            }
+            (Some(location), None) => Some(LocalStorage { location }),
+            (None, local) => local,
+        };
+
+        let backend = match sections.backend {
+            StorageBackendType::Local => StorageBackend::Local(local.ok_or(
+                "storage-backend 'local' is selected, but the section [storage.local] is missing",
+            )?),
+        };
+
+        Ok(Storage {
+            backend,
+            uses_legacy_location,
+        })
+    }
 }
 
 /// Global singleton configuration instance.
@@ -138,3 +207,136 @@ pub static ONSEN_REGISTRATION_KEY: Lazy<Secret> =
             process::exit(1);
         }
     });
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Wrapper of the `[storage]`-section, so it can be parsed without the rest of the config.
+    #[derive(Debug, Deserialize)]
+    struct StorageOnly {
+        storage: Storage,
+    }
+
+    fn parse_storage(content: &str) -> Result<Storage, toml::de::Error> {
+        toml::from_str::<StorageOnly>(content).map(|config| config.storage)
+    }
+
+    #[test]
+    fn test_parse_local_backend() {
+        let storage = parse_storage(
+            r#"
+            [storage]
+            backend = "local"
+
+            [storage.local]
+            location = "/var/lib/ainari/onsen"
+            "#,
+        )
+        .unwrap();
+        assert_eq!(
+            storage.backend,
+            StorageBackend::Local(LocalStorage {
+                location: "/var/lib/ainari/onsen".to_string()
+            })
+        );
+        assert!(!storage.uses_legacy_location);
+
+        // the local backend is the default
+        let storage = parse_storage(
+            r#"
+            [storage.local]
+            location = "/var/lib/ainari/onsen"
+            "#,
+        )
+        .unwrap();
+        assert!(matches!(storage.backend, StorageBackend::Local(_)));
+    }
+
+    #[test]
+    fn test_parse_legacy_location() {
+        let storage = parse_storage(
+            r#"
+            [storage]
+            location = "/tmp/onsen"
+            "#,
+        )
+        .unwrap();
+        assert_eq!(
+            storage.backend,
+            StorageBackend::Local(LocalStorage {
+                location: "/tmp/onsen".to_string()
+            })
+        );
+        assert!(storage.uses_legacy_location);
+    }
+
+    #[test]
+    fn test_parse_invalid_storage() {
+        // unknown backend
+        let err = parse_storage(
+            r#"
+            [storage]
+            backend = "unknown"
+
+            [storage.local]
+            location = "/tmp/onsen"
+            "#,
+        )
+        .unwrap_err();
+        assert!(err.to_string().contains("unknown"), "{err}");
+
+        // missing section of the selected backend
+        let err = parse_storage(
+            r#"
+            [storage]
+            backend = "local"
+            "#,
+        )
+        .unwrap_err();
+        assert!(err.to_string().contains("[storage.local]"), "{err}");
+
+        // old and new format at the same time
+        assert!(
+            parse_storage(
+                r#"
+                [storage]
+                location = "/tmp/onsen"
+
+                [storage.local]
+                location = "/tmp/onsen"
+                "#,
+            )
+            .is_err()
+        );
+
+        // unknown option
+        assert!(
+            parse_storage(
+                r#"
+                [storage]
+                path = "/tmp/onsen"
+                "#,
+            )
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn test_parse_example_configs() {
+        let root = concat!(env!("CARGO_MANIFEST_DIR"), "/../../..");
+        for path in [
+            "example_configs/ainari/onsen.toml",
+            "testing/local_stack/configs/onsen.toml",
+            "testing/local_stack/configs/onsen_backup.toml",
+        ] {
+            let content = fs::read_to_string(format!("{root}/{path}")).unwrap();
+            let config: Config = toml::from_str(&content).unwrap_or_else(|e| panic!("{path}: {e}"));
+            assert!(
+                matches!(config.storage.backend, StorageBackend::Local(_)),
+                "{path}"
+            );
+            assert!(!config.storage.uses_legacy_location, "{path}");
+        }
+    }
+}

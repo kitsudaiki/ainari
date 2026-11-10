@@ -24,7 +24,7 @@ use schemars::schema::{InstanceType, Schema, SchemaObject};
 use std::future::{Ready, ready};
 
 use crate::api::http_endpoints::*;
-use crate::core::file_operations;
+use crate::core::backend::{Backend, FileBackend};
 
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::storage_structs::StoragePathQuery;
@@ -92,12 +92,13 @@ This is an internal call, which is protected by the internal api-key and the tok
 pub async fn upload_file_internal(
     query: Query<StoragePathQuery>,
     payload: FilePayload,
-    storage: Data<StorageLocation>,
+    backend: Data<Backend>,
     context: UserContext,
 ) -> Result<NoContent, ErrorResponse> {
     validate_query(&query)?;
 
-    let size = file_operations::write_file(&storage.0, &query.path, payload.0)
+    let size = backend
+        .write_file(&query.path, payload.0)
         .await
         .map_err(|e| map_storage_error(e, &context))?;
     log::info!("Stored file '{}' with {size} bytes", query.path);

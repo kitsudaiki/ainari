@@ -16,7 +16,7 @@ use actix_web::web::{Data, Json, Query};
 use apistos::api_operation;
 
 use crate::api::http_endpoints::*;
-use crate::core::file_operations;
+use crate::core::backend::{Backend, FileBackend};
 
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::storage_structs::*;
@@ -37,12 +37,13 @@ This is an internal call, which is protected by the internal api-key and the tok
 )]
 pub async fn list_directory_internal(
     query: Query<StoragePathQuery>,
-    storage: Data<StorageLocation>,
+    backend: Data<Backend>,
     context: UserContext,
 ) -> Result<Json<StorageDirectoryResp>, ErrorResponse> {
     validate_query(&query)?;
 
-    let entries = file_operations::list_directory(&storage.0, &query.path)
+    let entries = backend
+        .list_directory(&query.path)
         .await
         .map_err(|e| map_storage_error(e, &context))?;
 

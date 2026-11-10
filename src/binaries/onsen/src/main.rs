@@ -18,8 +18,6 @@ mod api;
 mod config;
 mod core;
 
-use std::fs;
-
 use ainari_api::omikuji_logging::OmikujiLogging;
 
 /// Entrypoint of the onsen.
@@ -28,8 +26,8 @@ use ainari_api::omikuji_logging::OmikujiLogging;
 /// the internet and only provides internal endpoints, over which the ryokan and the sakura-hosts
 /// store and read the files.
 ///
-/// Creates the storage-directory, registers this host on the ryokan and then hands over to the
-/// http-server, which blocks until the service is stopped.
+/// Prepares the storage-backend, which is selected by the config, registers this host on the
+/// ryokan and then hands over to the http-server, which blocks until the service is stopped.
 ///
 /// # Returns
 ///
@@ -47,12 +45,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     )
     .init();
 
-    // create directories if they not exist
-    fs::create_dir_all(&config.storage.location)?;
+    if config.storage.uses_legacy_location {
+        log::warn!(
+            "'storage.location' is deprecated and will be removed in a future release, use \
+            'backend = \"local\"' and the section [storage.local] instead"
+        );
+    }
+    let backend = core::backend::Backend::new(&config.storage.backend).await?;
 
     core::ryokan_interaction::register_host().await?;
 
-    api::http_server::run_server().await?;
+    api::http_server::run_server(backend).await?;
 
     Ok(())
 }

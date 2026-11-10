@@ -16,7 +16,7 @@ use actix_web::web::{Data, Json, Query};
 use apistos::api_operation;
 
 use crate::api::http_endpoints::*;
-use crate::core::file_operations;
+use crate::core::backend::{Backend, FileBackend};
 
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::storage_structs::*;
@@ -37,12 +37,13 @@ This is an internal call, which is protected by the internal api-key and the tok
 )]
 pub async fn get_file_info_internal(
     query: Query<StoragePathQuery>,
-    storage: Data<StorageLocation>,
+    backend: Data<Backend>,
     context: UserContext,
 ) -> Result<Json<StorageFileInfoResp>, ErrorResponse> {
     validate_query(&query)?;
 
-    let info = file_operations::get_file_info(&storage.0, &query.path)
+    let info = backend
+        .get_file_info(&query.path)
         .await
         .map_err(|e| map_storage_error(e, &context))?;
 

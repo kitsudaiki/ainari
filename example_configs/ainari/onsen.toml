@@ -16,4 +16,8 @@ internal_port = 10426
 address = "http://127.0.0.1:11417"
 
 [storage]
+# storage-backend of this onsen, only "local" at the moment
+backend = "local"
+
+[storage.local]
 location = "/tmp/onsen"

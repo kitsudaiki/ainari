@@ -15,8 +15,6 @@
 pub mod directory;
 pub mod file;
 
-use std::path::PathBuf;
-
 use validator::Validate;
 
 use ainari_api::error_mapping::map_ainari_error_to_api_response;
@@ -24,11 +22,6 @@ use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::storage_structs::StoragePathQuery;
 use ainari_api_structs::user_context::UserContext;
 use ainari_common::error::AinariError;
-
-/// Storage-location, where the files are stored, which is handed to the endpoints as app-data, so
-/// the endpoints can be tested with a temporary directory.
-#[derive(Debug, Clone)]
-pub struct StorageLocation(pub PathBuf);
 
 /// Validates the query with the path of a file or directory.
 pub(crate) fn validate_query(query: &StoragePathQuery) -> Result<(), ErrorResponse> {

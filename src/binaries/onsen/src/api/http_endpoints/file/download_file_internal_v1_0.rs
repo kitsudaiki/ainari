@@ -17,7 +17,7 @@ use actix_web::web::{Data, Query};
 use apistos::api_operation;
 
 use crate::api::http_endpoints::*;
-use crate::core::file_operations;
+use crate::core::backend::{Backend, FileBackend};
 
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::storage_structs::StoragePathQuery;
@@ -40,12 +40,13 @@ This is an internal call, which is protected by the internal api-key and the tok
 )]
 pub async fn download_file_internal(
     query: Query<StoragePathQuery>,
-    storage: Data<StorageLocation>,
+    backend: Data<Backend>,
     context: UserContext,
 ) -> Result<HttpResponse, ErrorResponse> {
     validate_query(&query)?;
 
-    let (size, content) = file_operations::read_file(&storage.0, &query.path)
+    let (size, content) = backend
+        .read_file(&query.path)
         .await
         .map_err(|e| map_storage_error(e, &context))?;
     log::info!("Send file '{}' with {size} bytes", query.path);
