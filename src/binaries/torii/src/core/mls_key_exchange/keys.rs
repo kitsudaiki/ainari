@@ -23,11 +23,11 @@
 //!
 //! # Key-rotation without packet loss
 //!
-//! Every change of the group moves it into a new epoch, which rotates all keys. Both ends of a
-//! connection always have to agree: a sender may only use a key, which the receiver already has,
-//! and a receiver may only drop a key, which no sender uses anymore. So the keys of a new epoch
-//! are rolled out in three steps, which the control plane runs on all gateways of a network one
-//! after another:
+//! Every change of the group moves it into a new epoch, which rotates all keys. The keys are kept
+//! per pair of this gateway and a peer gateway (see `PairKeys`). Both ends of a connection always
+//! have to agree: a sender may only use a key, which the receiver already has, and a receiver may
+//! only drop a key, which no sender uses anymore. So the keys of a new epoch are rolled out in
+//! three steps, which the control plane runs on all gateways of a network one after another:
 //!
 //! 1. **record**: the incoming keys of the new epoch are installed next to the old ones, the
 //!    outgoing traffic still uses the old epoch
@@ -48,7 +48,7 @@ use crate::core::crypto::{
     apply_connection_policies, install_sa, remove_connection_policies, remove_sa,
 };
 use crate::core::ebpf_interface::EBPFInterface;
-use crate::core::mls_key_exchange::state::NetworkKeys;
+use crate::core::mls_key_exchange::state::{EpochId, NetworkKeys};
 use crate::core::models::{Connection, CryptoKey, Route, TapInfo};
 use crate::core::utils::{bind_connection_to_table, get_local_ip, unbind_connection_from_table};
 
@@ -210,9 +210,10 @@ pub fn desired_connections(
 
 /// Derives all keys, which have to be installed on this gateway for the connections of a network.
 ///
-/// The incoming keys are derived for every recorded epoch, so the peers can send with any of
-/// them. The outgoing keys are only derived for the active epoch, or for the active epoch of a
-/// replaced group, as long as the new group didn't switch yet.
+/// Every connection uses the keys of the pair with its peer gateway: the incoming keys of every
+/// epoch of the pair, so the peer can send with any of them, and the outgoing key of the active
+/// epoch of the pair. A connection without a pair, or whose pair didn't switch to an epoch yet,
+/// gets no outgoing key, so the block policy of its route keeps it fail-closed.
 ///
 /// # Arguments
 /// * `keys` - The epochs of the network
@@ -230,33 +231,39 @@ pub fn desired_sas(
     connections: &[DesiredConnection],
     local_gateway_ip: Ipv4Addr,
 ) -> Result<Vec<DesiredSa>, String> {
-    let (egress_epoch, egress_base) = keys.egress().ok_or_else(|| {
-        format!(
-            "Active epoch {} of tenant {vni} has no key material",
-            keys.active_epoch
-        )
-    })?;
-    let ingress = keys.ingress();
+    let base_of = |id: &EpochId| {
+        keys.bases.get(id).ok_or_else(|| {
+            format!(
+                "Epoch {} of generation {} of tenant {vni} has no key material",
+                id.1, id.0
+            )
+        })
+    };
 
     let mut sas = Vec::new();
     for conn in connections {
+        let Some(pair) = keys.pairs.get(&conn.peer_gateway_ip) else {
+            continue;
+        };
         let local = (conn.local_ip, local_gateway_ip);
         let remote = (conn.remote_ip, conn.peer_gateway_ip);
 
-        for (epoch, base) in &ingress {
+        for id in &pair.ingress {
             sas.push(DesiredSa {
                 direction: CryptoDirection::Ingress,
-                epoch: *epoch,
+                epoch: id.1,
                 conn: *conn,
-                sa: derive_sa(base, crypto, vni, remote, local)?,
+                sa: derive_sa(base_of(id)?, crypto, vni, remote, local)?,
             });
         }
-        sas.push(DesiredSa {
-            direction: CryptoDirection::Egress,
-            epoch: egress_epoch,
-            conn: *conn,
-            sa: derive_sa(egress_base, crypto, vni, local, remote)?,
-        });
+        if let Some(id) = &pair.egress {
+            sas.push(DesiredSa {
+                direction: CryptoDirection::Egress,
+                epoch: id.1,
+                conn: *conn,
+                sa: derive_sa(base_of(id)?, crypto, vni, local, remote)?,
+            });
+        }
     }
     Ok(sas)
 }
@@ -288,7 +295,7 @@ pub fn stale_keys(
 ///
 /// The changes are made in the order, which never leaves a connection without a matching key on
 /// both ends: first all missing incoming keys are installed, then the outgoing keys of the active
-/// epoch are installed and the outbound policies are switched over to them, and only at the end
+/// epochs of the pairs are installed and the outbound policies are switched over to them, and only at the end
 /// the keys, which are not needed anymore, are removed. An outgoing key, whose successor couldn't
 /// be installed, is kept, because the policy of its connection still points at it.
 ///
@@ -340,7 +347,7 @@ pub fn apply_network_keys(
         }
     }
 
-    // 2. outgoing keys of the active epoch, together with the switch of the outbound policies
+    // 2. outgoing keys of the active epochs, together with the switch of the outbound policies
     for desired in sas
         .iter()
         .filter(|desired| desired.direction == CryptoDirection::Egress)
@@ -409,10 +416,9 @@ pub fn apply_network_keys(
     }
 
     log::debug!(
-        "Applied the keys of tenant {vni} for {} connection(s), active epoch {:?}, epochs {:?}",
+        "Applied the keys of tenant {vni} for {} connection(s), pairs {:?}",
         connections.len(),
-        keys.map(|keys| keys.active_epoch),
-        keys.map(|keys| keys.bases.keys().collect::<Vec<_>>())
+        keys.map(|keys| &keys.pairs)
     );
 
     if errors.is_empty() {
@@ -548,8 +554,6 @@ fn activate_egress_key(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::BTreeMap;
-
     use openmls_rust_crypto::RustCrypto;
 
     use crate::core::mls_key_exchange::group::create_group;
@@ -605,8 +609,6 @@ mod tests {
 
     impl TestGateway {
         fn new(local_vm: u8, local_gateway: u8, remote_vm: u8, remote_gateway: u8) -> Self {
-            let mut bases = BTreeMap::new();
-            bases.insert(1, vec![1u8; BASE_LENGTH]);
             TestGateway {
                 conn: DesiredConnection {
                     local_ip: ip(local_vm),
@@ -614,12 +616,12 @@ mod tests {
                     peer_gateway_ip: gateway(remote_gateway),
                 },
                 local_gateway_ip: gateway(local_gateway),
-                keys: NetworkKeys {
-                    active_epoch: 1,
-                    bases,
-                    replaced: None,
-                },
+                keys: NetworkKeys::new(1, vec![1u8; BASE_LENGTH], &[gateway(remote_gateway)]),
             }
+        }
+
+        fn peers(&self) -> [Ipv4Addr; 1] {
+            [self.conn.peer_gateway_ip]
         }
 
         fn spis(&self, direction: CryptoDirection) -> HashSet<u32> {
@@ -638,9 +640,9 @@ mod tests {
         }
 
         fn record(&mut self, epoch: u64) {
+            let peers = self.peers();
             self.keys
-                .bases
-                .insert(epoch, vec![epoch as u8; BASE_LENGTH]);
+                .record(epoch, vec![epoch as u8; BASE_LENGTH], &peers);
         }
 
         fn activate(&mut self, epoch: u64) {
@@ -648,19 +650,21 @@ mod tests {
         }
 
         fn retire(&mut self, epoch: u64) {
-            self.keys.retire(epoch).unwrap();
+            let peers = self.peers();
+            self.keys.retire(epoch, &peers).unwrap();
         }
 
         /// Starts a new group with its own base secrets, like after izakaya lost its database
         fn replace(&mut self, epoch: u64) {
-            let keys = std::mem::take(&mut self.keys);
-            self.keys = keys.replaced_by(epoch, vec![100 + epoch as u8; BASE_LENGTH]);
+            let peers = self.peers();
+            self.keys
+                .replace(epoch, vec![100 + epoch as u8; BASE_LENGTH], &peers);
         }
 
         fn record_new_group(&mut self, epoch: u64) {
+            let peers = self.peers();
             self.keys
-                .bases
-                .insert(epoch, vec![100 + epoch as u8; BASE_LENGTH]);
+                .record(epoch, vec![100 + epoch as u8; BASE_LENGTH], &peers);
         }
     }
 
@@ -774,7 +778,10 @@ mod tests {
         a.retire(3);
         b.retire(3);
         assert!(in_sync(&a, &b));
-        assert_eq!(b.keys.bases.keys().copied().collect::<Vec<_>>(), vec![3]);
+        assert_eq!(
+            b.keys.bases.keys().copied().collect::<Vec<_>>(),
+            vec![(1, 3)]
+        );
     }
 
     #[test]
@@ -863,7 +870,11 @@ mod tests {
         a.retire(1);
         b.retire(1);
         assert!(in_sync(&a, &b));
-        assert!(a.keys.replaced.is_none());
+        assert_eq!(a.keys.generation, 2);
+        assert_eq!(
+            a.keys.bases.keys().copied().collect::<Vec<_>>(),
+            vec![(2, 1)]
+        );
         assert_eq!(a.spis(CryptoDirection::Ingress).len(), 1);
     }
 
@@ -873,7 +884,7 @@ mod tests {
         let b = TestGateway::new(2, 2, 1, 1);
 
         // a new group, which drops the keys of the old one, sends with keys b doesn't know
-        a.keys = NetworkKeys::new(0, vec![100u8; BASE_LENGTH]);
+        a.keys = NetworkKeys::new(0, vec![100u8; BASE_LENGTH], &a.peers());
         assert!(!in_sync(&a, &b));
     }
 
@@ -882,8 +893,64 @@ mod tests {
         let mut a = TestGateway::new(1, 1, 2, 2);
         a.replace(0);
         a.record_new_group(1);
-        assert!(a.keys.retire(1).is_err());
+        assert!(a.keys.retire(1, &a.peers()).is_err());
         a.activate(1);
-        assert!(a.keys.retire(1).is_ok());
+        assert!(a.keys.retire(1, &a.peers()).is_ok());
+    }
+
+    #[test]
+    fn every_connection_uses_the_keys_of_the_pair_with_its_peer() {
+        let crypto = RustCrypto::default();
+        let to_b = DesiredConnection {
+            local_ip: ip(1),
+            remote_ip: ip(2),
+            peer_gateway_ip: gateway(2),
+        };
+        let to_c = DesiredConnection {
+            local_ip: ip(1),
+            remote_ip: ip(3),
+            peer_gateway_ip: gateway(3),
+        };
+        let to_d = DesiredConnection {
+            local_ip: ip(1),
+            remote_ip: ip(4),
+            peer_gateway_ip: gateway(4),
+        };
+        let mut keys = NetworkKeys::new(1, vec![1u8; BASE_LENGTH], &[gateway(2)]);
+        // c joins: its pair only gets the incoming keys, until it is switched
+        keys.record(2, vec![2u8; BASE_LENGTH], &[gateway(2), gateway(3)]);
+
+        let sas = desired_sas(&keys, &crypto, 5, &[to_b, to_c, to_d], gateway(1)).unwrap();
+        let count = |conn: &DesiredConnection, direction: CryptoDirection| {
+            sas.iter()
+                .filter(|sa| sa.conn == *conn && sa.direction == direction)
+                .count()
+        };
+        assert_eq!(count(&to_b, CryptoDirection::Ingress), 2);
+        assert_eq!(count(&to_b, CryptoDirection::Egress), 1);
+        assert_eq!(count(&to_c, CryptoDirection::Ingress), 1);
+        assert_eq!(count(&to_c, CryptoDirection::Egress), 0);
+        // d is no member, so its connection stays fail-closed
+        assert_eq!(count(&to_d, CryptoDirection::Ingress), 0);
+        assert_eq!(count(&to_d, CryptoDirection::Egress), 0);
+
+        keys.activate(2).unwrap();
+        let sas = desired_sas(&keys, &crypto, 5, &[to_c], gateway(1)).unwrap();
+        assert_eq!(sas.len(), 2);
+    }
+
+    #[test]
+    fn the_pair_of_a_removed_peer_is_dropped_with_the_cleanup() {
+        let mut keys = NetworkKeys::new(1, vec![1u8; BASE_LENGTH], &[gateway(2), gateway(3)]);
+        // c is removed, which moves the group into epoch 2
+        keys.record(2, vec![2u8; BASE_LENGTH], &[gateway(2)]);
+        keys.activate(2).unwrap();
+        keys.retire(2, &[gateway(2)]).unwrap();
+
+        assert_eq!(
+            keys.pairs.keys().copied().collect::<Vec<_>>(),
+            vec![gateway(2)]
+        );
+        assert_eq!(keys.bases.keys().copied().collect::<Vec<_>>(), vec![(1, 2)]);
     }
 }

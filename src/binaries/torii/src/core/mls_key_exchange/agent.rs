@@ -540,7 +540,7 @@ impl Agent {
                     let recorded = mls
                         .network_keys
                         .get(&vni)
-                        .is_some_and(|keys| keys.bases.contains_key(&round.epoch));
+                        .is_some_and(|keys| keys.has_epoch(round.epoch));
                     if !recorded {
                         return Err(format!(
                             "epoch {} of tenant {vni} is not recorded on this gateway",
