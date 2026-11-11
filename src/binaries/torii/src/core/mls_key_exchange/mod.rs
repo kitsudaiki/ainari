@@ -139,8 +139,9 @@ pub async fn deliver_and_merge(
         group::clear_pending(mls, vni);
         return Err(e);
     }
+    let change = group::pending_change(mls, vni);
     group::merge_pending(mls, vni).map_err(|e| format!("{e:?}"))?;
-    mls.record_epoch(vni)
+    mls.apply_commit(vni, &change)
         .map(|_| ())
         .map_err(|e| format!("{e:?}"))
 }

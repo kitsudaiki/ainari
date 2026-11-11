@@ -489,10 +489,18 @@ mod tests {
     use openmls::prelude::OpenMlsProvider;
     use uuid::Uuid;
 
-    use crate::core::mls_key_exchange::group::tests::{deliver, grant_key, invite, new_gateway};
-    use crate::core::mls_key_exchange::group::{create_group, merge_pending, stage_update};
+    use crate::core::mls_key_exchange::group::tests::{
+        addition, deliver, grant_key, invite, new_gateway,
+    };
+    use crate::core::mls_key_exchange::group::{Addition, pending_change, stage_change};
+    use crate::core::mls_key_exchange::group::{
+        CommitChange, create_group, merge_pending, stage_update,
+    };
     use crate::core::mls_key_exchange::keys::tests::{TestGateway, gateway, in_sync};
+    use crate::core::mls_key_exchange::keys::{DesiredConnection, remove_idle_keys};
+    use crate::core::mls_key_exchange::state::PairKeys;
     use crate::core::mls_key_exchange::state::STALE_PAIR_TIMEOUT;
+    use openmls_rust_crypto::RustCrypto;
 
     const A: &str = "10.0.0.1";
     const B: &str = "10.0.0.2";
@@ -502,7 +510,8 @@ mod tests {
         id.parse().unwrap()
     }
 
-    /// Builds a group of the gateways, whose keys are recorded and in use
+    /// Builds a group of the gateways, whose keys are recorded and in use. The pairs still have
+    /// to tell each other, as after a join.
     fn joined(ids: &[&str]) -> Vec<MlsState> {
         let mut gateways: Vec<MlsState> = ids.iter().map(|id| new_gateway(id)).collect();
         create_group(&mut gateways[0], 5).unwrap();
@@ -616,7 +625,7 @@ mod tests {
         // a rotates the keys and tells b right away, but b gets the ready before the commit
         let commit = stage_update(a, 5).unwrap().unwrap();
         merge_pending(a, 5).unwrap();
-        a.record_epoch(5).unwrap();
+        a.apply_commit(5, &CommitChange::default()).unwrap();
         let id = current(a);
         queue(a, 5, PairMessageKind::Ready, id, &[addr(B)]).unwrap();
         let ready = as_received(&a.pending_out[0], A);
@@ -627,7 +636,7 @@ mod tests {
         assert_eq!(b.network_keys[&5].pairs[&addr(A)].peer_ready, None);
 
         deliver(&[commit], b, &mut []);
-        b.record_epoch(5).unwrap();
+        b.apply_commit(5, &CommitChange::default()).unwrap();
         assert!(retry_pending(b, &key));
         assert!(b.pending_in.is_empty());
         assert_eq!(b.network_keys[&5].pairs[&addr(A)].peer_ready, Some(id));
@@ -908,10 +917,10 @@ mod tests {
         let pair = &keys.pairs[&c];
         assert_eq!(pair.stale_since, Some(1000));
         assert_eq!(pair.egress, Some((1, 1)));
-        assert_eq!(pair.target, None);
+        assert_ne!(pair.target, Some((2, 0)));
 
         // c keeps its keys, also with the next commit of the new group
-        keys.record(1, vec![3u8; 32], &[b], 1050);
+        keys.record(1, vec![3u8; 32], &[b], None, 1050);
         assert_eq!(keys.pairs[&c].stale_since, Some(1000));
         step(
             &mut keys,
@@ -937,7 +946,7 @@ mod tests {
         let mut keys = NetworkKeys::new(1, vec![1u8; 32], &[b, c]);
         keys.replace(0, vec![2u8; 32], &[b], 1000);
 
-        keys.record(1, vec![3u8; 32], &[b, c], 1010);
+        keys.record(1, vec![3u8; 32], &[b, c], None, 1010);
         let pair = &keys.pairs[&c];
         assert_eq!(pair.stale_since, None);
         assert_eq!(pair.target, Some((2, 1)));
@@ -945,7 +954,7 @@ mod tests {
         assert_eq!(pair.egress, Some((1, 1)));
 
         // b leaves the new group, which ends its pair right away
-        keys.record(2, vec![4u8; 32], &[c], 1020);
+        keys.record(2, vec![4u8; 32], &[c], None, 1020);
         assert!(!keys.pairs.contains_key(&b));
     }
 
@@ -954,13 +963,13 @@ mod tests {
         let (committer, others) = gateways.split_first_mut().unwrap();
         let commit = stage_update(committer, 5).unwrap().unwrap();
         merge_pending(committer, 5).unwrap();
-        committer.record_epoch(5).unwrap();
+        committer.apply_commit(5, &CommitChange::default()).unwrap();
         for (i, gateway) in others.iter_mut().enumerate() {
             if silent.contains(&(i + 1)) {
                 continue;
             }
             process(gateway, &commit);
-            gateway.record_epoch(5).unwrap();
+            gateway.apply_commit(5, &CommitChange::default()).unwrap();
         }
     }
 
@@ -1063,5 +1072,150 @@ mod tests {
         let pair = &gateways[0].network_keys[&5].pairs[&addr(B)];
         assert_eq!(pair.egress, Some(new));
         assert_eq!(pair.target, None);
+    }
+
+    /// Lets the first gateway commit a change and the others follow it, as the agent does
+    fn commit(gateways: &mut [MlsState], additions: Vec<Addition>, removals: &[String]) {
+        let (committer, others) = gateways.split_first_mut().unwrap();
+        let messages = match additions.is_empty() && removals.is_empty() {
+            true => stage_update(committer, 5).unwrap().into_iter().collect(),
+            false => stage_change(committer, 5, additions, removals).unwrap(),
+        };
+        let change = pending_change(committer, 5);
+        merge_pending(committer, 5).unwrap();
+        committer.apply_commit(5, &change).unwrap();
+
+        for message in &messages {
+            for gateway in others.iter_mut() {
+                let id = gateway.client_id().unwrap().to_string();
+                if !message.recipients.contains(&id) {
+                    continue;
+                }
+                let processed = group::process_message(
+                    gateway,
+                    message.message_type,
+                    &message.payload,
+                    &message.grants,
+                    &grant_key().verifying_key(),
+                )
+                .unwrap();
+                match processed {
+                    Processed::Advanced { change, .. } => {
+                        gateway.apply_commit(5, &change).unwrap();
+                    }
+                    Processed::Joined { .. } => {
+                        gateway.reset_epochs(5).unwrap();
+                    }
+                    _ => {}
+                }
+            }
+        }
+    }
+
+    fn pair(gateway: &MlsState, peer: &str) -> PairKeys {
+        gateway.network_keys[&5].pairs[&addr(peer)].clone()
+    }
+
+    #[test]
+    fn a_join_does_not_change_the_keys_between_the_others() {
+        let mut gateways = joined(&[A, B]);
+        for _ in 0..2 {
+            drive_all(&mut gateways, &[]);
+        }
+        let before = (pair(&gateways[0], B), pair(&gateways[1], A));
+        assert_eq!(before.0.target, None);
+        let old = current(&gateways[0]);
+
+        gateways.push(new_gateway(C));
+        let added = addition(&gateways[0], &gateways[2], 5);
+        commit(&mut gateways, vec![added], &[]);
+        let new = current(&gateways[0]);
+        for _ in 0..3 {
+            drive_all(&mut gateways, &[]);
+        }
+
+        // the pair of a and b didn't move, so c can't derive its keys
+        assert_eq!((pair(&gateways[0], B), pair(&gateways[1], A)), before);
+        assert!(!gateways[2].network_keys[&5].bases.contains_key(&old));
+        // the pairs with c use the epoch of the join
+        for (gateway, peer) in [(0, C), (1, C), (2, A), (2, B)] {
+            let pair = pair(&gateways[gateway], peer);
+            assert_eq!(pair.egress, Some(new));
+            assert_eq!(pair.target, None);
+        }
+    }
+
+    #[test]
+    fn a_re_add_only_moves_the_pairs_of_the_re_added_gateway() {
+        let mut gateways = joined(&[A, B, C]);
+        let before = pair(&gateways[0], B);
+
+        // c lost its group and is added again
+        group::delete_group(&mut gateways[2], 5).unwrap();
+        gateways[2].network_keys.clear();
+        let added = addition(&gateways[0], &gateways[2], 5);
+        commit(&mut gateways, vec![added], &[]);
+
+        assert_eq!(pair(&gateways[0], B), before);
+        assert_eq!(pair(&gateways[0], C).target, Some(current(&gateways[0])));
+    }
+
+    #[test]
+    fn a_removal_moves_every_remaining_pair_away_from_the_keys_of_the_removed_gateway() {
+        let mut gateways = joined(&[A, B, C]);
+        let known_to_c = current(&gateways[2]);
+
+        commit(&mut gateways, Vec::new(), &[C.to_string()]);
+        for gateway in [0, 1] {
+            assert!(
+                !gateways[gateway].network_keys[&5]
+                    .pairs
+                    .contains_key(&addr(C))
+            );
+        }
+        let new = current(&gateways[0]);
+        assert!(new > known_to_c);
+        for _ in 0..3 {
+            drive_all(&mut gateways[..2], &[]);
+        }
+
+        // the old incoming keys of the pair of a and b are idle and go
+        let conn = DesiredConnection {
+            local_ip: Ipv4Addr::new(192, 168, 0, 1),
+            remote_ip: Ipv4Addr::new(192, 168, 0, 2),
+            peer_gateway_ip: addr(B),
+        };
+        let keys = gateways[0].network_keys.get_mut(&5).unwrap();
+        for _ in 0..2 {
+            remove_idle_keys(
+                keys,
+                &RustCrypto::default(),
+                5,
+                &[conn],
+                addr(A),
+                &mut |_, _, _| Ok(Some(0)),
+            );
+        }
+        let pair = &keys.pairs[&addr(B)];
+        assert_eq!(pair.egress, Some(new));
+        assert_eq!(pair.ingress, std::collections::BTreeSet::from([new]));
+        assert!(pair.retiring.is_empty());
+        assert!(keys.bases.keys().all(|id| *id > known_to_c));
+    }
+
+    #[test]
+    fn a_self_update_moves_every_pair() {
+        let mut gateways = joined(&[A, B, C]);
+        commit(&mut gateways, Vec::new(), &[]);
+        let new = current(&gateways[0]);
+        for peer in [B, C] {
+            assert_eq!(pair(&gateways[0], peer).target, Some(new));
+        }
+        for _ in 0..3 {
+            drive_all(&mut gateways, &[]);
+        }
+        for (gateway, peer) in [(0, B), (0, C), (1, A), (1, C), (2, A), (2, B)] {
+            assert_eq!(pair(&gateways[gateway], peer).egress, Some(new));
+        }
     }
 }

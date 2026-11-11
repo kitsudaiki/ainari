@@ -361,8 +361,9 @@ impl Agent {
                 mls.reset_epochs(vni).map_err(|e| format!("{e:?}"))?;
                 vni
             }
-            Processed::Advanced { vni } => {
-                mls.record_epoch(vni).map_err(|e| format!("{e:?}"))?;
+            Processed::Advanced { vni, change } => {
+                mls.apply_commit(vni, &change)
+                    .map_err(|e| format!("{e:?}"))?;
                 vni
             }
             Processed::Left { vni } => {

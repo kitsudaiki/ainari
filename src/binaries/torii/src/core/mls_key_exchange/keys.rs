@@ -804,7 +804,7 @@ pub(crate) mod tests {
         pub(crate) fn record(&mut self, epoch: u64) {
             let peers = self.peers();
             self.keys
-                .record(epoch, vec![epoch as u8; BASE_LENGTH], &peers, 0);
+                .record(epoch, vec![epoch as u8; BASE_LENGTH], &peers, None, 0);
         }
 
         /// Switches the outgoing traffic to an epoch of the current group, as the pair does after
@@ -852,7 +852,7 @@ pub(crate) mod tests {
         pub(crate) fn record_new_group(&mut self, epoch: u64) {
             let peers = self.peers();
             self.keys
-                .record(epoch, vec![100 + epoch as u8; BASE_LENGTH], &peers, 0);
+                .record(epoch, vec![100 + epoch as u8; BASE_LENGTH], &peers, None, 0);
         }
     }
 
@@ -1083,7 +1083,13 @@ pub(crate) mod tests {
         };
         let mut keys = NetworkKeys::new(1, vec![1u8; BASE_LENGTH], &[gateway(2)]);
         // c joins: its pair only gets the incoming keys, until it is switched
-        keys.record(2, vec![2u8; BASE_LENGTH], &[gateway(2), gateway(3)], 0);
+        keys.record(
+            2,
+            vec![2u8; BASE_LENGTH],
+            &[gateway(2), gateway(3)],
+            None,
+            0,
+        );
 
         let sas = desired_sas(&keys, &crypto, 5, &[to_b, to_c, to_d], gateway(1)).unwrap();
         let count = |conn: &DesiredConnection, direction: CryptoDirection| {

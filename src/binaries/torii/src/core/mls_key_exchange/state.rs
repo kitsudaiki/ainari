@@ -34,7 +34,7 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
 
 use crate::config::CONFIG;
-use crate::core::mls_key_exchange::group::OutgoingMessage;
+use crate::core::mls_key_exchange::group::{CommitChange, OutgoingMessage};
 use crate::core::mls_key_exchange::keys::derive_base;
 use crate::core::utils::get_local_ip;
 use crate::database::mls_storage_table;
@@ -248,7 +248,9 @@ mod epoch_map {
 
 impl NetworkKeys {
     /// Starts the keys of a network with the first epoch of a group, which every pair uses right
-    /// away.
+    /// away. The epoch is still the target of the pairs, so they tell their peers with `Ready` and
+    /// `Switched`: the other members recorded the epoch with the commit, which added this gateway,
+    /// and wait for the `Ready`, before they send with it.
     ///
     /// # Arguments
     /// * `epoch` - The first epoch
@@ -262,6 +264,7 @@ impl NetworkKeys {
         let pair = PairKeys {
             egress: Some(id),
             ingress: BTreeSet::from([id]),
+            target: Some(id),
             ..Default::default()
         };
         NetworkKeys {
@@ -271,9 +274,9 @@ impl NetworkKeys {
         }
     }
 
-    /// Records a new epoch of the current group: it becomes the target of the pair of every
-    /// member and its incoming keys are installed, while the outgoing traffic stays with the old
-    /// epochs.
+    /// Records a new epoch of the current group: it becomes the target of the moving pairs and
+    /// their incoming keys are installed, while the outgoing traffic stays with the old epochs.
+    /// The other pairs keep their epochs.
     ///
     /// The pair of a peer, which left the current group, ends with all of its keys. The pair of a
     /// peer, which only didn't join the current group yet, keeps its keys of the older group, but
@@ -284,8 +287,17 @@ impl NetworkKeys {
     /// * `base` - Base secret of the epoch
     /// * `peers` - The other members of the group. A peer without a pair gets one, which has no
     ///   outgoing keys until the switch.
+    /// * `moving` - The peers, whose pairs move to the new epoch, or `None` for all members. A new
+    ///   pair always moves.
     /// * `now` - Current unix-time in seconds
-    pub fn record(&mut self, epoch: u64, base: Vec<u8>, peers: &[Ipv4Addr], now: i64) {
+    pub fn record(
+        &mut self,
+        epoch: u64,
+        base: Vec<u8>,
+        peers: &[Ipv4Addr],
+        moving: Option<&[Ipv4Addr]>,
+        now: i64,
+    ) {
         let generation = self.generation;
         let id = (generation, epoch);
         self.bases.insert(id, base);
@@ -303,6 +315,10 @@ impl NetworkKeys {
             true
         });
         for peer in peers {
+            let is_new = !self.pairs.contains_key(peer);
+            if !is_new && moving.is_some_and(|moving| !moving.contains(peer)) {
+                continue;
+            }
             let pair = self.pairs.entry(*peer).or_default();
             pair.ingress.insert(id);
             pair.target = Some(id);
@@ -322,7 +338,7 @@ impl NetworkKeys {
     /// * `now` - Current unix-time in seconds
     pub fn replace(&mut self, epoch: u64, base: Vec<u8>, peers: &[Ipv4Addr], now: i64) {
         self.generation += 1;
-        self.record(epoch, base, peers, now);
+        self.record(epoch, base, peers, None, now);
     }
 
     /// Ends the pairs, which are stale for longer than `STALE_PAIR_TIMEOUT`.
@@ -683,22 +699,37 @@ impl MlsState {
         Ok((epoch, base))
     }
 
-    /// Records the current epoch of the group of a network, after the group entered it.
+    /// Records the epoch of the group of a network, which a commit moved it into.
     ///
-    /// The base secret of the epoch is exported, so its incoming keys can be installed. The
-    /// outgoing traffic stays with the active epochs, until the epoch is activated. Only the first
-    /// epoch of a network, which has no keys yet, becomes the active one immediately.
+    /// The base secret of the epoch is exported, so its incoming keys can be installed. Which
+    /// pairs move to the epoch, only depends on the content of the commit (see
+    /// `CommitChange::moves_all`): the pairs of the added gateways always, all others only with a
+    /// removal or a key-rotation. The outgoing traffic of a pair stays with its active epoch, until
+    /// the pair switched. Only the first epoch of a network, which has no keys yet, becomes the
+    /// active one immediately.
     ///
     /// # Arguments
     /// * `vni` - Tenant of the network
+    /// * `change` - The gateways, which the commit added and removed
     ///
     /// # Returns
     /// The recorded epoch, or an `InternalError`
-    pub fn record_epoch(&mut self, vni: u32) -> Result<u64, ErrorResponse> {
+    pub fn apply_commit(&mut self, vni: u32, change: &CommitChange) -> Result<u64, ErrorResponse> {
         let (epoch, base) = self.current_base(vni)?;
         let peers = self.peers(vni);
+        let committer = change.committer.as_deref().unwrap_or("-");
+        for gone in change.gone() {
+            log::warn!("'{committer}' removed '{gone}' from the MLS-group of tenant {vni}");
+        }
+        let added: Vec<Ipv4Addr> = change
+            .added
+            .iter()
+            .filter_map(|added| added.parse().ok())
+            .collect();
+        let moving = (!change.moves_all()).then_some(added.as_slice());
+
         match self.network_keys.get_mut(&vni) {
-            Some(keys) => keys.record(epoch, base, &peers, Utc::now().timestamp()),
+            Some(keys) => keys.record(epoch, base, &peers, moving, Utc::now().timestamp()),
             None => {
                 self.network_keys
                     .insert(vni, NetworkKeys::new(epoch, base, &peers));
@@ -743,8 +774,11 @@ impl MlsState {
     /// # Returns
     /// The recorded epoch, or an `InternalError`
     pub fn reset_epochs(&mut self, vni: u32) -> Result<u64, ErrorResponse> {
-        self.network_keys.remove(&vni);
-        self.record_epoch(vni)
+        let (epoch, base) = self.current_base(vni)?;
+        let peers = self.peers(vni);
+        self.network_keys
+            .insert(vni, NetworkKeys::new(epoch, base, &peers));
+        Ok(epoch)
     }
 }
 
@@ -855,11 +889,11 @@ mod tests {
     fn the_pair_of_a_removed_peer_ends_with_the_commit() {
         let other = Ipv4Addr::new(10, 0, 0, 8);
         let mut keys = network_keys(1, &[1]);
-        keys.record(2, vec![2u8; 32], &[PEER, other], 0);
+        keys.record(2, vec![2u8; 32], &[PEER, other], None, 0);
         assert_eq!(keys.pairs.len(), 2);
 
         // other is removed
-        keys.record(3, vec![3u8; 32], &[PEER], 0);
+        keys.record(3, vec![3u8; 32], &[PEER], None, 0);
         assert_eq!(keys.pairs.keys().copied().collect::<Vec<_>>(), vec![PEER]);
         assert_eq!(keys.pairs[&PEER].target, Some((1, 3)));
     }
@@ -885,7 +919,7 @@ mod tests {
             )
             .unwrap();
         group.merge_pending_commit(&a.provider).unwrap();
-        let second = a.record_epoch(7).unwrap();
+        let second = a.apply_commit(7, &CommitChange::default()).unwrap();
 
         assert_eq!(second, first + 1);
         let keys = &a.network_keys[&7];

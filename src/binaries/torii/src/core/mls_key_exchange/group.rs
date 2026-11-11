@@ -499,6 +499,100 @@ pub fn create_application_message(
     })
 }
 
+/// The gateways, which a commit adds and removes, as the content of the commit tells it. MLS
+/// authenticates the content, so izakaya can't change it.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct CommitChange {
+    /// Identity of the member, which made the commit
+    pub committer: Option<String>,
+    /// Identities of the added gateways, including the re-added ones
+    pub added: Vec<String>,
+    /// Identities of the removed gateways, including the re-added ones, whose old leaf goes
+    pub removed: Vec<String>,
+}
+
+impl CommitChange {
+    /// Lists the gateways, which the commit removes for good.
+    pub fn gone(&self) -> Vec<&String> {
+        self.removed
+            .iter()
+            .filter(|removed| !self.added.contains(removed))
+            .collect()
+    }
+
+    /// Checks, if the commit has to move every pair to its new epoch: because it removes a
+    /// gateway, which must not use any of the keys afterwards, or because it adds and removes
+    /// nobody, which is the regular key-rotation. A commit, which only adds gateways, only moves
+    /// their pairs, so a new gateway can't derive the keys between the others.
+    pub fn moves_all(&self) -> bool {
+        !self.gone().is_empty() || (self.added.is_empty() && self.removed.is_empty())
+    }
+}
+
+/// Reads the gateways, which a staged commit adds and removes.
+///
+/// # Arguments
+/// * `group` - The group, before the commit is merged
+/// * `staged_commit` - The commit
+/// * `committer` - Identity of the member, which made the commit
+///
+/// # Returns
+/// The change of the commit
+fn commit_change(
+    group: &MlsGroup,
+    staged_commit: &StagedCommit,
+    committer: Option<String>,
+) -> CommitChange {
+    let mut change = CommitChange {
+        committer,
+        added: staged_commit
+            .add_proposals()
+            .filter_map(|addition| {
+                identity_of(
+                    addition
+                        .add_proposal()
+                        .key_package()
+                        .leaf_node()
+                        .credential(),
+                )
+            })
+            .collect(),
+        removed: staged_commit
+            .remove_proposals()
+            .filter_map(|removal| group.member(removal.remove_proposal().removed()))
+            .filter_map(identity_of)
+            .collect(),
+    };
+    change.added.sort();
+    change.added.dedup();
+    change.removed.sort();
+    change.removed.dedup();
+    change
+}
+
+/// Reads the gateways, which the staged change of this gateway adds and removes.
+///
+/// # Arguments
+/// * `state` - The MLS-client
+/// * `vni` - Tenant of the network
+///
+/// # Returns
+/// The change, or a pure self-update, if nothing is staged
+pub fn pending_change(state: &MlsState, vni: u32) -> CommitChange {
+    let committer = state.client_id().map(str::to_string);
+    match state
+        .groups
+        .get(&vni)
+        .and_then(|group| group.pending_commit().map(|commit| (group, commit)))
+    {
+        Some((group, commit)) => commit_change(group, commit, committer),
+        None => CommitChange {
+            committer,
+            ..Default::default()
+        },
+    }
+}
+
 /// Effect of an incoming message on the groups of the gateway
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Processed {
@@ -506,7 +600,7 @@ pub enum Processed {
     /// older group of the same network, whose keys are worthless now.
     Joined { vni: u32, replaced: bool },
     /// The group of a network moved into its next epoch
-    Advanced { vni: u32 },
+    Advanced { vni: u32, change: CommitChange },
     /// The gateway was removed from the group of a network
     Left { vni: u32 },
     /// A member sent a message to this gateway
@@ -645,6 +739,7 @@ pub fn process_message(
             let processed = group
                 .process_message(&state.provider, message)
                 .map_err(|e| format!("commit can not be processed: {e}"))?;
+            let committer = identity_of(processed.credential());
             let staged_commit = match processed.into_content() {
                 ProcessedMessageContent::StagedCommitMessage(staged_commit) => staged_commit,
                 _ => return Ok(Processed::Ignored),
@@ -656,6 +751,7 @@ pub fn process_message(
                 }
                 return Err(format!("commit is refused: {e}"));
             }
+            let change = commit_change(group, &staged_commit, committer);
             group
                 .merge_staged_commit(&state.provider, *staged_commit)
                 .map_err(|e| format!("commit can not be merged: {e}"))?;
@@ -670,7 +766,7 @@ pub fn process_message(
                 return Ok(Processed::Left { vni });
             }
 
-            Ok(Processed::Advanced { vni })
+            Ok(Processed::Advanced { vni, change })
         }
     }
 }
@@ -855,7 +951,7 @@ pub(crate) mod tests {
     }
 
     /// Prepares the addition of `invited` by `inviter` with a fresh key-package and its grant.
-    fn addition(inviter: &MlsState, invited: &MlsState, vni: u32) -> Addition {
+    pub(crate) fn addition(inviter: &MlsState, invited: &MlsState, vni: u32) -> Addition {
         addition_with_grant(inviter, invited, invited, vni)
     }
 
@@ -1145,6 +1241,21 @@ pub(crate) mod tests {
             check_additions(&a, 5, &adds, &grant_key().verifying_key(), 101, claim).await;
         assert!(additions.is_empty());
         assert_eq!(refused[0].reason, "the grant is expired");
+    }
+
+    #[test]
+    fn only_a_removal_for_good_or_a_self_update_moves_all_pairs() {
+        let change = |added: &[&str], removed: &[&str]| CommitChange {
+            committer: None,
+            added: added.iter().map(|it| it.to_string()).collect(),
+            removed: removed.iter().map(|it| it.to_string()).collect(),
+        };
+        assert!(change(&[], &[]).moves_all());
+        assert!(change(&[], &["c"]).moves_all());
+        assert!(change(&["d"], &["c"]).moves_all());
+        assert!(!change(&["c"], &[]).moves_all());
+        // a re-add only moves the pairs of the re-added gateway
+        assert!(!change(&["c"], &["c"]).moves_all());
     }
 
     #[test]
