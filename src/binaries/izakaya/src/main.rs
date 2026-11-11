@@ -50,8 +50,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // the public key of hanami is checked at the start, instead of with the first grant
     once_cell::sync::Lazy::force(&config::GRANT_PUBLIC_KEY);
 
-    // rounds and operations, which stall, the grace-period of the rounds and the regular
-    // key-rotation only depend on the time, so they are moved on in the background
+    // batches, which are due or stall, and the regular key-rotation only depend on the time, so
+    // they are moved on in the background
     core::coordinator::spawn_ticker(
         config.mls.key_rotation_interval as i64,
         config.mls.member_timeout as i64,

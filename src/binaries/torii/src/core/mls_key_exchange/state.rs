@@ -26,6 +26,7 @@ use std::sync::Arc;
 
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD as BASE64;
+use chrono::Utc;
 use openmls::prelude::*;
 use openmls_basic_credential::SignatureKeyPair;
 use openmls_rust_crypto::OpenMlsRustCrypto;
@@ -33,11 +34,13 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
 
 use crate::config::CONFIG;
+use crate::core::mls_key_exchange::group::OutgoingMessage;
 use crate::core::mls_key_exchange::keys::derive_base;
 use crate::core::utils::get_local_ip;
 use crate::database::mls_storage_table;
 
 use ainari_api::errors::ErrorResponse;
+use ainari_api_structs::mls_structs::MlsMessageResp;
 
 /// Ciphersuite of all groups. It is the one every MLS-implementation has to support.
 pub const CIPHERSUITE: Ciphersuite = Ciphersuite::MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519;
@@ -51,6 +54,17 @@ const GROUPS_STORAGE_KEY: &[u8] = b"ainari/mls/groups";
 
 /// Entry of the key-value-store, which holds the key material of the epochs of all networks
 const NETWORK_KEYS_STORAGE_KEY: &[u8] = b"ainari/mls/network_keys";
+
+/// Entry of the key-value-store, which holds the messages, which izakaya didn't accept yet
+const PENDING_OUT_STORAGE_KEY: &[u8] = b"ainari/mls/pending_out";
+
+/// Entry of the key-value-store, which holds the messages of epochs, which the groups didn't
+/// reach yet
+const PENDING_IN_STORAGE_KEY: &[u8] = b"ainari/mls/pending_in";
+
+/// Seconds, after which a pair ends, whose peer didn't join the group, which replaced the older
+/// group of the network, so its connections fall back to their fail-closed block policies
+pub const STALE_PAIR_TIMEOUT: i64 = 120;
 
 /// Prefix of the id of a group, which is followed by the tenant of the network
 const GROUP_ID_PREFIX: &str = "ainari-vni-";
@@ -129,6 +143,37 @@ pub struct PairKeys {
     pub ingress: BTreeSet<EpochId>,
     /// Epoch, which the pair is moving to
     pub target: Option<EpochId>,
+    /// Old epochs, whose incoming keys wait for their removal, with the packet counters of their
+    /// keys by SPI at the last check. The counters of an epoch are empty, until they are read the
+    /// first time.
+    #[serde(default, with = "epoch_counters")]
+    pub retiring: BTreeMap<EpochId, BTreeMap<u32, u64>>,
+    /// Latest epoch, with which the peer told it can receive
+    pub peer_ready: Option<EpochId>,
+    /// Latest epoch, with which the peer told it sends
+    pub peer_switched: Option<EpochId>,
+    /// Latest epoch, with which this gateway told the peer it can receive
+    pub ready_sent: Option<EpochId>,
+    /// Latest epoch, with which this gateway told the peer it sends
+    pub switched_sent: Option<EpochId>,
+    /// Why the last step of the pair failed, if it did
+    pub last_error: Option<String>,
+    /// Unix-time in seconds, since which the peer is no member of the current group, because it
+    /// didn't join the group yet, which replaced an older one (see `STALE_PAIR_TIMEOUT`)
+    pub stale_since: Option<i64>,
+}
+
+impl PairKeys {
+    /// Checks, if the pair already has keys of a generation.
+    fn knows_generation(&self, generation: u64) -> bool {
+        self.ingress
+            .iter()
+            .chain(self.retiring.keys())
+            .copied()
+            .chain(self.egress)
+            .chain(self.target)
+            .any(|id| id.0 == generation)
+    }
 }
 
 /// The epochs of a network, whose IPsec keys are installed on the gateway.
@@ -139,13 +184,8 @@ pub struct PairKeys {
 /// the new one. So a base secret is exported from every epoch, as soon as the gateway enters it,
 /// and the keys of the connections are derived from that base secret.
 ///
-/// The rotation runs in three steps, which the control plane triggers on all gateways of the
-/// network one after another:
-///
-/// 1. a new epoch is recorded: it becomes the target of every pair and its incoming keys are
-///    installed next to the old ones
-/// 2. it is activated: the outgoing traffic of every pair switches over to its keys
-/// 3. the older epochs are retired: their incoming keys are removed
+/// Every new epoch becomes the target of the pairs, which then move to it on their own, only
+/// coordinated with their peer (see `pairs::step`).
 #[derive(Clone, Default, Serialize, Deserialize)]
 pub struct NetworkKeys {
     /// Generation of the current group of the network
@@ -155,6 +195,32 @@ pub struct NetworkKeys {
     pub bases: BTreeMap<EpochId, Vec<u8>>,
     /// The pairs of the network, by the identity (underlay-address) of the peer
     pub pairs: BTreeMap<Ipv4Addr, PairKeys>,
+}
+
+/// Stores the counters of the retiring epochs as a list, because JSON only knows strings as keys.
+mod epoch_counters {
+    use std::collections::BTreeMap;
+
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
+    use super::EpochId;
+
+    type Counters = BTreeMap<EpochId, BTreeMap<u32, u64>>;
+
+    pub fn serialize<S: Serializer>(map: &Counters, serializer: S) -> Result<S::Ok, S::Error> {
+        map.iter()
+            .map(|(id, counters)| (id, counters.iter().collect::<Vec<_>>()))
+            .collect::<Vec<_>>()
+            .serialize(serializer)
+    }
+
+    pub fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Counters, D::Error> {
+        let entries = Vec::<(EpochId, Vec<(u32, u64)>)>::deserialize(deserializer)?;
+        Ok(entries
+            .into_iter()
+            .map(|(id, counters)| (id, counters.into_iter().collect()))
+            .collect())
+    }
 }
 
 /// Stores a map with epoch ids as keys as a list, because JSON only knows strings as keys.
@@ -196,7 +262,7 @@ impl NetworkKeys {
         let pair = PairKeys {
             egress: Some(id),
             ingress: BTreeSet::from([id]),
-            target: None,
+            ..Default::default()
         };
         NetworkKeys {
             generation: 1,
@@ -205,29 +271,44 @@ impl NetworkKeys {
         }
     }
 
-    /// Checks, if an epoch of the current group is recorded.
-    pub fn has_epoch(&self, epoch: u64) -> bool {
-        self.bases.contains_key(&(self.generation, epoch))
-    }
-
-    /// Records a new epoch of the current group: it becomes the target of every pair and its
-    /// incoming keys are installed, while the outgoing traffic stays with the old epochs.
+    /// Records a new epoch of the current group: it becomes the target of the pair of every
+    /// member and its incoming keys are installed, while the outgoing traffic stays with the old
+    /// epochs.
+    ///
+    /// The pair of a peer, which left the current group, ends with all of its keys. The pair of a
+    /// peer, which only didn't join the current group yet, keeps its keys of the older group, but
+    /// becomes stale.
     ///
     /// # Arguments
     /// * `epoch` - The new epoch
     /// * `base` - Base secret of the epoch
     /// * `peers` - The other members of the group. A peer without a pair gets one, which has no
     ///   outgoing keys until the switch.
-    pub fn record(&mut self, epoch: u64, base: Vec<u8>, peers: &[Ipv4Addr]) {
-        let id = (self.generation, epoch);
+    /// * `now` - Current unix-time in seconds
+    pub fn record(&mut self, epoch: u64, base: Vec<u8>, peers: &[Ipv4Addr], now: i64) {
+        let generation = self.generation;
+        let id = (generation, epoch);
         self.bases.insert(id, base);
+        self.pairs.retain(|peer, pair| {
+            if peers.contains(peer) {
+                return true;
+            }
+            if pair.knows_generation(generation) {
+                log::warn!(
+                    "{peer} left the group of generation {generation}, its keys are removed"
+                );
+                return false;
+            }
+            pair.stale_since.get_or_insert(now);
+            true
+        });
         for peer in peers {
-            self.pairs.entry(*peer).or_default();
-        }
-        for pair in self.pairs.values_mut() {
+            let pair = self.pairs.entry(*peer).or_default();
             pair.ingress.insert(id);
             pair.target = Some(id);
+            pair.stale_since = None;
         }
+        self.drop_unused_bases();
     }
 
     /// Records the first epoch of a new group of the network, which replaces the current group,
@@ -238,85 +319,44 @@ impl NetworkKeys {
     /// * `epoch` - The first epoch of the new group
     /// * `base` - Base secret of the epoch
     /// * `peers` - The other members of the new group
-    pub fn replace(&mut self, epoch: u64, base: Vec<u8>, peers: &[Ipv4Addr]) {
+    /// * `now` - Current unix-time in seconds
+    pub fn replace(&mut self, epoch: u64, base: Vec<u8>, peers: &[Ipv4Addr], now: i64) {
         self.generation += 1;
-        self.record(epoch, base, peers);
+        self.record(epoch, base, peers, now);
     }
 
-    /// Switches the outgoing traffic of every pair, which can receive with it, to the keys of a
-    /// recorded epoch of the current group.
+    /// Ends the pairs, which are stale for longer than `STALE_PAIR_TIMEOUT`.
     ///
     /// # Arguments
-    /// * `epoch` - The epoch to activate
+    /// * `now` - Current unix-time in seconds
     ///
     /// # Returns
-    /// `Ok(())`, `BadRequest` if the epoch is not recorded or `Conflict` if a newer epoch is
-    /// active already
-    pub fn activate(&mut self, epoch: u64) -> Result<(), ErrorResponse> {
-        let id = (self.generation, epoch);
-        if !self.bases.contains_key(&id) {
-            return Err(ErrorResponse::BadRequest(format!(
-                "Epoch {epoch} is not known (yet)"
-            )));
-        }
-        if let Some(newer) = self
-            .pairs
-            .values()
-            .filter_map(|pair| pair.egress)
-            .find(|egress| *egress > id)
-        {
-            return Err(ErrorResponse::Conflict(format!(
-                "Epoch {} is active already, which is newer than {epoch}",
-                newer.1
-            )));
-        }
-        for pair in self.pairs.values_mut() {
-            if pair.ingress.contains(&id) {
-                pair.egress = Some(id);
-                if pair.target.is_some_and(|target| target <= id) {
-                    pair.target = None;
-                }
+    /// `true` if a pair ended
+    pub fn end_stale_pairs(&mut self, now: i64) -> bool {
+        let before = self.pairs.len();
+        self.pairs.retain(|peer, pair| match pair.stale_since {
+            Some(since) if now - since > STALE_PAIR_TIMEOUT => {
+                log::warn!("{peer} didn't join the new group in time, its keys are removed");
+                false
             }
-        }
-        Ok(())
-    }
-
-    /// Forgets all epochs, which are older than the given one, so their incoming keys are
-    /// removed, and the pairs of the peers, which are no members of the group anymore.
-    ///
-    /// # Arguments
-    /// * `epoch` - The oldest epoch of the current group, which is kept
-    /// * `peers` - The other members of the group
-    ///
-    /// # Returns
-    /// `Ok(())`, or `Conflict` if the outgoing traffic of a pair still uses an older epoch
-    pub fn retire(&mut self, epoch: u64, peers: &[Ipv4Addr]) -> Result<(), ErrorResponse> {
-        let id = (self.generation, epoch);
-        let still_sending = self
-            .pairs
-            .iter()
-            .any(|(peer, pair)| peers.contains(peer) && pair.egress.is_some_and(|e| e < id));
-        if still_sending {
-            return Err(ErrorResponse::Conflict(format!(
-                "An older epoch than {epoch} is still active, activate epoch {epoch} first"
-            )));
-        }
-        self.pairs.retain(|peer, _| peers.contains(peer));
-        for pair in self.pairs.values_mut() {
-            pair.ingress.retain(|ingress| *ingress >= id);
+            _ => true,
+        });
+        if self.pairs.len() == before {
+            return false;
         }
         self.drop_unused_bases();
-        Ok(())
+        true
     }
 
     /// Drops the base secrets, which no pair uses anymore.
-    fn drop_unused_bases(&mut self) {
+    pub fn drop_unused_bases(&mut self) {
         let used: BTreeSet<EpochId> = self
             .pairs
             .values()
             .flat_map(|pair| {
                 pair.ingress
                     .iter()
+                    .chain(pair.retiring.keys())
                     .copied()
                     .chain(pair.egress)
                     .chain(pair.target)
@@ -335,6 +375,10 @@ pub struct MlsState {
     pub groups: BTreeMap<u32, MlsGroup>,
     /// The epochs of the networks, whose IPsec keys are installed, by the tenant of the network
     pub network_keys: BTreeMap<u32, NetworkKeys>,
+    /// Messages to other gateways, which izakaya didn't accept yet, in the order of sending
+    pub pending_out: Vec<OutgoingMessage>,
+    /// Messages of other gateways, whose epoch the group didn't reach yet
+    pub pending_in: Vec<MlsMessageResp>,
     /// Write every change into the database. Only switched off by the tests, which simulate
     /// several gateways within one process.
     persist: bool,
@@ -348,6 +392,8 @@ impl MlsState {
             identity: None,
             groups: BTreeMap::new(),
             network_keys: BTreeMap::new(),
+            pending_out: Vec::new(),
+            pending_in: Vec::new(),
             persist: false,
         }
     }
@@ -414,13 +460,15 @@ impl MlsState {
     ///
     /// # Returns
     /// `Ok(())` if the identity and all groups could be restored, otherwise the reason why not
-    fn restore(
+    pub(crate) fn restore(
         &mut self,
         values: std::collections::HashMap<Vec<u8>, Vec<u8>>,
     ) -> Result<(), String> {
         let identity = values.get(IDENTITY_STORAGE_KEY).cloned();
         let group_list = values.get(GROUPS_STORAGE_KEY).cloned();
         let network_keys = values.get(NETWORK_KEYS_STORAGE_KEY).cloned();
+        let pending_out = values.get(PENDING_OUT_STORAGE_KEY).cloned();
+        let pending_in = values.get(PENDING_IN_STORAGE_KEY).cloned();
         *self
             .provider
             .storage()
@@ -461,6 +509,14 @@ impl MlsState {
             self.network_keys = serde_json::from_slice(&network_keys)
                 .map_err(|e| format!("broken key material of the networks: {e}"))?;
         }
+        if let Some(pending_out) = pending_out {
+            self.pending_out = serde_json::from_slice(&pending_out)
+                .map_err(|e| format!("broken outgoing messages: {e}"))?;
+        }
+        if let Some(pending_in) = pending_in {
+            self.pending_in = serde_json::from_slice(&pending_in)
+                .map_err(|e| format!("broken waiting messages: {e}"))?;
+        }
 
         Ok(())
     }
@@ -496,6 +552,12 @@ impl MlsState {
         let network_keys =
             serde_json::to_vec(&self.network_keys).map_err(|e| internal_error(e.to_string()))?;
         values.insert(NETWORK_KEYS_STORAGE_KEY.to_vec(), network_keys);
+        let pending_out =
+            serde_json::to_vec(&self.pending_out).map_err(|e| internal_error(e.to_string()))?;
+        values.insert(PENDING_OUT_STORAGE_KEY.to_vec(), pending_out);
+        let pending_in =
+            serde_json::to_vec(&self.pending_in).map_err(|e| internal_error(e.to_string()))?;
+        values.insert(PENDING_IN_STORAGE_KEY.to_vec(), pending_in);
 
         if self.persist {
             mls_storage_table::save_mls_storage(&values)
@@ -636,7 +698,7 @@ impl MlsState {
         let (epoch, base) = self.current_base(vni)?;
         let peers = self.peers(vni);
         match self.network_keys.get_mut(&vni) {
-            Some(keys) => keys.record(epoch, base, &peers),
+            Some(keys) => keys.record(epoch, base, &peers, Utc::now().timestamp()),
             None => {
                 self.network_keys
                     .insert(vni, NetworkKeys::new(epoch, base, &peers));
@@ -662,7 +724,7 @@ impl MlsState {
         let (epoch, base) = self.current_base(vni)?;
         let peers = self.peers(vni);
         match self.network_keys.get_mut(&vni) {
-            Some(keys) => keys.replace(epoch, base, &peers),
+            Some(keys) => keys.replace(epoch, base, &peers, Utc::now().timestamp()),
             None => {
                 self.network_keys
                     .insert(vni, NetworkKeys::new(epoch, base, &peers));
@@ -683,40 +745,6 @@ impl MlsState {
     pub fn reset_epochs(&mut self, vni: u32) -> Result<u64, ErrorResponse> {
         self.network_keys.remove(&vni);
         self.record_epoch(vni)
-    }
-
-    /// Switches the outgoing traffic of a network to the keys of a recorded epoch.
-    ///
-    /// # Arguments
-    /// * `vni` - Tenant of the network
-    /// * `epoch` - The epoch to activate
-    ///
-    /// # Returns
-    /// `Ok(())`, `NotFound` if the network has no keys, `BadRequest` if the epoch is not
-    /// recorded or `Conflict` if a newer epoch is active already
-    pub fn activate_epoch(&mut self, vni: u32, epoch: u64) -> Result<(), ErrorResponse> {
-        self.network_keys
-            .get_mut(&vni)
-            .ok_or_else(|| ErrorResponse::NotFound(format!("No MLS-group for tenant {vni}")))?
-            .activate(epoch)
-    }
-
-    /// Forgets all epochs of a network, which are older than the given one, so their incoming
-    /// keys are removed, together with the pairs of the peers, which left the group.
-    ///
-    /// # Arguments
-    /// * `vni` - Tenant of the network
-    /// * `epoch` - The oldest epoch, which is kept
-    ///
-    /// # Returns
-    /// `Ok(())`, `NotFound` if the network has no keys or `Conflict` if the outgoing traffic
-    /// still uses an older epoch
-    pub fn retire_epochs(&mut self, vni: u32, epoch: u64) -> Result<(), ErrorResponse> {
-        let peers = self.peers(vni);
-        self.network_keys
-            .get_mut(&vni)
-            .ok_or_else(|| ErrorResponse::NotFound(format!("No MLS-group for tenant {vni}")))?
-            .retire(epoch, &peers)
     }
 }
 
@@ -817,50 +845,23 @@ mod tests {
                     egress: Some((1, active_epoch)),
                     ingress: epochs.iter().map(|epoch| (1, *epoch)).collect(),
                     target: epochs.last().map(|epoch| (1, *epoch)),
+                    ..Default::default()
                 },
             )]),
         }
     }
 
     #[test]
-    fn only_a_recorded_epoch_can_be_activated() {
-        let mut keys = network_keys(1, &[1, 2]);
+    fn the_pair_of_a_removed_peer_ends_with_the_commit() {
+        let other = Ipv4Addr::new(10, 0, 0, 8);
+        let mut keys = network_keys(1, &[1]);
+        keys.record(2, vec![2u8; 32], &[PEER, other], 0);
+        assert_eq!(keys.pairs.len(), 2);
 
-        // an epoch, which the gateway didn't follow yet, would leave it without the key
-        assert!(matches!(
-            keys.activate(3),
-            Err(ErrorResponse::BadRequest(_))
-        ));
-        assert!(keys.activate(2).is_ok());
-        assert_eq!(keys.pairs[&PEER].egress, Some((1, 2)));
-        assert_eq!(keys.pairs[&PEER].target, None);
-        // activating the active epoch again changes nothing, an older one is refused
-        assert!(keys.activate(2).is_ok());
-        assert!(matches!(keys.activate(1), Err(ErrorResponse::Conflict(_))));
-
-        let mut state = MlsState::new_in_memory();
-        assert!(matches!(
-            state.activate_epoch(6, 1),
-            Err(ErrorResponse::NotFound(_))
-        ));
-    }
-
-    #[test]
-    fn only_the_epochs_before_the_active_one_can_be_retired() {
-        let mut keys = network_keys(2, &[1, 2, 3]);
-
-        // epoch 2 is still used for the outgoing traffic
-        assert!(matches!(
-            keys.retire(3, &[PEER]),
-            Err(ErrorResponse::Conflict(_))
-        ));
-        assert!(keys.retire(2, &[PEER]).is_ok());
-        let epochs = |keys: &NetworkKeys| keys.bases.keys().copied().collect::<Vec<_>>();
-        assert_eq!(epochs(&keys), vec![(1, 2), (1, 3)]);
-        assert_eq!(keys.pairs[&PEER].ingress, BTreeSet::from([(1, 2), (1, 3)]));
-        // retiring again changes nothing
-        assert!(keys.retire(2, &[PEER]).is_ok());
-        assert_eq!(epochs(&keys), vec![(1, 2), (1, 3)]);
+        // other is removed
+        keys.record(3, vec![3u8; 32], &[PEER], 0);
+        assert_eq!(keys.pairs.keys().copied().collect::<Vec<_>>(), vec![PEER]);
+        assert_eq!(keys.pairs[&PEER].target, Some((1, 3)));
     }
 
     #[test]
@@ -896,24 +897,23 @@ mod tests {
     }
 
     #[test]
-    fn a_replaced_group_keeps_the_old_keys_until_the_switch() {
+    fn a_replaced_group_keeps_the_old_keys() {
         let mut keys = network_keys(2, &[2]);
         let other = Ipv4Addr::new(10, 0, 0, 8);
 
         // the new group has a new member, the old peer joins it as well
-        keys.replace(0, vec![1u8; 32], &[PEER, other]);
+        keys.replace(0, vec![1u8; 32], &[PEER, other], 0);
         assert_eq!(keys.generation, 2);
         assert_eq!(keys.pairs[&PEER].egress, Some((1, 2)));
         assert_eq!(keys.pairs[&PEER].target, Some((2, 0)));
         assert_eq!(keys.pairs[&other].egress, None);
 
         // the epochs of the new group are newer than the ones of the old group
-        keys.activate(0).unwrap();
-        keys.retire(0, &[PEER, other]).unwrap();
-        assert_eq!(keys.pairs[&PEER].egress, Some((2, 0)));
-        assert_eq!(keys.pairs[&PEER].ingress, BTreeSet::from([(2, 0)]));
-        assert_eq!(keys.pairs[&other].egress, Some((2, 0)));
-        assert_eq!(keys.bases.keys().copied().collect::<Vec<_>>(), vec![(2, 0)]);
+        assert!(keys.pairs[&PEER].target > keys.pairs[&PEER].egress);
+        assert_eq!(
+            keys.bases.keys().copied().collect::<Vec<_>>(),
+            vec![(1, 2), (2, 0)]
+        );
     }
 
     #[test]

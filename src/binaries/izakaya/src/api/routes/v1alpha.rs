@@ -68,11 +68,7 @@ pub fn v1alpha_routes() -> Scope {
                 ))
                 .service(resource("/{vni}/operation/internal").route(
                     post().to(finish_mls_operation_internal_v1_0::finish_mls_operation_internal),
-                ))
-                .service(
-                    resource("/{vni}/round/internal")
-                        .route(post().to(ack_mls_round_internal_v1_0::ack_mls_round_internal)),
-                ),
+                )),
         )
         .service(
             scope("/mls_message")

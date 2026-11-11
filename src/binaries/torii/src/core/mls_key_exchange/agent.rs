@@ -21,8 +21,10 @@
 //!    encrypted route towards another host, and unsubscribes from the groups of the networks,
 //!    which don't need encryption on this gateway anymore,
 //! 3. processes the messages, which the izakaya holds for it: welcomes and commits of the
-//!    groups, changes of a group, which it has to make as committer, and the phases of the
-//!    key-rotations.
+//!    groups, changes of a group, which it has to make as committer, and the messages of the
+//!    peers of its pairs,
+//! 4. moves its pairs to the keys of new epochs, sends their messages and removes old keys,
+//!    which no packet uses anymore.
 //!
 //! The decisions of the agent only depend on the routes of the gateway and on the grants of
 //! hanami, so any number of hanami-instances can run without coordinating the groups.
@@ -35,8 +37,12 @@ use chrono::Utc;
 use crate::config::{CONFIG, GRANT_PUBLIC_KEY, INTERNAL_API_KEY};
 use crate::core::ebpf_interface::EBPF_INTERFACE_HANDLE;
 use crate::core::mls_key_exchange::group::{self, OutgoingMessage, Processed};
+use crate::core::mls_key_exchange::pairs;
 use crate::core::mls_key_exchange::state::MLS_STATE_HANDLE;
-use crate::core::mls_key_exchange::{apply_keys, deliver_and_merge, izakaya_endpoint};
+use crate::core::mls_key_exchange::{
+    apply_keys, deliver_and_merge, drive_all_pairs, izakaya_endpoint, remove_idle_network_keys,
+    send_pending_messages,
+};
 use crate::core::utils::get_local_ip;
 
 use ainari_api_structs::mls_structs::*;
@@ -103,12 +109,14 @@ impl Agent {
         }
     }
 
-    /// Runs one round of the agent.
+    /// Runs one loop of the agent.
     async fn run_once(&mut self) -> Result<(), String> {
         // without an underlay address the gateway has no identity yet
         if get_local_ip(&CONFIG.network.underlay_iface).is_none() {
             return Ok(());
         }
+        // old keys are removed on their own, also while the izakaya is not reachable
+        remove_idle_network_keys().await;
 
         let izakaya = self.izakaya().await?;
         let client_id = {
@@ -121,7 +129,10 @@ impl Agent {
 
         self.ensure_key_packages(&izakaya, &client_id).await?;
         self.reconcile_subscriptions(&izakaya, &client_id).await;
-        self.process_messages(&izakaya, &client_id).await
+        let result = self.process_messages(&izakaya, &client_id).await;
+        drive_all_pairs().await;
+        send_pending_messages(&izakaya).await;
+        result
     }
 
     /// Returns the endpoint of the izakaya, which is asked from miko from time to time.
@@ -281,16 +292,11 @@ impl Agent {
                 MlsMessageType::Welcome | MlsMessageType::Commit => {
                     self.handle_group_message(&message).await
                 }
+                MlsMessageType::Application => self.handle_application(&message).await,
                 MlsMessageType::Operation => {
                     match serde_json::from_str::<MlsOperation>(&message.payload) {
                         Ok(op) => self.handle_operation(izakaya, client_id, op).await,
                         Err(e) => Err(format!("broken operation: {e}")),
-                    }
-                }
-                MlsMessageType::Round => {
-                    match serde_json::from_str::<MlsRoundMessage>(&message.payload) {
-                        Ok(round) => self.handle_round(izakaya, client_id, round).await,
-                        Err(e) => Err(format!("broken round-message: {e}")),
                     }
                 }
             };
@@ -322,8 +328,8 @@ impl Agent {
 
     /// Processes a welcome or a commit of another gateway.
     ///
-    /// The new epoch is only recorded, which installs its incoming keys. The outgoing traffic
-    /// switches with the round of the epoch.
+    /// The new epoch is only recorded, which installs its incoming keys. The outgoing traffic of
+    /// every pair switches, once its peer is ready (see `pairs`).
     async fn handle_group_message(&self, message: &MlsMessageResp) -> Result<(), String> {
         let mut mls = MLS_STATE_HANDLE.lock().await;
         let processed = group::process_message(
@@ -336,7 +342,7 @@ impl Agent {
 
         let vni = match processed {
             // a group, which replaces an older one of the network, keeps the keys of the older one
-            // in use, until its first round switched all members over
+            // in use, until the pairs switched to the new one
             Processed::Joined {
                 vni,
                 replaced: true,
@@ -345,8 +351,8 @@ impl Agent {
                 mls.replace_epochs(vni).map_err(|e| format!("{e:?}"))?;
                 vni
             }
-            // a joined group starts with its first epoch as the active one, because the routes
-            // towards the other hosts are only used, once the round of that epoch switched
+            // a joined group starts with its first epoch as the active one: the other members
+            // can already receive with it, because they installed its keys with the commit
             Processed::Joined {
                 vni,
                 replaced: false,
@@ -365,11 +371,25 @@ impl Agent {
                 vni
             }
             Processed::Ignored => return Ok(()),
+            Processed::Application { .. } | Processed::Pending => {
+                return Err("message is no welcome or commit".to_string());
+            }
         };
+        // messages of the new epoch, which arrived before its commit, can be read now
+        pairs::retry_pending(&mut mls, &self.grant_key);
 
         mls.save().map_err(|e| format!("{e:?}"))?;
         let mut ebpf_interf = EBPF_INTERFACE_HANDLE.lock().await;
         apply_keys(&mls, &mut ebpf_interf, vni);
+        Ok(())
+    }
+
+    /// Processes a message of the peer of a pair.
+    async fn handle_application(&self, message: &MlsMessageResp) -> Result<(), String> {
+        let mut mls = MLS_STATE_HANDLE.lock().await;
+        if pairs::handle_message(&mut mls, message, &self.grant_key)? {
+            mls.save().map_err(|e| format!("{e:?}"))?;
+        }
         Ok(())
     }
 
@@ -522,71 +542,6 @@ impl Agent {
             group::stage_change(mls, vni, additions, &removals).map_err(|e| format!("{e:?}"))?;
         deliver_and_merge(mls, vni, izakaya, &messages).await
     }
-
-    /// Runs a phase of the key-rotation of a group and acknowledges it.
-    async fn handle_round(
-        &self,
-        izakaya: &Endpoint,
-        client_id: &str,
-        round: MlsRoundMessage,
-    ) -> Result<(), String> {
-        let vni = round.vni;
-        {
-            let mut mls = MLS_STATE_HANDLE.lock().await;
-            match round.phase {
-                // the incoming keys were installed together with the epoch, so it is only checked,
-                // that this gateway reached the epoch at all
-                MlsRoundPhase::Install => {
-                    let recorded = mls
-                        .network_keys
-                        .get(&vni)
-                        .is_some_and(|keys| keys.has_epoch(round.epoch));
-                    if !recorded {
-                        return Err(format!(
-                            "epoch {} of tenant {vni} is not recorded on this gateway",
-                            round.epoch
-                        ));
-                    }
-                }
-                MlsRoundPhase::Switch => {
-                    mls.activate_epoch(vni, round.epoch)
-                        .map_err(|e| format!("{e:?}"))?;
-                }
-                MlsRoundPhase::Cleanup => {
-                    mls.retire_epochs(vni, round.epoch)
-                        .map_err(|e| format!("{e:?}"))?;
-                }
-            }
-            mls.save().map_err(|e| format!("{e:?}"))?;
-            let mut ebpf_interf = EBPF_INTERFACE_HANDLE.lock().await;
-            apply_keys(&mls, &mut ebpf_interf, vni);
-        }
-
-        log::debug!(
-            "Finished phase {} of epoch {} of tenant {vni}",
-            round.phase,
-            round.epoch
-        );
-
-        // the cleanup is the last phase, nobody waits for it
-        if round.phase == MlsRoundPhase::Cleanup {
-            return Ok(());
-        }
-        let ack = MlsRoundAckReq {
-            client_id: client_id.to_string(),
-            epoch: round.epoch,
-            phase: round.phase,
-        };
-        izakaya_clients::ack_mls_round(
-            izakaya,
-            &INTERNAL_API_KEY,
-            vni,
-            &ack,
-            CONFIG.skip_tls_verification,
-        )
-        .await
-        .map_err(|e| format!("Failed to acknowledge the round: {e}"))
-    }
 }
 
 /// Describes an operation for the log.
@@ -651,7 +606,7 @@ async fn handle_subscription(
             group::create_group(&mut mls, vni).map_err(|e| format!("{e:?}"))?;
             if has_group {
                 // the old group is still in use by the other members, so its keys stay, until
-                // the first round of the new group switched all of them over
+                // the pairs switched to the new group
                 log::warn!(
                     "The izakaya doesn't know the MLS-group of tenant {vni}, start a new one"
                 );

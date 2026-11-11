@@ -18,8 +18,8 @@
 //! All MLS-objects travel as base64-encoded TLS-serialization, so izakaya only has to understand
 //! them for the validation of a key-package and otherwise just stores and forwards them.
 //!
-//! Beside that, izakaya coordinates the changes of the groups (see `MlsOperation` and
-//! `MlsRoundMessage`). Who may be member of which group is not decided by izakaya, but by hanami,
+//! Beside that, izakaya coordinates the changes of the groups (see `MlsOperation`). Who may be
+//! member of which group is not decided by izakaya, but by hanami,
 //! which signs a `MlsGrant` for every gateway of a network. The gateways check these grants
 //! themselves, so neither a compromised izakaya nor a compromised gateway can bring a gateway into
 //! a group, which hanami didn't grant.
@@ -99,9 +99,9 @@ pub enum MlsMessageType {
     /// Change of the group, which the committer of the group has to make, as JSON-encoded
     /// `MlsOperation`. Only izakaya sends it.
     Operation,
-    /// Step of the key-rotation of a group, as JSON-encoded `MlsRoundMessage`. Only izakaya sends
-    /// it.
-    Round,
+    /// Message of a member to other members, encrypted within the group, which izakaya can't
+    /// read
+    Application,
 }
 
 impl fmt::Display for MlsMessageType {
@@ -110,7 +110,7 @@ impl fmt::Display for MlsMessageType {
             MlsMessageType::Welcome => "welcome",
             MlsMessageType::Commit => "commit",
             MlsMessageType::Operation => "operation",
-            MlsMessageType::Round => "round",
+            MlsMessageType::Application => "application",
         };
         write!(f, "{s}")
     }
@@ -124,9 +124,10 @@ impl FromStr for MlsMessageType {
             "welcome" => Ok(MlsMessageType::Welcome),
             "commit" => Ok(MlsMessageType::Commit),
             "operation" => Ok(MlsMessageType::Operation),
-            "round" => Ok(MlsMessageType::Round),
+            "application" => Ok(MlsMessageType::Application),
             other => Err(format!(
-                "Unknown message-type '{other}', expected welcome, commit, operation or round"
+                "Unknown message-type '{other}', expected welcome, commit, operation or \
+                 application"
             )),
         }
     }
@@ -169,7 +170,7 @@ pub struct MlsMessageResp {
     pub message_type: MlsMessageType,
     pub sender: String,
     pub recipient: String,
-    /// Base64-encoded TLS-serialized MLS-message, or the JSON-encoded operation or round-step
+    /// Base64-encoded TLS-serialized MLS-message, or the JSON-encoded operation
     pub payload: String,
     /// Grants of all gateways, which a commit adds to the group
     #[serde(default)]
@@ -440,72 +441,6 @@ pub struct MlsOperationDoneReq {
     pub refused: Vec<MlsOperationRefusal>,
 }
 
-/// Step of a key-rotation
-#[derive(
-    Debug,
-    Deserialize,
-    Serialize,
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    Hash,
-    PartialOrd,
-    Ord,
-    JsonSchema,
-    ApiComponent,
-)]
-#[serde(rename_all = "lowercase")]
-pub enum MlsRoundPhase {
-    /// Install the incoming keys of the new epoch next to the old ones
-    Install,
-    /// Switch the outgoing traffic to the keys of the new epoch
-    Switch,
-    /// Remove the incoming keys of the old epochs
-    Cleanup,
-}
-
-impl fmt::Display for MlsRoundPhase {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let s = match self {
-            MlsRoundPhase::Install => "install",
-            MlsRoundPhase::Switch => "switch",
-            MlsRoundPhase::Cleanup => "cleanup",
-        };
-        write!(f, "{s}")
-    }
-}
-
-impl FromStr for MlsRoundPhase {
-    type Err = String;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "install" => Ok(MlsRoundPhase::Install),
-            "switch" => Ok(MlsRoundPhase::Switch),
-            "cleanup" => Ok(MlsRoundPhase::Cleanup),
-            other => Err(format!("Unknown round-phase '{other}'")),
-        }
-    }
-}
-
-/// Step of a key-rotation, which izakaya hands to every member of a group
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
-pub struct MlsRoundMessage {
-    pub vni: u32,
-    pub epoch: u64,
-    pub phase: MlsRoundPhase,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
-pub struct MlsRoundAckReq {
-    /// Identity of the gateway
-    #[validate(length(min = 1, max = 256))]
-    pub client_id: String,
-    pub epoch: u64,
-    pub phase: MlsRoundPhase,
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -522,9 +457,12 @@ mod tests {
             MlsMessageType::Commit
         );
         assert!("Commit".parse::<MlsMessageType>().is_err());
+        assert!("round".parse::<MlsMessageType>().is_err());
+        // the type is stored as string in a column of 16 characters
+        assert_eq!(MlsMessageType::Application.to_string(), "application");
         assert_eq!(
-            "round".parse::<MlsMessageType>().unwrap(),
-            MlsMessageType::Round
+            "application".parse::<MlsMessageType>().unwrap(),
+            MlsMessageType::Application
         );
     }
 

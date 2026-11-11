@@ -33,8 +33,12 @@ use ainari_api_structs::mls_structs::{
     MlsOperationRefusal, VerifyingKey,
 };
 
+/// Number of past epochs of a group, whose messages can still be decrypted, so a message, which
+/// was encrypted shortly before a commit, can still be read after it
+pub const MAX_PAST_EPOCHS: usize = 16;
+
 /// Message, which has to be delivered to other gateways over the izakaya
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct OutgoingMessage {
     pub group_id: String,
     /// Epoch of the group, which the message leads into
@@ -159,6 +163,7 @@ fn create_config() -> MlsGroupCreateConfig {
     MlsGroupCreateConfig::builder()
         .ciphersuite(CIPHERSUITE)
         .use_ratchet_tree_extension(true)
+        .max_past_epochs(MAX_PAST_EPOCHS)
         .build()
 }
 
@@ -460,8 +465,42 @@ pub fn stage_change(
     Ok(messages)
 }
 
+/// Encrypts a message for other members of the group of a network.
+///
+/// # Arguments
+/// * `state` - The MLS-client, which already has its identity
+/// * `vni` - Tenant of the network
+/// * `content` - The plaintext
+/// * `recipients` - Identities of the members, which get the message
+///
+/// # Returns
+/// The message for the recipients, or the error of openmls
+pub fn create_application_message(
+    state: &mut MlsState,
+    vni: u32,
+    content: &[u8],
+    recipients: Vec<String>,
+) -> Result<OutgoingMessage, ErrorResponse> {
+    let identity = own_identity(&state.identity)?;
+    let group = state
+        .groups
+        .get_mut(&vni)
+        .ok_or_else(|| ErrorResponse::NotFound(format!("No MLS-group for tenant {vni}")))?;
+    let message = group
+        .create_message(&state.provider, &identity.signer, content)
+        .map_err(|e| internal_error("encrypt a message for the MLS-group", e))?;
+    Ok(OutgoingMessage {
+        group_id: String::from_utf8_lossy(group.group_id().as_slice()).into_owned(),
+        epoch: group.epoch().as_u64(),
+        message_type: MlsMessageType::Application,
+        recipients,
+        payload: encode(&message)?,
+        grants: Vec::new(),
+    })
+}
+
 /// Effect of an incoming message on the groups of the gateway
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Processed {
     /// The gateway joined the group of a network. `replaced` tells, that it already had an
     /// older group of the same network, whose keys are worthless now.
@@ -470,6 +509,16 @@ pub enum Processed {
     Advanced { vni: u32 },
     /// The gateway was removed from the group of a network
     Left { vni: u32 },
+    /// A member sent a message to this gateway
+    Application {
+        vni: u32,
+        /// Identity of the member, which sent the message
+        sender: String,
+        content: Vec<u8>,
+    },
+    /// The message belongs to an epoch, which the group didn't reach yet, so it has to wait for
+    /// the commit into that epoch
+    Pending,
     /// The message didn't change anything
     Ignored,
 }
@@ -478,6 +527,7 @@ pub enum Processed {
 fn join_config() -> MlsGroupJoinConfig {
     MlsGroupJoinConfig::builder()
         .use_ratchet_tree_extension(true)
+        .max_past_epochs(MAX_PAST_EPOCHS)
         .build()
 }
 
@@ -537,8 +587,36 @@ pub fn process_message(
             let replaced = state.groups.insert(vni, group).is_some();
             Ok(Processed::Joined { vni, replaced })
         }
-        MlsMessageType::Operation | MlsMessageType::Round => {
-            Err(format!("a {message_type} is no MLS-message"))
+        MlsMessageType::Operation => Err(format!("a {message_type} is no MLS-message")),
+        MlsMessageType::Application => {
+            let message = message
+                .try_into_protocol_message()
+                .map_err(|e| format!("message is no application message: {e}"))?;
+            let vni = vni_of(message.group_id())
+                .ok_or_else(|| "message belongs to an unknown group".to_string())?;
+            let Some(group) = state.groups.get_mut(&vni) else {
+                log::debug!("Ignore message for the MLS-group of tenant {vni}: not a member");
+                return Ok(Processed::Ignored);
+            };
+            if message.epoch() > group.epoch() {
+                return Ok(Processed::Pending);
+            }
+
+            let processed = group
+                .process_message(&state.provider, message)
+                .map_err(|e| format!("message can not be processed: {e}"))?;
+            let sender = identity_of(processed.credential())
+                .ok_or_else(|| "the sender has no basic credential".to_string())?;
+            match processed.into_content() {
+                ProcessedMessageContent::ApplicationMessage(content) => {
+                    Ok(Processed::Application {
+                        vni,
+                        sender,
+                        content: content.into_bytes(),
+                    })
+                }
+                _ => Err("message is no application message".to_string()),
+            }
         }
         MlsMessageType::Commit => {
             let message = message

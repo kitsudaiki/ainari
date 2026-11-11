@@ -402,35 +402,3 @@ pub async fn finish_mls_operation(
 
     handle_empty_response(response, "mls-operation", &result.op_uuid.to_string()).await
 }
-
-/**
-Acknowledges a phase of the key-rotation of a MLS-group.
-
-# Arguments
-- `izakaya_endpoint`: The endpoint configuration for the Izakaya service
-- `internal_api_key`: Internal API key for privileged operations
-- `vni`: Tenant of the network
-- `ack`: The acknowledgement
-- `insecure_client`: Whether to use an insecure (HTTP) client or secure (HTTPS) client
-
-# Returns
-A `Result` indicating success or an `AinariError` if the operation fails.
-*/
-pub async fn ack_mls_round(
-    izakaya_endpoint: &ainari_config::Endpoint,
-    internal_api_key: &Secret,
-    vni: u32,
-    ack: &MlsRoundAckReq,
-    insecure_client: bool,
-) -> Result<(), AinariError> {
-    let response = post_json(
-        izakaya_endpoint,
-        internal_api_key,
-        &format!("mls_group/{vni}/round/internal"),
-        ack,
-        insecure_client,
-    )
-    .await;
-
-    handle_empty_response(response, "mls-round", &vni.to_string()).await
-}

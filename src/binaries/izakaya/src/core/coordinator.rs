@@ -19,12 +19,11 @@
 //! sequence of changes per group:
 //!
 //! - **Operations**: every change of a group (add, remove, key-rotation) is queued and handed to
-//!   the *committer* of the group, the only member, which commits. One change at a time, so the
-//!   members never create concurrent commits.
-//! - **Rounds**: after every change the keys of the new epoch are rolled out without packet loss
-//!   in three phases. Each phase only starts, once every member acknowledged the previous one:
-//!   *install* the incoming keys of the new epoch, *switch* the outgoing traffic to them and,
-//!   after a short grace period for the packets on their way, *cleanup* the old incoming keys.
+//!   the *committer* of the group, the only member, which commits. One batch of changes at a
+//!   time, so the members never create concurrent commits.
+//!
+//! The keys of a new epoch are rolled out by the gateways themselves, every pair of gateways on
+//! its own, so izakaya doesn't wait for the members after a change.
 //!
 //! izakaya doesn't decide, who may join: a gateway is only added with a membership-grant of
 //! hanami, which the committer and all other members verify again. A compromised izakaya can stall
@@ -62,15 +61,11 @@ const GROUP_ID_PREFIX: &str = "ainari-vni-";
 /// Sender of the messages, which izakaya creates itself
 const SENDER: &str = "izakaya";
 
-/// Seconds, after which a round or an operation, which doesn't move on, is given up
+/// Seconds, after which an operation, which doesn't move on, is handed out again
 pub const STALL_TIMEOUT: i64 = 30;
 
 /// Seconds without contact, after which a gateway counts as dead
 pub const LIVENESS_TIMEOUT: i64 = 45;
-
-/// Seconds between the switch of the outgoing traffic of all members and the removal of the old
-/// incoming keys, so the packets, which were sent with the old keys, still arrive
-pub const CLEANUP_GRACE: i64 = 2;
 
 /// Number of times an operation is handed to a committer again, before it is given up
 pub const MAX_OPERATION_RETRIES: i32 = 3;
@@ -121,45 +116,6 @@ impl FromStr for MlsOperationKind {
 /// Serializes all changes of the coordination-state within this process
 static COORDINATOR: Mutex<()> = Mutex::new(());
 
-/// State of a round within the coordination-state of a group
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum RoundState {
-    /// Waiting for all members to install the incoming keys of the new epoch
-    Install,
-    /// Waiting for all members to switch their outgoing traffic to the new epoch
-    Switch,
-    /// Waiting for the packets, which were sent with the old keys
-    Grace,
-}
-
-impl RoundState {
-    fn as_str(&self) -> &'static str {
-        match self {
-            RoundState::Install => "install",
-            RoundState::Switch => "switch",
-            RoundState::Grace => "grace",
-        }
-    }
-
-    fn parse(value: &str) -> Option<Self> {
-        match value {
-            "install" => Some(RoundState::Install),
-            "switch" => Some(RoundState::Switch),
-            "grace" => Some(RoundState::Grace),
-            _ => None,
-        }
-    }
-}
-
-/// Key-rotation of a group, which is in progress
-#[derive(Debug, Clone)]
-struct Round {
-    epoch: u64,
-    state: RoundState,
-    acks: Vec<String>,
-    updated_at: i64,
-}
-
 /// Coordination-state of the group of a network
 #[derive(Debug, Clone)]
 struct Group {
@@ -167,28 +123,17 @@ struct Group {
     committer: String,
     epoch: u64,
     members: Vec<String>,
-    round: Option<Round>,
     rotated_at: i64,
     created_at: i64,
 }
 
 impl Group {
     fn from_entry(entry: MlsGroupEntry) -> Self {
-        let round = match (entry.round_epoch, entry.round_phase.as_deref()) {
-            (Some(epoch), Some(phase)) => RoundState::parse(phase).map(|state| Round {
-                epoch: epoch.max(0) as u64,
-                state,
-                acks: parse_list(entry.round_acks.as_deref()),
-                updated_at: entry.round_updated_at.unwrap_or_default(),
-            }),
-            _ => None,
-        };
         Group {
             vni: entry.vni,
             committer: entry.committer,
             epoch: entry.epoch.max(0) as u64,
             members: parse_list(Some(&entry.members)),
-            round,
             rotated_at: entry.rotated_at,
             created_at: entry.created_at,
         }
@@ -200,16 +145,6 @@ impl Group {
             committer: self.committer.clone(),
             epoch: self.epoch as i64,
             members: serde_json::to_string(&self.members).unwrap_or_else(|_| "[]".to_string()),
-            round_epoch: self.round.as_ref().map(|round| round.epoch as i64),
-            round_phase: self
-                .round
-                .as_ref()
-                .map(|round| round.state.as_str().to_string()),
-            round_acks: self
-                .round
-                .as_ref()
-                .map(|round| serde_json::to_string(&round.acks).unwrap_or_default()),
-            round_updated_at: self.round.as_ref().map(|round| round.updated_at),
             rotated_at: self.rotated_at,
             created_at: self.created_at,
         }
@@ -369,24 +304,6 @@ fn send(
     mls_message_table::add_mls_message(&req, &system_context())
         .map(|_| ())
         .map_err(|e| internal_error(&format!("send a {message_type}"), e))
-}
-
-/// Hands a phase of the current round to all members of a group.
-fn send_round(group: &Group, epoch: u64, phase: MlsRoundPhase) -> Result<(), ErrorResponse> {
-    let message = MlsRoundMessage {
-        vni: group.vni,
-        epoch,
-        phase,
-    };
-    let payload =
-        serde_json::to_string(&message).map_err(|e| internal_error("encode a round-message", e))?;
-    send(
-        group,
-        epoch,
-        MlsMessageType::Round,
-        group.members.clone(),
-        payload,
-    )
 }
 
 /// Hands a batch of operations to the committer of a group, which makes all of them with one
@@ -564,7 +481,6 @@ fn reset_group(vni: u32, client_id: &str, now: i64) -> Result<(), ErrorResponse>
         committer: client_id.to_string(),
         epoch: 0,
         members: vec![client_id.to_string()],
-        round: None,
         rotated_at: now,
         created_at: now,
     })?;
@@ -596,8 +512,8 @@ fn remove_member(vni: u32, client_id: &str, now: i64) -> Result<(), ErrorRespons
     progress(vni, now)
 }
 
-/// Moves the coordination of a group on: it advances the current round, gives up a stalled
-/// round or batch and hands the next batch to the committer.
+/// Moves the coordination of a group on: it hands a stalled batch out again and the next batch to
+/// the committer.
 ///
 /// A batch contains all queued additions and removals, once the oldest of them waited for the
 /// commit-delay, so the gateways, which subscribe at about the same time, are added with one
@@ -613,61 +529,6 @@ fn progress(vni: u32, now: i64) -> Result<(), ErrorResponse> {
     let Some(mut group) = load_group(vni)? else {
         return Ok(());
     };
-
-    // the round of the last change has to finish, before the next change is made
-    if let Some(round) = group.round.clone() {
-        let complete = group
-            .members
-            .iter()
-            .all(|member| round.acks.contains(member));
-        match round.state {
-            RoundState::Install | RoundState::Switch if complete => {
-                let next = match round.state {
-                    RoundState::Install => {
-                        send_round(&group, round.epoch, MlsRoundPhase::Switch)?;
-                        RoundState::Switch
-                    }
-                    _ => RoundState::Grace,
-                };
-                group.round = Some(Round {
-                    epoch: round.epoch,
-                    state: next,
-                    acks: Vec::new(),
-                    updated_at: now,
-                });
-                save_group(&group)?;
-                return Ok(());
-            }
-            RoundState::Install | RoundState::Switch => {
-                if now - round.updated_at <= STALL_TIMEOUT {
-                    return Ok(());
-                }
-                // the members, which moved on, still hold the keys of both epochs, so a stalled
-                // round leaves every pair in sync. The next round cleans up.
-                log::warn!(
-                    "Round of epoch {} of tenant {vni} stalled in phase {}, missing: {:?}",
-                    round.epoch,
-                    round.state.as_str(),
-                    group
-                        .members
-                        .iter()
-                        .filter(|member| !round.acks.contains(member))
-                        .collect::<Vec<_>>()
-                );
-                group.round = None;
-                save_group(&group)?;
-            }
-            RoundState::Grace => {
-                if now - round.updated_at < CLEANUP_GRACE {
-                    return Ok(());
-                }
-                send_round(&group, round.epoch, MlsRoundPhase::Cleanup)?;
-                group.round = None;
-                save_group(&group)?;
-                log::debug!("Rotated the keys of tenant {vni} to epoch {}", round.epoch);
-            }
-        }
-    }
 
     let now_ms = now * 1000;
     let (mut inflight, queued): (Vec<_>, Vec<_>) = open_operations(vni)?
@@ -926,8 +787,7 @@ pub fn unsubscribe(vni: u32, client_id: &str, now: i64) -> Result<(), ErrorRespo
     })
 }
 
-/// Takes the result of a batch of operations from the committer and starts the round of the new
-/// epoch.
+/// Takes the result of a batch of operations from the committer and hands the next batch out.
 ///
 /// # Arguments
 /// * `vni` - Tenant of the network
@@ -979,14 +839,7 @@ pub fn operation_done(vni: u32, req: &MlsOperationDoneReq, now: i64) -> Result<(
             group.epoch = req.epoch;
             group.members = members;
             group.rotated_at = now;
-            group.round = Some(Round {
-                epoch: req.epoch,
-                state: RoundState::Install,
-                acks: Vec::new(),
-                updated_at: now,
-            });
             save_group(&group)?;
-            send_round(&group, req.epoch, MlsRoundPhase::Install)?;
             log::info!(
                 "MLS-group of tenant {vni} is in epoch {} with {} member(s)",
                 req.epoch,
@@ -1098,43 +951,6 @@ fn drop_lost_members(
     Ok(true)
 }
 
-/// Takes the acknowledgement of a phase of the current round from a member.
-///
-/// # Arguments
-/// * `vni` - Tenant of the network
-/// * `req` - The acknowledgement
-/// * `now` - Current unix-time in seconds
-///
-/// # Returns
-/// `Ok(())`, also for an acknowledgement, which is not needed anymore
-pub fn round_ack(vni: u32, req: &MlsRoundAckReq, now: i64) -> Result<(), ErrorResponse> {
-    exclusively(|| {
-        touch(&req.client_id, now)?;
-
-        let Some(mut group) = load_group(vni)? else {
-            return Ok(());
-        };
-        let expected = match group.round.as_ref().map(|round| round.state) {
-            Some(RoundState::Install) => MlsRoundPhase::Install,
-            Some(RoundState::Switch) => MlsRoundPhase::Switch,
-            _ => return Ok(()),
-        };
-        let is_member = group.is_member(&req.client_id);
-        let Some(round) = group.round.as_mut() else {
-            return Ok(());
-        };
-        if round.epoch != req.epoch || req.phase != expected || !is_member {
-            return Ok(());
-        }
-        if !round.acks.contains(&req.client_id) {
-            round.acks.push(req.client_id.clone());
-            save_group(&group)?;
-        }
-
-        progress(vni, now)
-    })
-}
-
 /// Records, that a gateway is alive, which happens with every poll of its messages.
 ///
 /// # Arguments
@@ -1145,8 +961,8 @@ pub fn record_contact(client_id: &str) {
     }
 }
 
-/// Moves all groups on, which is needed for everything, which only depends on the time: rounds
-/// and operations, which stall, the grace-period of a round and the regular key-rotation.
+/// Moves all groups on, which is needed for everything, which only depends on the time: batches,
+/// which are due or stall, and the regular key-rotation.
 ///
 /// # Arguments
 /// * `now` - Current unix-time in seconds
@@ -1180,9 +996,9 @@ pub fn tick(now: i64, rotation_interval: i64) -> Result<(), ErrorResponse> {
 ///
 /// Every gateway polls its messages every second, so a gateway, which stays silent, is gone, for
 /// example because its host was restarted in a new pod with a new address and a new identity.
-/// As long as it is member, every round waits for it until it stalls, so the group never rotates
-/// its keys again. A gateway, which was only cut off for a while, is not lost: it is added again,
-/// as soon as it subscribes with its grant again.
+/// As long as it is member, its pairs with the other members can't move to new keys. A gateway,
+/// which was only cut off for a while, is not lost: it is added again, as soon as it subscribes
+/// with its grant again.
 ///
 /// Nothing is removed, as long as the izakaya itself doesn't run longer than the timeout, because
 /// the gateways couldn't contact it before, and from groups without any living member, which
@@ -1338,22 +1154,6 @@ mod tests {
             .collect()
     }
 
-    fn take_rounds(client_id: &str) -> Vec<MlsRoundMessage> {
-        take(client_id, MlsMessageType::Round)
-            .iter()
-            .map(|payload| serde_json::from_str(payload).unwrap())
-            .collect()
-    }
-
-    fn ack(vni: u32, client_id: &str, epoch: u64, phase: MlsRoundPhase, now: i64) {
-        let req = MlsRoundAckReq {
-            client_id: client_id.to_string(),
-            epoch,
-            phase,
-        };
-        round_ack(vni, &req, now).unwrap();
-    }
-
     fn done(vni: u32, op: &MlsOperation, committer: &str, epoch: u64, members: &[&str], now: i64) {
         let req = MlsOperationDoneReq {
             op_uuid: op.op_uuid,
@@ -1414,7 +1214,7 @@ mod tests {
 
     #[test]
     #[serial]
-    fn a_join_is_rolled_out_in_three_phases() {
+    fn a_gateway_is_added_by_the_committer() {
         let vni = new_vni();
         let now = now_secs();
         let (a, b) = (client("a"), client("b"));
@@ -1437,30 +1237,12 @@ mod tests {
         assert!(!ops[0].update);
         assert!(take_operations(&b).is_empty());
 
-        // the committer reports the new epoch, which starts the round
+        // the committer reports the new epoch, nobody waits for the members afterwards
         done(vni, &ops[0], &a, 1, &[&a, &b], now);
-        for member in [&a, &b] {
-            let rounds = take_rounds(member);
-            assert_eq!(rounds.len(), 1);
-            assert_eq!(rounds[0].phase, MlsRoundPhase::Install);
-            assert_eq!(rounds[0].epoch, 1);
-        }
-
-        // the switch only starts, once both installed the new keys
-        ack(vni, &a, 1, MlsRoundPhase::Install, now);
-        assert!(take_rounds(&a).is_empty());
-        ack(vni, &b, 1, MlsRoundPhase::Install, now);
-        assert_eq!(take_rounds(&a)[0].phase, MlsRoundPhase::Switch);
-        assert_eq!(take_rounds(&b)[0].phase, MlsRoundPhase::Switch);
-
-        // the cleanup only starts, once both switched and the grace-period is over
-        ack(vni, &a, 1, MlsRoundPhase::Switch, now);
-        ack(vni, &b, 1, MlsRoundPhase::Switch, now);
-        tick(now, 3600).unwrap();
-        assert!(take_rounds(&a).is_empty());
-        tick(now + CLEANUP_GRACE, 3600).unwrap();
-        assert_eq!(take_rounds(&a)[0].phase, MlsRoundPhase::Cleanup);
-        assert_eq!(take_rounds(&b)[0].phase, MlsRoundPhase::Cleanup);
+        let group = load_group(vni).unwrap().unwrap();
+        assert_eq!(group.epoch, 1);
+        assert_eq!(group.members.len(), 2);
+        assert!(open_operations(vni).unwrap().is_empty());
 
         // a member, which still holds the group, is just a member
         assert_eq!(subscribe_as(vni, &b, true, now), MlsSubscribeAction::Member);
@@ -1468,7 +1250,7 @@ mod tests {
 
     #[test]
     #[serial]
-    fn the_next_change_waits_for_the_round_of_the_last_one() {
+    fn the_next_change_follows_right_after_the_last_one() {
         let vni = new_vni();
         let now = now_secs();
         let (a, b, c) = (client("a"), client("b"), client("c"));
@@ -1482,17 +1264,10 @@ mod tests {
         // only the addition of b is in flight, c waits
         let ops = take_operations(&a);
         assert_eq!(ops.len(), 1);
+        assert_eq!(added(&ops[0]), vec![b.as_str()]);
+
+        // with the report of the committer, the addition of c is handed out
         done(vni, &ops[0], &a, 1, &[&a, &b], now);
-        assert!(take_operations(&a).is_empty());
-
-        ack(vni, &a, 1, MlsRoundPhase::Install, now);
-        ack(vni, &b, 1, MlsRoundPhase::Install, now);
-        ack(vni, &a, 1, MlsRoundPhase::Switch, now);
-        ack(vni, &b, 1, MlsRoundPhase::Switch, now);
-        assert!(take_operations(&a).is_empty());
-
-        // with the end of the round, the addition of c is handed to the committer
-        tick(now + CLEANUP_GRACE, 3600).unwrap();
         let ops = take_operations(&a);
         assert_eq!(ops.len(), 1);
         assert_eq!(added(&ops[0]), vec![c.as_str()]);
@@ -1510,13 +1285,6 @@ mod tests {
         subscribe_as(vni, &b, false, now);
         let ops = take_operations(&a);
         done(vni, &ops[0], &a, 1, &[&a, &b], now);
-        for member in [&a, &b] {
-            ack(vni, member, 1, MlsRoundPhase::Install, now);
-        }
-        for member in [&a, &b] {
-            ack(vni, member, 1, MlsRoundPhase::Switch, now);
-        }
-        tick(now + CLEANUP_GRACE, 3600).unwrap();
 
         store_grant(
             &grant(vni, &b, MlsGrantAction::Remove, now),
@@ -1564,15 +1332,6 @@ mod tests {
             let members = &gateways[..=epoch as usize];
             let members: Vec<&str> = members.iter().map(|it| it.as_str()).collect();
             done(vni, &ops[0], gateways[0], epoch, &members, now);
-            for phase in [MlsRoundPhase::Install, MlsRoundPhase::Switch] {
-                for member in &gateways[..=epoch as usize] {
-                    ack(vni, member, epoch, phase, now);
-                }
-            }
-            tick(now + CLEANUP_GRACE, 3600).unwrap();
-        }
-        for gateway in gateways {
-            take_rounds(gateway);
         }
     }
 
@@ -1634,30 +1393,6 @@ mod tests {
 
     #[test]
     #[serial]
-    fn a_stalled_round_is_given_up() {
-        let vni = new_vni();
-        let now = now_secs();
-        let (a, b) = (client("a"), client("b"));
-        allow(vni, &a, now);
-        allow(vni, &b, now);
-        subscribe_as(vni, &a, false, now);
-        subscribe_as(vni, &b, false, now);
-        let ops = take_operations(&a);
-        done(vni, &ops[0], &a, 1, &[&a, &b], now);
-        ack(vni, &a, 1, MlsRoundPhase::Install, now);
-
-        // b never acknowledges, so nobody switches
-        tick(now + STALL_TIMEOUT + 1, 3600).unwrap();
-        assert!(load_group(vni).unwrap().unwrap().round.is_none());
-        assert!(
-            !take_rounds(&a)
-                .iter()
-                .any(|round| round.phase == MlsRoundPhase::Switch)
-        );
-    }
-
-    #[test]
-    #[serial]
     fn the_keys_are_rotated_regularly() {
         let vni = new_vni();
         let now = now_secs();
@@ -1668,11 +1403,7 @@ mod tests {
         subscribe_as(vni, &b, false, now);
         let ops = take_operations(&a);
         done(vni, &ops[0], &a, 1, &[&a, &b], now);
-        for phase in [MlsRoundPhase::Install, MlsRoundPhase::Switch] {
-            ack(vni, &a, 1, phase, now);
-            ack(vni, &b, 1, phase, now);
-        }
-        tick(now + CLEANUP_GRACE, 60).unwrap();
+        tick(now + 1, 60).unwrap();
         assert!(take_operations(&a).is_empty());
 
         // both gateways keep polling in the meantime
@@ -1956,11 +1687,14 @@ mod tests {
         };
         operation_done(vni, &req, now + 1).unwrap();
 
+        // without a round to wait for, c is handed out again right away
         let open = open_operations(vni).unwrap();
         assert_eq!(open.len(), 1);
         assert_eq!(open[0].client_id.as_deref(), Some(c.as_str()));
-        assert_eq!(open[0].status, STATUS_QUEUED);
         assert_eq!(open[0].retries, 1);
+        let ops = take_operations(&a);
+        assert_eq!(ops.len(), 1);
+        assert_eq!(added(&ops[0]), vec![c.as_str()]);
     }
 
     #[test]

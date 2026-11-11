@@ -27,17 +27,13 @@ table! {
         committer -> Varchar,
         epoch -> BigInt,
         members -> Text,
-        round_epoch -> Nullable<BigInt>,
-        round_phase -> Nullable<Varchar>,
-        round_acks -> Nullable<Text>,
-        round_updated_at -> Nullable<BigInt>,
         rotated_at -> BigInt,
         created_at -> BigInt,
     }
 }
 
-/// Coordination-state of the group of a network. The members and the acknowledgements of the
-/// round are JSON-encoded lists of identities, the timestamps are unix-times in seconds.
+/// Coordination-state of the group of a network. The members are a JSON-encoded list of
+/// identities, the timestamps are unix-times in seconds.
 #[derive(Insertable, Queryable, Selectable, Debug, PartialEq, Clone)]
 #[diesel(table_name = mls_groups)]
 pub struct MlsGroupEntry {
@@ -46,10 +42,6 @@ pub struct MlsGroupEntry {
     pub committer: String,
     pub epoch: i64,
     pub members: String,
-    pub round_epoch: Option<i64>,
-    pub round_phase: Option<String>,
-    pub round_acks: Option<String>,
-    pub round_updated_at: Option<i64>,
     pub rotated_at: i64,
     pub created_at: i64,
 }

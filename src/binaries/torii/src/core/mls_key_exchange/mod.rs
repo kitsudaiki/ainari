@@ -29,25 +29,33 @@
 //! The group never protects any traffic itself: each gateway derives the keys of its IPsec
 //! connections from the epochs of the group (see `keys`), so the keys rotate with every change of
 //! the group and a removed gateway can't follow anymore. A new epoch is only recorded with the
-//! change of the group. The izakaya lets all members activate it and retire the older epochs one
-//! phase after another, so both ends of a connection always have matching keys.
+//! change of the group. The two gateways of every pair then switch to it and retire the older
+//! epochs on their own (see `pairs`), so both ends of a connection always have matching keys.
 //!
 //! Lock order: the MLS-state is always locked before the gateway-state.
 
 pub mod agent;
 pub mod group;
 pub mod keys;
+pub mod pairs;
 pub mod state;
 
+use std::net::Ipv4Addr;
+
 use openmls::prelude::*;
+use openmls_rust_crypto::RustCrypto;
 
 use crate::config::{CONFIG, INTERNAL_API_KEY};
+use crate::core::crypto::sa_packet_count;
 use crate::core::ebpf_interface::EBPF_INTERFACE_HANDLE;
 use crate::core::ebpf_interface::EBPFInterface;
 use crate::core::mls_key_exchange::group::OutgoingMessage;
-use crate::core::mls_key_exchange::state::{MLS_STATE_HANDLE, MlsState};
+use crate::core::mls_key_exchange::pairs::PairKernel;
+use crate::core::mls_key_exchange::state::{EpochId, MLS_STATE_HANDLE, MlsState, NetworkKeys};
+use crate::core::utils::get_local_ip;
 
 use ainari_api_structs::mls_structs::MlsMessageReq;
+use ainari_api_structs::network_crypto_structs::CryptoDirection;
 use ainari_clients::endpoints::get_endpoints;
 use ainari_clients::izakaya as izakaya_clients;
 use ainari_common::config::Endpoint;
@@ -160,6 +168,130 @@ pub async fn refresh_network_keys(vni: u32) {
     let mls = MLS_STATE_HANDLE.lock().await;
     let mut ebpf_interf = EBPF_INTERFACE_HANDLE.lock().await;
     apply_keys(&mls, &mut ebpf_interf, vni);
+}
+
+/// Access to the keys of a network in the kernel of this gateway
+struct GatewayKernel<'a> {
+    ebpf_interf: &'a mut EBPFInterface,
+    crypto: RustCrypto,
+    vni: u32,
+    local_gateway_ip: Ipv4Addr,
+}
+
+impl PairKernel for GatewayKernel<'_> {
+    fn apply(&mut self, keys: &NetworkKeys) {
+        if let Err(e) =
+            keys::apply_network_keys(self.ebpf_interf, Some(keys), &self.crypto, self.vni)
+        {
+            log::error!("Failed to apply the keys of tenant {}: {e}", self.vni);
+        }
+    }
+
+    fn installed(
+        &self,
+        keys: &NetworkKeys,
+        peer: Ipv4Addr,
+        id: EpochId,
+        direction: CryptoDirection,
+    ) -> bool {
+        keys::pair_installed(
+            self.ebpf_interf,
+            keys,
+            &self.crypto,
+            self.vni,
+            peer,
+            id,
+            direction,
+            self.local_gateway_ip,
+        )
+    }
+}
+
+/// Moves the pairs of all networks on (see `pairs::step`).
+pub async fn drive_all_pairs() {
+    let mut mls = MLS_STATE_HANDLE.lock().await;
+    let Some(local_gateway_ip) = get_local_ip(&CONFIG.network.underlay_iface) else {
+        return;
+    };
+    let mut ebpf_interf = EBPF_INTERFACE_HANDLE.lock().await;
+    let vnis: Vec<u32> = mls.network_keys.keys().copied().collect();
+    let now = chrono::Utc::now().timestamp();
+    let mut changed = false;
+    for vni in vnis {
+        let mut kernel = GatewayKernel {
+            ebpf_interf: &mut ebpf_interf,
+            crypto: RustCrypto::default(),
+            vni,
+            local_gateway_ip,
+        };
+        changed |= pairs::drive_pairs(&mut mls, vni, &mut kernel, now);
+    }
+    if changed && let Err(e) = mls.save() {
+        log::error!("Failed to persist the MLS-state: {e:?}");
+    }
+}
+
+/// Hands the queued messages of the pairs to the izakaya. A message, which the izakaya didn't
+/// accept, stays queued for the next call.
+///
+/// # Arguments
+/// * `izakaya` - Endpoint of the izakaya
+pub async fn send_pending_messages(izakaya: &Endpoint) {
+    let mut mls = MLS_STATE_HANDLE.lock().await;
+    if mls.pending_out.is_empty() {
+        return;
+    }
+    let sender = mls.client_id().unwrap_or_default().to_string();
+    let sent = pairs::flush(&mut mls, |message| {
+        let sender = sender.clone();
+        async move { deliver(izakaya, &sender, std::slice::from_ref(&message)).await }
+    })
+    .await;
+    if sent && let Err(e) = mls.save() {
+        log::error!("Failed to persist the MLS-state: {e:?}");
+    }
+}
+
+/// Removes the incoming keys of the retiring epochs of all networks, which no packet uses
+/// anymore (see `keys::remove_idle_keys`).
+pub async fn remove_idle_network_keys() {
+    let mut guard = MLS_STATE_HANDLE.lock().await;
+    let mls = &mut *guard;
+    let vnis: Vec<u32> = mls
+        .network_keys
+        .iter()
+        .filter(|(_, keys)| keys.pairs.values().any(|pair| !pair.retiring.is_empty()))
+        .map(|(vni, _)| *vni)
+        .collect();
+    if vnis.is_empty() {
+        return;
+    }
+    let Some(local_gateway_ip) = get_local_ip(&CONFIG.network.underlay_iface) else {
+        return;
+    };
+
+    let mut ebpf_interf = EBPF_INTERFACE_HANDLE.lock().await;
+    let mut changed = false;
+    for vni in vnis {
+        let connections = keys::desired_connections(&ebpf_interf.routes, &ebpf_interf.taps, vni);
+        let Some(network_keys) = mls.network_keys.get_mut(&vni) else {
+            continue;
+        };
+        if keys::remove_idle_keys(
+            network_keys,
+            mls.provider.crypto(),
+            vni,
+            &connections,
+            local_gateway_ip,
+            &mut sa_packet_count,
+        ) {
+            changed = true;
+            apply_keys(mls, &mut ebpf_interf, vni);
+        }
+    }
+    if changed && let Err(e) = mls.save() {
+        log::error!("Failed to persist the MLS-state: {e:?}");
+    }
 }
 
 /// Installs the keys of all groups again after a restart of the gateway.

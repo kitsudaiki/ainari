@@ -23,19 +23,19 @@
 //!
 //! # Key-rotation without packet loss
 //!
-//! Every change of the group moves it into a new epoch, which rotates all keys. The keys are kept
+//! Every change of the group moves it into a new epoch, which rotates the keys. The keys are kept
 //! per pair of this gateway and a peer gateway (see `PairKeys`). Both ends of a connection always
 //! have to agree: a sender may only use a key, which the receiver already has, and a receiver may
-//! only drop a key, which no sender uses anymore. So the keys of a new epoch are rolled out in
-//! three steps, which the control plane runs on all gateways of a network one after another:
+//! only drop a key, which no sender uses anymore. So the two gateways of a pair roll the keys of a
+//! new epoch out in three steps, which only depend on each other (see `pairs`):
 //!
-//! 1. **record**: the incoming keys of the new epoch are installed next to the old ones, the
-//!    outgoing traffic still uses the old epoch
-//! 2. **activate**: once every gateway of the network has recorded the new epoch, the outgoing
-//!    policy of every connection is switched to the key of the new epoch. The switch of a policy
-//!    is atomic and the peer can receive with both epochs at this point.
-//! 3. **retire**: once every gateway has activated the new epoch, the incoming keys of the old
-//!    epochs are removed.
+//! 1. the incoming keys of the new epoch are installed next to the old ones, and the peer is told
+//!    with a `Ready`
+//! 2. after the `Ready` of the peer, the outgoing policy of every connection of the pair is
+//!    switched to the key of the new epoch. The switch of a policy is atomic and the peer can
+//!    receive with both epochs at this point. The peer is told with a `Switched`.
+//! 3. after the `Switched` of the peer, the incoming keys of the old epochs are removed, once no
+//!    packet arrives with them anymore.
 
 use std::collections::{HashMap, HashSet};
 use std::net::Ipv4Addr;
@@ -211,9 +211,10 @@ pub fn desired_connections(
 /// Derives all keys, which have to be installed on this gateway for the connections of a network.
 ///
 /// Every connection uses the keys of the pair with its peer gateway: the incoming keys of every
-/// epoch of the pair, so the peer can send with any of them, and the outgoing key of the active
-/// epoch of the pair. A connection without a pair, or whose pair didn't switch to an epoch yet,
-/// gets no outgoing key, so the block policy of its route keeps it fail-closed.
+/// epoch of the pair, so the peer can send with any of them, the incoming keys of the retiring
+/// epochs, which are still in use, and the outgoing key of the active epoch of the pair. A
+/// connection without a pair, or whose pair didn't switch to an epoch yet, gets no outgoing key,
+/// so the block policy of its route keeps it fail-closed.
 ///
 /// # Arguments
 /// * `keys` - The epochs of the network
@@ -256,6 +257,18 @@ pub fn desired_sas(
                 sa: derive_sa(base_of(id)?, crypto, vni, remote, local)?,
             });
         }
+        for (id, counters) in &pair.retiring {
+            let sa = derive_sa(base_of(id)?, crypto, vni, remote, local)?;
+            // the keys of a retiring epoch are all kept, until their counters were read
+            if counters.is_empty() || counters.contains_key(&sa.spi) {
+                sas.push(DesiredSa {
+                    direction: CryptoDirection::Ingress,
+                    epoch: id.1,
+                    conn: *conn,
+                    sa,
+                });
+            }
+        }
         if let Some(id) = &pair.egress {
             sas.push(DesiredSa {
                 direction: CryptoDirection::Egress,
@@ -266,6 +279,149 @@ pub fn desired_sas(
         }
     }
     Ok(sas)
+}
+
+/// Removes the incoming keys of the retiring epochs of a network, which no packet uses anymore.
+///
+/// The packet counter of every incoming key of a retiring epoch is read in every call. A key,
+/// whose counter didn't change since the last call, is dropped, and an epoch, which has no keys
+/// left, is forgotten. So a key is kept, as long as packets arrive with it, and an idle one is
+/// gone with the next call. The caller removes the dropped keys from the kernel with
+/// `apply_network_keys`.
+///
+/// # Arguments
+/// * `keys` - The epochs of the network
+/// * `crypto` - Crypto-provider of the MLS-client
+/// * `vni` - Tenant of the network
+/// * `connections` - The connections of the network on this gateway
+/// * `local_gateway_ip` - Underlay address of this gateway
+/// * `packet_count` - Reads the packet counter of an SA by source, destination and SPI, `None`
+///   if the SA doesn't exist
+///
+/// # Returns
+/// `true` if the state changed and has to be saved
+pub fn remove_idle_keys(
+    keys: &mut NetworkKeys,
+    crypto: &impl OpenMlsCrypto,
+    vni: u32,
+    connections: &[DesiredConnection],
+    local_gateway_ip: Ipv4Addr,
+    packet_count: &mut impl FnMut(Ipv4Addr, Ipv4Addr, u32) -> Result<Option<u64>, String>,
+) -> bool {
+    let mut changed = false;
+    for (peer, pair) in keys.pairs.iter_mut() {
+        let mut done = Vec::new();
+        for (id, counters) in pair.retiring.iter_mut() {
+            let first_check = counters.is_empty();
+            let spis: Vec<u32> = if first_check {
+                let Some(base) = keys.bases.get(id) else {
+                    done.push(*id);
+                    continue;
+                };
+                connections
+                    .iter()
+                    .filter(|conn| conn.peer_gateway_ip == *peer)
+                    .filter_map(|conn| {
+                        let local = (conn.local_ip, local_gateway_ip);
+                        let remote = (conn.remote_ip, conn.peer_gateway_ip);
+                        derive_sa(base, crypto, vni, remote, local).ok()
+                    })
+                    .map(|sa| sa.spi)
+                    .collect()
+            } else {
+                counters.keys().copied().collect()
+            };
+
+            for spi in spis {
+                match packet_count(*peer, local_gateway_ip, spi) {
+                    Ok(Some(count)) if first_check || counters.get(&spi) != Some(&count) => {
+                        counters.insert(spi, count);
+                    }
+                    // idle since the last check, or gone already
+                    Ok(_) => {
+                        counters.remove(&spi);
+                    }
+                    Err(e) => {
+                        log::warn!("Failed to read the counter of spi 0x{spi:08x}: {e}");
+                        // without a reading, an unread key is kept and checked again
+                        if first_check {
+                            counters.insert(spi, u64::MAX);
+                        }
+                    }
+                }
+                changed = true;
+            }
+            if counters.is_empty() {
+                done.push(*id);
+            }
+        }
+        for id in done {
+            log::debug!(
+                "Removed the old incoming keys of epoch {id:?} from {peer} in tenant {vni}"
+            );
+            pair.retiring.remove(&id);
+            changed = true;
+        }
+    }
+    if changed {
+        keys.drop_unused_bases();
+    }
+    changed
+}
+
+/// Builds the id, under which the gateway-state holds the policies of a connection.
+fn connection_id(vni: u32, conn: &DesiredConnection) -> String {
+    format!("{}:{}->{}", vni, conn.local_ip, conn.remote_ip)
+}
+
+/// Checks, if the keys of an epoch are in place for all connections of a pair in one direction:
+/// the incoming keys are installed, or the outbound policies point at the outgoing keys.
+///
+/// # Arguments
+/// * `ebpf_interf` - The gateway state
+/// * `keys` - The epochs of the network
+/// * `crypto` - Crypto-provider of the MLS-client
+/// * `vni` - Tenant of the network
+/// * `peer` - The peer of the pair
+/// * `id` - The epoch
+/// * `direction` - The direction
+/// * `local_gateway_ip` - Underlay address of this gateway
+///
+/// # Returns
+/// `true` if all keys are in place, also if the pair has no connection
+#[allow(clippy::too_many_arguments)]
+pub fn pair_installed(
+    ebpf_interf: &EBPFInterface,
+    keys: &NetworkKeys,
+    crypto: &impl OpenMlsCrypto,
+    vni: u32,
+    peer: Ipv4Addr,
+    id: EpochId,
+    direction: CryptoDirection,
+    local_gateway_ip: Ipv4Addr,
+) -> bool {
+    let Some(base) = keys.bases.get(&id) else {
+        return false;
+    };
+    desired_connections(&ebpf_interf.routes, &ebpf_interf.taps, vni)
+        .iter()
+        .filter(|conn| conn.peer_gateway_ip == peer)
+        .all(|conn| {
+            let local = (conn.local_ip, local_gateway_ip);
+            let remote = (conn.remote_ip, conn.peer_gateway_ip);
+            match direction {
+                CryptoDirection::Ingress => derive_sa(base, crypto, vni, remote, local)
+                    .is_ok_and(|sa| ebpf_interf.crypto_keys.contains_key(&(direction, sa.spi))),
+                CryptoDirection::Egress => {
+                    derive_sa(base, crypto, vni, local, remote).is_ok_and(|sa| {
+                        ebpf_interf
+                            .connections
+                            .get(&connection_id(vni, conn))
+                            .is_some_and(|existing| existing.active_egress_spi == sa.spi)
+                    })
+                }
+            }
+        })
 }
 
 /// Selects the installed keys of a network, which are not needed anymore.
@@ -295,9 +451,10 @@ pub fn stale_keys(
 ///
 /// The changes are made in the order, which never leaves a connection without a matching key on
 /// both ends: first all missing incoming keys are installed, then the outgoing keys of the active
-/// epochs of the pairs are installed and the outbound policies are switched over to them, and only at the end
-/// the keys, which are not needed anymore, are removed. An outgoing key, whose successor couldn't
-/// be installed, is kept, because the policy of its connection still points at it.
+/// epochs of the pairs are installed and the outbound policies are switched over to them, and
+/// only at the end the keys, which are not needed anymore, are removed. An outgoing key, whose
+/// successor couldn't be installed, is kept, because the policy of its connection still points at
+/// it.
 ///
 /// Without recorded epochs every key of the network is removed, which leaves the encrypted routes
 /// of the network with their fail-closed block policies.
@@ -519,7 +676,7 @@ fn activate_egress_key(
     local_gateway_ip: Ipv4Addr,
 ) -> Result<(), String> {
     let conn = &desired.conn;
-    let conn_id = format!("{}:{}->{}", vni, conn.local_ip, conn.remote_ip);
+    let conn_id = connection_id(vni, conn);
     let connection = Connection {
         vni,
         local_ip: conn.local_ip,
@@ -552,18 +709,18 @@ fn activate_egress_key(
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
     use openmls_rust_crypto::RustCrypto;
 
     use crate::core::mls_key_exchange::group::create_group;
     use crate::core::mls_key_exchange::group::tests::{invite, new_gateway};
 
-    fn ip(last: u8) -> Ipv4Addr {
+    pub(crate) fn ip(last: u8) -> Ipv4Addr {
         Ipv4Addr::new(192, 168, 0, last)
     }
 
-    fn gateway(last: u8) -> Ipv4Addr {
+    pub(crate) fn gateway(last: u8) -> Ipv4Addr {
         Ipv4Addr::new(10, 0, 0, last)
     }
 
@@ -601,14 +758,19 @@ mod tests {
     }
 
     /// One gateway of the rotation-tests with one VM, which talks to the VM of the other one
-    struct TestGateway {
-        conn: DesiredConnection,
-        local_gateway_ip: Ipv4Addr,
-        keys: NetworkKeys,
+    pub(crate) struct TestGateway {
+        pub(crate) conn: DesiredConnection,
+        pub(crate) local_gateway_ip: Ipv4Addr,
+        pub(crate) keys: NetworkKeys,
     }
 
     impl TestGateway {
-        fn new(local_vm: u8, local_gateway: u8, remote_vm: u8, remote_gateway: u8) -> Self {
+        pub(crate) fn new(
+            local_vm: u8,
+            local_gateway: u8,
+            remote_vm: u8,
+            remote_gateway: u8,
+        ) -> Self {
             TestGateway {
                 conn: DesiredConnection {
                     local_ip: ip(local_vm),
@@ -620,11 +782,11 @@ mod tests {
             }
         }
 
-        fn peers(&self) -> [Ipv4Addr; 1] {
+        pub(crate) fn peers(&self) -> [Ipv4Addr; 1] {
             [self.conn.peer_gateway_ip]
         }
 
-        fn spis(&self, direction: CryptoDirection) -> HashSet<u32> {
+        pub(crate) fn spis(&self, direction: CryptoDirection) -> HashSet<u32> {
             desired_sas(
                 &self.keys,
                 &RustCrypto::default(),
@@ -639,37 +801,63 @@ mod tests {
             .collect()
         }
 
-        fn record(&mut self, epoch: u64) {
+        pub(crate) fn record(&mut self, epoch: u64) {
             let peers = self.peers();
             self.keys
-                .record(epoch, vec![epoch as u8; BASE_LENGTH], &peers);
+                .record(epoch, vec![epoch as u8; BASE_LENGTH], &peers, 0);
         }
 
-        fn activate(&mut self, epoch: u64) {
-            self.keys.activate(epoch).unwrap();
+        /// Switches the outgoing traffic to an epoch of the current group, as the pair does after
+        /// the `Ready` of the peer
+        fn switch(&mut self, epoch: u64) {
+            let id = (self.keys.generation, epoch);
+            for pair in self.keys.pairs.values_mut() {
+                pair.egress = Some(id);
+            }
         }
 
-        fn retire(&mut self, epoch: u64) {
-            let peers = self.peers();
-            self.keys.retire(epoch, &peers).unwrap();
+        /// Retires the older incoming epochs, as the pair does after the `Switched` of the peer
+        fn retire_older(&mut self, epoch: u64) {
+            let id = (self.keys.generation, epoch);
+            for pair in self.keys.pairs.values_mut() {
+                let older: Vec<EpochId> = pair.ingress.range(..id).copied().collect();
+                for old in older {
+                    pair.ingress.remove(&old);
+                    pair.retiring.entry(old).or_default();
+                }
+            }
+        }
+
+        pub(crate) fn check_counters(
+            &mut self,
+            counter: &mut impl FnMut(Ipv4Addr, Ipv4Addr, u32) -> Result<Option<u64>, String>,
+        ) -> bool {
+            remove_idle_keys(
+                &mut self.keys,
+                &RustCrypto::default(),
+                5,
+                &[self.conn],
+                self.local_gateway_ip,
+                counter,
+            )
         }
 
         /// Starts a new group with its own base secrets, like after izakaya lost its database
-        fn replace(&mut self, epoch: u64) {
+        pub(crate) fn replace(&mut self, epoch: u64) {
             let peers = self.peers();
             self.keys
-                .replace(epoch, vec![100 + epoch as u8; BASE_LENGTH], &peers);
+                .replace(epoch, vec![100 + epoch as u8; BASE_LENGTH], &peers, 0);
         }
 
-        fn record_new_group(&mut self, epoch: u64) {
+        pub(crate) fn record_new_group(&mut self, epoch: u64) {
             let peers = self.peers();
             self.keys
-                .record(epoch, vec![100 + epoch as u8; BASE_LENGTH], &peers);
+                .record(epoch, vec![100 + epoch as u8; BASE_LENGTH], &peers, 0);
         }
     }
 
     /// Checks, that the receiver has the key, which the sender uses, in both directions.
-    fn in_sync(a: &TestGateway, b: &TestGateway) -> bool {
+    pub(crate) fn in_sync(a: &TestGateway, b: &TestGateway) -> bool {
         let a_egress = a.spis(CryptoDirection::Egress);
         let b_egress = b.spis(CryptoDirection::Egress);
         a_egress.len() == 1
@@ -724,64 +912,14 @@ mod tests {
     }
 
     #[test]
-    fn both_ends_of_a_connection_stay_in_sync_during_a_rotation() {
-        let mut a = TestGateway::new(1, 1, 2, 2);
-        let mut b = TestGateway::new(2, 2, 1, 1);
-        assert!(in_sync(&a, &b));
-
-        // the gateways follow the change of the group one after another
-        a.record(2);
-        assert!(in_sync(&a, &b));
-        b.record(2);
-        assert!(in_sync(&a, &b));
-        assert_eq!(a.spis(CryptoDirection::Ingress).len(), 2);
-
-        // ... switch their outgoing traffic one after another
-        a.activate(2);
-        assert!(in_sync(&a, &b));
-        b.activate(2);
-        assert!(in_sync(&a, &b));
-
-        // ... and drop the old epoch one after another
-        a.retire(2);
-        assert!(in_sync(&a, &b));
-        b.retire(2);
-        assert!(in_sync(&a, &b));
-        assert_eq!(a.spis(CryptoDirection::Ingress).len(), 1);
-    }
-
-    #[test]
     fn an_early_activation_would_break_the_connection() {
         let mut a = TestGateway::new(1, 1, 2, 2);
         let b = TestGateway::new(2, 2, 1, 1);
 
         // b doesn't know epoch 2 yet, so it can't receive, what a sends with it
         a.record(2);
-        a.activate(2);
+        a.switch(2);
         assert!(!in_sync(&a, &b));
-    }
-
-    #[test]
-    fn several_epochs_can_be_activated_at_once() {
-        let mut a = TestGateway::new(1, 1, 2, 2);
-        let mut b = TestGateway::new(2, 2, 1, 1);
-
-        // a stale membership is removed and added again, which moves the group twice
-        for epoch in [2, 3] {
-            a.record(epoch);
-            b.record(epoch);
-            assert!(in_sync(&a, &b));
-        }
-        a.activate(3);
-        assert!(in_sync(&a, &b));
-        b.activate(3);
-        a.retire(3);
-        b.retire(3);
-        assert!(in_sync(&a, &b));
-        assert_eq!(
-            b.keys.bases.keys().copied().collect::<Vec<_>>(),
-            vec![(1, 3)]
-        );
     }
 
     #[test]
@@ -850,35 +988,6 @@ mod tests {
     }
 
     #[test]
-    fn a_replaced_group_keeps_both_ends_in_sync() {
-        let mut a = TestGateway::new(1, 1, 2, 2);
-        let mut b = TestGateway::new(2, 2, 1, 1);
-        assert!(in_sync(&a, &b));
-
-        // izakaya lost its database: a starts a new group, b joins it later
-        a.replace(0);
-        assert!(in_sync(&a, &b));
-        a.record_new_group(1);
-        b.replace(1);
-        assert!(in_sync(&a, &b));
-
-        // the first round of the new group switches both over and drops the old group
-        a.activate(1);
-        assert!(in_sync(&a, &b));
-        b.activate(1);
-        assert!(in_sync(&a, &b));
-        a.retire(1);
-        b.retire(1);
-        assert!(in_sync(&a, &b));
-        assert_eq!(a.keys.generation, 2);
-        assert_eq!(
-            a.keys.bases.keys().copied().collect::<Vec<_>>(),
-            vec![(2, 1)]
-        );
-        assert_eq!(a.spis(CryptoDirection::Ingress).len(), 1);
-    }
-
-    #[test]
     fn a_group_without_its_old_keys_would_break_the_connection() {
         let mut a = TestGateway::new(1, 1, 2, 2);
         let b = TestGateway::new(2, 2, 1, 1);
@@ -889,13 +998,69 @@ mod tests {
     }
 
     #[test]
-    fn the_replaced_group_is_only_retired_after_the_switch() {
+    fn an_old_incoming_key_stays_as_long_as_packets_arrive_with_it() {
         let mut a = TestGateway::new(1, 1, 2, 2);
-        a.replace(0);
-        a.record_new_group(1);
-        assert!(a.keys.retire(1, &a.peers()).is_err());
-        a.activate(1);
-        assert!(a.keys.retire(1, &a.peers()).is_ok());
+        let mut b = TestGateway::new(2, 2, 1, 1);
+        for gateway in [&mut a, &mut b] {
+            gateway.record(2);
+            gateway.switch(2);
+        }
+        let old_spi = *a
+            .spis(CryptoDirection::Ingress)
+            .difference(&b.spis(CryptoDirection::Egress))
+            .next()
+            .unwrap();
+        a.retire_older(2);
+        assert_eq!(a.spis(CryptoDirection::Ingress).len(), 2);
+
+        // packets still arrive with the old key, so it stays
+        let mut packets = 10;
+        for _ in 0..3 {
+            packets += 1;
+            assert!(a.check_counters(&mut |src, dst, spi| {
+                assert_eq!((src, dst, spi), (gateway(2), gateway(1), old_spi));
+                Ok(Some(packets))
+            }));
+            assert!(a.spis(CryptoDirection::Ingress).contains(&old_spi));
+            assert!(in_sync(&a, &b));
+        }
+
+        // the first check without a new packet removes it
+        assert!(a.check_counters(&mut |_, _, _| Ok(Some(packets))));
+        assert!(!a.spis(CryptoDirection::Ingress).contains(&old_spi));
+        assert!(a.keys.pairs[&gateway(2)].retiring.is_empty());
+        assert_eq!(
+            a.keys.bases.keys().copied().collect::<Vec<_>>(),
+            vec![(1, 2)]
+        );
+        // nothing is left to check
+        assert!(!a.check_counters(&mut |_, _, _| panic!("no key is checked")));
+    }
+
+    #[test]
+    fn an_old_incoming_key_which_is_gone_counts_as_removed() {
+        let mut a = TestGateway::new(1, 1, 2, 2);
+        a.record(2);
+        a.switch(2);
+        a.retire_older(2);
+
+        // for example after a restart of the host
+        a.check_counters(&mut |_, _, _| Ok(None));
+        assert!(a.keys.pairs[&gateway(2)].retiring.is_empty());
+        assert_eq!(a.spis(CryptoDirection::Ingress).len(), 1);
+    }
+
+    #[test]
+    fn an_old_incoming_key_without_counter_is_kept() {
+        let mut a = TestGateway::new(1, 1, 2, 2);
+        a.record(2);
+        a.switch(2);
+        a.retire_older(2);
+
+        for _ in 0..3 {
+            a.check_counters(&mut |_, _, _| Err("ip failed".to_string()));
+        }
+        assert_eq!(a.spis(CryptoDirection::Ingress).len(), 2);
     }
 
     #[test]
@@ -918,7 +1083,7 @@ mod tests {
         };
         let mut keys = NetworkKeys::new(1, vec![1u8; BASE_LENGTH], &[gateway(2)]);
         // c joins: its pair only gets the incoming keys, until it is switched
-        keys.record(2, vec![2u8; BASE_LENGTH], &[gateway(2), gateway(3)]);
+        keys.record(2, vec![2u8; BASE_LENGTH], &[gateway(2), gateway(3)], 0);
 
         let sas = desired_sas(&keys, &crypto, 5, &[to_b, to_c, to_d], gateway(1)).unwrap();
         let count = |conn: &DesiredConnection, direction: CryptoDirection| {
@@ -934,23 +1099,8 @@ mod tests {
         assert_eq!(count(&to_d, CryptoDirection::Ingress), 0);
         assert_eq!(count(&to_d, CryptoDirection::Egress), 0);
 
-        keys.activate(2).unwrap();
+        keys.pairs.get_mut(&gateway(3)).unwrap().egress = Some((1, 2));
         let sas = desired_sas(&keys, &crypto, 5, &[to_c], gateway(1)).unwrap();
         assert_eq!(sas.len(), 2);
-    }
-
-    #[test]
-    fn the_pair_of_a_removed_peer_is_dropped_with_the_cleanup() {
-        let mut keys = NetworkKeys::new(1, vec![1u8; BASE_LENGTH], &[gateway(2), gateway(3)]);
-        // c is removed, which moves the group into epoch 2
-        keys.record(2, vec![2u8; BASE_LENGTH], &[gateway(2)]);
-        keys.activate(2).unwrap();
-        keys.retire(2, &[gateway(2)]).unwrap();
-
-        assert_eq!(
-            keys.pairs.keys().copied().collect::<Vec<_>>(),
-            vec![gateway(2)]
-        );
-        assert_eq!(keys.bases.keys().copied().collect::<Vec<_>>(), vec![(1, 2)]);
     }
 }

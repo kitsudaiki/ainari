@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod ack_mls_round_internal_v1_0;
 pub mod finish_mls_operation_internal_v1_0;
 pub mod subscribe_mls_group_internal_v1_0;
 pub mod unsubscribe_mls_group_internal_v1_0;

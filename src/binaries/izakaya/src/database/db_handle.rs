@@ -66,8 +66,8 @@ fn establish_connection() -> DbHandle {
 /// Returns the current unix-time in seconds of the database-server.
 ///
 /// Several instances of izakaya share their state in the database and compare times, which
-/// another instance wrote, like the last contact of a gateway or the start of a round. Their own
-/// clocks may differ, so the database-server is the one clock, which all of them use.
+/// another instance wrote, like the last contact of a gateway or the start of an operation. Their
+/// own clocks may differ, so the database-server is the one clock, which all of them use.
 ///
 /// # Returns
 ///

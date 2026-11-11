@@ -80,23 +80,17 @@ Unique indexes:
 
 ## mls_groups
 
-State of the coordination of the group of every network: its members, its committer and its
-key-rotation. `members` and `round_acks` are json-lists of identities, the timestamps are
-unix-times in seconds. The `round_*`-columns are only set, while a key-rotation is running, and
-`round_phase` is then `install`, `switch` or `grace`.
+State of the coordination of the group of every network: its members, its committer and its last
+key-rotation. `members` is a json-list of identities, the timestamps are unix-times in seconds.
 
-| field            | type         | is primary | constraints |
-| ---------------- | ------------ | ---------- | ----------- |
-| vni              | INTEGER      | x          | `NOT NULL`  |
-| committer        | VARCHAR(256) |            | `NOT NULL`  |
-| epoch            | BIGINT       |            | `NOT NULL`  |
-| members          | TEXT         |            | `NOT NULL`  |
-| round_epoch      | BIGINT       |            |             |
-| round_phase      | VARCHAR(16)  |            |             |
-| round_acks       | TEXT         |            |             |
-| round_updated_at | BIGINT       |            |             |
-| rotated_at       | BIGINT       |            | `NOT NULL`  |
-| created_at       | BIGINT       |            | `NOT NULL`  |
+| field      | type         | is primary | constraints |
+| ---------- | ------------ | ---------- | ----------- |
+| vni        | INTEGER      | x          | `NOT NULL`  |
+| committer  | VARCHAR(256) |            | `NOT NULL`  |
+| epoch      | BIGINT       |            | `NOT NULL`  |
+| members    | TEXT         |            | `NOT NULL`  |
+| rotated_at | BIGINT       |            | `NOT NULL`  |
+| created_at | BIGINT       |            | `NOT NULL`  |
 
 ## mls_operations
 
