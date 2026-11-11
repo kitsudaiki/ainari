@@ -138,30 +138,38 @@ src/binaries/onsen/src/
 └── api/http_endpoints/volume/…
 ```
 
-`VolumeBackend`:
+`VolumeBackend` (native `async fn` in the trait, dispatched by the enum `Backend`, so no
+`async_trait` is needed; all sizes in bytes, a multiple of 512):
 
 ```rust
-#[async_trait]
-pub trait VolumeBackend: Send + Sync {
-    async fn create(&self, id: &Uuid, size_bytes: u64) -> Result<(), AinariError>;
-    async fn delete(&self, id: &Uuid) -> Result<(), AinariError>;   // idempotent
-    async fn resize(&self, id: &Uuid, size_bytes: u64) -> Result<(), AinariError>; // only grow
-    async fn info(&self, id: &Uuid) -> Result<VolumeInfo, AinariError>; // incl. copy-state
+pub trait VolumeBackend {
+    fn supports_volumes(&self) -> bool;
+    async fn create_volume(&self, id: &Uuid, size: u64) -> Result<VolumeInfoResp, AinariError>; // repeatable
+    async fn delete_volume(&self, id: &Uuid) -> Result<(), AinariError>;   // idempotent
+    async fn resize_volume(&self, id: &Uuid, size: u64) -> Result<VolumeInfoResp, AinariError>; // only grow
+    async fn volume_info(&self, id: &Uuid) -> Result<VolumeInfoResp, AinariError>; // incl. copy-state
     /// starts the copy of a whole volume within the backend in the background
-    async fn copy(&self, source_id: &Uuid, target_id: &Uuid) -> Result<(), AinariError>;
-    fn connection(&self, id: &Uuid) -> VolumeConnection;
+    async fn copy_volume(&self, source_id: &Uuid, target_id: &Uuid) -> Result<(), AinariError>;
+    async fn volume_connection(&self, id: &Uuid) -> Result<VolumeConnection, AinariError>;
 }
 ```
+
+A backend without support of volumes (local backend without NFS-values) rejects all functions
+with `409`. The directory `<storage.location>/volumes` is reserved for the volumes: the file-API
+rejects paths into it and doesn't list it.
 
 Onsen only knows the `backend_id` of a volume (`id` above), never the UUID of the volume in
 ryokan. So ryokan can switch a volume to another object in the backend without any change in
 onsen.
 
-The local backend copies with `cp --sparse=always` (or a reflink on XFS/btrfs, which is nearly
-instant) into `<target_id>.img.partial`, which is renamed to `<target_id>.img` at the end. `info`
-reports the copy-state from it: `COPYING` (partial-file and running copy), `READY` (final file)
-or `FAILED` (partial-file without running copy, e.g. after a restart of onsen; the partial-file is
-deleted then). The copy of the encrypted file needs no key, so onsen still never sees plain data.
+The local backend copies within the onsen in chunks of 1 MiB and skips the chunks, which only
+contain zeros, so the copy stays sparse (no `cp`, because the nix-based image contains no
+coreutils; a reflink is not used). The copy is written into `<target_id>.img.partial`, which is
+renamed to `<target_id>.img` at the end. `volume_info` reports the copy-state from it: `COPYING`
+(partial-file and running copy), `READY` (final file) or `FAILED` (partial-file without running
+copy, e.g. after a restart of onsen; the partial-file is deleted then, so the next request returns
+`404`). A not existing volume is `404`, so `info` has no field `exists`. The copy of the encrypted
+file needs no key, so onsen still never sees plain data.
 
 `VolumeConnection` (in `ainari_api_structs::storage_structs`, so sakura uses the same type):
 
@@ -179,8 +187,8 @@ unknown variant with a clear error instead of misinterpreting it.
 
 | Endpoint                                         | Description                                          |
 | ------------------------------------------------ | ---------------------------------------------------- |
-| `POST   /v1alpha/volume/internal`                | `{ backend_id, size }` → creates the empty volume     |
-| `GET    /v1alpha/volume/{backend_id}/internal`   | size, used size, exists, copy-state                   |
+| `POST   /v1alpha/volume/internal`                | `{ backend_id, size }` (bytes) → creates the empty volume, `201` |
+| `GET    /v1alpha/volume/{backend_id}/internal`   | state (`READY`/`COPYING`/`FAILED`), size, used size; `404` if not existing |
 | `PUT    /v1alpha/volume/{backend_id}/size/internal` | grow the volume                                    |
 | `DELETE /v1alpha/volume/{backend_id}/internal`   | delete the volume, not existing is no error           |
 | `POST   /v1alpha/volume/{backend_id}/copy/internal` | `{ target_backend_id }` → starts the copy in the background, `202` |

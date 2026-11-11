@@ -561,11 +561,17 @@ export interface HostResp extends HostBasicResp {
 export interface OnsenHostBasicResp extends HostBasicResp {
     /** host only stores backups and never normal images or snapshots */
     is_backup_target: boolean;
+    /** type of the storage-backend of the host, like `LOCAL` */
+    backend_type: string;
+    /** storage-backend of the host provides volumes */
+    supports_volumes: boolean;
 }
 
 /** Mirror of `host_structs::HostResp` of an onsen-host of the ryokan. */
 export interface OnsenHostResp extends HostResp {
     is_backup_target: boolean;
+    backend_type: string;
+    supports_volumes: boolean;
 }
 
 /** Mirror of `host_structs::HostBackupTargetUpdateReq`. */

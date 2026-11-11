@@ -18,6 +18,7 @@ use apistos::api_operation;
 use uuid::Uuid;
 use validator::Validate;
 
+use super::host_resp;
 use crate::config;
 use crate::database::host_table;
 
@@ -30,6 +31,9 @@ use ainari_api_structs::user_context::UserContext;
     tag = "host",
     summary = "Register new onsen-host",
     description = r###"Register a new onsen-host.
+
+An onsen-host registers itself on every start. An already known host keeps its entry, only the
+type of its storage-backend and its support of volumes are updated.
 
 This is called by the onsen-host itself without user-interaction, so it requires
 no token, but is protected by the internal api-key and the registration-key."###,
@@ -59,17 +63,32 @@ pub async fn register_host_internal(
     match host_table::get_host_by_address(&body.host_address, &context) {
         Ok(host_data) => {
             host_uuid = host_data.uuid;
+            // the storage-backend can be changed by the config of the host in between
+            host_table::update_host_backend(
+                &host_uuid,
+                body.backend_type,
+                body.supports_volumes,
+                &context,
+            )
+            .map_err(|e| map_db_register_error("onsen-host", e, Some(&context)))?;
         }
         Err(_) => {
             // add new host to database if address not already exist
-            host_table::add_new_host(&host_uuid, &body.name, &body.host_address, &context)
-                .map_err(|e| {
-                    map_db_write_error(
-                        &format!("add host with UUID '{host_uuid}' to database"),
-                        e,
-                        Some(&context),
-                    )
-                })?;
+            host_table::add_new_host(
+                &host_uuid,
+                &body.name,
+                &body.host_address,
+                body.backend_type,
+                body.supports_volumes,
+                &context,
+            )
+            .map_err(|e| {
+                map_db_write_error(
+                    &format!("add host with UUID '{host_uuid}' to database"),
+                    e,
+                    Some(&context),
+                )
+            })?;
         }
     };
 
@@ -78,16 +97,5 @@ pub async fn register_host_internal(
         map_db_uuid_get_after_add_error("onsen-host", &host_uuid, e, Some(&context))
     })?;
 
-    let resp = HostResp {
-        uuid: host_uuid,
-        name: host_data.name,
-        host_address: host_data.address,
-        is_backup_target: host_data.is_backup_target,
-        created_by: host_data.created_by,
-        created_at: host_data.created_at,
-        updated_by: host_data.updated_by,
-        updated_at: host_data.updated_at,
-    };
-
-    Ok(CreatedJson(resp))
+    Ok(CreatedJson(host_resp(host_data)?))
 }

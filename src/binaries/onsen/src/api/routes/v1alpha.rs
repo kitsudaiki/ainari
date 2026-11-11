@@ -12,17 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use apistos::web::{Scope, delete, get, put, resource, scope};
+use apistos::web::{Scope, delete, get, post, put, resource, scope};
 
 use ainari_api::endpoints::*;
 
+use crate::api::http_endpoints::backend::*;
 use crate::api::http_endpoints::directory::*;
 use crate::api::http_endpoints::file::*;
+use crate::api::http_endpoints::volume::*;
 
 /// Builds the `/v1alpha`-scope with all endpoints of the onsen.
 ///
 /// Beside the version and the ready-status, all endpoints are internal, because only the ryokan
-/// and the sakura-hosts store and read the files.
+/// and the sakura-hosts store and read the files and manage the volumes.
 ///
 /// # Returns
 ///
@@ -56,4 +58,30 @@ pub fn v1alpha_routes() -> Scope {
                     .route(delete().to(delete_directory_internal_v1_0::delete_directory_internal)),
             ),
         )
+        .service(
+            scope("/volume")
+                .service(
+                    resource("/internal")
+                        .route(post().to(create_volume_internal_v1_0::create_volume_internal)),
+                )
+                .service(
+                    resource("/{backend_id}/internal")
+                        .route(get().to(get_volume_internal_v1_0::get_volume_internal))
+                        .route(delete().to(delete_volume_internal_v1_0::delete_volume_internal)),
+                )
+                .service(
+                    resource("/{backend_id}/size/internal")
+                        .route(put().to(resize_volume_internal_v1_0::resize_volume_internal)),
+                )
+                .service(
+                    resource("/{backend_id}/copy/internal")
+                        .route(post().to(copy_volume_internal_v1_0::copy_volume_internal)),
+                )
+                .service(resource("/{backend_id}/connection/internal").route(
+                    get().to(get_volume_connection_internal_v1_0::get_volume_connection_internal),
+                )),
+        )
+        .service(scope("/backend").service(
+            resource("/internal").route(get().to(get_backend_internal_v1_0::get_backend_internal)),
+        ))
 }

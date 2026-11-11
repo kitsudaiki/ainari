@@ -19,28 +19,56 @@
 use actix_web::web::{Bytes, BytesMut};
 use futures_util::{Stream, StreamExt, stream};
 use sha2::{Digest, Sha256};
+use std::collections::HashSet;
 use std::fmt::Display;
 use std::fs::File;
 use std::io::{ErrorKind, Read};
 use std::path::{Component, Path, PathBuf};
+use std::sync::{Arc, Mutex};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use uuid::Uuid;
 
-use ainari_api_structs::storage_structs::{StorageDirectoryEntry, StorageFileInfoResp};
+use ainari_api_structs::storage_structs::{
+    StorageBackendResp, StorageBackendType, StorageDirectoryEntry, StorageFileInfoResp,
+};
 use ainari_common::constants::CHUNK_SIZE;
 use ainari_common::error::AinariError;
 use ainari_common::functions::is_safe_subpath;
+use ainari_hardware::disk::get_disk_space;
 
 use super::{FileBackend, FileContent};
 use crate::config::LocalStorage;
 
+/// Directory within the storage-location, which holds the volumes. It is reserved for the volumes,
+/// so it can't be accessed over the file-API.
+pub(super) const VOLUME_DIRECTORY: &str = "volumes";
+
+/// NFS-export of the directory of the volumes, over which the sakura-hosts reach the volumes.
+#[derive(Debug, Clone)]
+pub(super) struct NfsExport {
+    /// address of the NFS-server
+    pub(super) server: String,
+    /// path of the export on the NFS-server
+    pub(super) export: String,
+}
+
 /// Local storage-backend, whose files are stored in the directory `location`.
+///
+/// The volumes are sparse files in the subdirectory `volumes`, which the deployer exports over NFS
+/// to the sakura-hosts. Without the NFS-export, the backend doesn't support volumes.
 #[derive(Debug)]
 pub struct LocalBackend {
-    location: PathBuf,
+    /// directory, where the files are stored
+    pub(super) location: PathBuf,
+    /// NFS-export of the volumes, `None`, if the backend doesn't support volumes
+    pub(super) nfs: Option<NfsExport>,
+    /// backend-ids of the volumes, into which a copy runs right now
+    pub(super) running_copies: Arc<Mutex<HashSet<Uuid>>>,
 }
 
 impl LocalBackend {
-    /// Creates the local backend and its directory, if it doesn't exist.
+    /// Creates the local backend and its directory, if it doesn't exist. The directory of the
+    /// volumes is created as well, if the backend supports volumes, so it can be exported.
     ///
     /// # Arguments
     ///
@@ -57,7 +85,46 @@ impl LocalBackend {
                 location
             ))
         })?;
-        Ok(LocalBackend { location })
+
+        let nfs = match (&config.nfs_server, &config.nfs_export) {
+            (Some(server), Some(export)) => Some(NfsExport {
+                server: server.clone(),
+                export: export.clone(),
+            }),
+            _ => None,
+        };
+        let backend = LocalBackend {
+            location,
+            nfs,
+            running_copies: Arc::default(),
+        };
+        if backend.nfs.is_some() {
+            let volume_dir = backend.volume_dir();
+            tokio::fs::create_dir_all(&volume_dir).await.map_err(|e| {
+                AinariError::internal(format!(
+                    "failed to create volume-directory {:?}: {e}",
+                    volume_dir
+                ))
+            })?;
+        }
+        Ok(backend)
+    }
+
+    /// Returns the type, the volume-support and the capacity of the backend. The capacity is the
+    /// one of the disk, which holds the storage-location.
+    pub fn backend_info(&self) -> Result<StorageBackendResp, AinariError> {
+        let space = get_disk_space(&self.location).map_err(|e| {
+            AinariError::internal(format!(
+                "failed to get disk-space of {:?}: {e}",
+                self.location
+            ))
+        })?;
+        Ok(StorageBackendResp {
+            backend_type: StorageBackendType::Local,
+            supports_volumes: self.nfs.is_some(),
+            total_capacity: space.total,
+            free_capacity: space.available,
+        })
     }
 }
 
@@ -70,12 +137,23 @@ impl LocalBackend {
 ///
 /// # Returns
 ///
-/// The absolute path, or `InvalidInput`, if the remote path would leave the storage-location.
+/// The absolute path, or `InvalidInput`, if the remote path would leave the storage-location or
+/// points into the directory of the volumes.
 fn resolve_path(root: &Path, remote_path: &str) -> Result<PathBuf, AinariError> {
     let remote_path = Path::new(remote_path);
     if !is_safe_subpath(remote_path) {
         return Err(AinariError::InvalidInput(format!(
             "provided remote-path is invalid: {:?}",
+            remote_path
+        )));
+    }
+    // the volumes are only accessed over the volume-API
+    let first_component = remote_path
+        .components()
+        .find(|comp| matches!(comp, Component::Normal(_)));
+    if first_component == Some(Component::Normal(VOLUME_DIRECTORY.as_ref())) {
+        return Err(AinariError::InvalidInput(format!(
+            "provided remote-path is reserved for volumes: {:?}",
             remote_path
         )));
     }
@@ -257,6 +335,7 @@ impl FileBackend for LocalBackend {
     /// Lists the direct entries of a directory, sorted by name.
     ///
     /// Symbolic links are not followed, so they are listed as files with the size of the link.
+    /// The directory of the volumes is not listed within the storage-location.
     ///
     /// # Arguments
     ///
@@ -271,6 +350,9 @@ impl FileBackend for LocalBackend {
         remote_dir_path: &str,
     ) -> Result<Vec<StorageDirectoryEntry>, AinariError> {
         let dir_path = resolve_path(&self.location, remote_dir_path)?;
+        let is_root = !Path::new(remote_dir_path)
+            .components()
+            .any(|comp| matches!(comp, Component::Normal(_)));
 
         let mut read_dir = tokio::fs::read_dir(&dir_path)
             .await
@@ -290,6 +372,9 @@ impl FileBackend for LocalBackend {
             .await
             .map_err(|e| AinariError::internal(format!("failed to read directory: {e}")))?
         {
+            if is_root && entry.file_name() == VOLUME_DIRECTORY {
+                continue;
+            }
             // `DirEntry::metadata` doesn't follow symbolic links
             let metadata = entry
                 .metadata()
@@ -441,6 +526,8 @@ mod tests {
         fn backend(&self) -> LocalBackend {
             LocalBackend {
                 location: self.0.clone(),
+                nfs: None,
+                running_copies: Arc::default(),
             }
         }
 
@@ -740,6 +827,8 @@ mod tests {
         let location = root.join("storage");
         let backend = Backend::new(&StorageBackend::Local(LocalStorage {
             location: location.to_string_lossy().to_string(),
+            nfs_server: None,
+            nfs_export: None,
         }))
         .await
         .unwrap();

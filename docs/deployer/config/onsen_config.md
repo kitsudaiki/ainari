@@ -47,9 +47,19 @@ selected backend must exist, otherwise the onsen stops at the startup with an er
 
 Local storage-backend, which stores the files on the local disk of the onsen-host.
 
-| Parameter  | Type   | Default    | Description                                                              |
-| ---------- | ------ | ---------- | ------------------------------------------------------------------------ |
-| `location` | string | _required_ | Directory where files will be stored. It is created, if it doesn't exist. |
+The volumes, which the sakura-hosts attach as disks of the virtual machines, are sparse files in
+the subdirectory `volumes` of `location`. This directory is reserved for the volumes and can't be
+accessed over the file-API. The onsen doesn't export it itself, so it doesn't need
+root-permissions: the deployer exports it read-write over NFS to the network of the sakura-hosts
+(for example in `/etc/exports`) and sets `nfs_server` and `nfs_export`. Without both values the
+onsen doesn't support volumes. The content of the volumes is always encrypted by the sakura-hosts,
+so the export only contains cipher-text. This backend has no redundancy and is meant for testing.
+
+| Parameter    | Type   | Default    | Description                                                                 |
+| ------------ | ------ | ---------- | --------------------------------------------------------------------------- |
+| `location`   | string | _required_ | Directory where files will be stored. It is created, if it doesn't exist.    |
+| `nfs_server` | string | –          | Address of the NFS-server, which exports `<location>/volumes` to the sakura-hosts. Can only be set together with `nfs_export`. |
+| `nfs_export` | string | –          | Path of the NFS-export of `<location>/volumes` on the NFS-server, which the sakura-hosts mount. Can only be set together with `nfs_server`. |
 
 ## Example
 

@@ -18,12 +18,20 @@ on it is rejected. A host can only be marked, while no image is stored on it, an
 while no backup is registered on it in `backups` and its directory `backups/` is empty. In the
 SQLite-database the column is at the end of the table, because SQLite can only append new columns.
 
+`backend_type` and `supports_volumes` describe the storage-backend of the onsen-host (`LOCAL` at
+the moment) and if it provides volumes, which the sakura-hosts attach. The onsen-host reports both
+on every registration, so they follow the config of the host. Existing hosts get `LOCAL` and
+`FALSE` by the migration, until they register again. In the SQLite-database these columns are
+appended at the end of the table as well.
+
 | field            | type         | is primary | constraints                    |
 | ---------------- | ------------ | ---------- | ------------------------------ |
 | uuid             | VARCHAR(40)  | x          |                                |
 | name             | VARCHAR(256) |            |                                |
 | address          | VARCHAR(256) |            |                                |
 | is_backup_target | BOOLEAN      |            | `NOT NULL DEFAULT FALSE`       |
+| backend_type     | VARCHAR(16)  |            | `NOT NULL DEFAULT 'LOCAL'`     |
+| supports_volumes | BOOLEAN      |            | `NOT NULL DEFAULT FALSE`       |
 | created_at       | VARCHAR(64)  |            |                                |
 | created_by       | VARCHAR(256) |            |                                |
 | updated_at       | VARCHAR(64)  |            |                                |

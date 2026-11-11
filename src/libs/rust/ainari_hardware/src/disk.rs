@@ -17,6 +17,15 @@ use std::path::{Path, PathBuf};
 
 use sysinfo::Disks;
 
+/// Total and available space of a disk in bytes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct DiskSpace {
+    /// total size of the disk
+    pub total: u64,
+    /// space, which is still available on the disk
+    pub available: u64,
+}
+
 /// Retrieves the total size of the disk, on which the given path is located.
 ///
 /// The path doesn't have to exist. If it doesn't, the nearest existing parent-directory
@@ -32,6 +41,22 @@ use sysinfo::Disks;
 /// * `Ok(u64)` - Total size of the disk in bytes
 /// * `Err` - If the path could not be resolved or no disk was found for the path
 pub fn get_total_disk_space(path: &Path) -> io::Result<u64> {
+    get_disk_space(path).map(|space| space.total)
+}
+
+/// Retrieves the total and the available space of the disk, on which the given path is located.
+///
+/// The disk is identified like in `get_total_disk_space`.
+///
+/// # Arguments
+///
+/// * `path` - Path to a file or directory on the disk
+///
+/// # Returns
+///
+/// * `Ok(DiskSpace)` - Total and available space of the disk in bytes
+/// * `Err` - If the path could not be resolved or no disk was found for the path
+pub fn get_disk_space(path: &Path) -> io::Result<DiskSpace> {
     let resolved_path = resolve_existing_path(path)?;
 
     let disks = Disks::new_with_refreshed_list();
@@ -40,7 +65,10 @@ pub fn get_total_disk_space(path: &Path) -> io::Result<u64> {
         .iter()
         .filter(|disk| resolved_path.starts_with(disk.mount_point()))
         .max_by_key(|disk| disk.mount_point().as_os_str().len())
-        .map(|disk| disk.total_space())
+        .map(|disk| DiskSpace {
+            total: disk.total_space(),
+            available: disk.available_space(),
+        })
         .ok_or_else(|| {
             io::Error::new(
                 io::ErrorKind::NotFound,
@@ -86,5 +114,9 @@ mod tests {
 
         let non_existing = get_total_disk_space(Path::new("/tmp/ainari/does/not/exist")).unwrap();
         assert!(non_existing > 0);
+
+        let space = get_disk_space(Path::new("/")).unwrap();
+        assert_eq!(space.total, total);
+        assert!(space.available <= space.total);
     }
 }

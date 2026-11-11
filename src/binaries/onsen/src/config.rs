@@ -78,9 +78,18 @@ pub enum StorageBackendType {
 
 /// Configuration of the local storage-backend (`[storage.local]`).
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct LocalStorage {
-    /// Directory, where the files are stored
+    /// Directory, where the files are stored. The volumes are stored in its subdirectory
+    /// `volumes`.
     pub location: String,
+    /// Address of the NFS-server, which exports the directory of the volumes to the sakura-hosts.
+    /// Without it, the onsen doesn't support volumes.
+    #[serde(default)]
+    pub nfs_server: Option<String>,
+    /// Path of the NFS-export of the directory of the volumes on the NFS-server
+    #[serde(default)]
+    pub nfs_export: Option<String>,
 }
 
 /// Selected storage-backend with its configuration.
@@ -127,14 +136,28 @@ impl TryFrom<StorageSections> for Storage {
                         .to_string(),
                 );
             }
-            (Some(location), None) => Some(LocalStorage { location }),
+            (Some(location), None) => Some(LocalStorage {
+                location,
+                nfs_server: None,
+                nfs_export: None,
+            }),
             (None, local) => local,
         };
 
         let backend = match sections.backend {
-            StorageBackendType::Local => StorageBackend::Local(local.ok_or(
-                "storage-backend 'local' is selected, but the section [storage.local] is missing",
-            )?),
+            StorageBackendType::Local => {
+                let local = local.ok_or(
+                    "storage-backend 'local' is selected, but the section [storage.local] is missing",
+                )?;
+                if local.nfs_server.is_some() != local.nfs_export.is_some() {
+                    return Err(
+                        "'nfs_server' and 'nfs_export' of [storage.local] can only be \
+                        set together"
+                            .to_string(),
+                    );
+                }
+                StorageBackend::Local(local)
+            }
         };
 
         Ok(Storage {
@@ -237,7 +260,9 @@ mod tests {
         assert_eq!(
             storage.backend,
             StorageBackend::Local(LocalStorage {
-                location: "/var/lib/ainari/onsen".to_string()
+                location: "/var/lib/ainari/onsen".to_string(),
+                nfs_server: None,
+                nfs_export: None,
             })
         );
         assert!(!storage.uses_legacy_location);
@@ -254,6 +279,53 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_local_backend_with_nfs() {
+        let storage = parse_storage(
+            r#"
+            [storage]
+            backend = "local"
+
+            [storage.local]
+            location = "/var/lib/ainari/onsen"
+            nfs_server = "10.0.0.5"
+            nfs_export = "/var/lib/ainari/onsen/volumes"
+            "#,
+        )
+        .unwrap();
+        assert_eq!(
+            storage.backend,
+            StorageBackend::Local(LocalStorage {
+                location: "/var/lib/ainari/onsen".to_string(),
+                nfs_server: Some("10.0.0.5".to_string()),
+                nfs_export: Some("/var/lib/ainari/onsen/volumes".to_string()),
+            })
+        );
+
+        // only one of the nfs-values
+        let err = parse_storage(
+            r#"
+            [storage.local]
+            location = "/var/lib/ainari/onsen"
+            nfs_server = "10.0.0.5"
+            "#,
+        )
+        .unwrap_err();
+        assert!(err.to_string().contains("nfs_export"), "{err}");
+
+        // unknown option of the local backend
+        assert!(
+            parse_storage(
+                r#"
+                [storage.local]
+                location = "/var/lib/ainari/onsen"
+                nfs_path = "/export"
+                "#,
+            )
+            .is_err()
+        );
+    }
+
+    #[test]
     fn test_parse_legacy_location() {
         let storage = parse_storage(
             r#"
@@ -265,7 +337,9 @@ mod tests {
         assert_eq!(
             storage.backend,
             StorageBackend::Local(LocalStorage {
-                location: "/tmp/onsen".to_string()
+                location: "/tmp/onsen".to_string(),
+                nfs_server: None,
+                nfs_export: None,
             })
         );
         assert!(storage.uses_legacy_location);

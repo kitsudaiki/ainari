@@ -11,6 +11,7 @@ ainari_common = { path = "../../libs/rust/ainari_common" }
 ainari_api = { path = "../../libs/rust/ainari_api" }
 ainari_api_structs = { path = "../../libs/rust/ainari_api_structs" }
 ainari_clients = { path = "../../libs/rust/ainari_clients" }
+ainari_hardware = { path = "../../libs/rust/ainari_hardware" }
 # web-server
 actix-web = "4"
 futures-util = "0.3"

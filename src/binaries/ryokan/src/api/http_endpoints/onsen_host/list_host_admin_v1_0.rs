@@ -15,6 +15,7 @@
 use actix_web::web::Json;
 use apistos::api_operation;
 
+use super::backend_type_of;
 use crate::database::host_table;
 
 use ainari_api::common_functions::*;
@@ -40,11 +41,14 @@ pub async fn list_host_admin(context: UserContext) -> Result<Json<HostListResp>,
 
     for host in hosts {
         let uuid = host.uuid;
+        let backend_type = backend_type_of(&host)?;
         let obj = HostBasicResp {
             uuid,
             name: host.name,
             host_address: host.address,
             is_backup_target: host.is_backup_target,
+            backend_type,
+            supports_volumes: host.supports_volumes,
         };
 
         resp.hosts.push(obj);

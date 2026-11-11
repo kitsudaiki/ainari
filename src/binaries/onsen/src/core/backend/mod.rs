@@ -15,17 +15,24 @@
 //! Storage-backends of the onsen.
 //!
 //! Every onsen uses exactly one backend, which is selected by the config. A backend implements
-//! the trait `FileBackend` for the files of the images, snapshots and backups. The endpoints only
+//! the trait `FileBackend` for the files of the images, snapshots and backups, and the trait
+//! `VolumeBackend` for the volumes, which the sakura-hosts attach as disks. The endpoints only
 //! use the enum `Backend`, so a new backend doesn't change the REST-API of the onsen.
 
 pub mod local;
+mod local_volume;
 
 use actix_web::web::Bytes;
 use futures_util::Stream;
 use futures_util::stream::BoxStream;
 use std::fmt::Display;
 
-use ainari_api_structs::storage_structs::{StorageDirectoryEntry, StorageFileInfoResp};
+use uuid::Uuid;
+
+use ainari_api_structs::storage_structs::{
+    StorageBackendResp, StorageBackendType, StorageDirectoryEntry, StorageFileInfoResp,
+    VolumeConnection, VolumeInfoResp,
+};
 use ainari_common::error::AinariError;
 
 use crate::config::StorageBackend;
@@ -76,6 +83,36 @@ pub trait FileBackend {
     ) -> Result<StorageFileInfoResp, AinariError>;
 }
 
+/// Volumes, which are stored in the backend and attached by the sakura-hosts as disks.
+///
+/// A volume is only addressed by its name within the backend (`id`), never by the UUID of the
+/// volume in ryokan. The content of a volume is always encrypted by the sakura-hosts, so the
+/// backend never sees plain data. Nothing of this trait is specific to a single backend.
+pub trait VolumeBackend {
+    /// True, if the backend provides volumes. Without it, all other functions fail with
+    /// `Conflict`.
+    fn supports_volumes(&self) -> bool;
+
+    /// Creates an empty volume. Creating an existing volume with the same size is no error.
+    async fn create_volume(&self, id: &Uuid, size: u64) -> Result<VolumeInfoResp, AinariError>;
+
+    /// Deletes a volume, deleting a not existing volume is no error.
+    async fn delete_volume(&self, id: &Uuid) -> Result<(), AinariError>;
+
+    /// Grows a volume, a volume can never shrink.
+    async fn resize_volume(&self, id: &Uuid, size: u64) -> Result<VolumeInfoResp, AinariError>;
+
+    /// Returns the information about a volume, which includes the state of a copy into it.
+    async fn volume_info(&self, id: &Uuid) -> Result<VolumeInfoResp, AinariError>;
+
+    /// Starts the copy of a whole volume into a new volume in the background. The state of the
+    /// copy is reported by `volume_info` of the target.
+    async fn copy_volume(&self, source_id: &Uuid, target_id: &Uuid) -> Result<(), AinariError>;
+
+    /// Returns the information, how a sakura-host connects to a volume.
+    async fn volume_connection(&self, id: &Uuid) -> Result<VolumeConnection, AinariError>;
+}
+
 /// Storage-backend of this onsen, which is selected by the config.
 #[derive(Debug)]
 pub enum Backend {
@@ -96,6 +133,20 @@ impl Backend {
     pub async fn new(config: &StorageBackend) -> Result<Self, AinariError> {
         match config {
             StorageBackend::Local(local) => Ok(Backend::Local(LocalBackend::new(local).await?)),
+        }
+    }
+
+    /// Type of the backend
+    pub fn backend_type(&self) -> StorageBackendType {
+        match self {
+            Backend::Local(_) => StorageBackendType::Local,
+        }
+    }
+
+    /// Returns the type, the volume-support and the capacity of the backend.
+    pub fn backend_info(&self) -> Result<StorageBackendResp, AinariError> {
+        match self {
+            Backend::Local(backend) => backend.backend_info(),
         }
     }
 }
@@ -144,6 +195,50 @@ impl FileBackend for Backend {
     ) -> Result<StorageFileInfoResp, AinariError> {
         match self {
             Backend::Local(backend) => backend.get_file_info(remote_file_path).await,
+        }
+    }
+}
+
+impl VolumeBackend for Backend {
+    fn supports_volumes(&self) -> bool {
+        match self {
+            Backend::Local(backend) => backend.supports_volumes(),
+        }
+    }
+
+    async fn create_volume(&self, id: &Uuid, size: u64) -> Result<VolumeInfoResp, AinariError> {
+        match self {
+            Backend::Local(backend) => backend.create_volume(id, size).await,
+        }
+    }
+
+    async fn delete_volume(&self, id: &Uuid) -> Result<(), AinariError> {
+        match self {
+            Backend::Local(backend) => backend.delete_volume(id).await,
+        }
+    }
+
+    async fn resize_volume(&self, id: &Uuid, size: u64) -> Result<VolumeInfoResp, AinariError> {
+        match self {
+            Backend::Local(backend) => backend.resize_volume(id, size).await,
+        }
+    }
+
+    async fn volume_info(&self, id: &Uuid) -> Result<VolumeInfoResp, AinariError> {
+        match self {
+            Backend::Local(backend) => backend.volume_info(id).await,
+        }
+    }
+
+    async fn copy_volume(&self, source_id: &Uuid, target_id: &Uuid) -> Result<(), AinariError> {
+        match self {
+            Backend::Local(backend) => backend.copy_volume(source_id, target_id).await,
+        }
+    }
+
+    async fn volume_connection(&self, id: &Uuid) -> Result<VolumeConnection, AinariError> {
+        match self {
+            Backend::Local(backend) => backend.volume_connection(id).await,
         }
     }
 }

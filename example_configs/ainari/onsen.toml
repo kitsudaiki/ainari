@@ -21,3 +21,7 @@ backend = "local"
 
 [storage.local]
 location = "/tmp/onsen"
+# address and path of the NFS-export of "<location>/volumes", which the sakura-hosts mount;
+# without these values the onsen doesn't support volumes
+#nfs_server = "10.0.0.5"
+#nfs_export = "/tmp/onsen/volumes"

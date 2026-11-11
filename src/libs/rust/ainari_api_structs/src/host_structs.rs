@@ -21,6 +21,8 @@ use validator::Validate;
 
 use ainari_common::secret::Secret;
 
+use crate::storage_structs::StorageBackendType;
+
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
 pub struct HostCreateReq {
     #[validate(length(min = 4, max = 127))]
@@ -30,6 +32,13 @@ pub struct HostCreateReq {
     pub deleted_uuids: UuidList,
     #[validate(length(min = 4, max = 127))]
     pub registration_key: Secret,
+    /// type of the storage-backend of the onsen-host. Hosts without it use the local backend.
+    #[serde(default)]
+    pub backend_type: StorageBackendType,
+    /// true, if the storage-backend of the onsen-host provides volumes, which the sakura-hosts
+    /// can attach
+    #[serde(default)]
+    pub supports_volumes: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
@@ -81,6 +90,10 @@ pub struct HostResp {
     pub host_address: String,
     /// true, if the onsen-host only stores backups and never normal images or snapshots
     pub is_backup_target: bool,
+    /// type of the storage-backend of the onsen-host
+    pub backend_type: StorageBackendType,
+    /// true, if the storage-backend of the onsen-host provides volumes
+    pub supports_volumes: bool,
     pub created_at: DateTime<Utc>,
     pub created_by: String,
     pub updated_at: DateTime<Utc>,
@@ -110,6 +123,10 @@ pub struct HostBasicResp {
     pub host_address: String,
     /// true, if the onsen-host only stores backups and never normal images or snapshots
     pub is_backup_target: bool,
+    /// type of the storage-backend of the onsen-host
+    pub backend_type: StorageBackendType,
+    /// true, if the storage-backend of the onsen-host provides volumes
+    pub supports_volumes: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]

@@ -3878,6 +3878,7 @@ dependencies = [
  "ainari_clients",
  "ainari_common",
  "ainari_files",
+ "ainari_hardware",
  "apistos",
  "apistos-schemars",
  "bytemuck",

@@ -15,6 +15,7 @@
 use sysinfo::System;
 
 use crate::config;
+use crate::core::backend::{Backend, VolumeBackend};
 
 use ainari_clients::endpoints::*;
 use ainari_clients::host::register_onsen_host;
@@ -24,7 +25,12 @@ use ainari_common::error::AinariError;
 ///
 /// It fetches endpoints from the Miko service, retrieves the local host name, and registers
 /// the host with the Ryokan service using the provided configuration. The address of the internal
-/// api of this host is registered, over which the ryokan and the sakura-hosts reach it.
+/// api of this host is registered, over which the ryokan and the sakura-hosts reach it, together
+/// with the type of its storage-backend and its support of volumes.
+///
+/// # Arguments
+///
+/// * `backend` - Storage-backend of this host
 ///
 /// # Errors
 ///
@@ -32,7 +38,7 @@ use ainari_common::error::AinariError;
 /// - The endpoints cannot be fetched from Miko
 /// - The host name cannot be retrieved
 /// - The registration with Ryokan fails
-pub async fn register_host() -> Result<(), AinariError> {
+pub async fn register_host(backend: &Backend) -> Result<(), AinariError> {
     // Fetch service endpoints from the Miko service
     // This includes addresses for various Ainari services
     let endpoints =
@@ -52,6 +58,8 @@ pub async fn register_host() -> Result<(), AinariError> {
         &host_name,
         &config::CONFIG.address,
         &config::ONSEN_REGISTRATION_KEY,
+        backend.backend_type(),
+        backend.supports_volumes(),
         config::CONFIG.skip_tls_verification,
     )
     .await?;

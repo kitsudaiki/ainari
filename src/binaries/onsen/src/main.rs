@@ -53,7 +53,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     let backend = core::backend::Backend::new(&config.storage.backend).await?;
 
-    core::ryokan_interaction::register_host().await?;
+    core::ryokan_interaction::register_host(&backend).await?;
 
     api::http_server::run_server(backend).await?;
 

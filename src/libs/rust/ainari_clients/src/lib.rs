@@ -37,6 +37,7 @@ pub mod storage;
 pub mod task;
 pub mod virtual_machine;
 pub mod virtual_machine_migration;
+pub mod volume;
 
 use actix_web::dev::{Decompress, Payload};
 use awc::error::SendRequestError;

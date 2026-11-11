@@ -146,8 +146,10 @@ mod tests {
     use crate::core::backend::local::LocalBackend;
     use actix_web::{HttpRequest, HttpResponse};
     use ainari_api_structs::auth_structs::UserTokenValidateResp;
+    use ainari_api_structs::storage_structs::{StorageBackendType, VolumeConnection, VolumeState};
     use ainari_api_structs::user_context::UserContext;
     use ainari_clients::storage::*;
+    use ainari_clients::volume::*;
     use ainari_common::config::{Api, MikoEndpoint};
     use ainari_common::constants::CHUNK_SIZE;
     use ainari_common::error::AinariError;
@@ -215,8 +217,14 @@ mod tests {
         address
     }
 
-    /// Starts an onsen on free local ports, which validates the tokens against a fake miko.
+    /// Starts an onsen on free local ports, which validates the tokens against a fake miko and
+    /// supports volumes.
     async fn start_onsen() -> TestOnsen {
+        start_onsen_with_volumes(true).await
+    }
+
+    /// Starts an onsen on free local ports, which validates the tokens against a fake miko.
+    async fn start_onsen_with_volumes(supports_volumes: bool) -> TestOnsen {
         let public = TcpListener::bind("127.0.0.1:0").unwrap();
         let internal = TcpListener::bind("127.0.0.1:0").unwrap();
         let public_address = format!("http://{}", public.local_addr().unwrap());
@@ -236,6 +244,8 @@ mod tests {
         let storage = std::env::temp_dir().join(format!("onsen_test_{}", Uuid::new_v4()));
         let backend = LocalBackend::new(&LocalStorage {
             location: storage.to_string_lossy().to_string(),
+            nfs_server: supports_volumes.then(|| "10.0.0.5".to_string()),
+            nfs_export: supports_volumes.then(|| "/srv/onsen/volumes".to_string()),
         })
         .await
         .unwrap();
@@ -346,6 +356,21 @@ mod tests {
             delete_directory(address, TOKEN, &key, "", false).await,
             Err(AinariError::InvalidInput(_))
         ));
+
+        // the directory of the volumes is reserved for the volume-API
+        assert!(matches!(
+            upload_data(address, TOKEN, &key, "volumes/file.bin", vec![1], false).await,
+            Err(AinariError::InvalidInput(_))
+        ));
+        assert!(matches!(
+            delete_directory(address, TOKEN, &key, "volumes", false).await,
+            Err(AinariError::InvalidInput(_))
+        ));
+        assert!(onsen.storage.join("volumes").is_dir());
+        let entries = list_directory(address, TOKEN, &key, "", false)
+            .await
+            .unwrap();
+        assert!(entries.iter().all(|e| e.name != "volumes"));
     }
 
     #[actix_rt::test]
@@ -435,6 +460,150 @@ mod tests {
     }
 
     #[actix_rt::test]
+    async fn test_volumes() {
+        let onsen = start_onsen().await;
+        let key = Secret::from(API_KEY);
+        let address = onsen.address.as_str();
+        let id = Uuid::new_v4();
+        const MIB: u64 = 1024 * 1024;
+
+        let backend = get_storage_backend(address, TOKEN, &key, false)
+            .await
+            .unwrap();
+        assert_eq!(backend.backend_type, StorageBackendType::Local);
+        assert!(backend.supports_volumes);
+        assert!(backend.total_capacity >= backend.free_capacity);
+
+        // the new volume is sparse
+        let info = create_volume(address, TOKEN, &key, &id, 64 * MIB, false)
+            .await
+            .unwrap();
+        assert_eq!(info.backend_id, id);
+        assert_eq!(info.state, VolumeState::Ready);
+        assert_eq!(info.size, 64 * MIB);
+        assert!(info.used_size < 64 * MIB);
+        let file = onsen.storage.join(format!("volumes/{id}.img"));
+        assert_eq!(std::fs::metadata(&file).unwrap().len(), 64 * MIB);
+
+        // a repeated create with the same size is no error, but not with another size
+        create_volume(address, TOKEN, &key, &id, 64 * MIB, false)
+            .await
+            .unwrap();
+        assert!(matches!(
+            create_volume(address, TOKEN, &key, &id, 32 * MIB, false).await,
+            Err(AinariError::Conflict(_))
+        ));
+        assert!(matches!(
+            create_volume(address, TOKEN, &key, &Uuid::new_v4(), 1000, false).await,
+            Err(AinariError::InvalidInput(_))
+        ));
+
+        // a volume only grows
+        let info = resize_volume(address, TOKEN, &key, &id, 128 * MIB, false)
+            .await
+            .unwrap();
+        assert_eq!(info.size, 128 * MIB);
+        assert!(matches!(
+            resize_volume(address, TOKEN, &key, &id, 64 * MIB, false).await,
+            Err(AinariError::InvalidInput(_))
+        ));
+        assert!(matches!(
+            resize_volume(address, TOKEN, &key, &Uuid::new_v4(), 64 * MIB, false).await,
+            Err(AinariError::NotFound(_))
+        ));
+
+        assert_eq!(
+            get_volume_connection(address, TOKEN, &key, &id, false)
+                .await
+                .unwrap(),
+            VolumeConnection::Nfs {
+                server: "10.0.0.5".to_string(),
+                export: "/srv/onsen/volumes".to_string(),
+                file_name: format!("{id}.img"),
+            }
+        );
+
+        // copy within the backend, the content is kept
+        std::fs::write(&file, b"encrypted").unwrap();
+        let copy_id = Uuid::new_v4();
+        copy_volume(address, TOKEN, &key, &id, &copy_id, false)
+            .await
+            .unwrap();
+        let mut info = get_volume_info(address, TOKEN, &key, &copy_id, false)
+            .await
+            .unwrap();
+        for _ in 0..100 {
+            if info.state != VolumeState::Copying {
+                break;
+            }
+            actix_rt::time::sleep(std::time::Duration::from_millis(50)).await;
+            info = get_volume_info(address, TOKEN, &key, &copy_id, false)
+                .await
+                .unwrap();
+        }
+        assert_eq!(info.state, VolumeState::Ready);
+        assert_eq!(
+            std::fs::read(onsen.storage.join(format!("volumes/{copy_id}.img"))).unwrap(),
+            b"encrypted"
+        );
+        assert!(matches!(
+            copy_volume(address, TOKEN, &key, &id, &copy_id, false).await,
+            Err(AinariError::Conflict(_))
+        ));
+        assert!(matches!(
+            copy_volume(
+                address,
+                TOKEN,
+                &key,
+                &Uuid::new_v4(),
+                &Uuid::new_v4(),
+                false
+            )
+            .await,
+            Err(AinariError::NotFound(_))
+        ));
+
+        // delete is idempotent
+        delete_volume(address, TOKEN, &key, &id, false)
+            .await
+            .unwrap();
+        delete_volume(address, TOKEN, &key, &id, false)
+            .await
+            .unwrap();
+        assert!(!file.exists());
+        assert!(matches!(
+            get_volume_info(address, TOKEN, &key, &id, false).await,
+            Err(AinariError::NotFound(_))
+        ));
+        assert!(matches!(
+            get_volume_connection(address, TOKEN, &key, &id, false).await,
+            Err(AinariError::NotFound(_))
+        ));
+    }
+
+    #[actix_rt::test]
+    async fn test_volumes_not_supported() {
+        let onsen = start_onsen_with_volumes(false).await;
+        let key = Secret::from(API_KEY);
+        let address = onsen.address.as_str();
+
+        let backend = get_storage_backend(address, TOKEN, &key, false)
+            .await
+            .unwrap();
+        assert!(!backend.supports_volumes);
+        assert!(matches!(
+            create_volume(address, TOKEN, &key, &Uuid::new_v4(), 1024 * 1024, false).await,
+            Err(AinariError::Conflict(_))
+        ));
+        assert!(!onsen.storage.join("volumes").exists());
+
+        // the files work like before
+        upload_data(address, TOKEN, &key, "file.bin", vec![1], false)
+            .await
+            .unwrap();
+    }
+
+    #[actix_rt::test]
     async fn test_openapi_spec() {
         let onsen = start_onsen().await;
         let client = ainari_clients::prepare_client(&onsen.public_address, false);
@@ -450,6 +619,18 @@ mod tests {
             ("/v1alpha/file/internal", vec!["put", "get", "delete"]),
             ("/v1alpha/file/info/internal", vec!["get"]),
             ("/v1alpha/directory/internal", vec!["get", "delete"]),
+            ("/v1alpha/volume/internal", vec!["post"]),
+            (
+                "/v1alpha/volume/{backend_id}/internal",
+                vec!["get", "delete"],
+            ),
+            ("/v1alpha/volume/{backend_id}/size/internal", vec!["put"]),
+            ("/v1alpha/volume/{backend_id}/copy/internal", vec!["post"]),
+            (
+                "/v1alpha/volume/{backend_id}/connection/internal",
+                vec!["get"],
+            ),
+            ("/v1alpha/backend/internal", vec!["get"]),
         ] {
             for method in methods {
                 assert!(

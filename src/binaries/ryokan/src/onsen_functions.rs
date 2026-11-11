@@ -250,6 +250,8 @@ mod tests {
             name: "onsen".to_string(),
             address: format!("http://{}:10426", Uuid::new_v4()),
             is_backup_target,
+            backend_type: "LOCAL".to_string(),
+            supports_volumes: false,
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),

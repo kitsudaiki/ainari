@@ -17,6 +17,7 @@ use actix_web::web::Path;
 use apistos::api_operation;
 use uuid::Uuid;
 
+use super::host_resp;
 use crate::database::host_table;
 
 use ainari_api::common_functions::*;
@@ -43,16 +44,5 @@ pub async fn get_host_admin(
     let host_data = host_table::get_host(&host_uuid, &context)
         .map_err(|e| map_db_uuid_get_delete_error("onsen-host", &host_uuid, e, Some(&context)))?;
 
-    let resp = HostResp {
-        uuid: *host_uuid,
-        name: host_data.name,
-        host_address: host_data.address,
-        is_backup_target: host_data.is_backup_target,
-        created_by: host_data.created_by,
-        created_at: host_data.created_at,
-        updated_by: host_data.updated_by,
-        updated_at: host_data.updated_at,
-    };
-
-    Ok(Json(resp))
+    Ok(Json(host_resp(host_data)?))
 }

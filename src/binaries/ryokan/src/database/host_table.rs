@@ -21,6 +21,7 @@ use crate::database::backup_table;
 use crate::database::db_handle;
 use crate::database::image_table;
 
+use ainari_api_structs::storage_structs::StorageBackendType;
 use ainari_api_structs::user_context::UserContext;
 use ainari_common::database::DbConnection;
 use ainari_common::enums;
@@ -33,6 +34,8 @@ table! {
         name -> Varchar,
         address -> Varchar,
         is_backup_target -> Bool,
+        backend_type -> Varchar,
+        supports_volumes -> Bool,
         created_at -> Varchar,
         created_by -> Varchar,
         updated_at -> Varchar,
@@ -56,6 +59,10 @@ pub struct HostEntry {
     pub address: String,
     /// True, if the host only stores backups and never normal images or snapshots
     pub is_backup_target: bool,
+    /// Type of the storage-backend of the host, like `LOCAL`
+    pub backend_type: String,
+    /// True, if the storage-backend of the host provides volumes
+    pub supports_volumes: bool,
     /// Timestamp when the host was created
     #[diesel(serialize_as = DbDateTime, deserialize_as = DbDateTime)]
     pub created_at: DateTime<Utc>,
@@ -78,6 +85,8 @@ pub struct HostEntry {
 /// * `host_uuid` - The unique identifier for the new host
 /// * `host_name` - The human-readable name of the host
 /// * `host_address` - The network address of the host
+/// * `backend_type` - Type of the storage-backend of the host
+/// * `supports_volumes` - True, if the storage-backend of the host provides volumes
 /// * `context` - The user context containing the ID of the user creating the host
 ///
 /// # Returns
@@ -87,6 +96,8 @@ pub fn add_new_host(
     host_uuid: &Uuid,
     host_name: &str,
     host_address: &str,
+    backend_type: StorageBackendType,
+    supports_volumes: bool,
     context: &UserContext,
 ) -> QueryResult<usize> {
     // observers without admin-privileges are only allowed to read
@@ -99,6 +110,8 @@ pub fn add_new_host(
         name: host_name.to_owned(),
         address: host_address.to_owned(),
         is_backup_target: false,
+        backend_type: backend_type.to_string(),
+        supports_volumes,
         created_at: Utc::now(),
         created_by: context.user_id.clone(),
         updated_at: Utc::now(),
@@ -281,6 +294,51 @@ pub fn mark_as_backup_target(
     }
 }
 
+/// Updates the storage-backend of an onsen-host, which the host reports on every registration.
+///
+/// # Arguments
+///
+/// * `host_uuid` - The UUID of the host
+/// * `new_backend_type` - Type of the storage-backend of the host
+/// * `new_supports_volumes` - True, if the storage-backend of the host provides volumes
+/// * `context` - The user context containing the ID of the user performing the change
+///
+/// # Returns
+///
+/// * `Ok(())` if the host was updated
+/// * `Err(enums::DbError)` if the host doesn't exist or the update failed
+pub fn update_host_backend(
+    host_uuid: &Uuid,
+    new_backend_type: StorageBackendType,
+    new_supports_volumes: bool,
+    context: &UserContext,
+) -> Result<(), enums::DbError> {
+    // observers without admin-privileges are only allowed to read
+    if context.is_read_only() {
+        return Err(enums::DbError::PermissionDenied);
+    }
+
+    let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
+    use self::hosts::dsl::*;
+
+    match diesel::update(hosts.filter(uuid.eq(host_uuid.to_string())))
+        .set((
+            backend_type.eq(new_backend_type.to_string()),
+            supports_volumes.eq(new_supports_volumes),
+            updated_at.eq(Utc::now().to_rfc3339()),
+            updated_by.eq(context.user_id.clone()),
+        ))
+        .execute(&mut *conn)
+    {
+        Ok(0) => Err(enums::DbError::NotFound),
+        Ok(_) => Ok(()),
+        Err(e) => {
+            log::error!("Database-error: {e:?}");
+            Err(enums::DbError::InternalError)
+        }
+    }
+}
+
 /// Checks, if an onsen-address belongs to a backup-target.
 ///
 /// It takes the already locked connection, so it can be used within the transaction of another
@@ -412,6 +470,8 @@ mod tests {
             name: "Alice".to_string(),
             address: "http://127.0.0.1:11420".to_string(),
             is_backup_target: false,
+            backend_type: "LOCAL".to_string(),
+            supports_volumes: false,
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
@@ -457,6 +517,8 @@ mod tests {
             name: "Alice".to_string(),
             address: "http://127.0.0.1:11420".to_string(),
             is_backup_target: false,
+            backend_type: "LOCAL".to_string(),
+            supports_volumes: false,
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
@@ -468,6 +530,8 @@ mod tests {
             name: "Bob".to_string(),
             address: "http://127.0.0.1:11420".to_string(),
             is_backup_target: false,
+            backend_type: "LOCAL".to_string(),
+            supports_volumes: false,
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
@@ -506,6 +570,8 @@ mod tests {
             name: "Alice".to_string(),
             address: "http://127.0.0.1:11420".to_string(),
             is_backup_target: false,
+            backend_type: "LOCAL".to_string(),
+            supports_volumes: false,
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
@@ -522,6 +588,46 @@ mod tests {
 
     #[test]
     #[serial]
+    fn test_add_and_update_host_backend() {
+        let uuid1 = Uuid::new_v4();
+        let context = UserContext {
+            token: "".to_string(),
+            user_id: "test-user".to_string(),
+            project_id: "test-project".to_string(),
+            is_admin: false.to_string(),
+            project_role: ProjectRole::Member.to_string(),
+        };
+
+        hard_delete_host(&uuid1);
+
+        add_new_host(
+            &uuid1,
+            "Alice",
+            "http://127.0.0.1:11426",
+            StorageBackendType::Local,
+            false,
+            &context,
+        )
+        .unwrap();
+        let host = get_host(&uuid1, &context).ok().unwrap();
+        assert_eq!(host.backend_type, "LOCAL");
+        assert!(!host.supports_volumes);
+
+        // the next registration of the host reports the support of volumes
+        assert!(update_host_backend(&uuid1, StorageBackendType::Local, true, &context).is_ok());
+        let host = get_host(&uuid1, &context).ok().unwrap();
+        assert_eq!(host.backend_type, "LOCAL");
+        assert!(host.supports_volumes);
+
+        hard_delete_host(&uuid1);
+        assert!(matches!(
+            update_host_backend(&uuid1, StorageBackendType::Local, true, &context),
+            Err(enums::DbError::NotFound)
+        ));
+    }
+
+    #[test]
+    #[serial]
     fn test_hosts_permissions() {
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
@@ -532,6 +638,8 @@ mod tests {
             name: "Alice".to_string(),
             address: "http://127.0.0.1:11420".to_string(),
             is_backup_target: false,
+            backend_type: "LOCAL".to_string(),
+            supports_volumes: false,
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
@@ -543,6 +651,8 @@ mod tests {
             name: "Bob".to_string(),
             address: "http://127.0.0.1:11420".to_string(),
             is_backup_target: false,
+            backend_type: "LOCAL".to_string(),
+            supports_volumes: false,
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
@@ -554,6 +664,8 @@ mod tests {
             name: "Poi".to_string(),
             address: "http://127.0.0.1:11420".to_string(),
             is_backup_target: false,
+            backend_type: "LOCAL".to_string(),
+            supports_volumes: false,
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),
@@ -618,6 +730,8 @@ mod tests {
             name: "onsen".to_string(),
             address: format!("http://{}:10426", Uuid::new_v4()),
             is_backup_target: false,
+            backend_type: "LOCAL".to_string(),
+            supports_volumes: false,
             created_at: Utc::now(),
             created_by: "admin".to_string(),
             updated_at: Utc::now(),

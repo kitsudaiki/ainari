@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use ainari_api_structs::host_structs::*;
+use ainari_api_structs::storage_structs::StorageBackendType;
 use ainari_common::config as ainari_config;
 use ainari_common::error::AinariError;
 use ainari_common::secret::Secret;
@@ -99,17 +100,22 @@ pub async fn register_sakura_host(
 /// * `name` - The name of the Onsen host to register
 /// * `onsen_address` - The address of the Onsen host
 /// * `registration_key` - The registration key for the host
+/// * `backend_type` - Type of the storage-backend of the host
+/// * `supports_volumes` - True, if the storage-backend provides volumes
 /// * `insecure_client` - Whether to create an insecure client (bypasses TLS verification)
 ///
 /// # Returns
 ///
 /// A `Result` containing either the `HostResp` from the server or an `AinariError` if the request fails.
+#[allow(clippy::too_many_arguments)]
 pub async fn register_onsen_host(
     ryokan_endpoint: &ainari_config::Endpoint,
     internal_api_key: &Secret,
     name: &str,
     onsen_address: &str,
     registration_key: &Secret,
+    backend_type: StorageBackendType,
+    supports_volumes: bool,
     insecure_client: bool,
 ) -> Result<HostResp, AinariError> {
     let address = ryokan_endpoint.internal_address.clone();
@@ -122,6 +128,8 @@ pub async fn register_onsen_host(
         host_address: onsen_address.to_owned(),
         deleted_uuids: empty_default_uuid_list,
         registration_key: Secret::from(registration_key.reveal()),
+        backend_type,
+        supports_volumes,
     };
 
     let json_str = serde_json::to_string(&body).unwrap();
