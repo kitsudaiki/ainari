@@ -33,3 +33,6 @@ grant_public_key = "cOldUtphCTOrQbFpXGDZPIcPfDomKajUzOLVyM8whxo="
 key_rotation_interval = 3600
 # seconds without contact, after which a gateway is removed from its groups
 member_timeout = 120
+# milliseconds, which a queued addition or removal waits for others, so they are all made with
+# one commit
+commit_delay = 1000

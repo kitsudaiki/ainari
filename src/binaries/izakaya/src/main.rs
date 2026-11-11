@@ -55,6 +55,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     core::coordinator::spawn_ticker(
         config.mls.key_rotation_interval as i64,
         config.mls.member_timeout as i64,
+        config.mls.commit_delay as i64,
     );
 
     api::http_server::run_server()?;

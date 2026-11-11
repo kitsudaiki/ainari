@@ -72,6 +72,10 @@ pub struct MlsConf {
     /// poll every second, so a silent one is gone, for example with a restarted pod.
     #[serde(default = "default_member_timeout")]
     pub member_timeout: u64,
+    /// Milliseconds, which a queued addition or removal waits for others, so they are all made
+    /// with one commit
+    #[serde(default = "default_commit_delay")]
+    pub commit_delay: u64,
 }
 
 /// Default value for key_rotation_interval: one hour
@@ -82,6 +86,11 @@ fn default_key_rotation_interval() -> u64 {
 /// Default value for member_timeout: two minutes
 fn default_member_timeout() -> u64 {
     120
+}
+
+/// Default value for commit_delay: one poll interval of the gateways
+fn default_commit_delay() -> u64 {
+    1000
 }
 
 /// Default value for TLS verification setting.

@@ -386,56 +386,38 @@ pub struct MlsUnsubscribeReq {
     pub client_id: String,
 }
 
-/// Kind of a change of a group, which the committer makes
-#[derive(
-    Debug, Deserialize, Serialize, Clone, Copy, PartialEq, Eq, Hash, JsonSchema, ApiComponent,
-)]
-#[serde(rename_all = "lowercase")]
-pub enum MlsOperationKind {
-    /// Add a gateway, or add it again, if it lost the group
-    Add,
-    /// Remove a gateway
-    Remove,
-    /// Rotate the keys with a self-update of the committer
-    Update,
+/// Gateway, which a change adds to a group
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
+pub struct MlsOperationAdd {
+    /// Identity of the gateway. A gateway, which is still a member, is added again.
+    pub client_id: String,
+    /// Grant of hanami for the gateway
+    pub grant: MlsGrant,
 }
 
-impl fmt::Display for MlsOperationKind {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let s = match self {
-            MlsOperationKind::Add => "add",
-            MlsOperationKind::Remove => "remove",
-            MlsOperationKind::Update => "update",
-        };
-        write!(f, "{s}")
-    }
-}
-
-impl FromStr for MlsOperationKind {
-    type Err = String;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "add" => Ok(MlsOperationKind::Add),
-            "remove" => Ok(MlsOperationKind::Remove),
-            "update" => Ok(MlsOperationKind::Update),
-            other => Err(format!("Unknown operation '{other}'")),
-        }
-    }
-}
-
-/// Change of a group, which izakaya hands to the committer of the group
+/// Change of a group, which izakaya hands to the committer of the group. All of it goes into one
+/// commit.
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
 pub struct MlsOperation {
     pub op_uuid: Uuid,
     pub vni: u32,
-    pub kind: MlsOperationKind,
-    /// Gateway, which is added or removed
+    /// Gateways to add
     #[serde(default)]
-    pub client_id: Option<String>,
-    /// Grant of hanami for the gateway, which is added
+    pub adds: Vec<MlsOperationAdd>,
+    /// Identities of the gateways to remove
     #[serde(default)]
-    pub grant: Option<MlsGrant>,
+    pub removes: Vec<String>,
+    /// Self-update of the committer (regular key-rotation), only without adds and removes
+    #[serde(default)]
+    pub update: bool,
+}
+
+/// Gateway of a change, which the committer left out
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
+pub struct MlsOperationRefusal {
+    /// Identity of the gateway
+    pub client_id: String,
+    pub reason: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
@@ -444,8 +426,8 @@ pub struct MlsOperationDoneReq {
     /// Identity of the committer
     #[validate(length(min = 1, max = 256))]
     pub client_id: String,
-    /// Whether the change was made. A refused change, for example because of an invalid grant,
-    /// is dropped.
+    /// Whether the change was made. A refused change, for example because the committer lost the
+    /// group, is dropped.
     pub success: bool,
     /// Epoch of the group after the change
     pub epoch: u64,
@@ -453,6 +435,9 @@ pub struct MlsOperationDoneReq {
     pub members: Vec<String>,
     #[serde(default)]
     pub reason: Option<String>,
+    /// Gateways of the change, which were left out, for example because of an invalid grant
+    #[serde(default)]
+    pub refused: Vec<MlsOperationRefusal>,
 }
 
 /// Step of a key-rotation

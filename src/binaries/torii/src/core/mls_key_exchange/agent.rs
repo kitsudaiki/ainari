@@ -30,8 +30,6 @@
 use std::collections::{BTreeSet, HashMap};
 use std::time::{Duration, Instant};
 
-use base64::Engine;
-use base64::engine::general_purpose::STANDARD as BASE64;
 use chrono::Utc;
 
 use crate::config::{CONFIG, GRANT_PUBLIC_KEY, INTERNAL_API_KEY};
@@ -377,8 +375,8 @@ impl Agent {
 
     /// Makes a change of a group as its committer and reports the result to the izakaya.
     ///
-    /// A gateway is only added with a valid grant of hanami, which names exactly the identity
-    /// and the signature-key of its key-package.
+    /// All additions and removals of the change go into one commit. A gateway, which can't be
+    /// added, is left out and reported to the izakaya, the others are added anyway.
     async fn handle_operation(
         &self,
         izakaya: &Endpoint,
@@ -386,30 +384,26 @@ impl Agent {
         op: MlsOperation,
     ) -> Result<(), String> {
         let vni = op.vni;
+        let description = describe(&op);
         let mut mls = MLS_STATE_HANDLE.lock().await;
 
-        let result = match mls.groups.contains_key(&vni) {
-            false => Err(format!("this gateway has no MLS-group for tenant {vni}")),
-            true => match op.kind {
-                MlsOperationKind::Add => self.add_member(&mut mls, izakaya, &op).await,
-                MlsOperationKind::Remove => match op.client_id.as_deref() {
-                    Some(target) => match group::stage_remove_member(&mut mls, vni, target) {
-                        Ok(commit) => {
-                            let messages: Vec<OutgoingMessage> = commit.into_iter().collect();
-                            deliver_and_merge(&mut mls, vni, izakaya, &messages).await
-                        }
-                        Err(e) => Err(format!("{e:?}")),
-                    },
-                    None => Err("the removal names no gateway".to_string()),
-                },
-                MlsOperationKind::Update => match group::stage_update(&mut mls, vni) {
+        let mut refused = Vec::new();
+        let result = if !mls.groups.contains_key(&vni) {
+            Err(format!("this gateway has no MLS-group for tenant {vni}"))
+        } else if op.update {
+            match op.adds.is_empty() && op.removes.is_empty() {
+                false => Err("a key-rotation can't be combined with other changes".to_string()),
+                true => match group::stage_update(&mut mls, vni) {
                     Ok(commit) => {
                         let messages: Vec<OutgoingMessage> = commit.into_iter().collect();
                         deliver_and_merge(&mut mls, vni, izakaya, &messages).await
                     }
                     Err(e) => Err(format!("{e:?}")),
                 },
-            },
+            }
+        } else {
+            self.change_members(&mut mls, izakaya, &op, &mut refused)
+                .await
         };
 
         if let Err(e) = mls.save() {
@@ -431,21 +425,23 @@ impl Agent {
                 .unwrap_or_default(),
             members: group::members(&mls, vni),
             reason: result.as_ref().err().cloned(),
+            refused,
         };
         drop(mls);
 
         match &result {
             Ok(()) => log::info!(
-                "Made the {} of '{}' for tenant {vni} in epoch {}",
-                op.kind,
-                op.client_id.as_deref().unwrap_or("-"),
+                "Made the {description} for tenant {vni} in epoch {}",
                 done.epoch
             ),
-            Err(e) => log::warn!(
-                "Refused the {} of '{}' for tenant {vni}: {e}",
-                op.kind,
-                op.client_id.as_deref().unwrap_or("-")
-            ),
+            Err(e) => log::warn!("Refused the {description} for tenant {vni}: {e}"),
+        }
+        for refusal in &done.refused {
+            log::warn!(
+                "Left '{}' out of the {description} for tenant {vni}: {}",
+                refusal.client_id,
+                refusal.reason
+            );
         }
 
         izakaya_clients::finish_mls_operation(
@@ -456,62 +452,74 @@ impl Agent {
             CONFIG.skip_tls_verification,
         )
         .await
-        .map_err(|e| format!("Failed to report the {}: {e}", op.kind))
+        .map_err(|e| format!("Failed to report the {description}: {e}"))
     }
 
-    /// Adds a gateway to a group, after its grant and its key-package are checked.
+    /// Adds and removes the gateways of an operation with one commit.
     ///
     /// A gateway, which is still member from an earlier membership, for example because it lost
-    /// the group, is removed first and added again with its new key-package.
-    async fn add_member(
+    /// the group, loses its old leaf with the same commit, which adds its new key-package.
+    ///
+    /// # Arguments
+    /// * `mls` - The locked MLS-client
+    /// * `izakaya` - Endpoint of the izakaya
+    /// * `op` - The operation
+    /// * `refused` - Takes the gateways, which can't be added
+    ///
+    /// # Returns
+    /// `Ok(())` once the group is in its new epoch, or the reason, why no commit was made
+    async fn change_members(
         &self,
         mls: &mut crate::core::mls_key_exchange::state::MlsState,
         izakaya: &Endpoint,
         op: &MlsOperation,
+        refused: &mut Vec<MlsOperationRefusal>,
     ) -> Result<(), String> {
         let vni = op.vni;
-        let target = op
-            .client_id
-            .as_deref()
-            .ok_or_else(|| "the addition names no gateway".to_string())?;
-        let grant = op
-            .grant
-            .as_ref()
-            .ok_or_else(|| "the addition has no grant".to_string())?;
-
-        let payload = group::verify_grant(grant, &self.grant_key, vni, target)?;
-        if payload.is_expired_at(Utc::now().timestamp()) {
-            return Err("the grant is expired".to_string());
-        }
-
-        let claimed = izakaya_clients::claim_key_package(
-            izakaya,
-            &INTERNAL_API_KEY,
-            target,
-            Some(payload.signature_key.clone()),
-            CONFIG.skip_tls_verification,
+        let claim = |target: String, signature_key: String| async move {
+            izakaya_clients::claim_key_package(
+                izakaya,
+                &INTERNAL_API_KEY,
+                &target,
+                Some(signature_key),
+                CONFIG.skip_tls_verification,
+            )
+            .await
+            .map(|claimed| claimed.key_package)
+            .map_err(|e| format!("no key-package of '{target}': {e}"))
+        };
+        let (additions, left_out) = group::check_additions(
+            mls,
+            vni,
+            &op.adds,
+            &self.grant_key,
+            Utc::now().timestamp(),
+            claim,
         )
-        .await
-        .map_err(|e| format!("no key-package of '{target}': {e}"))?;
-        let key_package = group::decode_key_package(mls, target, &claimed.key_package)
-            .map_err(|e| format!("{e:?}"))?;
-        let signature_key = BASE64.encode(key_package.leaf_node().signature_key().as_slice());
-        if signature_key != payload.signature_key {
-            return Err(format!(
-                "the key-package of '{target}' has another signature-key than granted"
-            ));
+        .await;
+        *refused = left_out;
+
+        for addition in &additions {
+            if group::is_member(mls, vni, &addition.client_id) {
+                log::warn!(
+                    "'{}' is still member of the MLS-group of tenant {vni}, re-add it",
+                    addition.client_id
+                );
+            }
+        }
+        // a gateway, which already left the group, needs no removal
+        let removals: Vec<String> = op
+            .removes
+            .iter()
+            .filter(|target| group::is_member(mls, vni, target))
+            .cloned()
+            .collect();
+        if additions.is_empty() && removals.is_empty() {
+            return Err("nothing is left to change".to_string());
         }
 
-        if group::is_member(mls, vni, target) {
-            log::warn!("'{target}' is still member of the MLS-group of tenant {vni}, re-add it");
-            let commit =
-                group::stage_remove_member(mls, vni, target).map_err(|e| format!("{e:?}"))?;
-            let messages: Vec<OutgoingMessage> = commit.into_iter().collect();
-            deliver_and_merge(mls, vni, izakaya, &messages).await?;
-        }
-
-        let messages = group::stage_add_member(mls, vni, target, key_package, grant)
-            .map_err(|e| format!("{e:?}"))?;
+        let messages =
+            group::stage_change(mls, vni, additions, &removals).map_err(|e| format!("{e:?}"))?;
         deliver_and_merge(mls, vni, izakaya, &messages).await
     }
 
@@ -579,6 +587,21 @@ impl Agent {
         .await
         .map_err(|e| format!("Failed to acknowledge the round: {e}"))
     }
+}
+
+/// Describes an operation for the log.
+///
+/// # Arguments
+/// * `op` - The operation
+///
+/// # Returns
+/// For example "change (add: [10.0.0.2], remove: [])" or "key-rotation"
+fn describe(op: &MlsOperation) -> String {
+    if op.update {
+        return "key-rotation".to_string();
+    }
+    let adds: Vec<&str> = op.adds.iter().map(|add| add.client_id.as_str()).collect();
+    format!("change (add: {adds:?}, remove: {:?})", op.removes)
 }
 
 /// Lists the networks, which need encryption on this gateway: a VM of the network is behind this

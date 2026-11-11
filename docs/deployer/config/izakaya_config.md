@@ -57,6 +57,7 @@ read from the env-variable `AINARI_MYSQL_PASSWORD`.
 | `grant_public_key`      | string  | _required_ | Base64 encoded public key of [Hanami](hanami_config.md), which signs the membership-grants of the gateways. It belongs to the `MLS_GRANT_SIGNING_KEY` of Hanami, which logs this public key at its start. |
 | `key_rotation_interval` | integer | `3600`     | Seconds between two key-rotations of a group, whose membership didn't change.                                |
 | `member_timeout`        | integer | `120`      | Seconds without contact, after which a gateway is removed from its groups.                                   |
+| `commit_delay`          | integer | `1000`     | Milliseconds, which a queued addition or removal waits for others, so they are all made with one commit.     |
 
 !!! warning
 

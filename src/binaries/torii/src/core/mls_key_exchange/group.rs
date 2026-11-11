@@ -29,7 +29,8 @@ use crate::core::mls_key_exchange::state::{
 
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::mls_structs::{
-    MlsGrant, MlsGrantAction, MlsGrantPayload, MlsMessageType, VerifyingKey,
+    MlsGrant, MlsGrantAction, MlsGrantPayload, MlsMessageType, MlsOperationAdd,
+    MlsOperationRefusal, VerifyingKey,
 };
 
 /// Message, which has to be delivered to other gateways over the izakaya
@@ -76,75 +77,19 @@ pub fn encode(message: &MlsMessageOut) -> Result<String, ErrorResponse> {
 /// # Arguments
 /// * `group` - The group
 /// * `own_client_id` - Identity of this gateway, which made the change itself
-/// * `excluded` - Identity of a member, which is removed with the change
+/// * `excluded` - Identities of the members, which are removed or re-added with the change
 ///
 /// # Returns
 /// The identities of the other members
-pub fn other_members(group: &MlsGroup, own_client_id: &str, excluded: Option<&str>) -> Vec<String> {
+pub fn other_members(group: &MlsGroup, own_client_id: &str, excluded: &[&str]) -> Vec<String> {
     let mut members: Vec<String> = group
         .members()
         .filter_map(|member| identity_of(&member.credential))
-        .filter(|id| id != own_client_id && Some(id.as_str()) != excluded)
+        .filter(|id| id != own_client_id && !excluded.contains(&id.as_str()))
         .collect();
     members.sort();
     members.dedup();
     members
-}
-
-/// Stages the removal of a gateway from the group of a network.
-///
-/// # Arguments
-/// * `state` - The MLS-client, which already has its identity
-/// * `vni` - Tenant of the network
-/// * `client_id` - Identity of the removed gateway
-///
-/// # Returns
-/// The commit for the remaining members, or `None` if there are no other ones. `NotFound` if the
-/// gateway is not a member, `BadRequest` if it is this gateway itself.
-pub fn stage_remove_member(
-    state: &mut MlsState,
-    vni: u32,
-    client_id: &str,
-) -> Result<Option<OutgoingMessage>, ErrorResponse> {
-    let identity = own_identity(&state.identity)?;
-    if identity.client_id == client_id {
-        return Err(ErrorResponse::BadRequest(
-            "A gateway can't remove itself, delete its group instead".to_string(),
-        ));
-    }
-
-    let group = state
-        .groups
-        .get_mut(&vni)
-        .ok_or_else(|| ErrorResponse::NotFound(format!("No MLS-group for tenant {vni}")))?;
-
-    let leaves: Vec<LeafNodeIndex> = group
-        .members()
-        .filter(|member| identity_of(&member.credential).as_deref() == Some(client_id))
-        .map(|member| member.index)
-        .collect();
-    if leaves.is_empty() {
-        return Err(ErrorResponse::NotFound(format!(
-            "'{client_id}' is not a member of the MLS-group of tenant {vni}"
-        )));
-    }
-
-    let recipients = other_members(group, &identity.client_id, Some(client_id));
-    let (commit, _, _) = group
-        .remove_members(&state.provider, &identity.signer, &leaves)
-        .map_err(|e| internal_error("remove a member from the MLS-group", e))?;
-
-    if recipients.is_empty() {
-        return Ok(None);
-    }
-    Ok(Some(OutgoingMessage {
-        group_id: String::from_utf8_lossy(group.group_id().as_slice()).into_owned(),
-        epoch: group.epoch().as_u64() + 1,
-        message_type: MlsMessageType::Commit,
-        recipients,
-        payload: encode(&commit)?,
-        grants: Vec::new(),
-    }))
 }
 
 /// Moves the group of a network into the epoch of its staged change.
@@ -322,40 +267,171 @@ pub fn is_member(state: &MlsState, vni: u32, client_id: &str) -> bool {
     })
 }
 
-/// Stages the invitation of a gateway into the group of a network.
+/// Gateway, which a change adds to the group of a network
+#[derive(Debug, Clone)]
+pub struct Addition {
+    /// Identity of the added gateway
+    pub client_id: String,
+    /// Validated key-package of the added gateway
+    pub key_package: KeyPackage,
+    /// Grant of hanami for the added gateway, which is attached to the commit, so the other
+    /// members can check it
+    pub grant: MlsGrant,
+}
+
+/// Checks the gateways, which a change should add to the group of a network, and claims their
+/// key-packages.
+///
+/// A gateway is only added with a valid grant of hanami, which names exactly the identity and
+/// the signature-key of its key-package. A gateway, which fails a check, is left out, the others
+/// are added anyway.
+///
+/// # Arguments
+/// * `state` - The MLS-client
+/// * `vni` - Tenant of the network
+/// * `adds` - The gateways to add, with their grants
+/// * `grant_key` - Public key of hanami
+/// * `now` - Current unix-time in seconds
+/// * `claim` - Claims a base64-encoded key-package of a gateway with the granted signature-key
+///   (arguments: identity, signature-key)
+///
+/// # Returns
+/// The checked additions and the gateways, which were left out
+pub async fn check_additions<F, Fut>(
+    state: &MlsState,
+    vni: u32,
+    adds: &[MlsOperationAdd],
+    grant_key: &VerifyingKey,
+    now: i64,
+    mut claim: F,
+) -> (Vec<Addition>, Vec<MlsOperationRefusal>)
+where
+    F: FnMut(String, String) -> Fut,
+    Fut: std::future::Future<Output = Result<String, String>>,
+{
+    let mut additions = Vec::new();
+    let mut refused = Vec::new();
+    for add in adds {
+        let target = add.client_id.as_str();
+        let checked = async {
+            let payload = verify_grant(&add.grant, grant_key, vni, target)?;
+            if payload.is_expired_at(now) {
+                return Err("the grant is expired".to_string());
+            }
+            let encoded = claim(target.to_string(), payload.signature_key.clone()).await?;
+            let key_package =
+                decode_key_package(state, target, &encoded).map_err(|e| format!("{e:?}"))?;
+            let signature_key = BASE64.encode(key_package.leaf_node().signature_key().as_slice());
+            if signature_key != payload.signature_key {
+                return Err(format!(
+                    "the key-package of '{target}' has another signature-key than granted"
+                ));
+            }
+            Ok(key_package)
+        }
+        .await;
+
+        match checked {
+            Ok(key_package) => additions.push(Addition {
+                client_id: target.to_string(),
+                key_package,
+                grant: add.grant.clone(),
+            }),
+            Err(reason) => refused.push(MlsOperationRefusal {
+                client_id: target.to_string(),
+                reason,
+            }),
+        }
+    }
+    (additions, refused)
+}
+
+/// Stages one change of the group of a network, which adds and removes any number of gateways
+/// with a single commit.
+///
+/// A gateway, which is added, while it is still a member from an earlier membership (for
+/// example, because it lost the group), loses its old leaf with the same commit.
 ///
 /// # Arguments
 /// * `state` - The MLS-client, which already has its identity
 /// * `vni` - Tenant of the network
-/// * `client_id` - Identity of the invited gateway
-/// * `key_package` - Validated key-package of the invited gateway
-/// * `grant` - Grant of hanami for the invited gateway, which is attached to the commit, so the
-///   other members can check it
+/// * `additions` - Gateways to add
+/// * `removals` - Identities of the gateways to remove
 ///
 /// # Returns
-/// The commit for the other members, if there are any, followed by the welcome for the invited
-/// gateway
-pub fn stage_add_member(
+/// The commit for the remaining members, if there are any, followed by the welcome for the added
+/// gateways, if there are any. `BadRequest` if the change is empty or removes this gateway
+/// itself, `NotFound` if a removed gateway is not a member.
+pub fn stage_change(
     state: &mut MlsState,
     vni: u32,
-    client_id: &str,
-    key_package: KeyPackage,
-    grant: &MlsGrant,
+    additions: Vec<Addition>,
+    removals: &[String],
 ) -> Result<Vec<OutgoingMessage>, ErrorResponse> {
+    if additions.is_empty() && removals.is_empty() {
+        return Err(ErrorResponse::BadRequest(
+            "A change has to add or remove a gateway".to_string(),
+        ));
+    }
     let identity = own_identity(&state.identity)?;
+    if removals.contains(&identity.client_id)
+        || additions
+            .iter()
+            .any(|it| it.client_id == identity.client_id)
+    {
+        return Err(ErrorResponse::BadRequest(
+            "A gateway can't remove or add itself, delete its group instead".to_string(),
+        ));
+    }
+
     let group = state
         .groups
         .get_mut(&vni)
         .ok_or_else(|| ErrorResponse::NotFound(format!("No MLS-group for tenant {vni}")))?;
 
-    let recipients = other_members(group, &identity.client_id, Some(client_id));
-    let (commit, welcome, _) = group
-        .add_members(
-            &state.provider,
+    for client_id in removals {
+        if !group
+            .members()
+            .any(|member| identity_of(&member.credential).as_ref() == Some(client_id))
+        {
+            return Err(ErrorResponse::NotFound(format!(
+                "'{client_id}' is not a member of the MLS-group of tenant {vni}"
+            )));
+        }
+    }
+
+    // the old leaves of the re-added gateways go together with the removed ones
+    let mut excluded: Vec<&str> = removals.iter().map(String::as_str).collect();
+    excluded.extend(additions.iter().map(|it| it.client_id.as_str()));
+    let leaves: Vec<LeafNodeIndex> = group
+        .members()
+        .filter(|member| {
+            identity_of(&member.credential).is_some_and(|id| excluded.contains(&id.as_str()))
+        })
+        .map(|member| member.index)
+        .collect();
+
+    let recipients = other_members(group, &identity.client_id, &excluded);
+    let invited: Vec<String> = additions.iter().map(|it| it.client_id.clone()).collect();
+    let grants: Vec<MlsGrant> = additions.iter().map(|it| it.grant.clone()).collect();
+
+    let bundle = group
+        .commit_builder()
+        .propose_removals(leaves)
+        .propose_adds(additions.into_iter().map(|it| it.key_package))
+        .force_self_update(true)
+        .load_psks(state.provider.storage())
+        .map_err(|e| internal_error("load the PSKs of the MLS-group", e))?
+        .build(
+            state.provider.rand(),
+            state.provider.crypto(),
             &identity.signer,
-            std::slice::from_ref(&key_package),
+            |_| true,
         )
-        .map_err(|e| internal_error("add a member to the MLS-group", e))?;
+        .map_err(|e| internal_error("build the commit of the MLS-group", e))?
+        .stage_commit(&state.provider)
+        .map_err(|e| internal_error("stage the commit of the MLS-group", e))?;
+    let (commit, welcome, _) = bundle.into_messages();
 
     let group_id = String::from_utf8_lossy(group.group_id().as_slice()).into_owned();
     let epoch = group.epoch().as_u64() + 1;
@@ -368,17 +444,19 @@ pub fn stage_add_member(
             message_type: MlsMessageType::Commit,
             recipients,
             payload: encode(&commit)?,
-            grants: vec![grant.clone()],
+            grants: grants.clone(),
         });
     }
-    messages.push(OutgoingMessage {
-        group_id,
-        epoch,
-        message_type: MlsMessageType::Welcome,
-        recipients: vec![client_id.to_string()],
-        payload: encode(&welcome)?,
-        grants: Vec::new(),
-    });
+    if let Some(welcome) = welcome {
+        messages.push(OutgoingMessage {
+            group_id,
+            epoch,
+            message_type: MlsMessageType::Welcome,
+            recipients: invited,
+            payload: encode(&welcome)?,
+            grants,
+        });
+    }
     Ok(messages)
 }
 
@@ -603,7 +681,7 @@ pub fn stage_update(
         .get_mut(&vni)
         .ok_or_else(|| ErrorResponse::NotFound(format!("No MLS-group for tenant {vni}")))?;
 
-    let recipients = other_members(group, &identity.client_id, None);
+    let recipients = other_members(group, &identity.client_id, &[]);
     let bundle = group
         .self_update(
             &state.provider,
@@ -681,6 +759,28 @@ pub(crate) mod tests {
         state
     }
 
+    /// Prepares the addition of `invited` by `inviter` with a fresh key-package and the grant of
+    /// `grant_owner`.
+    fn addition_with_grant(
+        inviter: &MlsState,
+        invited: &MlsState,
+        grant_owner: &MlsState,
+        vni: u32,
+    ) -> Addition {
+        let client_id = invited.client_id().unwrap().to_string();
+        let encoded = create_key_packages(invited, 1).unwrap().remove(0);
+        Addition {
+            key_package: decode_key_package(inviter, &client_id, &encoded).unwrap(),
+            client_id,
+            grant: grant_for(grant_owner, vni),
+        }
+    }
+
+    /// Prepares the addition of `invited` by `inviter` with a fresh key-package and its grant.
+    fn addition(inviter: &MlsState, invited: &MlsState, vni: u32) -> Addition {
+        addition_with_grant(inviter, invited, invited, vni)
+    }
+
     /// Lets `inviter` invite `invited` into the group of the tenant and delivers the messages to
     /// `invited` and to all other `members`.
     pub(crate) fn invite(
@@ -689,12 +789,8 @@ pub(crate) mod tests {
         members: &mut [&mut MlsState],
         vni: u32,
     ) {
-        let client_id = invited.client_id().unwrap().to_string();
-        let encoded = create_key_packages(invited, 1).unwrap().remove(0);
-        let key_package = decode_key_package(inviter, &client_id, &encoded).unwrap();
-
-        let grant = grant_for(invited, vni);
-        let messages = stage_add_member(inviter, vni, &client_id, key_package, &grant).unwrap();
+        let addition = addition(inviter, invited, vni);
+        let messages = stage_change(inviter, vni, vec![addition], &[]).unwrap();
         merge_pending(inviter, vni).unwrap();
         deliver(&messages, invited, members);
     }
@@ -761,10 +857,11 @@ pub(crate) mod tests {
         invite(&mut a, &mut c, &mut [&mut b], 5);
         let old_secret = secret(&c, 5);
 
-        let commit = stage_remove_member(&mut a, 5, "10.0.0.3").unwrap().unwrap();
-        assert_eq!(commit.recipients, vec!["10.0.0.2"]);
+        let messages = stage_change(&mut a, 5, Vec::new(), &["10.0.0.3".to_string()]).unwrap();
+        assert_eq!(messages.len(), 1);
+        assert_eq!(messages[0].recipients, vec!["10.0.0.2"]);
         merge_pending(&mut a, 5).unwrap();
-        deliver(&[commit], &mut b, &mut []);
+        deliver(&messages, &mut b, &mut []);
 
         assert_eq!(secret(&a, 5), secret(&b, 5));
         assert_ne!(secret(&a, 5), old_secret);
@@ -780,10 +877,8 @@ pub(crate) mod tests {
         create_group(&mut a, 5).unwrap();
         invite(&mut a, &mut b, &mut [], 5);
 
-        let key_package = create_key_packages(&c, 1).unwrap().remove(0);
-        let key_package = decode_key_package(&a, "10.0.0.3", &key_package).unwrap();
-        let grant = grant_for(&c, 5);
-        let messages = stage_add_member(&mut a, 5, "10.0.0.3", key_package, &grant).unwrap();
+        let addition = addition(&a, &c, 5);
+        let messages = stage_change(&mut a, 5, vec![addition], &[]).unwrap();
         merge_pending(&mut a, 5).unwrap();
         deliver(&messages, &mut c, &mut [&mut b]);
 
@@ -814,13 +909,183 @@ pub(crate) mod tests {
         delete_group(&mut b, 5).unwrap();
         assert!(is_member(&a, 5, "10.0.0.2"));
 
-        let commit = stage_remove_member(&mut a, 5, "10.0.0.2").unwrap();
-        assert!(commit.is_none());
-        merge_pending(&mut a, 5).unwrap();
+        // the old leaf goes with the commit, which adds the new one
         invite(&mut a, &mut b, &mut [], 5);
 
         assert_eq!(secret(&a, 5), secret(&b, 5));
         assert_eq!(members(&a, 5).len(), 2);
+        assert_eq!(a.groups[&5].members().count(), 2);
+    }
+
+    #[test]
+    fn a_re_add_is_one_commit() {
+        let mut a = new_gateway("10.0.0.1");
+        let mut b = new_gateway("10.0.0.2");
+        let mut c = new_gateway("10.0.0.3");
+        create_group(&mut a, 5).unwrap();
+        invite(&mut a, &mut b, &mut [], 5);
+        invite(&mut a, &mut c, &mut [&mut b], 5);
+        let epoch = a.groups[&5].epoch().as_u64();
+
+        delete_group(&mut c, 5).unwrap();
+        let addition = addition(&a, &c, 5);
+        let messages = stage_change(&mut a, 5, vec![addition], &[]).unwrap();
+        // the commit only goes to the remaining member, the re-added gateway gets the welcome
+        assert_eq!(messages.len(), 2);
+        assert_eq!(messages[0].message_type, MlsMessageType::Commit);
+        assert_eq!(messages[0].recipients, vec!["10.0.0.2"]);
+        assert_eq!(messages[1].message_type, MlsMessageType::Welcome);
+        assert_eq!(messages[1].recipients, vec!["10.0.0.3"]);
+        merge_pending(&mut a, 5).unwrap();
+        deliver(&messages, &mut b, &mut [&mut c]);
+
+        assert_eq!(a.groups[&5].epoch().as_u64(), epoch + 1);
+        assert_eq!(secret(&a, 5), secret(&b, 5));
+        assert_eq!(secret(&a, 5), secret(&c, 5));
+        assert_eq!(a.groups[&5].members().count(), 3);
+    }
+
+    #[test]
+    fn several_gateways_are_added_with_one_commit() {
+        let mut a = new_gateway("10.0.0.1");
+        let mut b = new_gateway("10.0.0.2");
+        let mut c = new_gateway("10.0.0.3");
+        let mut d = new_gateway("10.0.0.4");
+        create_group(&mut a, 5).unwrap();
+        invite(&mut a, &mut b, &mut [], 5);
+        let epoch = a.groups[&5].epoch().as_u64();
+
+        let additions = vec![addition(&a, &c, 5), addition(&a, &d, 5)];
+        let messages = stage_change(&mut a, 5, additions, &[]).unwrap();
+        assert_eq!(messages[0].grants.len(), 2);
+        assert_eq!(messages[1].recipients, vec!["10.0.0.3", "10.0.0.4"]);
+        merge_pending(&mut a, 5).unwrap();
+        deliver(&messages, &mut b, &mut [&mut c, &mut d]);
+
+        assert_eq!(a.groups[&5].epoch().as_u64(), epoch + 1);
+        for gateway in [&b, &c, &d] {
+            assert_eq!(secret(&a, 5), secret(gateway, 5));
+        }
+        assert_eq!(
+            members(&d, 5),
+            vec!["10.0.0.1", "10.0.0.2", "10.0.0.3", "10.0.0.4"]
+        );
+    }
+
+    #[test]
+    fn a_member_refuses_a_batch_with_one_addition_without_grant() {
+        let mut a = new_gateway("10.0.0.1");
+        let mut b = new_gateway("10.0.0.2");
+        let c = new_gateway("10.0.0.3");
+        let d = new_gateway("10.0.0.4");
+        create_group(&mut a, 5).unwrap();
+        invite(&mut a, &mut b, &mut [], 5);
+        let epoch = b.groups[&5].epoch();
+
+        // d comes with the grant of c, so only c is covered
+        let additions = vec![addition(&a, &c, 5), addition_with_grant(&a, &d, &c, 5)];
+        let messages = stage_change(&mut a, 5, additions, &[]).unwrap();
+        merge_pending(&mut a, 5).unwrap();
+
+        let commit = &messages[0];
+        let result = process_message(
+            &mut b,
+            commit.message_type,
+            &commit.payload,
+            &commit.grants,
+            &grant_key().verifying_key(),
+        );
+        assert!(result.is_err());
+        assert_eq!(b.groups[&5].epoch(), epoch);
+    }
+
+    #[tokio::test]
+    async fn a_gateway_without_key_package_does_not_stop_the_others() {
+        let mut a = new_gateway("10.0.0.1");
+        let mut b = new_gateway("10.0.0.2");
+        let mut c = new_gateway("10.0.0.3");
+        let d = new_gateway("10.0.0.4");
+        let mut e = new_gateway("10.0.0.5");
+        let f = new_gateway("10.0.0.6");
+        let impostor = new_gateway("10.0.0.6");
+        create_group(&mut a, 5).unwrap();
+        invite(&mut a, &mut b, &mut [], 5);
+
+        // d has no key-package left, the one of f was made by an impostor
+        let mut key_packages = std::collections::HashMap::new();
+        for gateway in [&c, &e, &impostor] {
+            let client_id = gateway.client_id().unwrap().to_string();
+            key_packages.insert(
+                client_id,
+                create_key_packages(gateway, 1).unwrap().remove(0),
+            );
+        }
+        let adds: Vec<MlsOperationAdd> = [&c, &d, &e, &f]
+            .into_iter()
+            .map(|gateway| MlsOperationAdd {
+                client_id: gateway.client_id().unwrap().to_string(),
+                grant: grant_for(gateway, 5),
+            })
+            .collect();
+        let claim = |target: String, _signature_key: String| {
+            let key_package = key_packages.get(&target).cloned();
+            async move { key_package.ok_or_else(|| "no key-package left".to_string()) }
+        };
+        let (additions, refused) =
+            check_additions(&a, 5, &adds, &grant_key().verifying_key(), 0, claim).await;
+
+        let refused: Vec<&str> = refused.iter().map(|it| it.client_id.as_str()).collect();
+        assert_eq!(refused, vec!["10.0.0.4", "10.0.0.6"]);
+        let messages = stage_change(&mut a, 5, additions, &[]).unwrap();
+        merge_pending(&mut a, 5).unwrap();
+        deliver(&messages, &mut b, &mut [&mut c, &mut e]);
+
+        for gateway in [&b, &c, &e] {
+            assert_eq!(secret(&a, 5), secret(gateway, 5));
+        }
+        assert_eq!(
+            members(&a, 5),
+            vec!["10.0.0.1", "10.0.0.2", "10.0.0.3", "10.0.0.5"]
+        );
+    }
+
+    #[tokio::test]
+    async fn an_expired_grant_is_refused_before_a_key_package_is_claimed() {
+        let a = new_gateway("10.0.0.1");
+        let c = new_gateway("10.0.0.3");
+        let mut payload = grant_for(&c, 5)
+            .verify(&grant_key().verifying_key())
+            .unwrap();
+        payload.expires_at = 100;
+        let adds = vec![MlsOperationAdd {
+            client_id: "10.0.0.3".to_string(),
+            grant: MlsGrant::sign(&payload, &grant_key()),
+        }];
+
+        let claim = |_: String, _: String| async { panic!("no key-package is claimed") };
+        let (additions, refused) =
+            check_additions(&a, 5, &adds, &grant_key().verifying_key(), 101, claim).await;
+        assert!(additions.is_empty());
+        assert_eq!(refused[0].reason, "the grant is expired");
+    }
+
+    #[test]
+    fn a_change_can_neither_be_empty_nor_remove_the_committer() {
+        let mut a = new_gateway("10.0.0.1");
+        create_group(&mut a, 5).unwrap();
+
+        assert!(matches!(
+            stage_change(&mut a, 5, Vec::new(), &[]),
+            Err(ErrorResponse::BadRequest(_))
+        ));
+        assert!(matches!(
+            stage_change(&mut a, 5, Vec::new(), &["10.0.0.1".to_string()]),
+            Err(ErrorResponse::BadRequest(_))
+        ));
+        assert!(matches!(
+            stage_change(&mut a, 5, Vec::new(), &["10.0.0.9".to_string()]),
+            Err(ErrorResponse::NotFound(_))
+        ));
     }
 
     #[test]
@@ -874,10 +1139,9 @@ pub(crate) mod tests {
 
     /// Lets `a` add `c` with the given grant and returns the commit for the other members.
     fn add_with_grant(a: &mut MlsState, c: &MlsState, grant: &MlsGrant) -> OutgoingMessage {
-        let encoded = create_key_packages(c, 1).unwrap().remove(0);
-        let client_id = c.client_id().unwrap().to_string();
-        let key_package = decode_key_package(a, &client_id, &encoded).unwrap();
-        let messages = stage_add_member(a, 5, &client_id, key_package, grant).unwrap();
+        let mut addition = addition(a, c, 5);
+        addition.grant = grant.clone();
+        let messages = stage_change(a, 5, vec![addition], &[]).unwrap();
         merge_pending(a, 5).unwrap();
         messages
             .into_iter()

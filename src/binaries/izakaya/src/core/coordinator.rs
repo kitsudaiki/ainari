@@ -34,6 +34,9 @@
 //! process by a mutex, across all instances by a lock of the database - so any number of izakaya
 //! instances can serve the gateways.
 
+use std::fmt;
+use std::str::FromStr;
+use std::sync::atomic::{AtomicI64, Ordering};
 use std::sync::{Mutex, PoisonError};
 
 use chrono::Utc;
@@ -71,6 +74,49 @@ pub const CLEANUP_GRACE: i64 = 2;
 
 /// Number of times an operation is handed to a committer again, before it is given up
 pub const MAX_OPERATION_RETRIES: i32 = 3;
+
+/// Default of the milliseconds, which a queued addition or removal waits for others
+pub const DEFAULT_COMMIT_DELAY: i64 = 1000;
+
+/// Milliseconds, which a queued addition or removal waits for others, so they are all made with
+/// one commit. Set by `spawn_ticker`. The tests hand out every change right away, unless they
+/// test the batching.
+static COMMIT_DELAY: AtomicI64 = AtomicI64::new(if cfg!(test) { 0 } else { DEFAULT_COMMIT_DELAY });
+
+/// Kind of a queued change of a group
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum MlsOperationKind {
+    /// Add a gateway, or add it again, if it lost the group
+    Add,
+    /// Remove a gateway
+    Remove,
+    /// Rotate the keys with a self-update of the committer
+    Update,
+}
+
+impl fmt::Display for MlsOperationKind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = match self {
+            MlsOperationKind::Add => "add",
+            MlsOperationKind::Remove => "remove",
+            MlsOperationKind::Update => "update",
+        };
+        write!(f, "{s}")
+    }
+}
+
+impl FromStr for MlsOperationKind {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "add" => Ok(MlsOperationKind::Add),
+            "remove" => Ok(MlsOperationKind::Remove),
+            "update" => Ok(MlsOperationKind::Update),
+            other => Err(format!("Unknown operation '{other}'")),
+        }
+    }
+}
 
 /// Serializes all changes of the coordination-state within this process
 static COORDINATOR: Mutex<()> = Mutex::new(());
@@ -279,18 +325,18 @@ fn touch(client_id: &str, now: i64) -> Result<(), ErrorResponse> {
 ///
 /// # Arguments
 /// * `group` - The group
-/// * `exclude` - A member, which must not become committer
+/// * `exclude` - Members, which must not become committer
 /// * `now` - Current unix-time in seconds
 ///
 /// # Returns
 /// The new committer, or `None` if no other member is alive
 fn pick_committer(
     group: &Group,
-    exclude: Option<&str>,
+    exclude: &[String],
     now: i64,
 ) -> Result<Option<String>, ErrorResponse> {
     for member in &group.members {
-        if Some(member.as_str()) == exclude {
+        if exclude.contains(member) {
             continue;
         }
         if is_alive(member, now)? {
@@ -343,23 +389,55 @@ fn send_round(group: &Group, epoch: u64, phase: MlsRoundPhase) -> Result<(), Err
     )
 }
 
-/// Hands an operation to the committer of a group.
-fn send_operation(group: &Group, op: &MlsOperationEntry) -> Result<(), ErrorResponse> {
-    let kind = op
-        .kind
-        .parse::<MlsOperationKind>()
-        .map_err(|e| internal_error("read an operation", e))?;
-    let grant = op
-        .grant_json
-        .as_deref()
-        .and_then(|grant| serde_json::from_str::<MlsGrant>(grant).ok());
-    let message = MlsOperation {
-        op_uuid: op.uuid,
+/// Hands a batch of operations to the committer of a group, which makes all of them with one
+/// commit.
+///
+/// # Arguments
+/// * `group` - The group
+/// * `batch` - The operations, which share their `batch_uuid`
+///
+/// # Returns
+/// `Ok(())` once the batch is sent
+fn send_operation(group: &Group, batch: &[MlsOperationEntry]) -> Result<(), ErrorResponse> {
+    let op_uuid = batch
+        .first()
+        .and_then(|op| op.batch_uuid)
+        .ok_or_else(|| internal_error("read an operation", "the batch has no uuid"))?;
+    let mut message = MlsOperation {
+        op_uuid,
         vni: group.vni,
-        kind,
-        client_id: op.client_id.clone(),
-        grant,
+        adds: Vec::new(),
+        removes: Vec::new(),
+        update: false,
     };
+    let mut update = false;
+    for op in batch {
+        let kind = op
+            .kind
+            .parse::<MlsOperationKind>()
+            .map_err(|e| internal_error("read an operation", e))?;
+        let target = op.client_id.clone().unwrap_or_default();
+        match kind {
+            MlsOperationKind::Add => {
+                let grant = op
+                    .grant_json
+                    .as_deref()
+                    .and_then(|grant| serde_json::from_str::<MlsGrant>(grant).ok())
+                    .ok_or_else(|| {
+                        internal_error("read an operation", "the addition has no grant")
+                    })?;
+                message.adds.push(MlsOperationAdd {
+                    client_id: target,
+                    grant,
+                });
+            }
+            MlsOperationKind::Remove => message.removes.push(target),
+            MlsOperationKind::Update => update = true,
+        }
+    }
+    // an update next to a removal is covered by the removal, which renews all keys as well
+    message.update = update && message.adds.is_empty() && message.removes.is_empty();
+
     let payload =
         serde_json::to_string(&message).map_err(|e| internal_error("encode an operation", e))?;
     send(
@@ -371,6 +449,44 @@ fn send_operation(group: &Group, op: &MlsOperationEntry) -> Result<(), ErrorResp
     )
 }
 
+/// Lists the gateways, which operations add or remove.
+///
+/// # Arguments
+/// * `ops` - The operations
+///
+/// # Returns
+/// The identities of the gateways, ordered and without duplicates
+fn targets<'a>(ops: impl IntoIterator<Item = &'a MlsOperationEntry>) -> Vec<String> {
+    let mut targets: Vec<String> = ops
+        .into_iter()
+        .filter_map(|op| op.client_id.clone())
+        .collect();
+    targets.sort();
+    targets.dedup();
+    targets
+}
+
+/// Checks, if a queued operation became pointless, so it can be dropped.
+///
+/// # Arguments
+/// * `group` - The group
+/// * `op` - The operation
+/// * `now` - Current unix-time in seconds
+///
+/// # Returns
+/// `true` if the operation has nothing to do anymore
+fn is_pointless(group: &Group, op: &MlsOperationEntry, now: i64) -> Result<bool, ErrorResponse> {
+    let target = op.client_id.clone().unwrap_or_default();
+    Ok(match op.kind.parse::<MlsOperationKind>().ok() {
+        Some(MlsOperationKind::Add) => get_grant(group.vni, &target)
+            .map_err(|e| internal_error("read a grant", e))?
+            .is_none_or(|grant| grant.expires_at < now),
+        Some(MlsOperationKind::Remove) => !group.is_member(&target),
+        Some(MlsOperationKind::Update) => group.members.len() < 2,
+        None => true,
+    })
+}
+
 /// Queues a change of a group, unless the same change is queued already.
 ///
 /// # Arguments
@@ -378,6 +494,7 @@ fn send_operation(group: &Group, op: &MlsOperationEntry) -> Result<(), ErrorResp
 /// * `kind` - Kind of the change
 /// * `client_id` - Gateway, which is added or removed
 /// * `grant` - Grant of hanami for a gateway, which is added
+/// * `now` - Current unix-time in seconds
 ///
 /// # Returns
 /// `Ok(())` once the change is queued
@@ -386,6 +503,7 @@ fn enqueue(
     kind: MlsOperationKind,
     client_id: Option<&str>,
     grant: Option<&MlsGrant>,
+    now: i64,
 ) -> Result<(), ErrorResponse> {
     let kind_str = kind.to_string();
     let already_queued = open_operations(vni)?
@@ -409,8 +527,9 @@ fn enqueue(
         grant_json,
         status: STATUS_QUEUED.to_string(),
         retries: 0,
-        created_at: Utc::now().timestamp_millis(),
+        created_at: now * 1000,
         started_at: None,
+        batch_uuid: None,
     })
     .map_err(|e| internal_error(&format!("queue a {kind} for tenant {vni}"), e))?;
 
@@ -473,12 +592,16 @@ fn remove_member(vni: u32, client_id: &str, now: i64) -> Result<(), ErrorRespons
         return Ok(());
     }
 
-    enqueue(vni, MlsOperationKind::Remove, Some(client_id), None)?;
+    enqueue(vni, MlsOperationKind::Remove, Some(client_id), None, now)?;
     progress(vni, now)
 }
 
 /// Moves the coordination of a group on: it advances the current round, gives up a stalled
-/// round or operation and hands the next operation to the committer.
+/// round or batch and hands the next batch to the committer.
+///
+/// A batch contains all queued additions and removals, once the oldest of them waited for the
+/// commit-delay, so the gateways, which subscribe at about the same time, are added with one
+/// commit. A key-rotation is handed out alone, while no addition or removal is due.
 ///
 /// # Arguments
 /// * `vni` - Tenant of the network
@@ -547,27 +670,40 @@ fn progress(vni: u32, now: i64) -> Result<(), ErrorResponse> {
     }
 
     let now_ms = now * 1000;
-    let mut ops = open_operations(vni)?;
+    let (mut inflight, queued): (Vec<_>, Vec<_>) = open_operations(vni)?
+        .into_iter()
+        .partition(|op| op.status == STATUS_INFLIGHT);
 
-    // an operation in flight is waited for, until it stalls
-    if let Some(op) = ops.iter_mut().find(|op| op.status == STATUS_INFLIGHT) {
-        if now_ms - op.started_at.unwrap_or_default() <= STALL_TIMEOUT * 1000 {
+    // the batch in flight is waited for, until it stalls
+    if !inflight.is_empty() {
+        let started_at = inflight
+            .iter()
+            .filter_map(|op| op.started_at)
+            .min()
+            .unwrap_or_default();
+        if now_ms - started_at <= STALL_TIMEOUT * 1000 {
             return Ok(());
         }
-        op.retries += 1;
-        if op.retries > MAX_OPERATION_RETRIES {
+        for op in &mut inflight {
+            op.retries += 1;
+        }
+        let (given_up, mut batch): (Vec<_>, Vec<_>) = inflight
+            .into_iter()
+            .partition(|op| op.retries > MAX_OPERATION_RETRIES);
+        for mut op in given_up {
             log::error!(
-                "Give up the {} of '{}' for tenant {vni} after {} retries",
+                "Give up the {} of '{}' for tenant {vni} after {MAX_OPERATION_RETRIES} retries",
                 op.kind,
                 op.client_id.as_deref().unwrap_or("-"),
-                MAX_OPERATION_RETRIES
             );
             op.status = STATUS_DONE.to_string();
-            update_operation(op)?;
+            update_operation(&op)?;
+        }
+        if batch.is_empty() {
             return progress(vni, now);
         }
         if !is_alive(&group.committer, now)?
-            && let Some(committer) = pick_committer(&group, op.client_id.as_deref(), now)?
+            && let Some(committer) = pick_committer(&group, &targets(&batch), now)?
         {
             log::warn!(
                 "Committer '{}' of tenant {vni} is dead, '{committer}' takes over",
@@ -576,37 +712,54 @@ fn progress(vni: u32, now: i64) -> Result<(), ErrorResponse> {
             group.committer = committer;
             save_group(&group)?;
         }
-        op.started_at = Some(now_ms);
-        update_operation(op)?;
-        return send_operation(&group, op);
+        for op in &mut batch {
+            op.started_at = Some(now_ms);
+            update_operation(op)?;
+        }
+        return send_operation(&group, &batch);
     }
 
-    let Some(op) = ops.iter_mut().find(|op| op.status == STATUS_QUEUED) else {
+    // operations, which became pointless in the queue, are dropped
+    let mut open = Vec::new();
+    for mut op in queued {
+        if is_pointless(&group, &op, now)? {
+            op.status = STATUS_DONE.to_string();
+            update_operation(&op)?;
+        } else {
+            open.push(op);
+        }
+    }
+
+    // all additions and removals go together, once the oldest one waited long enough for the
+    // others. An update is never combined with additions, because the members tell a key-rotation
+    // by a commit, which adds and removes nobody.
+    let update = MlsOperationKind::Update.to_string();
+    let (changes, updates): (Vec<_>, Vec<_>) = open.into_iter().partition(|op| op.kind != update);
+    let commit_delay = COMMIT_DELAY.load(Ordering::Relaxed);
+    let due = changes
+        .iter()
+        .map(|op| op.created_at)
+        .min()
+        .is_some_and(|oldest| now_ms - oldest >= commit_delay);
+    let remove = MlsOperationKind::Remove.to_string();
+    let mut batch = if due {
+        let removes_any = changes.iter().any(|op| op.kind == remove);
+        let mut batch = changes;
+        if removes_any {
+            batch.extend(updates);
+        }
+        batch
+    } else if let Some(update) = updates.into_iter().next() {
+        vec![update]
+    } else {
         return Ok(());
     };
 
-    // an operation, which became pointless in the queue, is dropped
-    let kind = op.kind.parse::<MlsOperationKind>().ok();
-    let target = op.client_id.clone().unwrap_or_default();
-    let pointless = match kind {
-        Some(MlsOperationKind::Add) => get_grant(vni, &target)
-            .map_err(|e| internal_error("read a grant", e))?
-            .is_none_or(|grant| grant.expires_at < now),
-        Some(MlsOperationKind::Remove) => !group.is_member(&target),
-        Some(MlsOperationKind::Update) => group.members.len() < 2,
-        None => true,
-    };
-    if pointless {
-        op.status = STATUS_DONE.to_string();
-        update_operation(op)?;
-        return progress(vni, now);
-    }
-
     // the committer neither removes itself, nor adds itself again after it lost the group
-    let committer_is_target = group.committer == target;
+    let targets = targets(&batch);
+    let committer_is_target = targets.contains(&group.committer);
     if committer_is_target || !is_alive(&group.committer, now)? {
-        let exclude = committer_is_target.then_some(target.as_str());
-        match pick_committer(&group, exclude, now)? {
+        match pick_committer(&group, &targets, now)? {
             Some(committer) => {
                 group.committer = committer;
                 save_group(&group)?;
@@ -616,10 +769,14 @@ fn progress(vni: u32, now: i64) -> Result<(), ErrorResponse> {
         }
     }
 
-    op.status = STATUS_INFLIGHT.to_string();
-    op.started_at = Some(now_ms);
-    update_operation(op)?;
-    send_operation(&group, op)
+    let batch_uuid = Uuid::new_v4();
+    for op in &mut batch {
+        op.status = STATUS_INFLIGHT.to_string();
+        op.started_at = Some(now_ms);
+        op.batch_uuid = Some(batch_uuid);
+        update_operation(op)?;
+    }
+    send_operation(&group, &batch)
 }
 
 /// Stores a grant of hanami.
@@ -742,6 +899,7 @@ pub fn subscribe(
                     MlsOperationKind::Add,
                     Some(client_id),
                     Some(&grant.grant()),
+                    now,
                 )?;
                 MlsSubscribeAction::Joining
             }
@@ -768,7 +926,8 @@ pub fn unsubscribe(vni: u32, client_id: &str, now: i64) -> Result<(), ErrorRespo
     })
 }
 
-/// Takes the result of an operation from the committer and starts the round of the new epoch.
+/// Takes the result of a batch of operations from the committer and starts the round of the new
+/// epoch.
 ///
 /// # Arguments
 /// * `vni` - Tenant of the network
@@ -793,18 +952,25 @@ pub fn operation_done(vni: u32, req: &MlsOperationDoneReq, now: i64) -> Result<(
                 req.client_id
             )));
         }
-        let mut ops = open_operations(vni)?;
-        let Some(op) = ops
-            .iter_mut()
-            .find(|op| op.uuid == req.op_uuid && op.status == STATUS_INFLIGHT)
-        else {
+        let mut batch: Vec<MlsOperationEntry> = open_operations(vni)?
+            .into_iter()
+            .filter(|op| op.batch_uuid == Some(req.op_uuid) && op.status == STATUS_INFLIGHT)
+            .collect();
+        if batch.is_empty() {
             return Err(ErrorResponse::Conflict(format!(
                 "Operation '{}' is not in flight",
                 req.op_uuid
             )));
-        };
-        op.status = STATUS_DONE.to_string();
-        update_operation(op)?;
+        }
+        // only an addition can be left out by the committer
+        let add = MlsOperationKind::Add.to_string();
+        for op in &mut batch {
+            let refusal = req.refused.iter().find(|refusal| {
+                op.kind == add && op.client_id.as_ref() == Some(&refusal.client_id)
+            });
+            finish_operation(vni, op, refusal)?;
+        }
+        let targets = targets(&batch);
 
         if req.success {
             let mut members = req.members.clone();
@@ -828,18 +994,15 @@ pub fn operation_done(vni: u32, req: &MlsOperationDoneReq, now: i64) -> Result<(
             );
         } else {
             log::warn!(
-                "Committer '{}' refused the {} of '{}' for tenant {vni}: {}",
+                "Committer '{}' refused the change of {targets:?} for tenant {vni}: {}",
                 req.client_id,
-                op.kind,
-                op.client_id.as_deref().unwrap_or("-"),
                 req.reason.as_deref().unwrap_or("-")
             );
             // a committer without members doesn't hold the group anymore
-            if req.members.is_empty() {
-                let target = op.client_id.clone();
-                if !drop_lost_members(&mut group, &req.client_id, target.as_deref(), now)? {
-                    return Ok(());
-                }
+            if req.members.is_empty()
+                && !drop_lost_members(&mut group, &req.client_id, &targets, now)?
+            {
+                return Ok(());
             }
         }
 
@@ -847,10 +1010,49 @@ pub fn operation_done(vni: u32, req: &MlsOperationDoneReq, now: i64) -> Result<(
     })
 }
 
+/// Finishes an operation, which was in flight. An operation, whose gateway the committer left
+/// out, is queued again, until it ran out of retries.
+///
+/// # Arguments
+/// * `vni` - Tenant of the network
+/// * `op` - The operation
+/// * `refusal` - Why the committer left the gateway of the operation out, if it did
+///
+/// # Returns
+/// `Ok(())` once the operation is updated
+fn finish_operation(
+    vni: u32,
+    op: &mut MlsOperationEntry,
+    refusal: Option<&MlsOperationRefusal>,
+) -> Result<(), ErrorResponse> {
+    op.status = STATUS_DONE.to_string();
+    if let Some(refusal) = refusal {
+        op.retries += 1;
+        if op.retries > MAX_OPERATION_RETRIES {
+            log::warn!(
+                "Give up the {} of '{}' for tenant {vni} after {MAX_OPERATION_RETRIES} retries: {}",
+                op.kind,
+                refusal.client_id,
+                refusal.reason
+            );
+        } else {
+            log::warn!(
+                "The {} of '{}' for tenant {vni} was left out, retry it: {}",
+                op.kind,
+                refusal.client_id,
+                refusal.reason
+            );
+            op.status = STATUS_QUEUED.to_string();
+            op.started_at = None;
+        }
+    }
+    update_operation(op)
+}
+
 /// Drops the committer of a refused operation from a group, because it doesn't hold the group
 /// anymore, for example because it left the group, while its own removal was still queued.
 ///
-/// The target of the operation is dropped as well: a removal would only take its membership
+/// The targets of the operations are dropped as well: a removal would only take its membership
 /// away, and a gateway, which waits to be added, doesn't hold the group either. Without this,
 /// the group would keep members, which can't make any change, and refuse every gateway forever.
 /// If nobody is left, the group is deleted, so the next gateway creates it again.
@@ -858,7 +1060,7 @@ pub fn operation_done(vni: u32, req: &MlsOperationDoneReq, now: i64) -> Result<(
 /// # Arguments
 /// * `group` - The group
 /// * `committer` - The committer, which refused the operation
-/// * `target` - The gateway, which the operation was about, if any
+/// * `targets` - The gateways, which the operations were about
 /// * `now` - Current unix-time in seconds
 ///
 /// # Returns
@@ -866,13 +1068,13 @@ pub fn operation_done(vni: u32, req: &MlsOperationDoneReq, now: i64) -> Result<(
 fn drop_lost_members(
     group: &mut Group,
     committer: &str,
-    target: Option<&str>,
+    targets: &[String],
     now: i64,
 ) -> Result<bool, ErrorResponse> {
     let vni = group.vni;
     group
         .members
-        .retain(|member| member != committer && Some(member.as_str()) != target);
+        .retain(|member| member != committer && !targets.contains(member));
 
     if group.members.is_empty() {
         mls_operation_table::drop_open_operations(vni)
@@ -891,7 +1093,7 @@ fn drop_lost_members(
          dropped from it"
     );
     // progress picks another one, if the new committer is not alive
-    group.committer = pick_committer(group, None, now)?.unwrap_or_else(|| group.members[0].clone());
+    group.committer = pick_committer(group, &[], now)?.unwrap_or_else(|| group.members[0].clone());
     save_group(group)?;
     Ok(true)
 }
@@ -962,7 +1164,7 @@ pub fn tick(now: i64, rotation_interval: i64) -> Result<(), ErrorResponse> {
                 && now - group.rotated_at >= rotation_interval
             {
                 log::info!("Rotate the keys of tenant {vni}");
-                enqueue(vni, MlsOperationKind::Update, None, None)?;
+                enqueue(vni, MlsOperationKind::Update, None, None, now)?;
                 group.rotated_at = now;
                 save_group(&group)?;
             }
@@ -1041,7 +1243,9 @@ pub fn remove_dead_members(
 /// # Arguments
 /// * `rotation_interval` - Seconds between two key-rotations of a group
 /// * `member_timeout` - Seconds without contact, after which a member is removed
-pub fn spawn_ticker(rotation_interval: i64, member_timeout: i64) {
+/// * `commit_delay` - Milliseconds, which a queued addition or removal waits for others
+pub fn spawn_ticker(rotation_interval: i64, member_timeout: i64, commit_delay: i64) {
+    COMMIT_DELAY.store(commit_delay, Ordering::Relaxed);
     let running_since = *RUNNING_SINCE.get_or_init(now_secs);
     std::thread::spawn(move || {
         loop {
@@ -1158,8 +1362,14 @@ mod tests {
             epoch,
             members: members.iter().map(|it| it.to_string()).collect(),
             reason: None,
+            refused: Vec::new(),
         };
         operation_done(vni, &req, now).unwrap();
+    }
+
+    /// Lists the gateways, which an operation adds
+    fn added(op: &MlsOperation) -> Vec<&str> {
+        op.adds.iter().map(|add| add.client_id.as_str()).collect()
     }
 
     fn client(name: &str) -> String {
@@ -1222,9 +1432,9 @@ mod tests {
         );
         let ops = take_operations(&a);
         assert_eq!(ops.len(), 1);
-        assert_eq!(ops[0].kind, MlsOperationKind::Add);
-        assert_eq!(ops[0].client_id.as_deref(), Some(b.as_str()));
-        assert!(ops[0].grant.is_some());
+        assert_eq!(added(&ops[0]), vec![b.as_str()]);
+        assert!(ops[0].removes.is_empty());
+        assert!(!ops[0].update);
         assert!(take_operations(&b).is_empty());
 
         // the committer reports the new epoch, which starts the round
@@ -1285,7 +1495,7 @@ mod tests {
         tick(now + CLEANUP_GRACE, 3600).unwrap();
         let ops = take_operations(&a);
         assert_eq!(ops.len(), 1);
-        assert_eq!(ops[0].client_id.as_deref(), Some(c.as_str()));
+        assert_eq!(added(&ops[0]), vec![c.as_str()]);
     }
 
     #[test]
@@ -1315,11 +1525,8 @@ mod tests {
         )
         .unwrap();
         let ops = take_operations(&a);
-        let removal = ops
-            .iter()
-            .find(|op| op.kind == MlsOperationKind::Remove)
-            .unwrap();
-        assert_eq!(removal.client_id.as_deref(), Some(b.as_str()));
+        let removal = ops.iter().find(|op| !op.removes.is_empty()).unwrap();
+        assert_eq!(removal.removes, vec![b.clone()]);
 
         // without grant, b can't join again
         let req = MlsSubscribeReq {
@@ -1341,6 +1548,7 @@ mod tests {
             epoch: 0,
             members: Vec::new(),
             reason: Some(format!("this gateway has no MLS-group for tenant {vni}")),
+            refused: Vec::new(),
         };
         operation_done(vni, &req, now).unwrap();
     }
@@ -1380,7 +1588,7 @@ mod tests {
         // of b, because it already left the group itself
         unsubscribe(vni, &b, now).unwrap();
         let ops = take_operations(&a);
-        assert_eq!(ops[0].kind, MlsOperationKind::Remove);
+        assert_eq!(ops[0].removes, vec![b.clone()]);
         refuse_without_group(vni, &ops[0], &a, now);
         unsubscribe(vni, &a, now).unwrap();
         assert!(load_group(vni).unwrap().is_none());
@@ -1395,8 +1603,7 @@ mod tests {
             MlsSubscribeAction::Joining
         );
         let ops = take_operations(&b);
-        assert_eq!(ops[0].kind, MlsOperationKind::Add);
-        assert_eq!(ops[0].client_id.as_deref(), Some(a.as_str()));
+        assert_eq!(added(&ops[0]), vec![a.as_str()]);
     }
 
     #[test]
@@ -1422,8 +1629,7 @@ mod tests {
             MlsSubscribeAction::Joining
         );
         let ops = take_operations(&c);
-        assert_eq!(ops[0].kind, MlsOperationKind::Add);
-        assert_eq!(ops[0].client_id.as_deref(), Some(a.as_str()));
+        assert_eq!(added(&ops[0]), vec![a.as_str()]);
     }
 
     #[test]
@@ -1475,7 +1681,7 @@ mod tests {
         tick(now + 60, 60).unwrap();
         let ops = take_operations(&a);
         assert_eq!(ops.len(), 1);
-        assert_eq!(ops[0].kind, MlsOperationKind::Update);
+        assert!(ops[0].update);
     }
 
     #[test]
@@ -1514,20 +1720,16 @@ mod tests {
 
         // an izakaya, which only runs since a moment, can't tell, who is silent
         remove_dead_members(later, 120, later - 10).unwrap();
-        assert!(
-            !take_operations(&a)
-                .iter()
-                .any(|op| op.kind == MlsOperationKind::Remove)
-        );
+        assert!(!take_operations(&a).iter().any(|op| !op.removes.is_empty()));
 
         remove_dead_members(later, 120, now).unwrap();
         tick(later + STALL_TIMEOUT + 1, 3600).unwrap();
         let ops = take_operations(&a);
         let removal = ops
             .iter()
-            .find(|op| op.kind == MlsOperationKind::Remove)
+            .find(|op| !op.removes.is_empty())
             .expect("b is removed");
-        assert_eq!(removal.client_id.as_deref(), Some(b.as_str()));
+        assert_eq!(removal.removes, vec![b.clone()]);
     }
 
     #[test]
@@ -1601,6 +1803,213 @@ mod tests {
             subscribe_as(vni, &c, false, later),
             MlsSubscribeAction::Joining
         );
+    }
+
+    /// Reports, that the committer left all gateways of an operation out
+    fn refuse_gateways(vni: u32, op: &MlsOperation, committer: &str, epoch: u64, now: i64) {
+        let req = MlsOperationDoneReq {
+            op_uuid: op.op_uuid,
+            client_id: committer.to_string(),
+            success: false,
+            epoch,
+            members: vec![committer.to_string()],
+            reason: Some("every change was refused".to_string()),
+            refused: op
+                .adds
+                .iter()
+                .map(|add| MlsOperationRefusal {
+                    client_id: add.client_id.clone(),
+                    reason: "no key-package".to_string(),
+                })
+                .collect(),
+        };
+        operation_done(vni, &req, now).unwrap();
+    }
+
+    #[test]
+    #[serial]
+    fn a_refused_gateway_is_queued_again_until_it_ran_out_of_retries() {
+        let vni = new_vni();
+        let now = now_secs();
+        let (a, b) = (client("a"), client("b"));
+        allow(vni, &a, now);
+        allow(vni, &b, now);
+        subscribe_as(vni, &a, false, now);
+        subscribe_as(vni, &b, false, now);
+
+        for _ in 0..MAX_OPERATION_RETRIES {
+            let ops = take_operations(&a);
+            assert_eq!(ops.len(), 1);
+            assert_eq!(added(&ops[0]), vec![b.as_str()]);
+            refuse_gateways(vni, &ops[0], &a, 0, now);
+        }
+        let ops = take_operations(&a);
+        assert_eq!(ops.len(), 1);
+        refuse_gateways(vni, &ops[0], &a, 0, now);
+
+        // the group is unchanged, and b is only added again with its next subscription
+        assert!(take_operations(&a).is_empty());
+        assert_eq!(load_group(vni).unwrap().unwrap().members, vec![a.clone()]);
+        subscribe_as(vni, &b, false, now);
+        assert_eq!(added(&take_operations(&a)[0]), vec![b.as_str()]);
+    }
+
+    /// Sets the commit-delay for a test and resets it, when the test ends
+    struct CommitDelay;
+
+    impl CommitDelay {
+        fn set(delay: i64) -> Self {
+            COMMIT_DELAY.store(delay, Ordering::Relaxed);
+            CommitDelay
+        }
+    }
+
+    impl Drop for CommitDelay {
+        fn drop(&mut self) {
+            COMMIT_DELAY.store(0, Ordering::Relaxed);
+        }
+    }
+
+    /// Lets `a` create a group and `others` subscribe at the same time, and returns the batch,
+    /// which is handed to `a` after the commit-delay
+    fn subscribe_together(vni: u32, a: &str, others: &[&String], now: i64) -> MlsOperation {
+        allow(vni, a, now);
+        subscribe_as(vni, a, false, now);
+        for gateway in others {
+            allow(vni, gateway, now);
+            assert_eq!(
+                subscribe_as(vni, gateway, false, now),
+                MlsSubscribeAction::Joining
+            );
+        }
+        // the additions wait for each other
+        tick(now, 3600).unwrap();
+        assert!(take_operations(a).is_empty());
+
+        tick(now + 1, 3600).unwrap();
+        let mut ops = take_operations(a);
+        assert_eq!(ops.len(), 1);
+        ops.remove(0)
+    }
+
+    #[test]
+    #[serial]
+    fn gateways_which_subscribe_together_are_added_with_one_commit() {
+        let _delay = CommitDelay::set(DEFAULT_COMMIT_DELAY);
+        let vni = new_vni();
+        let now = now_secs();
+        let (a, b, c, d) = (client("a"), client("b"), client("c"), client("d"));
+
+        let op = subscribe_together(vni, &a, &[&b, &c, &d], now);
+        let mut expected = vec![b.as_str(), c.as_str(), d.as_str()];
+        expected.sort();
+        let mut adds = added(&op);
+        adds.sort();
+        assert_eq!(adds, expected);
+        assert!(op.removes.is_empty());
+        assert!(!op.update);
+
+        // the whole batch is finished with one report
+        done(vni, &op, &a, 1, &[&a, &b, &c, &d], now + 1);
+        assert!(open_operations(vni).unwrap().is_empty());
+        assert_eq!(load_group(vni).unwrap().unwrap().members.len(), 4);
+    }
+
+    #[test]
+    #[serial]
+    fn a_stalled_batch_is_retried_as_a_whole() {
+        let _delay = CommitDelay::set(DEFAULT_COMMIT_DELAY);
+        let vni = new_vni();
+        let now = now_secs();
+        let (a, b, c) = (client("a"), client("b"), client("c"));
+        let op = subscribe_together(vni, &a, &[&b, &c], now);
+
+        tick(now + 1 + STALL_TIMEOUT, 3600).unwrap();
+        assert!(take_operations(&a).is_empty());
+        tick(now + 2 + STALL_TIMEOUT, 3600).unwrap();
+        let retried = take_operations(&a);
+        assert_eq!(retried.len(), 1);
+        assert_eq!(retried[0].op_uuid, op.op_uuid);
+        assert_eq!(retried[0].adds.len(), 2);
+    }
+
+    #[test]
+    #[serial]
+    fn only_the_refused_gateway_of_a_batch_is_queued_again() {
+        let _delay = CommitDelay::set(DEFAULT_COMMIT_DELAY);
+        let vni = new_vni();
+        let now = now_secs();
+        let (a, b, c) = (client("a"), client("b"), client("c"));
+        let op = subscribe_together(vni, &a, &[&b, &c], now);
+
+        let req = MlsOperationDoneReq {
+            op_uuid: op.op_uuid,
+            client_id: a.clone(),
+            success: true,
+            epoch: 1,
+            members: vec![a.clone(), b.clone()],
+            reason: None,
+            refused: vec![MlsOperationRefusal {
+                client_id: c.clone(),
+                reason: "no key-package".to_string(),
+            }],
+        };
+        operation_done(vni, &req, now + 1).unwrap();
+
+        let open = open_operations(vni).unwrap();
+        assert_eq!(open.len(), 1);
+        assert_eq!(open[0].client_id.as_deref(), Some(c.as_str()));
+        assert_eq!(open[0].status, STATUS_QUEUED);
+        assert_eq!(open[0].retries, 1);
+    }
+
+    #[test]
+    #[serial]
+    fn a_key_rotation_is_never_combined_with_additions() {
+        let vni = new_vni();
+        let now = now_secs();
+        let (a, b, c) = (client("a"), client("b"), client("c"));
+        joined_group(vni, &[&a, &b], now);
+        let _delay = CommitDelay::set(DEFAULT_COMMIT_DELAY);
+
+        allow(vni, &c, now);
+        subscribe_as(vni, &c, false, now);
+        // the rotation is queued, when the addition of c is due
+        tick(now + 1, 0).unwrap();
+        let ops = take_operations(&a);
+        assert_eq!(ops.len(), 1);
+        assert_eq!(added(&ops[0]), vec![c.as_str()]);
+        assert!(!ops[0].update);
+
+        // the rotation waits for its own turn
+        let update = MlsOperationKind::Update.to_string();
+        let open = open_operations(vni).unwrap();
+        assert!(
+            open.iter()
+                .any(|op| op.kind == update && op.status == STATUS_QUEUED)
+        );
+    }
+
+    #[test]
+    #[serial]
+    fn a_key_rotation_is_covered_by_a_removal() {
+        let vni = new_vni();
+        let now = now_secs();
+        let (a, b, c) = (client("a"), client("b"), client("c"));
+        joined_group(vni, &[&a, &b, &c], now);
+        let _delay = CommitDelay::set(DEFAULT_COMMIT_DELAY);
+
+        unsubscribe(vni, &c, now).unwrap();
+        assert!(take_operations(&a).is_empty());
+        tick(now + 1, 0).unwrap();
+        let ops = take_operations(&a);
+        assert_eq!(ops.len(), 1);
+        assert_eq!(ops[0].removes, vec![c.clone()]);
+        assert!(!ops[0].update);
+
+        // the removal renews all keys, so the rotation is done with it
+        done(vni, &ops[0], &a, 3, &[&a, &b], now + 1);
+        assert!(open_operations(vni).unwrap().is_empty());
     }
 
     #[test]

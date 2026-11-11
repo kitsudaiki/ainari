@@ -100,12 +100,14 @@ unix-times in seconds. The `round_*`-columns are only set, while a key-rotation 
 
 ## mls_operations
 
-Queue of the changes of the groups, which their committers make one after another. The timestamps
-are unix-times in milliseconds, so the operations of one second keep their order.
+Queue of the changes of the groups. The additions and removals, which are queued at about the same
+time, are handed to the committer as one batch and made with one commit. The timestamps are
+unix-times in milliseconds.
 
 - `kind`: `add`, `remove` or `update`.
 - `status`: `QUEUED`, while the operation waits for its turn, `INFLIGHT`, after it was handed to
   the committer, and `DONE`, when it is finished, successful or not.
+- `batch_uuid`: batch, which the operation was handed to the committer with.
 
 | field      | type         | is primary | constraints          |
 | ---------- | ------------ | ---------- | -------------------- |
@@ -118,6 +120,7 @@ are unix-times in milliseconds, so the operations of one second keep their order
 | retries    | INTEGER      |            | `NOT NULL DEFAULT 0` |
 | created_at | BIGINT       |            | `NOT NULL`           |
 | started_at | BIGINT       |            |                      |
+| batch_uuid | VARCHAR(40)  |            |                      |
 
 Indexes:
 
