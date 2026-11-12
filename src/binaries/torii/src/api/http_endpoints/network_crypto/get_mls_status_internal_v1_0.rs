@@ -15,8 +15,8 @@
 use actix_web::web::Json;
 use apistos::api_operation;
 
-use crate::core::mls_key_exchange::pairs;
 use crate::core::mls_key_exchange::state::MLS_STATE_HANDLE;
+use crate::core::mls_key_exchange::status;
 
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::network_crypto_structs::*;
@@ -37,5 +37,5 @@ pub async fn get_mls_status_internal(
     _context: UserContext,
 ) -> Result<Json<MlsStatusResp>, ErrorResponse> {
     let mls = MLS_STATE_HANDLE.lock().await;
-    Ok(Json(pairs::status(&mls)))
+    Ok(Json(status::status(&mls)))
 }

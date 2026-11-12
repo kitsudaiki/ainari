@@ -32,23 +32,20 @@
 use std::collections::{BTreeSet, HashMap};
 use std::time::{Duration, Instant};
 
-use chrono::Utc;
-
 use crate::config::{CONFIG, GRANT_PUBLIC_KEY, INTERNAL_API_KEY};
 use crate::core::ebpf_interface::EBPF_INTERFACE_HANDLE;
-use crate::core::mls_key_exchange::group::{self, OutgoingMessage, Processed};
-use crate::core::mls_key_exchange::pairs;
-use crate::core::mls_key_exchange::state::MLS_STATE_HANDLE;
-use crate::core::mls_key_exchange::{
-    apply_keys, deliver_and_merge, drive_all_pairs, izakaya_endpoint, remove_idle_network_keys,
-    send_pending_messages,
+use crate::core::mls_key_exchange::gateway::{
+    apply_keys, drive_all_pairs, remove_idle_network_keys,
 };
+use crate::core::mls_key_exchange::izakaya::{izakaya_endpoint, send_pending_messages};
+use crate::core::mls_key_exchange::messages::{self, Processed};
+use crate::core::mls_key_exchange::state::MLS_STATE_HANDLE;
+use crate::core::mls_key_exchange::{committer, group, pair_messages, subscriptions};
 use crate::core::utils::get_local_ip;
 
 use ainari_api_structs::mls_structs::*;
 use ainari_clients::izakaya as izakaya_clients;
 use ainari_common::config::Endpoint;
-use ainari_common::error::AinariError;
 
 /// Time between two runs of the agent
 const POLL_INTERVAL: Duration = Duration::from_secs(1);
@@ -206,7 +203,7 @@ impl Agent {
     /// Subscribes to the groups of the networks, which need encryption on this gateway, and
     /// unsubscribes from the others.
     async fn reconcile_subscriptions(&mut self, izakaya: &Endpoint, client_id: &str) {
-        let desired = encrypted_networks().await;
+        let desired = subscriptions::encrypted_networks().await;
         let held: BTreeSet<u32> = MLS_STATE_HANDLE
             .lock()
             .await
@@ -220,54 +217,14 @@ impl Agent {
                 .subscriptions
                 .get(vni)
                 .is_none_or(|subscribed| subscribed.elapsed() >= RESUBSCRIBE_INTERVAL);
-            if !due {
-                continue;
-            }
-            self.subscriptions.insert(*vni, Instant::now());
-
-            let has_group = held.contains(vni);
-            match izakaya_clients::subscribe_mls_group(
-                izakaya,
-                &INTERNAL_API_KEY,
-                *vni,
-                client_id,
-                has_group,
-                CONFIG.skip_tls_verification,
-            )
-            .await
-            {
-                Ok(resp) => {
-                    if let Err(e) = handle_subscription(*vni, resp.action, has_group).await {
-                        log::error!("Failed to handle the subscription of tenant {vni}: {e}");
-                    }
-                }
-                // hanami didn't grant the membership (yet)
-                Err(AinariError::Forbidden(msg)) => {
-                    log::debug!("Not allowed to join the MLS-group of tenant {vni}: {msg}");
-                }
-                Err(e) => {
-                    log::warn!("Failed to subscribe to the MLS-group of tenant {vni}: {e}");
-                }
+            if due {
+                self.subscriptions.insert(*vni, Instant::now());
+                subscriptions::subscribe(izakaya, client_id, *vni, held.contains(vni)).await;
             }
         }
-
         for vni in held.difference(&desired) {
-            let result = izakaya_clients::unsubscribe_mls_group(
-                izakaya,
-                &INTERNAL_API_KEY,
-                *vni,
-                client_id,
-                CONFIG.skip_tls_verification,
-            )
-            .await;
-            match result {
-                Ok(()) | Err(AinariError::NotFound(_)) => {
-                    self.subscriptions.remove(vni);
-                    leave_group(*vni).await;
-                }
-                Err(e) => {
-                    log::warn!("Failed to unsubscribe from the MLS-group of tenant {vni}: {e}");
-                }
+            if subscriptions::unsubscribe(izakaya, client_id, *vni).await {
+                self.subscriptions.remove(vni);
             }
         }
     }
@@ -295,7 +252,10 @@ impl Agent {
                 MlsMessageType::Application => self.handle_application(&message).await,
                 MlsMessageType::Operation => {
                     match serde_json::from_str::<MlsOperation>(&message.payload) {
-                        Ok(op) => self.handle_operation(izakaya, client_id, op).await,
+                        Ok(op) => {
+                            committer::handle_operation(&self.grant_key, izakaya, client_id, op)
+                                .await
+                        }
                         Err(e) => Err(format!("broken operation: {e}")),
                     }
                 }
@@ -332,7 +292,7 @@ impl Agent {
     /// every pair switches, once its peer is ready (see `pairs`).
     async fn handle_group_message(&self, message: &MlsMessageResp) -> Result<(), String> {
         let mut mls = MLS_STATE_HANDLE.lock().await;
-        let processed = group::process_message(
+        let processed = messages::process_message(
             &mut mls,
             message.message_type,
             &message.payload,
@@ -377,7 +337,7 @@ impl Agent {
             }
         };
         // messages of the new epoch, which arrived before its commit, can be read now
-        pairs::retry_pending(&mut mls, &self.grant_key);
+        pair_messages::retry_pending(&mut mls, &self.grant_key);
 
         mls.save().map_err(|e| format!("{e:?}"))?;
         let mut ebpf_interf = EBPF_INTERFACE_HANDLE.lock().await;
@@ -388,263 +348,9 @@ impl Agent {
     /// Processes a message of the peer of a pair.
     async fn handle_application(&self, message: &MlsMessageResp) -> Result<(), String> {
         let mut mls = MLS_STATE_HANDLE.lock().await;
-        if pairs::handle_message(&mut mls, message, &self.grant_key)? {
+        if pair_messages::handle_message(&mut mls, message, &self.grant_key)? {
             mls.save().map_err(|e| format!("{e:?}"))?;
         }
         Ok(())
     }
-
-    /// Makes a change of a group as its committer and reports the result to the izakaya.
-    ///
-    /// All additions and removals of the change go into one commit. A gateway, which can't be
-    /// added, is left out and reported to the izakaya, the others are added anyway.
-    async fn handle_operation(
-        &self,
-        izakaya: &Endpoint,
-        client_id: &str,
-        op: MlsOperation,
-    ) -> Result<(), String> {
-        let vni = op.vni;
-        let description = describe(&op);
-        let mut mls = MLS_STATE_HANDLE.lock().await;
-
-        let mut refused = Vec::new();
-        let result = if !mls.groups.contains_key(&vni) {
-            Err(format!("this gateway has no MLS-group for tenant {vni}"))
-        } else if op.update {
-            match op.adds.is_empty() && op.removes.is_empty() {
-                false => Err("a key-rotation can't be combined with other changes".to_string()),
-                true => match group::stage_update(&mut mls, vni) {
-                    Ok(commit) => {
-                        let messages: Vec<OutgoingMessage> = commit.into_iter().collect();
-                        deliver_and_merge(&mut mls, vni, izakaya, &messages).await
-                    }
-                    Err(e) => Err(format!("{e:?}")),
-                },
-            }
-        } else {
-            self.change_members(&mut mls, izakaya, &op, &mut refused)
-                .await
-        };
-
-        if let Err(e) = mls.save() {
-            log::error!("Failed to persist the MLS-state: {e:?}");
-        }
-        if result.is_ok() {
-            let mut ebpf_interf = EBPF_INTERFACE_HANDLE.lock().await;
-            apply_keys(&mls, &mut ebpf_interf, vni);
-        }
-
-        let done = MlsOperationDoneReq {
-            op_uuid: op.op_uuid,
-            client_id: client_id.to_string(),
-            success: result.is_ok(),
-            epoch: mls
-                .groups
-                .get(&vni)
-                .map(|group| group.epoch().as_u64())
-                .unwrap_or_default(),
-            members: group::members(&mls, vni),
-            reason: result.as_ref().err().cloned(),
-            refused,
-        };
-        drop(mls);
-
-        match &result {
-            Ok(()) => log::info!(
-                "Made the {description} for tenant {vni} in epoch {}",
-                done.epoch
-            ),
-            Err(e) => log::warn!("Refused the {description} for tenant {vni}: {e}"),
-        }
-        for refusal in &done.refused {
-            log::warn!(
-                "Left '{}' out of the {description} for tenant {vni}: {}",
-                refusal.client_id,
-                refusal.reason
-            );
-        }
-
-        izakaya_clients::finish_mls_operation(
-            izakaya,
-            &INTERNAL_API_KEY,
-            vni,
-            &done,
-            CONFIG.skip_tls_verification,
-        )
-        .await
-        .map_err(|e| format!("Failed to report the {description}: {e}"))
-    }
-
-    /// Adds and removes the gateways of an operation with one commit.
-    ///
-    /// A gateway, which is still member from an earlier membership, for example because it lost
-    /// the group, loses its old leaf with the same commit, which adds its new key-package.
-    ///
-    /// # Arguments
-    /// * `mls` - The locked MLS-client
-    /// * `izakaya` - Endpoint of the izakaya
-    /// * `op` - The operation
-    /// * `refused` - Takes the gateways, which can't be added
-    ///
-    /// # Returns
-    /// `Ok(())` once the group is in its new epoch, or the reason, why no commit was made
-    async fn change_members(
-        &self,
-        mls: &mut crate::core::mls_key_exchange::state::MlsState,
-        izakaya: &Endpoint,
-        op: &MlsOperation,
-        refused: &mut Vec<MlsOperationRefusal>,
-    ) -> Result<(), String> {
-        let vni = op.vni;
-        let claim = |target: String, signature_key: String| async move {
-            izakaya_clients::claim_key_package(
-                izakaya,
-                &INTERNAL_API_KEY,
-                &target,
-                Some(signature_key),
-                CONFIG.skip_tls_verification,
-            )
-            .await
-            .map(|claimed| claimed.key_package)
-            .map_err(|e| format!("no key-package of '{target}': {e}"))
-        };
-        let (additions, left_out) = group::check_additions(
-            mls,
-            vni,
-            &op.adds,
-            &self.grant_key,
-            Utc::now().timestamp(),
-            claim,
-        )
-        .await;
-        *refused = left_out;
-
-        for addition in &additions {
-            if group::is_member(mls, vni, &addition.client_id) {
-                log::warn!(
-                    "'{}' is still member of the MLS-group of tenant {vni}, re-add it",
-                    addition.client_id
-                );
-            }
-        }
-        // a gateway, which already left the group, needs no removal
-        let removals: Vec<String> = op
-            .removes
-            .iter()
-            .filter(|target| group::is_member(mls, vni, target))
-            .cloned()
-            .collect();
-        if additions.is_empty() && removals.is_empty() {
-            return Err("nothing is left to change".to_string());
-        }
-
-        let messages =
-            group::stage_change(mls, vni, additions, &removals).map_err(|e| format!("{e:?}"))?;
-        deliver_and_merge(mls, vni, izakaya, &messages).await
-    }
-}
-
-/// Describes an operation for the log.
-///
-/// # Arguments
-/// * `op` - The operation
-///
-/// # Returns
-/// For example "change (add: [10.0.0.2], remove: [])" or "key-rotation"
-fn describe(op: &MlsOperation) -> String {
-    if op.update {
-        return "key-rotation".to_string();
-    }
-    let adds: Vec<&str> = op.adds.iter().map(|add| add.client_id.as_str()).collect();
-    format!("change (add: {adds:?}, remove: {:?})", op.removes)
-}
-
-/// Lists the networks, which need encryption on this gateway: a VM of the network is behind this
-/// gateway and the network is reached over an encrypted route towards another host.
-async fn encrypted_networks() -> BTreeSet<u32> {
-    let ebpf_interf = EBPF_INTERFACE_HANDLE.lock().await;
-
-    let local: BTreeSet<u32> = ebpf_interf
-        .routes
-        .values()
-        .filter(|route| route.gateway_ip.is_none())
-        .filter(|route| {
-            ebpf_interf
-                .taps
-                .get(&route.target_iface)
-                .is_some_and(|tap| tap.vni == route.vni)
-        })
-        .map(|route| route.vni)
-        .collect();
-    let encrypted: BTreeSet<u32> = ebpf_interf
-        .routes
-        .values()
-        .filter(|route| route.encrypted)
-        .map(|route| route.vni)
-        .collect();
-
-    local.intersection(&encrypted).copied().collect()
-}
-
-/// Takes the result of a subscription over.
-///
-/// # Arguments
-/// * `vni` - Tenant of the network
-/// * `action` - What the izakaya answered
-/// * `has_group` - Whether the gateway holds the group
-///
-/// # Returns
-/// `Ok(())` once the gateway did, what the izakaya asked for
-async fn handle_subscription(
-    vni: u32,
-    action: MlsSubscribeAction,
-    has_group: bool,
-) -> Result<(), String> {
-    match action {
-        MlsSubscribeAction::Create => {
-            let mut mls = MLS_STATE_HANDLE.lock().await;
-            group::create_group(&mut mls, vni).map_err(|e| format!("{e:?}"))?;
-            if has_group {
-                // the old group is still in use by the other members, so its keys stay, until
-                // the pairs switched to the new group
-                log::warn!(
-                    "The izakaya doesn't know the MLS-group of tenant {vni}, start a new one"
-                );
-                mls.replace_epochs(vni).map_err(|e| format!("{e:?}"))?;
-            } else {
-                mls.reset_epochs(vni).map_err(|e| format!("{e:?}"))?;
-            }
-            mls.save().map_err(|e| format!("{e:?}"))?;
-            log::info!("Created the MLS-group of tenant {vni}");
-
-            let mut ebpf_interf = EBPF_INTERFACE_HANDLE.lock().await;
-            apply_keys(&mls, &mut ebpf_interf, vni);
-        }
-        MlsSubscribeAction::Joining => {
-            log::debug!("Waiting for the welcome into the MLS-group of tenant {vni}");
-        }
-        MlsSubscribeAction::Member => {}
-    }
-    Ok(())
-}
-
-/// Drops the group of a network, which this gateway doesn't serve anymore, together with all
-/// keys derived from it.
-///
-/// # Arguments
-/// * `vni` - Tenant of the network
-async fn leave_group(vni: u32) {
-    let mut mls = MLS_STATE_HANDLE.lock().await;
-    if let Err(e) = group::delete_group(&mut mls, vni) {
-        log::warn!("Failed to delete the MLS-group of tenant {vni}: {e:?}");
-    }
-    mls.network_keys.remove(&vni);
-    if let Err(e) = mls.save() {
-        log::error!("Failed to persist the MLS-state: {e:?}");
-    }
-    log::info!("Left the MLS-group of tenant {vni}");
-
-    let mut ebpf_interf = EBPF_INTERFACE_HANDLE.lock().await;
-    apply_keys(&mls, &mut ebpf_interf, vni);
 }

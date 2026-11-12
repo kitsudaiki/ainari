@@ -37,29 +37,21 @@
 //! 3. after the `Switched` of the peer, the incoming keys of the old epochs are removed, once no
 //!    packet arrives with them anymore.
 
-use std::collections::{HashMap, HashSet};
-use std::net::Ipv4Addr;
-
-use openmls::prelude::*;
-use uuid::Uuid;
-
-use crate::config::CONFIG;
-use crate::core::crypto::{
-    apply_connection_policies, install_sa, remove_connection_policies, remove_sa,
-};
-use crate::core::ebpf_interface::EBPFInterface;
-use crate::core::mls_key_exchange::state::{EpochId, NetworkKeys};
-use crate::core::models::{Connection, CryptoKey, Route, TapInfo};
-use crate::core::utils::{bind_connection_to_table, get_local_ip, unbind_connection_from_table};
-
+use crate::core::mls_key_exchange::network_keys::{EpochId, NetworkKeys};
+use crate::core::models::{Route, TapInfo};
 use ainari_api_structs::network_crypto_structs::CryptoDirection;
 use ainari_common::secret::Secret;
+use openmls::prelude::*;
+use std::collections::BTreeMap;
+use std::collections::HashMap;
+use std::net::Ipv4Addr;
+use uuid::Uuid;
 
 /// Label of the MLS-exporter for the base secret of an epoch
 const BASE_EXPORTER_LABEL: &str = "ainari ipsec base v1";
 
 /// Length of the base secret of an epoch
-const BASE_LENGTH: usize = 32;
+pub(crate) const BASE_LENGTH: usize = 32;
 
 /// Label, which prefixes the context of every key derived from a base secret
 const SA_INFO_LABEL: &str = "ainari ipsec sa v1";
@@ -313,44 +305,15 @@ pub fn remove_idle_keys(
         let mut done = Vec::new();
         for (id, counters) in pair.retiring.iter_mut() {
             let first_check = counters.is_empty();
-            let spis: Vec<u32> = if first_check {
-                let Some(base) = keys.bases.get(id) else {
-                    done.push(*id);
-                    continue;
-                };
-                connections
-                    .iter()
-                    .filter(|conn| conn.peer_gateway_ip == *peer)
-                    .filter_map(|conn| {
-                        let local = (conn.local_ip, local_gateway_ip);
-                        let remote = (conn.remote_ip, conn.peer_gateway_ip);
-                        derive_sa(base, crypto, vni, remote, local).ok()
-                    })
-                    .map(|sa| sa.spi)
-                    .collect()
-            } else {
-                counters.keys().copied().collect()
-            };
-
-            for spi in spis {
-                match packet_count(*peer, local_gateway_ip, spi) {
-                    Ok(Some(count)) if first_check || counters.get(&spi) != Some(&count) => {
-                        counters.insert(spi, count);
-                    }
-                    // idle since the last check, or gone already
-                    Ok(_) => {
-                        counters.remove(&spi);
-                    }
-                    Err(e) => {
-                        log::warn!("Failed to read the counter of spi 0x{spi:08x}: {e}");
-                        // without a reading, an unread key is kept and checked again
-                        if first_check {
-                            counters.insert(spi, u64::MAX);
-                        }
-                    }
+            let spis = match (first_check, keys.bases.get(id)) {
+                (false, _) => counters.keys().copied().collect(),
+                (true, Some(base)) => {
+                    incoming_spis(base, crypto, vni, connections, *peer, local_gateway_ip)
                 }
-                changed = true;
-            }
+                (true, None) => Vec::new(),
+            };
+            let mut read = |spi| packet_count(*peer, local_gateway_ip, spi);
+            changed |= check_counters(counters, &spis, first_check, &mut read);
             if counters.is_empty() {
                 done.push(*id);
             }
@@ -369,360 +332,86 @@ pub fn remove_idle_keys(
     changed
 }
 
-/// Builds the id, under which the gateway-state holds the policies of a connection.
-fn connection_id(vni: u32, conn: &DesiredConnection) -> String {
-    format!("{}:{}->{}", vni, conn.local_ip, conn.remote_ip)
-}
-
-/// Checks, if the keys of an epoch are in place for all connections of a pair in one direction:
-/// the incoming keys are installed, or the outbound policies point at the outgoing keys.
+/// Derives the SPIs of the incoming keys of an epoch, which a pair has for its connections.
 ///
 /// # Arguments
-/// * `ebpf_interf` - The gateway state
-/// * `keys` - The epochs of the network
+/// * `base` - Base secret of the epoch
 /// * `crypto` - Crypto-provider of the MLS-client
 /// * `vni` - Tenant of the network
+/// * `connections` - The connections of the network on this gateway
 /// * `peer` - The peer of the pair
-/// * `id` - The epoch
-/// * `direction` - The direction
 /// * `local_gateway_ip` - Underlay address of this gateway
 ///
 /// # Returns
-/// `true` if all keys are in place, also if the pair has no connection
-#[allow(clippy::too_many_arguments)]
-pub fn pair_installed(
-    ebpf_interf: &EBPFInterface,
-    keys: &NetworkKeys,
+/// The SPIs
+fn incoming_spis(
+    base: &[u8],
     crypto: &impl OpenMlsCrypto,
     vni: u32,
+    connections: &[DesiredConnection],
     peer: Ipv4Addr,
-    id: EpochId,
-    direction: CryptoDirection,
     local_gateway_ip: Ipv4Addr,
-) -> bool {
-    let Some(base) = keys.bases.get(&id) else {
-        return false;
-    };
-    desired_connections(&ebpf_interf.routes, &ebpf_interf.taps, vni)
+) -> Vec<u32> {
+    connections
         .iter()
         .filter(|conn| conn.peer_gateway_ip == peer)
-        .all(|conn| {
+        .filter_map(|conn| {
             let local = (conn.local_ip, local_gateway_ip);
             let remote = (conn.remote_ip, conn.peer_gateway_ip);
-            match direction {
-                CryptoDirection::Ingress => derive_sa(base, crypto, vni, remote, local)
-                    .is_ok_and(|sa| ebpf_interf.crypto_keys.contains_key(&(direction, sa.spi))),
-                CryptoDirection::Egress => {
-                    derive_sa(base, crypto, vni, local, remote).is_ok_and(|sa| {
-                        ebpf_interf
-                            .connections
-                            .get(&connection_id(vni, conn))
-                            .is_some_and(|existing| existing.active_egress_spi == sa.spi)
-                    })
+            derive_sa(base, crypto, vni, remote, local).ok()
+        })
+        .map(|sa| sa.spi)
+        .collect()
+}
+
+/// Reads the packet counters of the incoming keys of a retiring epoch and drops every key, which
+/// is idle since the last check or gone already. A key, whose counter can't be read, is kept.
+///
+/// # Arguments
+/// * `counters` - The counters of the last check by SPI, which are updated
+/// * `spis` - The keys to check
+/// * `first_check` - The counters were never read before, so every key is kept this time
+/// * `read` - Reads the counter of a key, `None` if the key doesn't exist
+///
+/// # Returns
+/// `true` if a key was checked
+fn check_counters(
+    counters: &mut BTreeMap<u32, u64>,
+    spis: &[u32],
+    first_check: bool,
+    read: &mut impl FnMut(u32) -> Result<Option<u64>, String>,
+) -> bool {
+    for spi in spis {
+        match read(*spi) {
+            Ok(Some(count)) if first_check || counters.get(spi) != Some(&count) => {
+                counters.insert(*spi, count);
+            }
+            // idle since the last check, or gone already
+            Ok(_) => {
+                counters.remove(spi);
+            }
+            Err(e) => {
+                log::warn!("Failed to read the counter of spi 0x{spi:08x}: {e}");
+                // without a reading, an unread key is kept and checked again
+                if first_check {
+                    counters.insert(*spi, u64::MAX);
                 }
             }
-        })
-}
-
-/// Selects the installed keys of a network, which are not needed anymore.
-///
-/// # Arguments
-/// * `keys` - All installed keys of the gateway
-/// * `vni` - Tenant of the network
-/// * `keep` - The keys, which have to stay, by direction and SPI
-///
-/// # Returns
-/// The keys to remove, by direction and SPI
-pub fn stale_keys(
-    keys: &HashMap<(CryptoDirection, u32), CryptoKey>,
-    vni: u32,
-    keep: &HashSet<(CryptoDirection, u32)>,
-) -> Vec<(CryptoDirection, u32)> {
-    let mut stale: Vec<(CryptoDirection, u32)> = keys
-        .values()
-        .filter(|key| key.vni == vni && !keep.contains(&(key.direction, key.spi)))
-        .map(|key| (key.direction, key.spi))
-        .collect();
-    stale.sort();
-    stale
-}
-
-/// Brings the keys of a network in line with its recorded epochs and its routes.
-///
-/// The changes are made in the order, which never leaves a connection without a matching key on
-/// both ends: first all missing incoming keys are installed, then the outgoing keys of the active
-/// epochs of the pairs are installed and the outbound policies are switched over to them, and
-/// only at the end the keys, which are not needed anymore, are removed. An outgoing key, whose
-/// successor couldn't be installed, is kept, because the policy of its connection still points at
-/// it.
-///
-/// Without recorded epochs every key of the network is removed, which leaves the encrypted routes
-/// of the network with their fail-closed block policies.
-///
-/// A single connection, which fails, doesn't stop the others.
-///
-/// # Arguments
-/// * `ebpf_interf` - The locked gateway state
-/// * `keys` - The epochs of the network, or `None` if the gateway is not a member of its group
-/// * `crypto` - Crypto-provider of the MLS-client
-/// * `vni` - Tenant of the network
-///
-/// # Returns
-/// `Ok(())` if all keys are in place, otherwise the collected errors
-pub fn apply_network_keys(
-    ebpf_interf: &mut EBPFInterface,
-    keys: Option<&NetworkKeys>,
-    crypto: &impl OpenMlsCrypto,
-    vni: u32,
-) -> Result<(), String> {
-    let connections = match keys {
-        Some(_) => desired_connections(&ebpf_interf.routes, &ebpf_interf.taps, vni),
-        None => Vec::new(),
-    };
-    let has_state = ebpf_interf.crypto_keys.values().any(|key| key.vni == vni)
-        || ebpf_interf.connections.values().any(|conn| conn.vni == vni);
-    if connections.is_empty() && !has_state {
-        return Ok(());
-    }
-
-    let local_gateway_ip = get_local_ip(&CONFIG.network.underlay_iface)
-        .ok_or_else(|| format!("No underlay address on {}", CONFIG.network.underlay_iface))?;
-
-    let sas = match keys {
-        Some(keys) => desired_sas(keys, crypto, vni, &connections, local_gateway_ip)?,
-        None => Vec::new(),
-    };
-    let mut errors = Vec::new();
-
-    // 1. incoming keys first, so the peers can already send with them
-    for desired in sas
-        .iter()
-        .filter(|desired| desired.direction == CryptoDirection::Ingress)
-    {
-        if let Err(e) = install_key(ebpf_interf, vni, desired, local_gateway_ip) {
-            errors.push(e);
         }
     }
-
-    // 2. outgoing keys of the active epochs, together with the switch of the outbound policies
-    for desired in sas
-        .iter()
-        .filter(|desired| desired.direction == CryptoDirection::Egress)
-    {
-        let result = install_key(ebpf_interf, vni, desired, local_gateway_ip)
-            .and_then(|()| activate_egress_key(ebpf_interf, vni, desired, local_gateway_ip));
-        if let Err(e) = result {
-            errors.push(e);
-        }
-    }
-
-    // 3. remove what is not needed anymore. The outgoing key, which a policy points at, stays in
-    //    any case, so a failed switch doesn't leave the connection without its key.
-    let mut keep: HashSet<(CryptoDirection, u32)> = sas
-        .iter()
-        .map(|desired| (desired.direction, desired.sa.spi))
-        .collect();
-    keep.extend(
-        ebpf_interf
-            .connections
-            .values()
-            .filter(|conn| conn.vni == vni)
-            .map(|conn| (CryptoDirection::Egress, conn.active_egress_spi)),
-    );
-    let desired_pairs: HashSet<(Ipv4Addr, Ipv4Addr)> = connections
-        .iter()
-        .map(|conn| (conn.local_ip, conn.remote_ip))
-        .collect();
-
-    let stale_connections: Vec<String> = ebpf_interf
-        .connections
-        .iter()
-        .filter(|(_, conn)| {
-            conn.vni == vni && !desired_pairs.contains(&(conn.local_ip, conn.remote_ip))
-        })
-        .map(|(conn_id, _)| conn_id.clone())
-        .collect();
-    for conn_id in stale_connections {
-        if let Some(conn) = ebpf_interf.connections.remove(&conn_id) {
-            remove_connection_policies(&conn);
-            unbind_connection_from_table(
-                conn.local_ip,
-                conn.remote_ip,
-                &CONFIG.network.tenant_table(conn.vni),
-            );
-            keep.remove(&(CryptoDirection::Egress, conn.active_egress_spi));
-        }
-    }
-
-    for (direction, spi) in stale_keys(&ebpf_interf.crypto_keys, vni, &keep) {
-        let Some(key) = ebpf_interf.crypto_keys.remove(&(direction, spi)) else {
-            continue;
-        };
-        let (src, dst) = match direction {
-            CryptoDirection::Egress => (local_gateway_ip, key.peer_gateway_ip),
-            CryptoDirection::Ingress => (key.peer_gateway_ip, local_gateway_ip),
-        };
-        // the kernel may have dropped it already, for example with a restart of the host
-        match remove_sa(src, dst, spi) {
-            Ok(()) => log::debug!(
-                "Removed {direction} key spi 0x{spi:08x} of epoch {} of tenant {vni}",
-                key.mls_epoch
-            ),
-            Err(e) => log::warn!("Failed to remove {direction} key spi 0x{spi:08x}: {e}"),
-        }
-    }
-
-    log::debug!(
-        "Applied the keys of tenant {vni} for {} connection(s), pairs {:?}",
-        connections.len(),
-        keys.map(|keys| &keys.pairs)
-    );
-
-    if errors.is_empty() {
-        Ok(())
-    } else {
-        Err(errors.join("; "))
-    }
-}
-
-/// Installs one key, if it isn't installed already.
-///
-/// # Arguments
-/// * `ebpf_interf` - The locked gateway state
-/// * `vni` - Tenant of the network
-/// * `desired` - The key
-/// * `local_gateway_ip` - Underlay address of this gateway
-///
-/// # Returns
-/// `Ok(())` once the key is installed, or an error, if the kernel refused it or its SPI is used
-/// by another connection
-fn install_key(
-    ebpf_interf: &mut EBPFInterface,
-    vni: u32,
-    desired: &DesiredSa,
-    local_gateway_ip: Ipv4Addr,
-) -> Result<(), String> {
-    let conn = &desired.conn;
-    let spi = desired.sa.spi;
-
-    if let Some(existing) = ebpf_interf.crypto_keys.get(&(desired.direction, spi)) {
-        let same_connection = existing.vni == vni
-            && existing.local_ip == conn.local_ip
-            && existing.remote_ip == conn.remote_ip
-            && existing.peer_gateway_ip == conn.peer_gateway_ip;
-        if same_connection {
-            return Ok(());
-        }
-        return Err(format!(
-            "SPI 0x{spi:08x} of {} -> {} is already used by {} -> {} in tenant {}",
-            conn.local_ip, conn.remote_ip, existing.local_ip, existing.remote_ip, existing.vni
-        ));
-    }
-
-    let local_sel = format!("{}/32", conn.local_ip);
-    let remote_sel = format!("{}/32", conn.remote_ip);
-    let spi_hex = format!("0x{spi:08x}");
-    match desired.direction {
-        CryptoDirection::Egress => install_sa(
-            local_gateway_ip,
-            conn.peer_gateway_ip,
-            &spi_hex,
-            &desired.sa.key,
-            &local_sel,
-            &remote_sel,
-        )?,
-        CryptoDirection::Ingress => install_sa(
-            conn.peer_gateway_ip,
-            local_gateway_ip,
-            &spi_hex,
-            &desired.sa.key,
-            &remote_sel,
-            &local_sel,
-        )?,
-    }
-
-    ebpf_interf.crypto_keys.insert(
-        (desired.direction, spi),
-        CryptoKey {
-            direction: desired.direction,
-            vni,
-            local_ip: conn.local_ip,
-            remote_ip: conn.remote_ip,
-            peer_gateway_ip: conn.peer_gateway_ip,
-            spi,
-            mls_epoch: desired.epoch,
-        },
-    );
-    Ok(())
-}
-
-/// Points the outbound policy of a connection at its outgoing key of the active epoch.
-///
-/// The policies are only rewritten, if the connection moved to another key or peer, so a refresh
-/// without a change doesn't touch the kernel.
-///
-/// # Arguments
-/// * `ebpf_interf` - The locked gateway state
-/// * `vni` - Tenant of the network
-/// * `desired` - The outgoing key of the connection
-/// * `local_gateway_ip` - Underlay address of this gateway
-///
-/// # Returns
-/// `Ok(())` once the policies point at the key
-fn activate_egress_key(
-    ebpf_interf: &mut EBPFInterface,
-    vni: u32,
-    desired: &DesiredSa,
-    local_gateway_ip: Ipv4Addr,
-) -> Result<(), String> {
-    let conn = &desired.conn;
-    let conn_id = connection_id(vni, conn);
-    let connection = Connection {
-        vni,
-        local_ip: conn.local_ip,
-        remote_ip: conn.remote_ip,
-        peer_gateway_ip: conn.peer_gateway_ip,
-        active_egress_spi: desired.sa.spi,
-    };
-
-    let unchanged = ebpf_interf
-        .connections
-        .get(&conn_id)
-        .is_some_and(|existing| {
-            existing.active_egress_spi == connection.active_egress_spi
-                && existing.peer_gateway_ip == connection.peer_gateway_ip
-        });
-    if !unchanged {
-        // a new connection needs its rules first, so the first packet, which it decrypts, finds
-        // the VM instead of the default route
-        if !ebpf_interf.connections.contains_key(&conn_id) {
-            bind_connection_to_table(
-                conn.local_ip,
-                conn.remote_ip,
-                &CONFIG.network.tenant_table(vni),
-            )?;
-        }
-        apply_connection_policies(&connection, local_gateway_ip)?;
-        ebpf_interf.connections.insert(conn_id, connection);
-    }
-    Ok(())
+    !spis.is_empty()
 }
 
 #[cfg(test)]
-pub(crate) mod tests {
+mod tests {
     use super::*;
-    use openmls_rust_crypto::RustCrypto;
-
     use crate::core::mls_key_exchange::group::create_group;
-    use crate::core::mls_key_exchange::group::tests::{invite, new_gateway};
+    use crate::core::mls_key_exchange::network_keys::NetworkKeys;
 
-    pub(crate) fn ip(last: u8) -> Ipv4Addr {
-        Ipv4Addr::new(192, 168, 0, last)
-    }
-
-    pub(crate) fn gateway(last: u8) -> Ipv4Addr {
-        Ipv4Addr::new(10, 0, 0, last)
-    }
+    use crate::core::mls_key_exchange::test_support::{
+        TestGateway, gateway, in_sync, invite, ip, new_gateway,
+    };
+    use openmls_rust_crypto::RustCrypto;
 
     fn route(vni: u32, dest_ip: Ipv4Addr, target_iface: &str, gateway_last: Option<u8>) -> Route {
         Route {
@@ -743,127 +432,6 @@ pub(crate) mod tests {
             tap_mac: [0; 6],
             vm_mac: None,
         }
-    }
-
-    fn key(direction: CryptoDirection, vni: u32, spi: u32) -> CryptoKey {
-        CryptoKey {
-            direction,
-            vni,
-            local_ip: ip(1),
-            remote_ip: ip(2),
-            peer_gateway_ip: gateway(2),
-            spi,
-            mls_epoch: 1,
-        }
-    }
-
-    /// One gateway of the rotation-tests with one VM, which talks to the VM of the other one
-    pub(crate) struct TestGateway {
-        pub(crate) conn: DesiredConnection,
-        pub(crate) local_gateway_ip: Ipv4Addr,
-        pub(crate) keys: NetworkKeys,
-    }
-
-    impl TestGateway {
-        pub(crate) fn new(
-            local_vm: u8,
-            local_gateway: u8,
-            remote_vm: u8,
-            remote_gateway: u8,
-        ) -> Self {
-            TestGateway {
-                conn: DesiredConnection {
-                    local_ip: ip(local_vm),
-                    remote_ip: ip(remote_vm),
-                    peer_gateway_ip: gateway(remote_gateway),
-                },
-                local_gateway_ip: gateway(local_gateway),
-                keys: NetworkKeys::new(1, vec![1u8; BASE_LENGTH], &[gateway(remote_gateway)]),
-            }
-        }
-
-        pub(crate) fn peers(&self) -> [Ipv4Addr; 1] {
-            [self.conn.peer_gateway_ip]
-        }
-
-        pub(crate) fn spis(&self, direction: CryptoDirection) -> HashSet<u32> {
-            desired_sas(
-                &self.keys,
-                &RustCrypto::default(),
-                5,
-                &[self.conn],
-                self.local_gateway_ip,
-            )
-            .unwrap()
-            .into_iter()
-            .filter(|desired| desired.direction == direction)
-            .map(|desired| desired.sa.spi)
-            .collect()
-        }
-
-        pub(crate) fn record(&mut self, epoch: u64) {
-            let peers = self.peers();
-            self.keys
-                .record(epoch, vec![epoch as u8; BASE_LENGTH], &peers, None, 0);
-        }
-
-        /// Switches the outgoing traffic to an epoch of the current group, as the pair does after
-        /// the `Ready` of the peer
-        fn switch(&mut self, epoch: u64) {
-            let id = (self.keys.generation, epoch);
-            for pair in self.keys.pairs.values_mut() {
-                pair.egress = Some(id);
-            }
-        }
-
-        /// Retires the older incoming epochs, as the pair does after the `Switched` of the peer
-        fn retire_older(&mut self, epoch: u64) {
-            let id = (self.keys.generation, epoch);
-            for pair in self.keys.pairs.values_mut() {
-                let older: Vec<EpochId> = pair.ingress.range(..id).copied().collect();
-                for old in older {
-                    pair.ingress.remove(&old);
-                    pair.retiring.entry(old).or_default();
-                }
-            }
-        }
-
-        pub(crate) fn check_counters(
-            &mut self,
-            counter: &mut impl FnMut(Ipv4Addr, Ipv4Addr, u32) -> Result<Option<u64>, String>,
-        ) -> bool {
-            remove_idle_keys(
-                &mut self.keys,
-                &RustCrypto::default(),
-                5,
-                &[self.conn],
-                self.local_gateway_ip,
-                counter,
-            )
-        }
-
-        /// Starts a new group with its own base secrets, like after izakaya lost its database
-        pub(crate) fn replace(&mut self, epoch: u64) {
-            let peers = self.peers();
-            self.keys
-                .replace(epoch, vec![100 + epoch as u8; BASE_LENGTH], &peers, 0);
-        }
-
-        pub(crate) fn record_new_group(&mut self, epoch: u64) {
-            let peers = self.peers();
-            self.keys
-                .record(epoch, vec![100 + epoch as u8; BASE_LENGTH], &peers, None, 0);
-        }
-    }
-
-    /// Checks, that the receiver has the key, which the sender uses, in both directions.
-    pub(crate) fn in_sync(a: &TestGateway, b: &TestGateway) -> bool {
-        let a_egress = a.spis(CryptoDirection::Egress);
-        let b_egress = b.spis(CryptoDirection::Egress);
-        a_egress.len() == 1
-            && b_egress.len() == 1
-            && a_egress.is_subset(&b.spis(CryptoDirection::Ingress))
-            && b_egress.is_subset(&a.spis(CryptoDirection::Ingress))
     }
 
     #[test]
@@ -960,31 +528,6 @@ pub(crate) mod tests {
             ]
         );
         assert!(desired_connections(&routes, &taps, 7).is_empty());
-    }
-
-    #[test]
-    fn only_the_keys_of_the_tenant_which_are_not_kept_are_stale() {
-        let mut keys = HashMap::new();
-        for key in [
-            key(CryptoDirection::Egress, 5, 1),
-            key(CryptoDirection::Ingress, 5, 2),
-            key(CryptoDirection::Ingress, 5, 3),
-            key(CryptoDirection::Ingress, 6, 4),
-        ] {
-            keys.insert((key.direction, key.spi), key);
-        }
-        let keep: HashSet<_> = [(CryptoDirection::Egress, 1), (CryptoDirection::Ingress, 2)]
-            .into_iter()
-            .collect();
-
-        assert_eq!(
-            stale_keys(&keys, 5, &keep),
-            vec![(CryptoDirection::Ingress, 3)]
-        );
-        assert_eq!(
-            stale_keys(&keys, 6, &HashSet::new()),
-            vec![(CryptoDirection::Ingress, 4)]
-        );
     }
 
     #[test]

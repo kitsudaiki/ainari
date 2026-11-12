@@ -17,7 +17,7 @@ use apistos::actix::NoContent;
 use apistos::api_operation;
 use validator::Validate;
 
-use crate::core::coordinator;
+use crate::core::coordinator::{self, exclusively, remove_member, touch};
 
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::mls_structs::*;
@@ -43,7 +43,23 @@ pub async fn unsubscribe_mls_group_internal(
     body.validate()
         .map_err(|e| ErrorResponse::BadRequest(format!("Invalid input: {e}")))?;
 
-    coordinator::unsubscribe(path.vni, &body.client_id, coordinator::now())?;
+    unsubscribe(path.vni, &body.client_id, coordinator::now())?;
 
     Ok(NoContent)
+}
+
+/// Unsubscribes a gateway from the group of a network, which removes it from the group.
+///
+/// # Arguments
+/// * `vni` - Tenant of the network
+/// * `client_id` - Identity of the gateway
+/// * `now` - Current unix-time in seconds
+///
+/// # Returns
+/// `Ok(())` once the removal is queued
+pub(crate) fn unsubscribe(vni: u32, client_id: &str, now: i64) -> Result<(), ErrorResponse> {
+    exclusively(|| {
+        touch(client_id, now)?;
+        remove_member(vni, client_id, now)
+    })
 }
