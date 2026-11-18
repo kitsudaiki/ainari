@@ -12,7 +12,8 @@ mod nat;
 mod utils;
 
 use aya_ebpf::{
-    bindings::{TC_ACT_OK, TC_ACT_SHOT, xdp_action},
+    EbpfContext,
+    bindings::{__sk_buff, TC_ACT_OK, TC_ACT_SHOT, xdp_action},
     macros::{classifier, xdp},
     programs::{TcContext, XdpContext},
 };
@@ -206,7 +207,7 @@ const TAP_EGRESS_PULL_LEN: u32 = 14 + 60 + 4;
 #[classifier]
 pub fn tap_egress(ctx: TcContext) -> i32 {
     // On egress the interface of the socket buffer is the device the packet is sent on.
-    let ifindex = unsafe { (*ctx.skb.skb).ifindex };
+    let ifindex = unsafe { (*(ctx.as_ptr() as *const __sk_buff)).ifindex };
 
     // The headers may lie outside of the linear part of the buffer, where the program can't
     // read them. A packet shorter than the requested length is pulled completely.

@@ -109,19 +109,19 @@ pub static GATEWAY_CONFIG: Array<u32> = Array::with_max_entries(CONFIG_ENTRIES, 
 #[inline(always)]
 pub fn lookup_route(vni: u32, ip: u32) -> Option<(RouteKey, RouteTarget)> {
     let key = RouteKey::new(vni, ip);
-    if let Some(target) = unsafe { ROUTE_MAP.get(key) } {
+    if let Some(target) = unsafe { ROUTE_MAP.get(&key) } {
         return Some((key, *target));
     }
     // Fallback to the default route (0.0.0.0) of this tenant
     let fallback = RouteKey::default_route(vni);
-    if let Some(target) = unsafe { ROUTE_MAP.get(fallback) } {
+    if let Some(target) = unsafe { ROUTE_MAP.get(&fallback) } {
         return Some((fallback, *target));
     }
     // ... and finally to the way out of the virtual network, which the shared
     // tenant owns.
     if vni != VNI_DEFAULT {
         let shared = RouteKey::default_route(VNI_DEFAULT);
-        if let Some(target) = unsafe { ROUTE_MAP.get(shared) } {
+        if let Some(target) = unsafe { ROUTE_MAP.get(&shared) } {
             // The way out is shared, the packet is not: it travels on in its own
             // tenant, so the gateway at the other end can still tell whose it is.
             let mut borrowed = *target;
@@ -145,7 +145,7 @@ pub fn lookup_route(vni: u32, ip: u32) -> Option<(RouteKey, RouteTarget)> {
 /// An `Option<RouteTarget>` containing the exact routing entry, or `None`.
 #[inline(always)]
 pub fn lookup_route_exact(vni: u32, ip: u32) -> Option<RouteTarget> {
-    unsafe { ROUTE_MAP.get(RouteKey::new(vni, ip)) }.copied()
+    unsafe { ROUTE_MAP.get(&RouteKey::new(vni, ip)) }.copied()
 }
 
 /// Looks up the ARP responder configuration of an ingress interface.
@@ -158,7 +158,7 @@ pub fn lookup_route_exact(vni: u32, ip: u32) -> Option<RouteTarget> {
 /// interface is not managed by the eBPF ARP responder (e.g. the underlay).
 #[inline(always)]
 pub fn lookup_arp_proxy(ifindex: u32) -> Option<ArpProxy> {
-    unsafe { ARP_PROXY_MAP.get(ifindex) }.copied()
+    unsafe { ARP_PROXY_MAP.get(&ifindex) }.copied()
 }
 
 /// Resolves the tenant and the behaviour of an ingress interface.
@@ -174,7 +174,7 @@ pub fn lookup_arp_proxy(ifindex: u32) -> Option<ArpProxy> {
 /// The `IfaceConfig` of the interface, or the unregistered default
 #[inline(always)]
 pub fn lookup_iface(ifindex: u32) -> IfaceConfig {
-    match unsafe { IFACE_MAP.get(ifindex) } {
+    match unsafe { IFACE_MAP.get(&ifindex) } {
         Some(cfg) => *cfg,
         None => IfaceConfig::unregistered(),
     }
@@ -191,7 +191,7 @@ pub fn lookup_iface(ifindex: u32) -> IfaceConfig {
 /// unfiltered and therefore carries everything.
 #[inline(always)]
 pub fn lookup_filter(route_key: RouteKey) -> Option<&'static RouteFilter> {
-    unsafe { FILTER_MAP.get(route_key) }
+    unsafe { FILTER_MAP.get(&route_key) }
 }
 
 /// Looks up the egress packet filter of the VM behind an interface.
@@ -204,7 +204,7 @@ pub fn lookup_filter(route_key: RouteKey) -> Option<&'static RouteFilter> {
 /// unfiltered.
 #[inline(always)]
 pub fn lookup_egress_filter(ifindex: u32) -> Option<&'static RouteFilter> {
-    unsafe { EGRESS_FILTER_MAP.get(ifindex) }
+    unsafe { EGRESS_FILTER_MAP.get(&ifindex) }
 }
 
 /// Tells whether the gateway runs in the single gateway (uplink) mode.
@@ -226,7 +226,7 @@ pub fn uplink_mode() -> bool {
 /// interface is no uplink (always the case in the split setup)
 #[inline(always)]
 pub fn lookup_uplink(ifindex: u32) -> Option<ArpProxy> {
-    unsafe { UPLINK_MAP.get(ifindex) }.copied()
+    unsafe { UPLINK_MAP.get(&ifindex) }.copied()
 }
 
 /// Checks whether an interface is an uplink of the single gateway setup.
@@ -238,7 +238,7 @@ pub fn lookup_uplink(ifindex: u32) -> Option<ArpProxy> {
 /// `true` if the interface is registered in `UPLINK_MAP`
 #[inline(always)]
 pub fn is_uplink(ifindex: u32) -> bool {
-    unsafe { UPLINK_MAP.get(ifindex) }.is_some()
+    unsafe { UPLINK_MAP.get(&ifindex) }.is_some()
 }
 
 /// Checks whether an address is a floating IP served by this gateway.
@@ -250,5 +250,5 @@ pub fn is_uplink(ifindex: u32) -> bool {
 /// `true` if the address has an entry in `FIP_DNAT_MAP`
 #[inline(always)]
 pub fn is_floating_ip(ip: u32) -> bool {
-    unsafe { FIP_DNAT_MAP.get(ip) }.is_some()
+    unsafe { FIP_DNAT_MAP.get(&ip) }.is_some()
 }
