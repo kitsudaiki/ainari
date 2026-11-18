@@ -29,7 +29,7 @@ serde_urlencoded = "0.7"
 # crate, which is affected by RUSTSEC-2023-0071 (Marvin timing attack) without any planned fix.
 # exactly one of `aws_lc_rs` and `rust_crypto` must be enabled, otherwise jsonwebtoken can not
 # determine a crypto-provider and panics at runtime instead of failing to compile.
-jsonwebtoken = { version = "11", features = ["aws_lc_rs"] }
+jsonwebtoken = { version = "12", features = ["aws_lc_rs"] }
 # passphrase-hashing
 argon2 = "0.6"
 # constant-time comparison of the legacy passphrase-hashes
