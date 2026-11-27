@@ -64,7 +64,10 @@ pub struct Claims {
 /// * `Err(String)` - If the token is invalid or expired
 pub fn validate_token(token: &str) -> Result<UserContext, String> {
     // validate token
-    let key = DecodingKey::from_secret(TOKEN_KEY.reveal().as_bytes());
+    let key = DecodingKey::from_secret(TOKEN_KEY.reveal().as_bytes()).map_err(|e| {
+        log::error!("Failed to create token decoding-key {e:?}");
+        "Invalid token".to_string()
+    })?;
     let validation = Validation::new(Algorithm::HS256);
     match decode::<UserContext>(token, &key, &validation) {
         Ok(context) => {
@@ -195,12 +198,12 @@ pub fn create_token(
         iss: "miko".to_string(),
     };
 
+    let key = EncodingKey::from_secret(TOKEN_KEY.reveal().as_bytes()).map_err(|e| {
+        log::error!("Failed to create token encoding-key {e:?}");
+    })?;
+
     // create token with the specified header, claims, and secret key
-    match encode(
-        &Header::default(),
-        &claims,
-        &EncodingKey::from_secret(TOKEN_KEY.reveal().as_bytes()),
-    ) {
+    match encode(&Header::default(), &claims, &key) {
         Ok(token) => {
             log::debug!(
                 "Successfully created token for user-id '{user_id}' and project-id '{project_id}'"

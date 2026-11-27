@@ -53,7 +53,7 @@ pub fn apply_dnat(
 
             // Check if this destination IP is a known Floating IP (FIP) requiring translation.
             let mapped = if translate {
-                unsafe { FIP_DNAT_MAP.get(dst_val) }
+                unsafe { FIP_DNAT_MAP.get(&dst_val) }
             } else {
                 None
             };
@@ -129,7 +129,7 @@ pub fn apply_dnat(
         // If the ARP request is looking for a Floating IP, rewrite it so the
         // internal VM actually recognizes it and responds.
         let mapped = if translate {
-            unsafe { FIP_DNAT_MAP.get(tpa_val) }
+            unsafe { FIP_DNAT_MAP.get(&tpa_val) }
         } else {
             None
         };
@@ -181,7 +181,7 @@ pub fn apply_snat(ctx: &XdpContext, eth_type: EtherType, vni: u32) -> Option<u32
             let src_val = u32::from_be(inner_ip.src_addr);
 
             // Check if this source IP should be masked behind a Floating IP (FIP).
-            if let Some(&fip) = unsafe { FIP_SNAT_MAP.get(RouteKey::new(vni, src_val)) } {
+            if let Some(&fip) = unsafe { FIP_SNAT_MAP.get(&RouteKey::new(vni, src_val)) } {
                 // 1. Rewrite the Layer 3 Source Address (Masking)
                 inner_ip.src_addr = u32::to_be(fip);
 
@@ -234,7 +234,7 @@ pub fn apply_snat(ctx: &XdpContext, eth_type: EtherType, vni: u32) -> Option<u32
 
         // If an internal VM is sending an ARP reply/request, mask its internal IP
         // with the public Floating IP so the external network accepts it.
-        if let Some(&fip) = unsafe { FIP_SNAT_MAP.get(RouteKey::new(vni, spa_val)) } {
+        if let Some(&fip) = unsafe { FIP_SNAT_MAP.get(&RouteKey::new(vni, spa_val)) } {
             arp.spa = u32::to_be(fip);
             unsafe { core::ptr::write_unaligned(arp_ptr, arp) };
         }
