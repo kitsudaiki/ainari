@@ -667,17 +667,33 @@ jobs:
           ./.github/scripts/dockerhub_digests.sh delete ${{ matrix.builds.regitry }} \
             $(grep -vxF -f /tmp/new_digests /tmp/obsolete_digests || true)
       -
+        name: Install Docker Scout CLI
+        # The docker/scout-action downloads its binary without authentication from the GitHub API,
+        # which randomly fails with 403 because of the rate-limit for unauthenticated requests.
+        # 'gh' downloads the release with the token of the workflow instead.
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SCOUT_VERSION: 1.30.0
+        run: |
+          cd "${RUNNER_TEMP}"
+          gh release download "v${SCOUT_VERSION}" --repo docker/scout-cli \
+            --pattern "docker-scout_${SCOUT_VERSION}_linux_amd64.tar.gz" \
+            --pattern "docker-scout_${SCOUT_VERSION}_checksums.txt"
+          sha256sum --check --ignore-missing "docker-scout_${SCOUT_VERSION}_checksums.txt"
+          mkdir -p ~/.docker/cli-plugins
+          tar -xzf "docker-scout_${SCOUT_VERSION}_linux_amd64.tar.gz" -C ~/.docker/cli-plugins docker-scout
+          chmod +x ~/.docker/cli-plugins/docker-scout
+      -
         name: Docker Scout
-        # v1.27.0
-        uses: docker/scout-action@e7e2a72bf1485d10a58f30696b6c513b261ce4fa # v1.29.0
-        with:
+        # without '--exit-code' the vulnerabilities are only reported, without failing the pipeline
+        run: |
+          IMAGE="registry://${{ matrix.builds.regitry }}:${{ env.BRANCH_NAME }}"
           # prints the vulnerabilities of the pushed image in the log and the job-summary
-          command: cves
-          image: registry://${{ matrix.builds.regitry }}:${{ env.BRANCH_NAME }}
+          docker scout cves "${IMAGE}"
+          docker scout cves --format markdown "${IMAGE}" >> "${GITHUB_STEP_SUMMARY}"
           # used by the job 'security_badges' to count the vulnerabilities for the badges of the README
-          sarif-file: ${{ github.workspace }}/${{ matrix.builds.component }}.sarif.json
-          # only report the vulnerabilities, without failing the pipeline
-          exit-code: false
+          docker scout cves --format sarif \
+            --output "${{ github.workspace }}/${{ matrix.builds.component }}.sarif.json" "${IMAGE}"
       -
         name: Upload Docker Scout result
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
