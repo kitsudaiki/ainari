@@ -327,7 +327,6 @@ pub(crate) fn step_of(gateway: &mut TestGateway) -> Vec<PairMessage> {
             mark_sent(&mut gateway.keys, kind, id, &peers);
             PairMessage {
                 kind,
-                generation: id.0,
                 epoch: id.1,
                 peers: peers.iter().map(|peer| peer.to_string()).collect(),
             }

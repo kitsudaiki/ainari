@@ -39,11 +39,16 @@ pub enum PairMessageKind {
     Switched,
 }
 
-/// Plaintext of an application message between the gateways of pairs
+/// Plaintext of an application message between the gateways of pairs.
+///
+/// It names the epoch only within the group. The generation is counted by every gateway on its
+/// own, so it differs between the gateways, for example for a gateway, which joined after the
+/// group was replaced. A message can only be decrypted with the current group of the receiver,
+/// so the receiver reads the epoch within its own current generation.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct PairMessage {
     pub kind: PairMessageKind,
-    pub generation: u64,
+    /// Epoch of the current group of the sender
     pub epoch: u64,
     /// Identities of the peers, which the message concerns
     pub peers: Vec<String>,
@@ -74,7 +79,6 @@ pub fn queue(
     let recipients: Vec<String> = peers.iter().map(|peer| peer.to_string()).collect();
     let message = PairMessage {
         kind,
-        generation: id.0,
         epoch: id.1,
         peers: recipients.clone(),
     };
@@ -133,8 +137,9 @@ pub fn receive(state: &mut MlsState, vni: u32, sender: &str, message: &PairMessa
 /// Takes a message from the peer of a pair into the keys of a network.
 ///
 /// The message only counts for the pair with its sender, and only if it is meant for this
-/// gateway and belongs to the current generation of the network. It never moves a pair back, so
-/// a replayed or delayed message changes nothing.
+/// gateway. Its epoch belongs to the current generation of the network, because the message was
+/// decrypted with the current group. It never moves a pair back, so a replayed or delayed message
+/// changes nothing.
 ///
 /// # Arguments
 /// * `keys` - The epochs of the network
@@ -152,19 +157,11 @@ pub fn take(keys: &mut NetworkKeys, own: &str, sender: Ipv4Addr, message: &PairM
         );
         return false;
     }
-    if message.generation != keys.generation {
-        log::debug!(
-            "Ignore {:?} of {sender} for generation {}, which is not the current one",
-            message.kind,
-            message.generation
-        );
-        return false;
-    }
     let Some(pair) = keys.pairs.get_mut(&sender) else {
         return false;
     };
 
-    let id = Some((message.generation, message.epoch));
+    let id = Some((keys.generation, message.epoch));
     let latest = match message.kind {
         PairMessageKind::Ready => &mut pair.peer_ready,
         PairMessageKind::Switched => &mut pair.peer_switched,
@@ -177,7 +174,7 @@ pub fn take(keys: &mut NetworkKeys, own: &str, sender: Ipv4Addr, message: &PairM
         "{sender} is {:?} with epoch {} of generation {}",
         message.kind,
         message.epoch,
-        message.generation
+        keys.generation
     );
     true
 }
@@ -326,7 +323,6 @@ mod tests {
         // a message of a, which only concerns c, doesn't count for the pair of b with a
         let message = PairMessage {
             kind: PairMessageKind::Ready,
-            generation: id.0,
             epoch: id.1,
             peers: vec![C.to_string()],
         };
@@ -341,13 +337,6 @@ mod tests {
         let pairs = &gateways[1].network_keys[&5].pairs;
         assert_eq!(pairs[&addr(A)].peer_ready, None);
         assert_eq!(pairs[&addr(C)].peer_ready, Some(id));
-
-        // another generation doesn't count either
-        let message = PairMessage {
-            generation: id.0 + 1,
-            ..message
-        };
-        assert!(!receive(&mut gateways[1], 5, A, &message));
     }
 
     #[test]
@@ -355,7 +344,6 @@ mod tests {
         let mut gateways = joined(&[A, B]);
         let message = |epoch| PairMessage {
             kind: PairMessageKind::Switched,
-            generation: 1,
             epoch,
             peers: vec![B.to_string()],
         };

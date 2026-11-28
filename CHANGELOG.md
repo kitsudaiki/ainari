@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the images and snapshots by these addresses, so an existing deployment registers its onsen-hosts
   as new hosts, their backup-target marks have to be set again and the existing images and
   snapshots can't be read anymore without updating their `onsen_address` in the database of ryokan.
+- new messages between torii and izakaya for the key-exchange of the network-encryption, so all
+  torii and izakaya have to be updated together. The torii drop their persisted MLS-state in the
+  old format and join their groups again with new keys.
 
 ### Added
 
@@ -26,6 +29,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - REST-API of onsen with internal endpoints for the files and directories, which replaces the
   grpc-connection from ryokan and sakura to onsen. Like the APIs of all other components, it
   checks the token of the user against miko and is secured by TLS in kubernetes.
+- new internal endpoint `GET /v1alpha/network_crypto/mls/status/internal` of torii, which shows
+  the state of the key-exchange with every other torii of each network
+- new config-value `mls.commit_delay` of izakaya (default `1000` milliseconds), within which
+  queued additions and removals of a group are made with one commit
+
+### Changed
+
+- the keys of the network-encryption are switched per pair of torii, coordinated by signed and
+  encrypted MLS-messages between the two torii instead of the rounds of izakaya. A slow or silent
+  torii only holds back its own connections, and izakaya can't drop traffic by switching or
+  removing keys too early.
+- a torii, which joins a network, only gets new keys for its own connections, so it can't derive
+  the keys of the traffic between the other torii and the existing connections are not changed
+- old incoming keys are removed, when no packet arrives with them anymore, instead of after a
+  fixed time
 
 ### Fixed
 
@@ -41,6 +59,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   together with the wireguard-tools, iptables, iproute2 and sudo in the images of ryokan, onsen
   and sakura
 - removed the grpc-server of onsen and its protobuf-definition `onsen_upload.proto`
+- removed the key-rotation rounds of izakaya with the endpoint
+  `POST /v1alpha/mls_group/{vni}/round/internal`
 
 ## v0.23.0
 

@@ -74,6 +74,11 @@ impl Step {
 /// A step, which fails, is tried again with the next call, `last_error` tells why. The messages
 /// are not marked as sent, see `mark_sent`.
 ///
+/// The peer is only told about epochs of the current generation: a message names the epoch only
+/// within the group, so the peer would take an epoch of an older group for one of the current
+/// group. A pair with a target of an older generation is stale and waits for its peer to join the
+/// current group.
+///
 /// # Arguments
 /// * `keys` - The epochs of the network
 /// * `kernel` - Access to the keys in the kernel
@@ -114,6 +119,7 @@ fn install_ingress(keys: &mut NetworkKeys, kernel: &mut impl PairKernel, result:
 /// Steps 2 and 3: tells the peer of every pair, whose incoming keys are installed, that this
 /// gateway is ready, and switches the outgoing traffic of every pair, whose peer is ready.
 fn ready_and_switch(keys: &mut NetworkKeys, kernel: &mut impl PairKernel, result: &mut Step) {
+    let generation = keys.generation;
     let peers: Vec<Ipv4Addr> = keys.pairs.keys().copied().collect();
     let mut ready: BTreeMap<EpochId, Vec<Ipv4Addr>> = BTreeMap::new();
     let mut switching = Vec::new();
@@ -131,7 +137,7 @@ fn ready_and_switch(keys: &mut NetworkKeys, kernel: &mut impl PairKernel, result
             continue;
         }
         let pair = keys.pairs.get_mut(&peer).expect("pair of the list");
-        if pair.ready_sent != Some(target) {
+        if pair.ready_sent != Some(target) && target.0 == generation {
             ready.entry(target).or_default().push(peer);
         }
         // the peer may already be ready with a newer epoch, it still receives with the target
@@ -181,12 +187,16 @@ fn confirm_switch(
 /// Steps 4 and 5: tells the peer of every pair, which switched, and retires the incoming epochs,
 /// with which the peer doesn't send anymore. A pair has arrived, once both sides switched.
 fn switched_and_retire(keys: &mut NetworkKeys, result: &mut Step) {
+    let generation = keys.generation;
     let mut switched: BTreeMap<EpochId, Vec<Ipv4Addr>> = BTreeMap::new();
     for (peer, pair) in keys.pairs.iter_mut() {
         let Some(target) = pair.target else {
             continue;
         };
-        if pair.egress == Some(target) && pair.switched_sent != Some(target) {
+        if pair.egress == Some(target)
+            && pair.switched_sent != Some(target)
+            && target.0 == generation
+        {
             switched.entry(target).or_default().push(*peer);
         }
         let Some(peer_switched) = pair.peer_switched else {
@@ -336,11 +346,10 @@ mod tests {
         let mut a = TestGateway::new(1, 1, 2, 2);
         let mut b = TestGateway::new(2, 2, 1, 1);
 
-        // izakaya lost its database: a starts a new group, b joins it later. b can't read the
-        // ready of the new group yet.
+        // izakaya lost its database: a starts a new group, b joins it later. b can't decrypt the
+        // ready of the new group yet, so it never gets it.
         a.replace(0);
-        let from_a = step_of(&mut a);
-        deliver_to(from_a, &a, &mut b);
+        step_of(&mut a);
         assert!(in_sync(&a, &b));
         a.record_new_group(1);
         b.replace(1);
@@ -629,5 +638,47 @@ mod tests {
         for (gateway, peer) in [(0, B), (0, C), (1, A), (1, C), (2, A), (2, B)] {
             assert_eq!(pair(&gateways[gateway], peer).egress, Some(new));
         }
+    }
+
+    #[test]
+    fn a_gateway_which_joins_after_a_replaced_group_gets_keys_in_both_directions() {
+        // a and b are in the second generation of the network, a new gateway c starts with its
+        // first one
+        let mut gateways = joined(&[A, B]);
+        for gateway in gateways.iter_mut() {
+            gateway.replace_epochs(5).unwrap();
+        }
+        for _ in 0..3 {
+            drive_all(&mut gateways, &[]);
+        }
+        gateways.push(new_gateway(C));
+        let added = addition(&gateways[0], &gateways[2], 5);
+        commit(&mut gateways, vec![added], &[]);
+        assert_ne!(
+            gateways[0].network_keys[&5].generation,
+            gateways[2].network_keys[&5].generation
+        );
+        for _ in 0..3 {
+            drive_all(&mut gateways, &[]);
+        }
+
+        for (gateway, peer) in [(0, C), (1, C), (2, A), (2, B)] {
+            let pair = pair(&gateways[gateway], peer);
+            assert_eq!(pair.egress, Some(current(&gateways[gateway])));
+            assert_eq!(pair.target, None);
+        }
+    }
+
+    #[test]
+    fn a_stale_pair_tells_its_peer_nothing_about_the_older_group() {
+        let (b, c) = (gateway(2), gateway(3));
+        let mut keys = NetworkKeys::new(1, vec![1u8; 32], &[b, c]);
+        keys.replace(0, vec![2u8; 32], &[b], 1000);
+
+        let result = step(&mut keys, &mut TestKernel::default(), 1000);
+        assert_eq!(
+            result.messages,
+            vec![(PairMessageKind::Ready, (2, 0), vec![b])]
+        );
     }
 }

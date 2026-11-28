@@ -124,7 +124,6 @@ mod tests {
             mark_sent(&mut b.keys, kind, id, &peers);
             from_b.push(PairMessage {
                 kind,
-                generation: id.0,
                 epoch: id.1,
                 peers: peers.iter().map(|peer| peer.to_string()).collect(),
             });
