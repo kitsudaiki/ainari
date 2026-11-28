@@ -213,6 +213,29 @@ pub fn run_ip(args: &[&str]) -> Result<(), String> {
     run_ip_with_secrets(args, &[])
 }
 
+/// Runs an `ip` command and returns what it printed.
+///
+/// # Arguments
+/// * `args` - The argument vector handed to the `ip` binary
+///
+/// # Returns
+/// The stdout when the command succeeded, otherwise the captured stderr
+pub fn run_ip_output(args: &[&str]) -> Result<String, String> {
+    let output = std::process::Command::new("ip")
+        .args(args)
+        .output()
+        .map_err(|e| format!("failed to run ip {:?}: {}", args, e))?;
+
+    if output.status.success() {
+        return Ok(String::from_utf8_lossy(&output.stdout).into_owned());
+    }
+    Err(format!(
+        "ip {} failed: {}",
+        args.join(" "),
+        String::from_utf8_lossy(&output.stderr).trim()
+    ))
+}
+
 /// Runs an `ip` command whose arguments contain secret values.
 ///
 /// The error message of a failed command repeats the full command line, and

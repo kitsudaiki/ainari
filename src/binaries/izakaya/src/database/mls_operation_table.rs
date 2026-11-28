@@ -33,6 +33,7 @@ table! {
         retries -> Integer,
         created_at -> BigInt,
         started_at -> Nullable<BigInt>,
+        batch_uuid -> Nullable<Varchar>,
     }
 }
 
@@ -59,6 +60,9 @@ pub struct MlsOperationEntry {
     pub retries: i32,
     pub created_at: i64,
     pub started_at: Option<i64>,
+    /// Batch, which the operation was handed out with, as `op_uuid` of the `MlsOperation`
+    #[diesel(serialize_as = DbOptUuid, deserialize_as = DbOptUuid)]
+    pub batch_uuid: Option<Uuid>,
 }
 
 /// Adds an operation to the queue.
@@ -110,6 +114,7 @@ pub fn update_operation(entry: &MlsOperationEntry) -> QueryResult<()> {
             status.eq(entry.status.clone()),
             retries.eq(entry.retries),
             started_at.eq(entry.started_at),
+            batch_uuid.eq(entry.batch_uuid.map(|it| it.to_string())),
         ))
         .execute(&mut *conn)
         .map(|_| ())

@@ -13,3 +13,4 @@
 // limitations under the License.
 
 pub mod get_mls_identity_internal_v1_0;
+pub mod get_mls_status_internal_v1_0;

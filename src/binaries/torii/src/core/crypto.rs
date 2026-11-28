@@ -8,7 +8,7 @@
 use std::net::Ipv4Addr;
 
 use crate::core::models::Connection;
-use crate::core::utils::{run_ip, run_ip_with_secrets};
+use crate::core::utils::{run_ip, run_ip_output, run_ip_with_secrets};
 
 use ainari_common::secret::Secret;
 
@@ -213,6 +213,48 @@ pub fn remove_sa(src: Ipv4Addr, dst: Ipv4Addr, spi: u32) -> Result<(), String> {
     ])
 }
 
+/// Reads the number of packets, which an SA processed so far.
+///
+/// # Arguments
+/// * `src` - Source address of the SA
+/// * `dst` - Destination address of the SA
+/// * `spi` - SPI of the SA
+///
+/// # Returns
+/// The number of packets, `None` if the kernel has no such SA (anymore), or the error of `ip`
+pub fn sa_packet_count(src: Ipv4Addr, dst: Ipv4Addr, spi: u32) -> Result<Option<u64>, String> {
+    let (src, dst) = (src.to_string(), dst.to_string());
+    let spi = format!("0x{:08x}", spi);
+    match run_ip_output(&[
+        "-s", "xfrm", "state", "get", "src", &src, "dst", &dst, "proto", "esp", "spi", &spi,
+    ]) {
+        Ok(output) => parse_packet_count(&output).map(Some),
+        // the kernel answers with ESRCH for an unknown SA
+        Err(e) if e.contains("No such process") => Ok(None),
+        Err(e) => Err(e),
+    }
+}
+
+/// Reads the packet counter from the output of `ip -s xfrm state get`, which is the second
+/// value of the `lifetime current:` block, like `  1234(bytes), 56(packets)`.
+///
+/// # Arguments
+/// * `output` - The output of the command
+///
+/// # Returns
+/// The number of packets, or an error, if the output has no counter
+fn parse_packet_count(output: &str) -> Result<u64, String> {
+    output
+        .split_once("lifetime current:")
+        .and_then(|(_, current)| {
+            current
+                .split_whitespace()
+                .find_map(|token| token.strip_suffix("(packets)"))
+        })
+        .and_then(|count| count.parse().ok())
+        .ok_or_else(|| "the output of the SA has no packet counter".to_string())
+}
+
 /// Removes the xfrm policies of a connection, which `apply_connection_policies` wrote.
 ///
 /// Without them the traffic of the VM pair falls back to the fail-closed block policies of its
@@ -249,5 +291,36 @@ pub fn remove_connection_policies(conn: &Connection) {
             "dir",
             dir,
         ]);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Output of `ip -s xfrm state get` of iproute2 6.1 for an SA of the gateway
+    const SA_OUTPUT: &str = "src 10.0.0.1 dst 10.0.0.2
+\tproto esp spi 0x80001234(2147488308) reqid 0(0x00000000) mode tunnel
+\treplay-window 0 seq 0x00000000 flag  (0x00000000)
+\taead rfc4106(gcm(aes)) 0x0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f2021222324 (288 bits) 128
+\tlifetime config:
+\t  limit: soft (INF)(bytes), hard (INF)(bytes)
+\t  limit: soft (INF)(packets), hard (INF)(packets)
+\t  expire add: soft 0(sec), hard 0(sec)
+\t  expire use: soft 0(sec), hard 0(sec)
+\tlifetime current:
+\t  1234(bytes), 56(packets)
+\t  add 2026-11-12 10:00:00 use 2026-11-12 10:00:05
+\tstats:
+\t  replay-window 0 replay 0 failed 0
+\tsel src 192.168.0.1/32 dst 192.168.0.2/32 proto 0 reqid 0
+";
+
+    #[test]
+    fn the_packet_counter_is_read_from_the_current_lifetime() {
+        assert_eq!(parse_packet_count(SA_OUTPUT), Ok(56));
+        // the limits of the config block are no counters
+        let without_current = SA_OUTPUT.split("\tlifetime current:").next().unwrap();
+        assert!(parse_packet_count(without_current).is_err());
     }
 }

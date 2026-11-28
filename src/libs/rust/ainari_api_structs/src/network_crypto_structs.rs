@@ -80,9 +80,82 @@ pub struct MlsIdentityResp {
     pub signature_key: String,
 }
 
+/// Epoch of a network on a gateway: the generation of the group and the epoch within the group
+#[derive(Debug, Deserialize, Serialize, Clone, Copy, PartialEq, Eq, JsonSchema, ApiComponent)]
+pub struct MlsEpochIdResp {
+    pub generation: u64,
+    pub epoch: u64,
+}
+
+/// Step of the key-change of a pair, which the pair waits for
+#[derive(Debug, Deserialize, Serialize, Clone, Copy, PartialEq, Eq, JsonSchema, ApiComponent)]
+#[serde(rename_all = "snake_case")]
+pub enum MlsPairWaitingFor {
+    /// The incoming keys of the target are installed
+    Ingress,
+    /// The peer tells, that it can receive with the target
+    PeerReady,
+    /// The outgoing traffic switches to the target
+    Egress,
+    /// The peer tells, that it sends with the target
+    PeerSwitched,
+    /// Packets still arrive with old incoming keys
+    OldIngressInUse,
+    /// The pair has arrived
+    Nothing,
+}
+
+/// Keys between this gateway and one peer gateway in a network
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, JsonSchema, ApiComponent)]
+pub struct MlsPairStatusResp {
+    /// Identity (underlay-address) of the peer gateway
+    pub peer: String,
+    /// Epoch of the outgoing keys
+    pub egress: Option<MlsEpochIdResp>,
+    /// Epoch, which the pair is moving to
+    pub target: Option<MlsEpochIdResp>,
+    /// Epochs of the incoming keys
+    pub ingress: Vec<MlsEpochIdResp>,
+    /// Old epochs, whose incoming keys are removed, once no packet arrives with them anymore
+    pub retiring: Vec<MlsEpochIdResp>,
+    pub waiting_for: MlsPairWaitingFor,
+    /// Unix-time in seconds, since which the peer didn't join the current group
+    pub stale_since: Option<i64>,
+    /// Why the last step of the pair failed, if it did
+    pub last_error: Option<String>,
+}
+
+/// Keys of a network on this gateway
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, JsonSchema, ApiComponent)]
+pub struct MlsNetworkStatusResp {
+    /// Tenant of the network
+    pub vni: u32,
+    /// Generation of the current group
+    pub generation: u64,
+    /// Current epoch of the group, if the gateway is a member
+    pub epoch: Option<u64>,
+    pub pairs: Vec<MlsPairStatusResp>,
+}
+
+/// State of the key-exchange of a gateway
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, JsonSchema, ApiComponent)]
+pub struct MlsStatusResp {
+    /// Identity of the gateway, if it has one yet
+    pub client_id: Option<String>,
+    pub networks: Vec<MlsNetworkStatusResp>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_waiting_step_travels_in_snake_case() {
+        assert_eq!(
+            serde_json::to_string(&MlsPairWaitingFor::OldIngressInUse).unwrap(),
+            "\"old_ingress_in_use\""
+        );
+    }
 
     #[test]
     fn a_direction_travels_as_its_lowercase_name() {

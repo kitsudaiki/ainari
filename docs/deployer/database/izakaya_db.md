@@ -80,32 +80,28 @@ Unique indexes:
 
 ## mls_groups
 
-State of the coordination of the group of every network: its members, its committer and its
-key-rotation. `members` and `round_acks` are json-lists of identities, the timestamps are
-unix-times in seconds. The `round_*`-columns are only set, while a key-rotation is running, and
-`round_phase` is then `install`, `switch` or `grace`.
+State of the coordination of the group of every network: its members, its committer and its last
+key-rotation. `members` is a json-list of identities, the timestamps are unix-times in seconds.
 
-| field            | type         | is primary | constraints |
-| ---------------- | ------------ | ---------- | ----------- |
-| vni              | INTEGER      | x          | `NOT NULL`  |
-| committer        | VARCHAR(256) |            | `NOT NULL`  |
-| epoch            | BIGINT       |            | `NOT NULL`  |
-| members          | TEXT         |            | `NOT NULL`  |
-| round_epoch      | BIGINT       |            |             |
-| round_phase      | VARCHAR(16)  |            |             |
-| round_acks       | TEXT         |            |             |
-| round_updated_at | BIGINT       |            |             |
-| rotated_at       | BIGINT       |            | `NOT NULL`  |
-| created_at       | BIGINT       |            | `NOT NULL`  |
+| field      | type         | is primary | constraints |
+| ---------- | ------------ | ---------- | ----------- |
+| vni        | INTEGER      | x          | `NOT NULL`  |
+| committer  | VARCHAR(256) |            | `NOT NULL`  |
+| epoch      | BIGINT       |            | `NOT NULL`  |
+| members    | TEXT         |            | `NOT NULL`  |
+| rotated_at | BIGINT       |            | `NOT NULL`  |
+| created_at | BIGINT       |            | `NOT NULL`  |
 
 ## mls_operations
 
-Queue of the changes of the groups, which their committers make one after another. The timestamps
-are unix-times in milliseconds, so the operations of one second keep their order.
+Queue of the changes of the groups. The additions and removals, which are queued at about the same
+time, are handed to the committer as one batch and made with one commit. The timestamps are
+unix-times in milliseconds.
 
 - `kind`: `add`, `remove` or `update`.
 - `status`: `QUEUED`, while the operation waits for its turn, `INFLIGHT`, after it was handed to
   the committer, and `DONE`, when it is finished, successful or not.
+- `batch_uuid`: batch, which the operation was handed to the committer with.
 
 | field      | type         | is primary | constraints          |
 | ---------- | ------------ | ---------- | -------------------- |
@@ -118,6 +114,7 @@ are unix-times in milliseconds, so the operations of one second keep their order
 | retries    | INTEGER      |            | `NOT NULL DEFAULT 0` |
 | created_at | BIGINT       |            | `NOT NULL`           |
 | started_at | BIGINT       |            |                      |
+| batch_uuid | VARCHAR(40)  |            |                      |
 
 Indexes:
 

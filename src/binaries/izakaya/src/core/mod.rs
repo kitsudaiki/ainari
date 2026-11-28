@@ -13,4 +13,3 @@
 // limitations under the License.
 
 pub mod coordinator;
-pub mod key_package;

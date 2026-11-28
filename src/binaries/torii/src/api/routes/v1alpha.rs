@@ -107,10 +107,15 @@ pub fn v1alpha_routes() -> Scope {
                 ),
         )
         .service(
-            scope("/network_crypto").service(
-                resource("/mls/identity/internal")
-                    .route(get().to(get_mls_identity_internal_v1_0::get_mls_identity_internal)),
-            ),
+            scope("/network_crypto")
+                .service(
+                    resource("/mls/identity/internal")
+                        .route(get().to(get_mls_identity_internal_v1_0::get_mls_identity_internal)),
+                )
+                .service(
+                    resource("/mls/status/internal")
+                        .route(get().to(get_mls_status_internal_v1_0::get_mls_status_internal)),
+                ),
         )
         .service(
             scope("/network_interface")

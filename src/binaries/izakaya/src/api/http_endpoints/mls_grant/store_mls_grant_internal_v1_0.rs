@@ -18,7 +18,11 @@ use apistos::api_operation;
 use validator::Validate;
 
 use crate::config::GRANT_PUBLIC_KEY;
-use crate::core::coordinator;
+use chrono::Utc;
+use uuid::Uuid;
+
+use crate::core::coordinator::{self, exclusively, internal_error, remove_member};
+use crate::database::mls_grant_table::{self, MlsGrantEntry};
 
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::mls_structs::*;
@@ -44,7 +48,67 @@ pub async fn store_mls_grant_internal(
     body.validate()
         .map_err(|e| ErrorResponse::BadRequest(format!("Invalid input: {e}")))?;
 
-    coordinator::store_grant(&body.grant, &GRANT_PUBLIC_KEY, coordinator::now())?;
+    store_grant(&body.grant, &GRANT_PUBLIC_KEY, coordinator::now())?;
 
     Ok(NoContent)
+}
+
+/// Stores a grant of hanami.
+///
+/// A grant, which adds a gateway, allows it to join the group of the network. A grant, which
+/// removes a gateway, drops its grant and removes it from the group.
+///
+/// # Arguments
+/// * `grant` - The signed grant
+/// * `key` - Public key of hanami
+/// * `now` - Current unix-time in seconds
+///
+/// # Returns
+/// `Ok(())`, or `BadRequest` if the grant is not valid
+pub(crate) fn store_grant(
+    grant: &MlsGrant,
+    key: &VerifyingKey,
+    now: i64,
+) -> Result<(), ErrorResponse> {
+    let payload = grant
+        .verify(key)
+        .map_err(|e| ErrorResponse::BadRequest(format!("Invalid grant: {e}")))?;
+    if payload.is_expired_at(now) {
+        return Err(ErrorResponse::BadRequest(
+            "Invalid grant: it is expired".to_string(),
+        ));
+    }
+
+    exclusively(|| match payload.action {
+        MlsGrantAction::Add => {
+            mls_grant_table::set_grant(MlsGrantEntry {
+                uuid: Uuid::new_v4(),
+                vni: payload.vni,
+                client_id: payload.client_id.clone(),
+                signature_key: payload.signature_key.clone(),
+                payload: grant.payload.clone(),
+                signature: grant.signature.clone(),
+                expires_at: payload.expires_at,
+                created_at: Utc::now(),
+            })
+            .map_err(|e| internal_error("store a grant", e))?;
+            // hanami refreshes the grants regularly, so this is no news
+            log::debug!(
+                "'{}' may join the MLS-group of tenant {}",
+                payload.client_id,
+                payload.vni
+            );
+            Ok(())
+        }
+        MlsGrantAction::Remove => {
+            mls_grant_table::delete_grant(payload.vni, &payload.client_id)
+                .map_err(|e| internal_error("delete a grant", e))?;
+            log::info!(
+                "'{}' must leave the MLS-group of tenant {}",
+                payload.client_id,
+                payload.vni
+            );
+            remove_member(payload.vni, &payload.client_id, now)
+        }
+    })
 }

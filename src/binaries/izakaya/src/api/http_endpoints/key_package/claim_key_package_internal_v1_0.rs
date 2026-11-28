@@ -14,8 +14,11 @@
 
 use actix_web::web::{Json, Path};
 use apistos::api_operation;
+use base64::Engine;
+use base64::engine::general_purpose::STANDARD as BASE64;
+use openmls::prelude::{tls_codec::*, *};
+use openmls_rust_crypto::RustCrypto;
 
-use crate::core::key_package::signature_key_of;
 use crate::database::key_package_table;
 
 use ainari_api::error_mapping::map_db_id_get_delete_error;
@@ -65,4 +68,34 @@ pub async fn claim_key_package_internal(
         key_package: entry.key_package,
         created_at: entry.created_at,
     }))
+}
+
+/// Reads the MLS signature-key of a key-package.
+///
+/// # Arguments
+/// * `encoded_key_package` - Base64-encoded TLS-serialized key-package
+///
+/// # Returns
+/// The base64-encoded signature-key, or `None` if the key-package can't be read
+fn signature_key_of(encoded_key_package: &str) -> Option<String> {
+    let bytes = BASE64.decode(encoded_key_package).ok()?;
+    let key_package = KeyPackageIn::tls_deserialize_exact(bytes.as_slice())
+        .ok()?
+        .validate(&RustCrypto::default(), ProtocolVersion::Mls10)
+        .ok()?;
+    Some(BASE64.encode(key_package.leaf_node().signature_key().as_slice()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::super::upload_key_package_internal_v1_0::tests::new_key_package;
+    use super::*;
+
+    #[test]
+    fn the_signature_key_of_a_key_package_is_read() {
+        let key_package = new_key_package("10.0.0.5");
+        let key = signature_key_of(&key_package).unwrap();
+        assert_eq!(BASE64.decode(key).unwrap().len(), 32);
+        assert!(signature_key_of("garbage").is_none());
+    }
 }

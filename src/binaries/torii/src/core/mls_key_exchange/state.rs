@@ -17,30 +17,32 @@
 //! The gateway is one client with one identity, which is its underlay-address, and it is a
 //! member of one group for each network, which has a VM on this gateway. Everything openmls
 //! knows about the client lives in the key-value-store of the provider, which is persisted into
-//! the database after every change, together with two entries of the gateway itself: the
-//! identity and the list of its groups.
+//! the database after every change, together with the entries of the gateway itself: the
+//! identity, the list of its groups, the key state of its networks and the messages, which wait to
+//! be sent or for their epoch.
 
-use std::collections::BTreeMap;
-use std::net::Ipv4Addr;
-use std::sync::Arc;
-
+use crate::config::CONFIG;
+use crate::core::mls_key_exchange::commit::CommitChange;
+use crate::core::mls_key_exchange::identity::{CIPHERSUITE, MlsIdentity, group_id_of, identity_of};
+use crate::core::mls_key_exchange::identity::{identity_outdated, new_identity};
+use crate::core::mls_key_exchange::keys::derive_base;
+use crate::core::mls_key_exchange::messages::OutgoingMessage;
+use crate::core::mls_key_exchange::network_keys::NetworkKeys;
+use crate::core::utils::get_local_ip;
+use crate::database::mls_storage_table;
+use ainari_api::errors::ErrorResponse;
+use ainari_api_structs::mls_structs::MlsMessageResp;
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD as BASE64;
+use chrono::Utc;
 use openmls::prelude::*;
 use openmls_basic_credential::SignatureKeyPair;
 use openmls_rust_crypto::OpenMlsRustCrypto;
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
+use std::net::Ipv4Addr;
+use std::sync::Arc;
 use tokio::sync::Mutex;
-
-use crate::config::CONFIG;
-use crate::core::mls_key_exchange::keys::derive_base;
-use crate::core::utils::get_local_ip;
-use crate::database::mls_storage_table;
-
-use ainari_api::errors::ErrorResponse;
-
-/// Ciphersuite of all groups. It is the one every MLS-implementation has to support.
-pub const CIPHERSUITE: Ciphersuite = Ciphersuite::MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519;
 
 /// Entry of the key-value-store, which holds the identity of the gateway. The keys of openmls
 /// itself are prefixed by their own labels, so they never collide with this one.
@@ -52,50 +54,15 @@ const GROUPS_STORAGE_KEY: &[u8] = b"ainari/mls/groups";
 /// Entry of the key-value-store, which holds the key material of the epochs of all networks
 const NETWORK_KEYS_STORAGE_KEY: &[u8] = b"ainari/mls/network_keys";
 
-/// Prefix of the id of a group, which is followed by the tenant of the network
-const GROUP_ID_PREFIX: &str = "ainari-vni-";
+/// Entry of the key-value-store, which holds the messages, which izakaya didn't accept yet
+const PENDING_OUT_STORAGE_KEY: &[u8] = b"ainari/mls/pending_out";
+
+/// Entry of the key-value-store, which holds the messages of epochs, which the groups didn't
+/// reach yet
+const PENDING_IN_STORAGE_KEY: &[u8] = b"ainari/mls/pending_in";
 
 lazy_static::lazy_static! {
     pub static ref MLS_STATE_HANDLE: Arc<Mutex<MlsState>> = Arc::new(Mutex::new(MlsState::load()));
-}
-
-/// Builds the id of the group of a network.
-///
-/// # Arguments
-/// * `vni` - Tenant of the network
-///
-/// # Returns
-/// The id of the group, like `ainari-vni-5`
-pub fn group_id_of(vni: u32) -> GroupId {
-    GroupId::from_slice(format!("{GROUP_ID_PREFIX}{vni}").as_bytes())
-}
-
-/// Reads the tenant of a network from the id of its group.
-///
-/// # Arguments
-/// * `group_id` - Id of the group
-///
-/// # Returns
-/// The tenant, or `None`, if the id was not built by `group_id_of`
-pub fn vni_of(group_id: &GroupId) -> Option<u32> {
-    std::str::from_utf8(group_id.as_slice())
-        .ok()?
-        .strip_prefix(GROUP_ID_PREFIX)?
-        .parse()
-        .ok()
-}
-
-/// Reads the identity of a member of a group, which is the client-id of its gateway.
-///
-/// # Arguments
-/// * `credential` - Credential of the member
-///
-/// # Returns
-/// The identity, or `None`, if the member has no basic credential
-pub fn identity_of(credential: &Credential) -> Option<String> {
-    BasicCredential::try_from(credential.clone())
-        .ok()
-        .map(|credential| String::from_utf8_lossy(credential.identity()).into_owned())
 }
 
 /// Persisted form of the identity of the gateway. The private key of the signature-key-pair is
@@ -104,181 +71,6 @@ pub fn identity_of(credential: &Credential) -> Option<String> {
 struct StoredIdentity {
     client_id: String,
     signature_public_key: String,
-}
-
-/// Identity of the gateway within all of its groups
-pub struct MlsIdentity {
-    /// Identity, which is written into the credential: the underlay-address of the gateway
-    pub client_id: String,
-    pub signer: SignatureKeyPair,
-    pub credential: CredentialWithKey,
-}
-
-/// The epochs of a network, whose IPsec keys are installed on the gateway.
-///
-/// openmls can only export secrets of the current epoch of a group, but a key-rotation needs
-/// the keys of two epochs at the same time: the incoming keys of the new epoch are installed
-/// first, while the outgoing traffic still uses the old epoch, until every gateway of the network
-/// can receive with the new one. So a base secret is exported from every epoch, as soon as the
-/// gateway enters it, and the keys of the routes are derived from that base secret.
-///
-/// The rotation runs in three steps, which the control plane triggers on all gateways of the
-/// network one after another:
-///
-/// 1. a new epoch is recorded: its incoming keys are installed next to the old ones
-/// 2. it is activated: the outgoing traffic switches over to its keys
-/// 3. the older epochs are retired: their incoming keys are removed
-#[derive(Clone, Default, Serialize, Deserialize)]
-pub struct NetworkKeys {
-    /// Epoch, whose keys protect the outgoing traffic
-    pub active_epoch: u64,
-    /// Base secrets of all epochs, whose incoming keys are installed, by their epoch
-    pub bases: BTreeMap<u64, Vec<u8>>,
-    /// Keys of the group, which the current group of the network replaced, for example after
-    /// izakaya lost its database. They stay in use, until the first rotation of the new group
-    /// switched all members over, so the replacement doesn't lose a packet either.
-    #[serde(default)]
-    pub replaced: Option<ReplacedKeys>,
-}
-
-/// Keys of a replaced group of a network
-#[derive(Clone, Default, Serialize, Deserialize)]
-pub struct ReplacedKeys {
-    /// Epoch of the replaced group, whose keys protect the outgoing traffic, while `sending` is set
-    pub active_epoch: u64,
-    /// Base secrets of the replaced group, whose incoming keys stay installed until the new group
-    /// retires them
-    pub bases: BTreeMap<u64, Vec<u8>>,
-    /// The outgoing traffic still uses the replaced group, because the new group didn't switch
-    /// yet
-    pub sending: bool,
-}
-
-impl NetworkKeys {
-    /// Starts the keys of a network with the first epoch of a group.
-    ///
-    /// # Arguments
-    /// * `epoch` - The first epoch
-    /// * `base` - Base secret of the epoch
-    ///
-    /// # Returns
-    /// The keys with the epoch as the only and active one
-    pub fn new(epoch: u64, base: Vec<u8>) -> Self {
-        NetworkKeys {
-            active_epoch: epoch,
-            bases: BTreeMap::from([(epoch, base)]),
-            replaced: None,
-        }
-    }
-
-    /// Starts the keys of a new group of a network, which replaces the current group.
-    ///
-    /// The incoming keys of the current group stay installed and its outgoing keys stay in use,
-    /// until the first epoch of the new group is activated. A group, which replaced another one
-    /// itself and never sent, hands the keys it still sends with over.
-    ///
-    /// # Arguments
-    /// * `epoch` - The first epoch of the new group
-    /// * `base` - Base secret of the epoch
-    ///
-    /// # Returns
-    /// The keys of the new group
-    pub fn replaced_by(self, epoch: u64, base: Vec<u8>) -> Self {
-        let replaced = match self.replaced {
-            Some(mut older) if older.sending => {
-                for (key_epoch, key_base) in self.bases {
-                    older.bases.entry(key_epoch).or_insert(key_base);
-                }
-                older
-            }
-            _ => ReplacedKeys {
-                active_epoch: self.active_epoch,
-                bases: self.bases,
-                sending: true,
-            },
-        };
-
-        let mut keys = NetworkKeys::new(epoch, base);
-        keys.replaced = Some(replaced);
-        keys
-    }
-
-    /// Returns the epoch and the base secret, whose keys protect the outgoing traffic.
-    pub fn egress(&self) -> Option<(u64, &Vec<u8>)> {
-        match &self.replaced {
-            Some(replaced) if replaced.sending => replaced
-                .bases
-                .get(&replaced.active_epoch)
-                .map(|base| (replaced.active_epoch, base)),
-            _ => self
-                .bases
-                .get(&self.active_epoch)
-                .map(|base| (self.active_epoch, base)),
-        }
-    }
-
-    /// Returns all epochs and base secrets, whose incoming keys are installed.
-    pub fn ingress(&self) -> Vec<(u64, &Vec<u8>)> {
-        let mut ingress: Vec<(u64, &Vec<u8>)> = self
-            .bases
-            .iter()
-            .map(|(epoch, base)| (*epoch, base))
-            .collect();
-        if let Some(replaced) = &self.replaced {
-            ingress.extend(replaced.bases.iter().map(|(epoch, base)| (*epoch, base)));
-        }
-        ingress
-    }
-
-    /// Switches the outgoing traffic to the keys of a recorded epoch of the current group.
-    ///
-    /// # Arguments
-    /// * `epoch` - The epoch to activate
-    ///
-    /// # Returns
-    /// `Ok(())`, `BadRequest` if the epoch is not recorded or `Conflict` if a newer epoch is
-    /// active already
-    pub fn activate(&mut self, epoch: u64) -> Result<(), ErrorResponse> {
-        if !self.bases.contains_key(&epoch) {
-            return Err(ErrorResponse::BadRequest(format!(
-                "Epoch {epoch} is not known (yet)"
-            )));
-        }
-        if epoch < self.active_epoch {
-            return Err(ErrorResponse::Conflict(format!(
-                "Epoch {} is active already, which is newer than {epoch}",
-                self.active_epoch
-            )));
-        }
-        self.active_epoch = epoch;
-        if let Some(replaced) = &mut self.replaced {
-            replaced.sending = false;
-        }
-        Ok(())
-    }
-
-    /// Forgets all epochs of the current group, which are older than the given one, and the
-    /// replaced group, so their incoming keys are removed.
-    ///
-    /// # Arguments
-    /// * `epoch` - The oldest epoch, which is kept
-    ///
-    /// # Returns
-    /// `Ok(())`, or `Conflict` if the outgoing traffic still uses an older epoch
-    pub fn retire(&mut self, epoch: u64) -> Result<(), ErrorResponse> {
-        let replaced_sending = self
-            .replaced
-            .as_ref()
-            .is_some_and(|replaced| replaced.sending);
-        if self.active_epoch < epoch || replaced_sending {
-            return Err(ErrorResponse::Conflict(format!(
-                "An older epoch than {epoch} is still active, activate epoch {epoch} first"
-            )));
-        }
-        self.bases.retain(|key_epoch, _| *key_epoch >= epoch);
-        self.replaced = None;
-        Ok(())
-    }
 }
 
 /// The MLS-client of the gateway with all of its groups
@@ -290,6 +82,10 @@ pub struct MlsState {
     pub groups: BTreeMap<u32, MlsGroup>,
     /// The epochs of the networks, whose IPsec keys are installed, by the tenant of the network
     pub network_keys: BTreeMap<u32, NetworkKeys>,
+    /// Messages to other gateways, which izakaya didn't accept yet, in the order of sending
+    pub pending_out: Vec<OutgoingMessage>,
+    /// Messages of other gateways, whose epoch the group didn't reach yet
+    pub pending_in: Vec<MlsMessageResp>,
     /// Write every change into the database. Only switched off by the tests, which simulate
     /// several gateways within one process.
     persist: bool,
@@ -303,6 +99,8 @@ impl MlsState {
             identity: None,
             groups: BTreeMap::new(),
             network_keys: BTreeMap::new(),
+            pending_out: Vec::new(),
+            pending_in: Vec::new(),
             persist: false,
         }
     }
@@ -369,13 +167,15 @@ impl MlsState {
     ///
     /// # Returns
     /// `Ok(())` if the identity and all groups could be restored, otherwise the reason why not
-    fn restore(
+    pub(crate) fn restore(
         &mut self,
         values: std::collections::HashMap<Vec<u8>, Vec<u8>>,
     ) -> Result<(), String> {
         let identity = values.get(IDENTITY_STORAGE_KEY).cloned();
         let group_list = values.get(GROUPS_STORAGE_KEY).cloned();
         let network_keys = values.get(NETWORK_KEYS_STORAGE_KEY).cloned();
+        let pending_out = values.get(PENDING_OUT_STORAGE_KEY).cloned();
+        let pending_in = values.get(PENDING_IN_STORAGE_KEY).cloned();
         *self
             .provider
             .storage()
@@ -416,6 +216,14 @@ impl MlsState {
             self.network_keys = serde_json::from_slice(&network_keys)
                 .map_err(|e| format!("broken key material of the networks: {e}"))?;
         }
+        if let Some(pending_out) = pending_out {
+            self.pending_out = serde_json::from_slice(&pending_out)
+                .map_err(|e| format!("broken outgoing messages: {e}"))?;
+        }
+        if let Some(pending_in) = pending_in {
+            self.pending_in = serde_json::from_slice(&pending_in)
+                .map_err(|e| format!("broken waiting messages: {e}"))?;
+        }
 
         Ok(())
     }
@@ -451,6 +259,12 @@ impl MlsState {
         let network_keys =
             serde_json::to_vec(&self.network_keys).map_err(|e| internal_error(e.to_string()))?;
         values.insert(NETWORK_KEYS_STORAGE_KEY.to_vec(), network_keys);
+        let pending_out =
+            serde_json::to_vec(&self.pending_out).map_err(|e| internal_error(e.to_string()))?;
+        values.insert(PENDING_OUT_STORAGE_KEY.to_vec(), pending_out);
+        let pending_in =
+            serde_json::to_vec(&self.pending_in).map_err(|e| internal_error(e.to_string()))?;
+        values.insert(PENDING_IN_STORAGE_KEY.to_vec(), pending_in);
 
         if self.persist {
             mls_storage_table::save_mls_storage(&values)
@@ -530,18 +344,37 @@ impl MlsState {
         self.save()
     }
 
-    /// Records the current epoch of the group of a network, after the group entered it.
-    ///
-    /// The base secret of the epoch is exported, so its incoming keys can be installed. The
-    /// outgoing traffic stays with the active epoch, until the epoch is activated. Only the first
-    /// epoch of a network, which has no active one yet, becomes the active one immediately.
+    /// Lists the other members of the group of a network, which are the peers of its pairs.
     ///
     /// # Arguments
     /// * `vni` - Tenant of the network
     ///
     /// # Returns
-    /// The recorded epoch, or an `InternalError`
-    pub fn record_epoch(&mut self, vni: u32) -> Result<u64, ErrorResponse> {
+    /// The underlay-addresses of the other members, ordered
+    pub fn peers(&self, vni: u32) -> Vec<Ipv4Addr> {
+        let own = self.client_id();
+        let Some(group) = self.groups.get(&vni) else {
+            return Vec::new();
+        };
+        let mut peers: Vec<Ipv4Addr> = group
+            .members()
+            .filter_map(|member| identity_of(&member.credential))
+            .filter(|id| Some(id.as_str()) != own)
+            .filter_map(|id| id.parse().ok())
+            .collect();
+        peers.sort();
+        peers.dedup();
+        peers
+    }
+
+    /// Exports the base secret of the current epoch of the group of a network.
+    ///
+    /// # Arguments
+    /// * `vni` - Tenant of the network
+    ///
+    /// # Returns
+    /// The epoch and its base secret, or an `InternalError`
+    fn current_base(&self, vni: u32) -> Result<(u64, Vec<u8>), ErrorResponse> {
         let group = self
             .groups
             .get(&vni)
@@ -554,13 +387,43 @@ impl MlsState {
             );
             ErrorResponse::InternalError("Internal Error".to_string())
         })?;
+        Ok((epoch, base))
+    }
+
+    /// Records the epoch of the group of a network, which a commit moved it into.
+    ///
+    /// The base secret of the epoch is exported, so its incoming keys can be installed. Which
+    /// pairs move to the epoch, only depends on the content of the commit (see
+    /// `CommitChange::moves_all`): the pairs of the added gateways always, all others only with a
+    /// removal or a key-rotation. The outgoing traffic of a pair stays with its active epoch, until
+    /// the pair switched. Only the first epoch of a network, which has no keys yet, becomes the
+    /// active one immediately.
+    ///
+    /// # Arguments
+    /// * `vni` - Tenant of the network
+    /// * `change` - The gateways, which the commit added and removed
+    ///
+    /// # Returns
+    /// The recorded epoch, or an `InternalError`
+    pub fn apply_commit(&mut self, vni: u32, change: &CommitChange) -> Result<u64, ErrorResponse> {
+        let (epoch, base) = self.current_base(vni)?;
+        let peers = self.peers(vni);
+        let committer = change.committer.as_deref().unwrap_or("-");
+        for gone in change.gone() {
+            log::warn!("'{committer}' removed '{gone}' from the MLS-group of tenant {vni}");
+        }
+        let added: Vec<Ipv4Addr> = change
+            .added
+            .iter()
+            .filter_map(|added| added.parse().ok())
+            .collect();
+        let moving = (!change.moves_all()).then_some(added.as_slice());
 
         match self.network_keys.get_mut(&vni) {
-            Some(keys) => {
-                keys.bases.insert(epoch, base);
-            }
+            Some(keys) => keys.record(epoch, base, &peers, moving, Utc::now().timestamp()),
             None => {
-                self.network_keys.insert(vni, NetworkKeys::new(epoch, base));
+                self.network_keys
+                    .insert(vni, NetworkKeys::new(epoch, base, &peers));
             }
         }
         Ok(epoch)
@@ -571,8 +434,8 @@ impl MlsState {
     /// again.
     ///
     /// The keys of the older group stay in use, until the first rotation of the new group
-    /// switched all members over (see `NetworkKeys::replaced_by`). Without an older group, the
-    /// epoch becomes the only and active one.
+    /// switched the pairs over (see `NetworkKeys::replace`). Without an older group, the epoch
+    /// becomes the only and active one.
     ///
     /// # Arguments
     /// * `vni` - Tenant of the network
@@ -580,13 +443,14 @@ impl MlsState {
     /// # Returns
     /// The recorded epoch, or an `InternalError`
     pub fn replace_epochs(&mut self, vni: u32) -> Result<u64, ErrorResponse> {
-        let Some(old) = self.network_keys.remove(&vni) else {
-            return self.record_epoch(vni);
-        };
-        let epoch = self.record_epoch(vni)?;
-        if let Some(new) = self.network_keys.remove(&vni) {
-            let base = new.bases.get(&epoch).cloned().unwrap_or_default();
-            self.network_keys.insert(vni, old.replaced_by(epoch, base));
+        let (epoch, base) = self.current_base(vni)?;
+        let peers = self.peers(vni);
+        match self.network_keys.get_mut(&vni) {
+            Some(keys) => keys.replace(epoch, base, &peers, Utc::now().timestamp()),
+            None => {
+                self.network_keys
+                    .insert(vni, NetworkKeys::new(epoch, base, &peers));
+            }
         }
         Ok(epoch)
     }
@@ -601,88 +465,21 @@ impl MlsState {
     /// # Returns
     /// The recorded epoch, or an `InternalError`
     pub fn reset_epochs(&mut self, vni: u32) -> Result<u64, ErrorResponse> {
-        self.network_keys.remove(&vni);
-        self.record_epoch(vni)
-    }
-
-    /// Switches the outgoing traffic of a network to the keys of a recorded epoch.
-    ///
-    /// # Arguments
-    /// * `vni` - Tenant of the network
-    /// * `epoch` - The epoch to activate
-    ///
-    /// # Returns
-    /// `Ok(())`, `NotFound` if the network has no keys, `BadRequest` if the epoch is not
-    /// recorded or `Conflict` if a newer epoch is active already
-    pub fn activate_epoch(&mut self, vni: u32, epoch: u64) -> Result<(), ErrorResponse> {
+        let (epoch, base) = self.current_base(vni)?;
+        let peers = self.peers(vni);
         self.network_keys
-            .get_mut(&vni)
-            .ok_or_else(|| ErrorResponse::NotFound(format!("No MLS-group for tenant {vni}")))?
-            .activate(epoch)
-    }
-
-    /// Forgets all epochs of a network, which are older than the given one, so their incoming
-    /// keys are removed.
-    ///
-    /// # Arguments
-    /// * `vni` - Tenant of the network
-    /// * `epoch` - The oldest epoch, which is kept
-    ///
-    /// # Returns
-    /// `Ok(())`, `NotFound` if the network has no keys or `Conflict` if the outgoing traffic
-    /// still uses an older epoch
-    pub fn retire_epochs(&mut self, vni: u32, epoch: u64) -> Result<(), ErrorResponse> {
-        self.network_keys
-            .get_mut(&vni)
-            .ok_or_else(|| ErrorResponse::NotFound(format!("No MLS-group for tenant {vni}")))?
-            .retire(epoch)
-    }
-}
-
-/// Checks, if a restored MLS-identity belongs to another underlay-address than the current one.
-///
-/// # Arguments
-/// * `client_id` - The restored identity
-/// * `underlay_ip` - The current address of the underlay, if it has one
-///
-/// # Returns
-/// `true` if the identity has to be replaced. Without an address of the underlay nothing can be
-/// compared, so the identity is kept.
-fn identity_outdated(client_id: &str, underlay_ip: Option<Ipv4Addr>) -> bool {
-    underlay_ip.is_some_and(|ip| client_id != ip.to_string())
-}
-
-/// Builds the identity of the gateway from its signature-key-pair.
-///
-/// # Arguments
-/// * `client_id` - Identity, which is written into the credential
-/// * `signer` - Signature-key-pair of the gateway
-///
-/// # Returns
-/// The identity
-fn new_identity(client_id: String, signer: SignatureKeyPair) -> MlsIdentity {
-    let credential = CredentialWithKey {
-        credential: BasicCredential::new(client_id.as_bytes().to_vec()).into(),
-        signature_key: signer.to_public_vec().into(),
-    };
-    MlsIdentity {
-        client_id,
-        signer,
-        credential,
+            .insert(vni, NetworkKeys::new(epoch, base, &peers));
+        Ok(epoch)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::BTreeSet;
 
-    #[test]
-    fn the_tenant_is_part_of_the_group_id() {
-        assert_eq!(group_id_of(5).as_slice(), b"ainari-vni-5");
-        assert_eq!(vni_of(&group_id_of(4711)), Some(4711));
-        assert_eq!(vni_of(&GroupId::from_slice(b"foreign-group")), None);
-        assert_eq!(vni_of(&GroupId::from_slice(b"ainari-vni-x")), None);
-    }
+    use crate::core::mls_key_exchange::commit::CommitChange;
+    use crate::core::mls_key_exchange::test_support;
 
     #[test]
     fn the_identity_and_the_groups_survive_a_restore() {
@@ -704,8 +501,11 @@ mod tests {
         let epoch = restored.groups[&7].epoch().as_u64();
         assert_eq!(epoch, state.groups[&7].epoch().as_u64());
         let keys = &restored.network_keys[&7];
-        assert_eq!(keys.bases.keys().copied().collect::<Vec<_>>(), vec![epoch]);
-        assert_eq!(keys.active_epoch, epoch);
+        assert_eq!(
+            keys.bases.keys().copied().collect::<Vec<_>>(),
+            vec![(1, epoch)]
+        );
+        assert_eq!(keys.generation, 1);
         assert_eq!(
             restored.network_keys[&7].bases,
             state.network_keys[&7].bases
@@ -716,98 +516,35 @@ mod tests {
         );
     }
 
-    /// Builds the epochs of a network, which are recorded on a gateway.
-    fn network_keys(active_epoch: u64, epochs: &[u64]) -> NetworkKeys {
-        NetworkKeys {
-            active_epoch,
-            bases: epochs.iter().map(|epoch| (*epoch, vec![0u8; 32])).collect(),
-            replaced: None,
-        }
-    }
-
-    #[test]
-    fn only_a_recorded_epoch_can_be_activated() {
-        let mut state = MlsState::new_in_memory();
-        state.network_keys.insert(5, network_keys(1, &[1, 2]));
-
-        // an epoch, which the gateway didn't follow yet, would leave it without the key
-        assert!(matches!(
-            state.activate_epoch(5, 3),
-            Err(ErrorResponse::BadRequest(_))
-        ));
-        assert!(state.activate_epoch(5, 2).is_ok());
-        assert_eq!(state.network_keys[&5].active_epoch, 2);
-        // activating the active epoch again changes nothing, an older one is refused
-        assert!(state.activate_epoch(5, 2).is_ok());
-        assert!(matches!(
-            state.activate_epoch(5, 1),
-            Err(ErrorResponse::Conflict(_))
-        ));
-        assert!(matches!(
-            state.activate_epoch(6, 1),
-            Err(ErrorResponse::NotFound(_))
-        ));
-    }
-
-    #[test]
-    fn only_the_epochs_before_the_active_one_can_be_retired() {
-        let mut state = MlsState::new_in_memory();
-        state.network_keys.insert(5, network_keys(2, &[1, 2, 3]));
-
-        // epoch 2 is still used for the outgoing traffic
-        assert!(matches!(
-            state.retire_epochs(5, 3),
-            Err(ErrorResponse::Conflict(_))
-        ));
-        assert!(state.retire_epochs(5, 2).is_ok());
-        assert_eq!(
-            state.network_keys[&5]
-                .bases
-                .keys()
-                .copied()
-                .collect::<Vec<_>>(),
-            vec![2, 3]
-        );
-        // retiring again changes nothing
-        assert!(state.retire_epochs(5, 2).is_ok());
-        assert_eq!(state.network_keys[&5].bases.len(), 2);
-    }
-
     #[test]
     fn a_new_epoch_is_recorded_without_being_activated() {
-        let mut state = MlsState::new_in_memory();
-        state.create_identity("10.0.0.5".to_string()).unwrap();
-        crate::core::mls_key_exchange::group::create_group(&mut state, 7).unwrap();
-        let first = state.reset_epochs(7).unwrap();
+        use test_support::{invite, new_gateway};
+
+        let mut a = new_gateway("10.0.0.1");
+        let mut b = new_gateway("10.0.0.2");
+        crate::core::mls_key_exchange::group::create_group(&mut a, 7).unwrap();
+        invite(&mut a, &mut b, &mut [], 7);
+        let first = a.reset_epochs(7).unwrap();
 
         // the group moves into the next epoch, for example by a self-update
-        let identity = state.identity.as_ref().unwrap();
-        let group = state.groups.get_mut(&7).unwrap();
+        let identity = a.identity.as_ref().unwrap();
+        let group = a.groups.get_mut(&7).unwrap();
         group
             .self_update(
-                &state.provider,
+                &a.provider,
                 &identity.signer,
                 openmls::prelude::LeafNodeParameters::default(),
             )
             .unwrap();
-        group.merge_pending_commit(&state.provider).unwrap();
-        let second = state.record_epoch(7).unwrap();
+        group.merge_pending_commit(&a.provider).unwrap();
+        let second = a.apply_commit(7, &CommitChange::default()).unwrap();
 
         assert_eq!(second, first + 1);
-        let keys = &state.network_keys[&7];
-        assert_eq!(keys.active_epoch, first);
-        assert_eq!(
-            keys.bases.keys().copied().collect::<Vec<_>>(),
-            vec![first, second]
-        );
-    }
-
-    #[test]
-    fn an_identity_of_another_address_is_replaced() {
-        let ip = Ipv4Addr::new(10, 42, 8, 13);
-        assert!(!identity_outdated("10.42.8.13", Some(ip)));
-        assert!(identity_outdated("10.42.8.12", Some(ip)));
-        // without an address there is nothing to compare
-        assert!(!identity_outdated("10.42.8.12", None));
+        let keys = &a.network_keys[&7];
+        let pair = &keys.pairs[&Ipv4Addr::new(10, 0, 0, 2)];
+        assert_eq!(pair.egress, Some((1, first)));
+        assert_eq!(pair.target, Some((1, second)));
+        assert_eq!(pair.ingress, BTreeSet::from([(1, first), (1, second)]));
+        assert_eq!(keys.pairs.len(), 1);
     }
 }

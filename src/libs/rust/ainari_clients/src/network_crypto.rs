@@ -53,3 +53,36 @@ pub async fn get_mls_identity(
 
     handle_response(response, "mls-identity", "").await
 }
+
+/**
+Reads the state of the key-exchange of the gateway: the pairs with the other gateways of every
+network, their epochs and the step, which each of them waits for.
+
+# Arguments
+- `torii_endpoint`: The endpoint configuration for the Torii service
+- `token`: Authentication token for accessing the API
+- `internal_api_key`: Internal API key for privileged operations
+- `insecure_client`: Whether to use an insecure (HTTP) client or secure (HTTPS) client
+
+# Returns
+A `Result` containing the `MlsStatusResp` or an `AinariError` if the operation fails.
+*/
+pub async fn get_mls_status(
+    torii_endpoint: &ainari_config::Endpoint,
+    token: &String,
+    internal_api_key: &Secret,
+    insecure_client: bool,
+) -> Result<MlsStatusResp, AinariError> {
+    let address = torii_endpoint.internal_address.clone();
+    let client = prepare_client(&address, insecure_client);
+    let url = format!("{address}/v1alpha/network_crypto/mls/status/internal");
+
+    let response = client
+        .get(url)
+        .insert_header(("Authorization", format!("Bearer {}", token)))
+        .insert_header(("X-Internal-API-Key", internal_api_key.reveal()))
+        .send()
+        .await;
+
+    handle_response(response, "mls-status", "").await
+}

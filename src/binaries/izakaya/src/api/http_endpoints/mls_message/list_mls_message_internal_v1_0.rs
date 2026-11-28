@@ -15,7 +15,7 @@
 use actix_web::web::{Json, Path};
 use apistos::api_operation;
 
-use crate::core::coordinator::record_contact;
+use crate::core::coordinator::{now_secs, touch};
 use crate::database::mls_message_table;
 
 use ainari_api::error_mapping::map_db_list_error;
@@ -69,4 +69,14 @@ pub async fn list_mls_message_internal(
     }
 
     Ok(Json(resp))
+}
+
+/// Records, that a gateway is alive, which happens with every poll of its messages.
+///
+/// # Arguments
+/// * `client_id` - Identity of the gateway
+pub(crate) fn record_contact(client_id: &str) {
+    if let Err(e) = touch(client_id, now_secs()) {
+        log::warn!("Failed to record the contact of '{client_id}': {e:?}");
+    }
 }
