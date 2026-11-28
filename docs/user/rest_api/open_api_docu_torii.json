@@ -1219,6 +1219,39 @@
         ]
       }
     },
+    "/v1alpha/network_crypto/mls/status/internal": {
+      "get": {
+        "tags": [
+          "network_crypto"
+        ],
+        "summary": "Get state of the MLS key-exchange",
+        "description": "Get the state of the key-exchange of this gateway.\\\n\\\nEvery network lists the pairs of this gateway with the other gateways of the network. A pair\\\nmoves to the keys of a new epoch on its own, only coordinated with its peer, so the list tells for\\\nevery pair its epochs and the step, which it waits for.",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MlsStatusResp"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false,
+        "security": [
+          {
+            "user_context": []
+          }
+        ]
+      }
+    },
     "/v1alpha/network_interface/config/internal": {
       "post": {
         "tags": [
@@ -1625,6 +1658,26 @@
           }
         }
       },
+      "MlsEpochIdResp": {
+        "description": "Epoch of a network on a gateway: the generation of the group and the epoch within the group",
+        "type": "object",
+        "required": [
+          "epoch",
+          "generation"
+        ],
+        "properties": {
+          "epoch": {
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "generation": {
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          }
+        }
+      },
       "MlsIdentityResp": {
         "title": "MlsIdentityResp",
         "description": "Identity of a gateway within the MLS-groups of the networks",
@@ -1641,6 +1694,178 @@
           "signature_key": {
             "description": "Base64-encoded public MLS signature-key of the gateway. hanami pins it and names it in every membership-grant of the gateway.",
             "type": "string"
+          }
+        }
+      },
+      "MlsNetworkStatusResp": {
+        "description": "Keys of a network on this gateway",
+        "type": "object",
+        "required": [
+          "generation",
+          "pairs",
+          "vni"
+        ],
+        "properties": {
+          "epoch": {
+            "description": "Current epoch of the group, if the gateway is a member",
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0,
+            "nullable": true
+          },
+          "generation": {
+            "description": "Generation of the current group",
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "pairs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MlsPairStatusResp"
+            }
+          },
+          "vni": {
+            "description": "Tenant of the network",
+            "type": "integer",
+            "format": "uint32",
+            "minimum": 0.0
+          }
+        }
+      },
+      "MlsPairStatusResp": {
+        "description": "Keys between this gateway and one peer gateway in a network",
+        "type": "object",
+        "required": [
+          "ingress",
+          "peer",
+          "retiring",
+          "waiting_for"
+        ],
+        "properties": {
+          "egress": {
+            "description": "Epoch of the outgoing keys",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MlsEpochIdResp"
+              }
+            ],
+            "nullable": true
+          },
+          "ingress": {
+            "description": "Epochs of the incoming keys",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MlsEpochIdResp"
+            }
+          },
+          "last_error": {
+            "description": "Why the last step of the pair failed, if it did",
+            "type": "string",
+            "nullable": true
+          },
+          "peer": {
+            "description": "Identity (underlay-address) of the peer gateway",
+            "type": "string"
+          },
+          "retiring": {
+            "description": "Old epochs, whose incoming keys are removed, once no packet arrives with them anymore",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MlsEpochIdResp"
+            }
+          },
+          "stale_since": {
+            "description": "Unix-time in seconds, since which the peer didn't join the current group",
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "target": {
+            "description": "Epoch, which the pair is moving to",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MlsEpochIdResp"
+              }
+            ],
+            "nullable": true
+          },
+          "waiting_for": {
+            "$ref": "#/components/schemas/MlsPairWaitingFor"
+          }
+        }
+      },
+      "MlsPairWaitingFor": {
+        "description": "Step of the key-change of a pair, which the pair waits for",
+        "oneOf": [
+          {
+            "title": "ingress",
+            "description": "The incoming keys of the target are installed",
+            "type": "string",
+            "enum": [
+              "ingress"
+            ]
+          },
+          {
+            "title": "peer_ready",
+            "description": "The peer tells, that it can receive with the target",
+            "type": "string",
+            "enum": [
+              "peer_ready"
+            ]
+          },
+          {
+            "title": "egress",
+            "description": "The outgoing traffic switches to the target",
+            "type": "string",
+            "enum": [
+              "egress"
+            ]
+          },
+          {
+            "title": "peer_switched",
+            "description": "The peer tells, that it sends with the target",
+            "type": "string",
+            "enum": [
+              "peer_switched"
+            ]
+          },
+          {
+            "title": "old_ingress_in_use",
+            "description": "Packets still arrive with old incoming keys",
+            "type": "string",
+            "enum": [
+              "old_ingress_in_use"
+            ]
+          },
+          {
+            "title": "nothing",
+            "description": "The pair has arrived",
+            "type": "string",
+            "enum": [
+              "nothing"
+            ]
+          }
+        ]
+      },
+      "MlsStatusResp": {
+        "title": "MlsStatusResp",
+        "description": "State of the key-exchange of a gateway",
+        "type": "object",
+        "required": [
+          "networks"
+        ],
+        "properties": {
+          "client_id": {
+            "description": "Identity of the gateway, if it has one yet",
+            "type": "string",
+            "nullable": true
+          },
+          "networks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MlsNetworkStatusResp"
+            }
           }
         }
       },

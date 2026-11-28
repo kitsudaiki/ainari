@@ -401,7 +401,7 @@
           "mls_group"
         ],
         "summary": "Finish MLS-operation",
-        "description": "Report the result of a change of a MLS-group, which the committer made.\\\n\\\nA successful change moves the group into its new epoch and starts the key-rotation of that epoch.\\\nA refused change, for example because the grant of the gateway, which should be added, is not\\\nvalid, is dropped.",
+        "description": "Report the result of a change of a MLS-group, which the committer made.\\\n\\\nA successful change moves the group into its new epoch, and the next batch of changes is handed\\\nto the committer. The gateways roll out the keys of the new epoch themselves.\\\nA refused change, for example because the grant of the gateway, which should be added, is not\\\nvalid, is dropped.",
         "parameters": [
           {
             "name": "vni",
@@ -439,57 +439,6 @@
           },
           "409": {
             "description": "Conflict with existing resources"
-          },
-          "500": {
-            "description": "Internal error"
-          }
-        },
-        "deprecated": false,
-        "security": [
-          {
-            "user_context": []
-          }
-        ]
-      }
-    },
-    "/v1alpha/mls_group/{vni}/round/internal": {
-      "post": {
-        "tags": [
-          "mls_group"
-        ],
-        "summary": "Acknowledge MLS-round",
-        "description": "Acknowledge, that a gateway finished a phase of the key-rotation of a MLS-group.\\\n\\\nThe next phase only starts, once every member acknowledged the current one, so both ends of every\\\nconnection always hold the keys, which the other end sends with. An acknowledgement, which is not\\\nneeded anymore, is ignored.",
-        "parameters": [
-          {
-            "name": "vni",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "format": "uint32",
-              "minimum": 0.0
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/MlsRoundAckReq"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "204": {
-            "description": ""
-          },
-          "400": {
-            "description": "Bad request"
-          },
-          "401": {
-            "description": "Unauthorized"
           },
           "500": {
             "description": "Internal error"
@@ -918,7 +867,7 @@
             "$ref": "#/components/schemas/MlsMessageType"
           },
           "payload": {
-            "description": "Base64-encoded TLS-serialized MLS-message, or the JSON-encoded operation or round-step",
+            "description": "Base64-encoded TLS-serialized MLS-message, or the JSON-encoded operation",
             "type": "string"
           },
           "recipient": {
@@ -961,11 +910,11 @@
             ]
           },
           {
-            "title": "round",
-            "description": "Step of the key-rotation of a group, as JSON-encoded `MlsRoundMessage`. Only izakaya sends it.",
+            "title": "application",
+            "description": "Message of a member to other members, encrypted within the group, which izakaya can't read",
             "type": "string",
             "enum": [
-              "round"
+              "application"
             ]
           }
         ]
@@ -1009,65 +958,36 @@
             "type": "string",
             "nullable": true
           },
+          "refused": {
+            "description": "Gateways of the change, which were left out, for example because of an invalid grant",
+            "default": [],
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MlsOperationRefusal"
+            }
+          },
           "success": {
-            "description": "Whether the change was made. A refused change, for example because of an invalid grant, is dropped.",
+            "description": "Whether the change was made. A refused change, for example because the committer lost the group, is dropped.",
             "type": "boolean"
           }
         }
       },
-      "MlsRoundAckReq": {
-        "title": "MlsRoundAckReq",
+      "MlsOperationRefusal": {
+        "description": "Gateway of a change, which the committer left out",
         "type": "object",
         "required": [
           "client_id",
-          "epoch",
-          "phase"
+          "reason"
         ],
         "properties": {
           "client_id": {
             "description": "Identity of the gateway",
-            "type": "string",
-            "maxLength": 256,
-            "minLength": 1
+            "type": "string"
           },
-          "epoch": {
-            "type": "integer",
-            "format": "uint64",
-            "minimum": 0.0
-          },
-          "phase": {
-            "$ref": "#/components/schemas/MlsRoundPhase"
+          "reason": {
+            "type": "string"
           }
         }
-      },
-      "MlsRoundPhase": {
-        "description": "Step of a key-rotation",
-        "oneOf": [
-          {
-            "title": "install",
-            "description": "Install the incoming keys of the new epoch next to the old ones",
-            "type": "string",
-            "enum": [
-              "install"
-            ]
-          },
-          {
-            "title": "switch",
-            "description": "Switch the outgoing traffic to the keys of the new epoch",
-            "type": "string",
-            "enum": [
-              "switch"
-            ]
-          },
-          {
-            "title": "cleanup",
-            "description": "Remove the incoming keys of the old epochs",
-            "type": "string",
-            "enum": [
-              "cleanup"
-            ]
-          }
-        ]
       },
       "MlsSubscribeAction": {
         "description": "What a gateway has to do after it subscribed to the group of a network",

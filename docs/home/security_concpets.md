@@ -22,7 +22,7 @@ exposed to attackers, as "dumb" as possible.
 | **Isekai** | medium | Orchestrates backups and restores, handles the backup-passphrase and the wrapped project-secrets, but stores no data itself |
 | **Ryokan** | medium | Manages images and snapshots, sees uploaded images in plain text, until they are converted and encrypted |
 | **Omikuji** | medium | Collects the error- and audit-logs, so it must be protected against manipulation, but holds no keys |
-| **Izakaya** | low | Only relays MLS-messages, can not add members without a grant of Hanami |
+| **Izakaya** | low | Only relays MLS-messages and queues the changes of the groups, can not add members without a grant of Hanami and can not switch or remove keys |
 | **Sakura / Torii** (compute hosts) | low | Run untrusted VMs of the users, so a VM-breakout is assumed to be possible |
 | **Onsen** (storage) | lowest | Only stores encrypted data, never reachable from the internet |
 
@@ -59,8 +59,16 @@ manipulates the traffic between the VMs.
 - **Signed membership:** Only hosts with a grant signed by Hanami can join a group. Every member
   verifies the grants of a commit, so neither a compromised Izakaya nor a compromised Torii can add
   a foreign member.
-- **Key rotation:** The keys are rotated regularly (default every hour) and whenever the members of
-  a group change. Hosts without VMs of the network are removed from the group.
+- **Key rotation:** The keys are rotated regularly (default every hour) and whenever a host is
+  removed from a group, so a removed host knows no key in use anymore. Hosts without VMs of the
+  network are removed from the group. A joining host only gets new keys for its own connections,
+  so it can't derive the keys of the traffic between the other hosts.
+- **Coordination between the hosts:** Two hosts switch their keys towards each other with signed
+  and encrypted MLS-messages, and every host reads from the commits on its own, which keys have to
+  change. So a compromised Izakaya can hold messages back, which only delays a key-change, but it
+  can't drop traffic by switching or removing keys too early. It can still remove a host from a
+  group, which interrupts its connections until it is added again; every member logs every
+  removal.
 
 !!! info
 

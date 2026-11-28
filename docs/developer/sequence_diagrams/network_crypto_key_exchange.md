@@ -15,14 +15,14 @@ never subscribe to a group of it.
 | Component | Role |
 |---|---|
 | **hanami** | Decides, which torii may be member of which group. It signs a membership-grant for every host, which gets a VM of a network, refreshes all grants every 5 minutes and revokes a grant, when the last VM of the network is gone from the host. When a host registers itself again after a restart, it pins the new identity of its torii and changes the routes of the other gateways to the new address of the host. |
-| **izakaya** | Shares the key-packages, delivers the MLS-messages and coordinates the groups: one queue of changes per group, one committer per group and the key-rotation rounds. It removes members, which stay silent. Its state lives in its database, so several instances can run next to each other. |
-| **torii** (VM-host) | MLS-client with its underlay-address as identity. A background-loop (the *agent*) subscribes to the groups, makes the changes as committer, processes the messages and installs the derived keys in the kernel. |
+| **izakaya** | Shares the key-packages, delivers the MLS-messages and coordinates the groups: one queue of changes per group, which it hands to one committer per group in batches, and the regular key-rotation. It removes members, which stay silent. It has no part in the switch of the keys. Its state lives in its database, so several instances can run next to each other. |
+| **torii** (VM-host) | MLS-client with its underlay-address as identity. A background-loop (the *agent*) subscribes to the groups, makes the changes as committer, processes the messages and installs the derived keys in the kernel. It switches the keys towards every other torii on its own, only coordinated with that torii. |
 | **torii** (edge) | Never member of a group, the routes from and to it are never encrypted. |
 
 ```mermaid
 flowchart LR
     hanami["hanami<br/>signs membership-grants"]
-    izakaya["izakaya<br/>key-packages, messages,<br/>queue, committer, rounds"]
+    izakaya["izakaya<br/>key-packages, messages,<br/>queue, committer"]
     db[("database of izakaya")]
     toriiA["torii A<br/>agent + xfrm"]
     toriiB["torii B<br/>agent + xfrm"]
@@ -40,7 +40,7 @@ flowchart LR
 ```
 
 All instances of izakaya compare times, which another instance wrote, like the last contact of a
-torii or the start of a round. So they don't use their own clocks, but the clock of the
+torii or the start of an operation. So they don't use their own clocks, but the clock of the
 database-server, which they share. Their own clocks may differ, for example after a virtual
 machine was paused.
 
@@ -59,6 +59,13 @@ signature-key, which hanami pins with the first grant of a host:
 
 So neither a compromised izakaya nor a compromised torii can bring a torii into a group, which
 hanami didn't allow.
+
+The switch of the keys is coordinated by the two torii of a pair with MLS-messages, which are
+encrypted and signed within the group (see [Key-change of a pair](#key-change-of-a-pair)). Which
+pairs move to a new epoch, every member reads from the commit itself. So izakaya can hold messages
+back, which only delays the switch, but it can't make a torii switch or remove keys too early.
+It can still remove a torii, because only izakaya sees, which torii is silent; every member logs
+every removal of a peer with a warning, which names the committer.
 
 The pinned identity is only replaced, when the sakura-host registers itself again, which needs the
 registration-key, which already decides, which hosts take part at all (see
@@ -118,10 +125,10 @@ sequenceDiagram
     H->>I: grant (vni, T, pinned key, add)
     I->>I: replace the stored grant, no operation is queued
     H->>T: TAP and routes of the new VM
-    T->>T: derive the SAs of the new connections<br/>from the epochs, which it already has
+    T->>T: derive the SAs of the new connections<br/>from the epochs of their pairs
     T->>I: subscribe(vni, has_group = true)
     I-->>T: member
-    Note over H,T: no commit, no new epoch, no rotation round
+    Note over H,T: no commit, no new epoch, no key-change
 ```
 
 ### Refresh of the grants
@@ -162,6 +169,8 @@ sequenceDiagram
     participant I as izakaya
 
     loop every second
+        A->>K: read the packet counters of the retiring incoming SAs,<br/>remove the ones, whose counter stood still
+
         opt every 30 seconds
             A->>I: GET /key_package/{client_id}/count/internal
             alt less than 5 left
@@ -184,11 +193,17 @@ sequenceDiagram
 
         A->>I: GET /mls_message/{client_id}/internal (counts as sign of life)
         loop every message, in the order of group and epoch
-            A->>A: process welcome, commit, operation or round
+            A->>A: process welcome, commit, operation or application message
             A->>I: DELETE /mls_message/{client_id}/{uuid}/internal
         end
+
+        A->>K: move every pair with a target one step on
+        A->>I: POST /mls_message/internal: queued Ready and Switched,<br/>which izakaya didn't accept yet
     end
 ```
+
+An application message of an epoch, which the group didn't reach yet, because its commit is not
+processed yet, waits in the state of the torii and is processed after the next commit.
 
 ## Creating a group and adding a second torii
 
@@ -206,33 +221,40 @@ sequenceDiagram
     TA->>I: subscribe(vni 5, has_group = false)
     I->>I: grant of A exists, no group yet:<br/>group {committer A, epoch 0, members [A]}
     I-->>TA: create
-    TA->>TA: create the group, epoch 0 is the active epoch
+    TA->>TA: create the group with epoch 0, no pairs yet
 
     TB->>I: subscribe(vni 5, has_group = false)
     I->>I: grant of B exists and is not expired:<br/>queue operation add(B, grant)
     I-->>TB: joining
-    I->>TA: operation add(B, grant) to the committer
+    I->>I: wait commit_delay (1 second) for further changes
+    I->>TA: operation {adds: [B with grant]} to the committer
 
     TA->>TA: verify the grant: signature of hanami, action add,<br/>vni 5, client B, not expired
     TA->>I: POST /key_package/B/claim/internal (signature_key K)
     I-->>TA: newest key-package of B with key K
     TA->>TA: validate the key-package: identity B, key K
-    TA->>TA: stage add(B)
+    TA->>TA: stage one commit with all additions
     TA->>I: send welcome to B
-    TA->>TA: merge: epoch 1, record epoch 1<br/>(incoming keys of epoch 1 next to epoch 0)
-    TA->>I: POST /mls_group/5/operation/internal<br/>(success, epoch 1, members [A, B])
-    I->>I: group {epoch 1, members [A, B]}, start the round of epoch 1
-    I->>TA: round install(epoch 1)
-    I->>TB: round install(epoch 1)
+    TA->>TA: merge: epoch 1, new pair with B,<br/>target epoch 1
+    TA->>I: POST /mls_group/5/operation/internal<br/>(success, epoch 1, members [A, B], refused [])
+    I->>I: group {epoch 1, members [A, B]},<br/>hand out the next queued change
 
-    TB->>TB: welcome: join the group,<br/>epoch 1 is the only and active epoch
-    Note over TA,TB: rotation round of epoch 1, see below
+    TB->>TB: welcome: join the group, pair with A:<br/>epoch 1 is the only epoch, already in use
+    Note over TA,TB: key-change of the pair to epoch 1, see below
 ```
+
+All additions and removals, which are queued within `commit_delay`, are handed to the committer
+as one batch and are made with one commit. An addition, which the committer can't verify, is left
+out and reported as `refused`, the others go on; izakaya queues the refused one again, until it
+ran out of retries. A key-rotation is never part of a batch with additions or removals.
 
 ## Adding a torii to a group with more members
 
-With more members, the commit of the addition goes to all other members. The grant of the new
-torii is attached to it, so every member can check, that hanami allowed the addition.
+With more members, the commit of the addition goes to all other members. The grants of the new
+torii are attached to it, so every member can check, that hanami allowed every addition.
+
+An addition only moves the pairs with the new torii to the new epoch. The pairs between the other
+members keep their epochs, so the new torii can't derive the keys of their traffic.
 
 ```mermaid
 sequenceDiagram
@@ -241,38 +263,56 @@ sequenceDiagram
     participant TB as torii B (member)
     participant TC as torii C (new)
 
-    I->>TA: operation add(C, grant)
+    I->>TA: operation {adds: [C with grant]}
     TA->>TA: verify the grant, claim and validate the key-package of C
-    TA->>TA: stage add(C)
+    TA->>TA: stage one commit with all additions
     TA->>I: send commit to B, with the grant of C attached
     TA->>I: send welcome to C
-    TA->>TA: merge: epoch 2, record epoch 2
+    TA->>TA: merge: epoch 2, pair A-C gets target epoch 2,<br/>pair A-B stays with its epoch
     TA->>I: operation done (epoch 2, members [A, B, C])
-    I->>TA: round install(epoch 2)
-    I->>TB: round install(epoch 2)
-    I->>TC: round install(epoch 2)
 
     TB->>I: poll
-    I-->>TB: commit(epoch 2, grant of C), round install(epoch 2)
-    TB->>TB: check the addition of C against the grant:<br/>signature of hanami, vni, identity and signature-key
-    alt covered by the grant
-        TB->>TB: merge: epoch 2, record epoch 2
-    else no valid grant
+    I-->>TB: commit(epoch 2, grant of C)
+    TB->>TB: check every addition against the grants:<br/>signature of hanami, vni, identity and signature-key
+    alt covered by the grants
+        TB->>TB: merge: epoch 2, pair B-C gets target epoch 2,<br/>pair B-A stays with its epoch
+    else an addition without valid grant
         TB->>TB: refuse the commit, stay in epoch 1
-        Note over TB: never acknowledges the round,<br/>so nobody switches to epoch 2
+        Note over TB: never tells C, that it is ready,<br/>so C never sends to B with epoch 2
     end
 
     TC->>I: poll
-    I-->>TC: welcome, round install(epoch 2)
-    TC->>TC: join the group, epoch 2 is the active epoch
+    I-->>TC: welcome
+    TC->>TC: join the group, pairs with A and B:<br/>epoch 2 is the only epoch
+    Note over TA,TC: key-change of the pairs A-C and B-C
 ```
 
-## Rotation round
+A torii, which lost its group and is added again, is removed and added in the same commit. This
+only moves its own pairs as well.
 
-After every change of a group, the keys of the new epoch are rolled out in three phases without
-losing a packet. Each phase only starts, once every member acknowledged the previous one. In
-between, every torii holds the incoming keys of the old and of the new epoch, so both ends of a
-route can always decrypt, what the other end sends.
+## Key-change of a pair
+
+A *pair* is a torii and one other torii in one network. All connections between the VMs of the
+two torii change their keys together. Every pair has its own epoch for its outgoing traffic, which
+can lag behind the epoch of the group, and a *target*, the epoch it moves to. The epochs of a pair
+are counted per *generation*: every group of the network, which a torii creates or joins, is a new
+generation, so the epochs of a newer group are always newer.
+
+Which pairs get a new epoch as target, every member reads from the commit:
+
+| Commit | Pairs, which move |
+|---|---|
+| adds or re-adds a torii | only the pairs with the added torii |
+| removes a torii for good | all pairs, so the removed torii knows no key in use anymore |
+| neither (key-rotation) | all pairs |
+
+The two torii of a pair tell each other with two MLS application messages, how far they are:
+`Ready` (I can receive with the target) and `Switched` (I send with the target). The messages
+are encrypted and signed within the group, so izakaya only delivers them. A message only counts
+for the pair with its sender and only, if it names the receiver and is newer than the last one.
+It names the epoch only within the group, because every torii counts its generations on its own;
+the receiver can only decrypt it with its current group, so it belongs to its current generation.
+Every pair moves on its own and only waits for its own kernel and for its peer:
 
 ```mermaid
 sequenceDiagram
@@ -282,45 +322,56 @@ sequenceDiagram
     participant TB as torii B
     participant KB as kernel B
 
-    Note over TA,TB: both recorded epoch E with the change of the group:<br/>incoming SAs of epoch E-1 and E, outgoing SA of epoch E-1
+    Note over TA,TB: both processed the commit into epoch E:<br/>pair A-B has target E, sends with E-1
 
     rect rgb(235, 245, 255)
-    Note over I: phase install
-    I->>TA: round install(E)
-    I->>TB: round install(E)
-    TA->>TA: epoch E recorded?
-    TA->>I: ack install(E)
-    TB->>TB: epoch E recorded?
-    TB->>I: ack install(E)
+    Note over TA,TB: ingress
+    TA->>KA: add incoming SAs of epoch E
+    TB->>KB: add incoming SAs of epoch E
+    TA->>I: Ready(E) for B
+    TB->>I: Ready(E) for A
     end
 
     rect rgb(235, 255, 235)
-    Note over I: phase switch, once all acknowledged the install
-    I->>TA: round switch(E)
-    I->>TB: round switch(E)
+    Note over TA,TB: egress, once the peer is ready
+    I-->>TA: Ready(E) of B
     TA->>KA: add outgoing SA of epoch E
     TA->>KA: ip xfrm policy update: pin the policy to the SPI of epoch E (atomic)
     TA->>KA: delete outgoing SA of epoch E-1
-    TA->>I: ack switch(E)
+    TA->>I: Switched(E) for B
+    I-->>TB: Ready(E) of A
     TB->>KB: add outgoing SA of epoch E, switch the policy, delete the old one
-    TB->>I: ack switch(E)
-    end
-
-    rect rgb(255, 250, 230)
-    Note over I: grace of 2 seconds for the packets on their way
-    I->>I: tick: grace is over
+    TB->>I: Switched(E) for A
     end
 
     rect rgb(255, 235, 235)
-    Note over I: phase cleanup
-    I->>TA: round cleanup(E)
-    I->>TB: round cleanup(E)
-    TA->>KA: delete incoming SAs of epoch E-1
-    TB->>KB: delete incoming SAs of epoch E-1
+    Note over TA,TB: old ingress, once the peer switched
+    I-->>TA: Switched(E) of B
+    TA->>KA: read the packet counters of the incoming SAs of epoch E-1
+    loop every second
+        TA->>KA: counter stood still since the last read? delete the SA
+    end
+    I-->>TB: Switched(E) of A
+    TB->>KB: the same with its incoming SAs of epoch E-1
     end
 
-    Note over I: round is done, the next queued operation is handed to the committer
+    Note over TA,TB: the pair arrived at epoch E
 ```
+
+- Without a `Switched` of the peer, old incoming keys are never removed. The peer only sends it
+  after its policies point at the new keys, so every packet with the old keys was handed to its
+  kernel before. An old incoming SA is kept as long as packets arrive with it.
+- A step, which fails, is tried again with the next loop; the reason is shown in the status of
+  the pair. A pair, which doesn't move, keeps its old keys, which still work on both ends.
+- A new target, while a pair is still moving, replaces the old one. The incoming keys of the old
+  target stay, until the peer switched to something newer.
+- `Ready` and `Switched` wait in the state of the torii, until izakaya accepted them, and the
+  torii remembers, what it already sent. So a restart sends nothing twice and loses nothing.
+
+The state of all pairs is shown by `GET /v1alpha/network_crypto/mls/status/internal` of the torii:
+per pair the epochs of its outgoing and incoming keys, its target, the step it waits for
+(`ingress`, `peer_ready`, `egress`, `peer_switched`, `old_ingress_in_use` or `nothing`) and its
+last error.
 
 ### Key-derivation
 
@@ -330,7 +381,7 @@ the sending torii uses.
 
 ```mermaid
 flowchart LR
-    epoch["MLS epoch E"] -- "export_secret, label: ainari ipsec base v1, 32 bytes" --> base["base secret of epoch E<br/>persisted until E is retired"]
+    epoch["MLS epoch E"] -- "export_secret, label: ainari ipsec base v1, 32 bytes" --> base["base secret of epoch E<br/>persisted, as long as a pair uses E"]
     base -- "HKDF-expand, info: ainari ipsec sa v1:vni:src_vm@src_gw->dst_vm@dst_gw, 40 bytes" --> okm["40 bytes"]
     okm --> key["bytes 0..32: AES-256 key"]
     okm --> salt["bytes 32..36: GCM salt"]
@@ -369,15 +420,13 @@ sequenceDiagram
         I->>I: remove(C) is queued already
         TC->>TC: delete the group and all keys of the network
 
-        I->>TA: operation remove(C)
-        TA->>TA: stage remove(C)
+        I->>TA: operation {removes: [C]}
+        TA->>TA: stage one commit with all removals
         TA->>I: send commit to B
-        TA->>TA: merge: epoch E+1, record epoch E+1
+        TA->>TA: merge: epoch E+1, the pair with C ends,<br/>all other pairs get target E+1
         TA->>I: operation done (epoch E+1, members [A, B])
-        I->>TA: round install(E+1)
-        I->>TB: round install(E+1)
-        TB->>TB: process the commit: epoch E+1
-        Note over TA,TB: rotation round of epoch E+1:<br/>after the cleanup, no key known to C is accepted anymore
+        TB->>TB: process the commit: epoch E+1, the same,<br/>warn: A removed C
+        Note over TA,TB: key-change of the pair A-B to epoch E+1:<br/>afterwards, no key known to C is accepted anymore
     end
 ```
 
@@ -399,15 +448,17 @@ sequenceDiagram
         I->>I: tick: group with at least 2 members,<br/>last change older than key_rotation_interval (1 hour)?
     end
     I->>I: queue operation update, reset the rotation-time
-    I->>TA: operation update
+    I->>TA: operation {update: true}, alone
     TA->>TA: self-update of its own leaf: epoch E+1 with a fresh secret
     TA->>I: send commit to B
-    TA->>TA: merge, record epoch E+1
+    TA->>TA: merge: commit adds and removes nobody,<br/>all pairs get target E+1
     TA->>I: operation done (epoch E+1)
-    I->>TA: round install(E+1)
-    I->>TB: round install(E+1)
-    Note over TA,TB: rotation round of epoch E+1
+    TB->>TB: process the commit: all pairs get target E+1
+    Note over TA,TB: key-change of every pair to epoch E+1
 ```
+
+An update, which is queued next to a batch with a removal, is done with that batch, because the
+removal moves all pairs as well.
 
 ## Changed routes
 
@@ -423,11 +474,11 @@ sequenceDiagram
     H->>T: add / update / delete route of vni 5
     T->>T: program the eBPF-datapath
     T->>T: connections = local VMs x encrypted remote VMs of vni 5
-    T->>K: add missing incoming SAs of all recorded epochs
+    T->>K: add missing incoming SAs of the incoming epochs<br/>of the pair with the gateway of the remote VM
     T->>K: rules "from remote VM to local VM lookup tenant-table"<br/>for every new connection
-    T->>K: add missing outgoing SAs of the active epoch, pin the policies to them
+    T->>K: add missing outgoing SAs of the epoch of the pair, pin the policies to them
     T->>K: delete SAs, policies and rules of connections, which are gone
-    Note over T,K: an encrypted route without keys stays fail-closed:<br/>its block-policies drop the traffic instead of sending it unencrypted
+    Note over T,K: an encrypted route without keys, for example of a pair,<br/>which didn't switch yet, stays fail-closed: its block-policies<br/>drop the traffic instead of sending it unencrypted
 ```
 
 ### Path of an encrypted packet
@@ -445,7 +496,7 @@ sequenceDiagram
     VA->>TA: packet to VM B over its TAP
     TA->>TA: eBPF: route of VM B is encrypted, pass to the kernel
     TA->>TA: rule "from VM A iif TAP": tenant-table, next hop torii B<br/>(another source ends at the unreachable-rule)
-    TA->>TB: xfrm out-policy: ESP with the SA of the active epoch
+    TA->>TB: xfrm out-policy: ESP with the SA of the epoch of the pair A-B
     TB->>TB: xfrm: decrypt with one of the incoming SAs,<br/>in/fwd-policies demand ESP for this address-pair
     TB->>TB: rule "from VM A to VM B": tenant-table, route over the TAP<br/>(never the default route of the underlay)
     TB->>VB: packet over the TAP of VM B
@@ -466,10 +517,12 @@ sequenceDiagram
     participant K as kernel (xfrm)
     participant I as izakaya
 
-    T->>T: restart: restore routes, MLS-identity, groups and their epochs
-    T->>K: install the SAs of all recorded epochs again
+    T->>T: restart: restore routes, MLS-identity, groups, pairs<br/>and the queued Ready and Switched
+    T->>K: install the SAs of all pairs again
     T->>I: subscribe(vni, has_group = true)
     I-->>T: member
+    T->>I: send the queued Ready and Switched,<br/>which izakaya didn't accept yet
+    Note over T: the pairs go on, where they stopped
 ```
 
 ### Torii lost its MLS-state
@@ -497,10 +550,10 @@ sequenceDiagram
         I->>I: T is committer? Then another living member becomes committer
         I->>I: queue operation add(T) with its grant (key K1)
         I-->>T: joining
-        I->>C: operation add(T, grant with K1)
+        I->>C: operation {adds: [T with grant with K1]}
         C->>I: claim a key-package of T with key K1
         I-->>C: 404, T has only key-packages with K2
-        C->>I: operation done (refused: no key-package of T)
+        C->>I: operation done (refused: [T, no key-package])<br/>the other changes of the batch go on
         Note over T: stays out of the group, its encrypted routes drop the traffic,<br/>until sakura registers the host again and hanami pins K2
     end
 ```
@@ -570,7 +623,7 @@ sequenceDiagram
         I->>I: start the group from scratch
         I-->>TN: create
     end
-    Note over TN,TO: rotation round: the VMs reach each other encrypted again
+    Note over TN,TO: key-change of the pairs with the new torii:<br/>the VMs reach each other encrypted again
 ```
 
 Addresses without a VM, for example of a reservation, which failed halfway, are left out.
@@ -579,9 +632,9 @@ Addresses without a VM, for example of a reservation, which failed halfway, are 
 
 Every torii polls the izakaya every second. A member, which didn't for 120 seconds
 (`member_timeout`), is gone, for example because its host came back in a new pod with a new
-identity, and is removed from its groups. As long as it is member, every round waits for it, until
-it stalls, so the group would never rotate its keys again. A torii, which was only cut off, isn't
-lost: it subscribes again with its grant and is added again.
+identity, and is removed from its groups. As long as it is member, only its own pairs wait for it
+(see [Slow peer](#slow-peer)), and the others can't remove the keys, which it knows. A torii,
+which was only cut off, isn't lost: it subscribes again with its grant and is added again.
 
 If no other member of a group is alive anymore, nobody can add a torii, which subscribes. The
 group is started from scratch with that torii then. A member, which only was cut off, joins the new
@@ -602,9 +655,9 @@ sequenceDiagram
         I->>I: member without contact for 120 seconds?
     end
     I->>I: B is silent: queue operation remove(B)
-    I->>TA: operation remove(B)
+    I->>TA: operation {removes: [B]}
     TA->>I: operation done (members [A])
-    Note over TA: the rounds don't wait for B anymore
+    Note over TA: the pair with B ends with all its keys
 
     Note over TA: later A is gone as well
     TC->>I: subscribe(vni, has_group = false)
@@ -616,8 +669,8 @@ sequenceDiagram
 ### Dead committer
 
 A torii counts as dead, when it didn't poll for 45 seconds. An operation, which is not finished
-after 30 seconds, is handed out again, if necessary to another committer. After 3 attempts it is
-given up.
+after 30 seconds, is handed out again as a whole batch, if necessary to another committer. After 3
+attempts it is given up.
 
 ```mermaid
 sequenceDiagram
@@ -625,40 +678,42 @@ sequenceDiagram
     participant TA as torii A (committer)
     participant TB as torii B
 
-    I->>TA: operation add(C)
+    I->>TA: operation {adds: [C, D]}
     Note over TA: crashed, no poll anymore
     loop tick every second
-        I->>I: operation in flight for more than 30 seconds?
+        I->>I: batch in flight for more than 30 seconds?
     end
-    I->>I: retries + 1, A didn't poll for 45 seconds:<br/>B becomes committer
-    I->>TB: operation add(C)
-    TB->>TB: verify the grant, add C
+    I->>I: retries + 1 for all rows of the batch,<br/>A didn't poll for 45 seconds: B becomes committer
+    I->>TB: operation {adds: [C, D]}
+    TB->>TB: verify the grants, add C and D with one commit
     TB->>I: operation done
 ```
 
-### Stalled round
+### Slow peer
 
-If a member doesn't acknowledge a phase, for example because it is down or refused the commit, the
-round is given up after 30 seconds. Nobody loses a key: the members, which already switched, and
-the ones, which didn't, still hold the incoming keys of both epochs. The next round removes the
-leftover keys.
+A torii, which is down, slow or refused a commit, only holds back its own pairs. The other pairs
+move on, and izakaya hands out the next change right after the last one. Nobody loses a key: a
+pair, whose peer doesn't answer, keeps sending with its old epoch, which the peer can still
+decrypt, and keeps the incoming keys of the old epoch, until the peer switched.
 
 ```mermaid
 sequenceDiagram
-    participant I as izakaya
     participant TA as torii A
-    participant TB as torii B
+    participant TB as torii B (slow)
+    participant TC as torii C
 
-    I->>TA: round install(E)
-    I->>TB: round install(E)
-    TA->>I: ack install(E)
+    Note over TA,TC: commit into epoch E moves all pairs,<br/>Ready and Switched are delivered by izakaya
+    TA->>TC: Ready(E)
+    TC->>TA: Ready(E)
     Note over TB: down, or refused the commit of epoch E
-    loop tick every second
-        I->>I: round without progress for more than 30 seconds?
-    end
-    I->>I: give up the round, hand out the next operation
-    Note over TA,TB: A keeps sending with epoch E-1, which B can decrypt
+    TA->>TC: Switched(E)
+    TC->>TA: Switched(E)
+    Note over TA,TC: pair A-C arrived at epoch E
+    Note over TA,TB: pair A-B keeps waiting for the Ready of B:<br/>A keeps sending with epoch E-1, which B can decrypt
 ```
+
+A torii, which stays silent, is removed after `member_timeout`, which ends its pairs (see
+[Silent members](#silent-members)).
 
 ### Restart of izakaya
 
@@ -672,9 +727,11 @@ Everything comes back on its own:
 - The torii renew their subscriptions every 30 seconds. The first one gets `create` and starts a
   new group, the others join it.
 
-The torii keep sending with the keys of the old group, until the first rotation round of the new
-group switched all of them over, and keep its incoming keys until the cleanup of that round. So
-the replacement of the group doesn't lose a packet either.
+The new group is the next generation. Its pairs move to it like to any new epoch: the torii keep
+sending with the keys of the old group, until the peer of the pair is ready with the new one, and
+keep the incoming keys of the old group, until the peer switched. So the replacement of the group
+doesn't lose a packet either. A pair, whose peer doesn't join the new group within 120 seconds,
+ends with all its keys, and its connections fall back to fail-closed.
 
 ```mermaid
 sequenceDiagram
@@ -693,21 +750,21 @@ sequenceDiagram
 
     TA->>I: subscribe(vni, has_group = true)
     I-->>TA: create
-    TA->>TA: new group, epoch 0:<br/>keeps sending with the old group (epoch 37),<br/>keeps the incoming keys of the old group
+    TA->>TA: new group, generation 2, epoch 0:<br/>B is no member yet, the pair keeps<br/>the keys of the old group (epoch 37)
 
     TB->>I: subscribe(vni, has_group = true)
     I-->>TB: joining
-    I->>TA: operation add(B, grant)
+    I->>TA: operation {adds: [B with grant]}
     TA->>I: welcome to B
-    TA->>TA: epoch 1 recorded: incoming keys of the new group
+    TA->>TA: epoch 1: pair A-B gets target (2, 1),<br/>keeps sending with (1, 37)
     TA->>I: operation done (epoch 1)
-    TB->>TB: welcome: new group with epoch 1,<br/>keeps sending with the old group (epoch 37)
+    TB->>TB: welcome: new group, generation 2:<br/>pair B-A gets target (2, 1), keeps sending with (1, 37)
 
-    Note over TA,TB: rotation round of epoch 1
-    I->>TA: switch(1)
-    I->>TB: switch(1)
+    Note over TA,TB: key-change of the pair to (2, 1)
+    TA->>TB: Ready(2, 1)
+    TB->>TA: Ready(2, 1)
     Note over TA,TB: both send with the new group, both still accept the old one
-    I->>TA: cleanup(1)
-    I->>TB: cleanup(1)
-    Note over TA,TB: the keys of the old group are removed
+    TA->>TB: Switched(2, 1)
+    TB->>TA: Switched(2, 1)
+    Note over TA,TB: the keys of the old group are removed, once no packet uses them
 ```
